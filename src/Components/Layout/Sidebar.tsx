@@ -55,11 +55,13 @@ export const sectionNestedItems = [
     key: "home",
     title: "Home",
     icon: "solar:home-2-line-duotone",
+    href: "/dashboard"
   },
   {
     key: "analytics",
     title: "Analytics",
     icon: "solar:chart-2-line-duotone",
+    href: "/analytics"
   },
   {
     key: "customers",
@@ -89,6 +91,8 @@ export const sectionNestedItems = [
         key: "inventory",
         title: "Inventory",
         icon: "solar:box-minimalistic-line-duotone",
+        href: "/inventory"
+
       },
       {
         key: "categories",
