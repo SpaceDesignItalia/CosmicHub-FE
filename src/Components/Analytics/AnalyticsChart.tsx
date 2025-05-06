@@ -13,6 +13,8 @@ import {
   Tab,
   Tabs,
   Spacer,
+  Select,
+  SelectItem,
 } from "@heroui/react";
 import {Icon} from "@iconify/react";
 import {Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis} from "recharts";
@@ -104,29 +106,6 @@ const data: Chart[] = [
     ],
   },
   {
-    key: "soddisfazione-clienti",
-    title: "Soddisfazione Clienti",
-    value: 92.5,
-    suffix: "%",
-    type: "percentage",
-    change: "2.4%",
-    changeType: "positive",
-    chartData: [
-      {month: "Gen", value: 88.2},
-      {month: "Feb", value: 89.5},
-      {month: "Mar", value: 91.2},
-      {month: "Apr", value: 90.8},
-      {month: "Mag", value: 91.5},
-      {month: "Giu", value: 92.1},
-      {month: "Lug", value: 91.8},
-      {month: "Ago", value: 93.2},
-      {month: "Set", value: 92.8},
-      {month: "Ott", value: 93.5},
-      {month: "Nov", value: 92.5},
-      {month: "Dic", value: 94.2},
-    ],
-  },
-  {
     key: "valore-magazzino",
     title: "Valore Magazzino",
     suffix: "€",
@@ -150,31 +129,8 @@ const data: Chart[] = [
     ],
   },
   {
-    key: "rotazione-scorte",
-    title: "Indice Rotazione Scorte",
-    suffix: "",
-    value: 4.2,
-    type: "number",
-    change: "8.5%",
-    changeType: "positive",
-    chartData: [
-      {month: "Gen", value: 3.5},
-      {month: "Feb", value: 3.7},
-      {month: "Mar", value: 3.8},
-      {month: "Apr", value: 3.9},
-      {month: "Mag", value: 4.0},
-      {month: "Giu", value: 4.1},
-      {month: "Lug", value: 3.9},
-      {month: "Ago", value: 3.8},
-      {month: "Set", value: 4.0},
-      {month: "Ott", value: 4.1},
-      {month: "Nov", value: 4.2},
-      {month: "Dic", value: 4.3},
-    ],
-  },
-  {
     key: "tempo-risoluzione",
-    title: "Tempo Medio Risoluzione",
+    title: "Tempo Risoluzione",
     suffix: "ore",
     value: 3.8,
     type: "number",
@@ -258,6 +214,15 @@ const formatMonth = (month: string) => {
 export default function AnalyticsChart() {
   const [activeChart, setActiveChart] = React.useState<(typeof data)[number]["key"]>(data[0].key);
   const [activeTab, setActiveTab] = React.useState("6-months");
+  const [viewMode, setViewMode] = React.useState<"cards" | "dropdown">(window.innerWidth > 768 ? "cards" : "dropdown");
+
+  React.useEffect(() => {
+    const handleResize = () => {
+      setViewMode(window.innerWidth > 768 ? "cards" : "dropdown");
+    };
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   const activeChartData = React.useMemo(() => {
     const chart = data.find((d) => d.key === activeChart);
@@ -276,81 +241,144 @@ export default function AnalyticsChart() {
   }, [activeChart]);
 
   const {chartData, color, suffix, type} = activeChartData;
+  const activeChartInfo = data.find((d) => d.key === activeChart);
 
   return (
     <section className="flex flex-col flex-nowrap">
-      <div className="flex flex-col justify-between gap-y-2 p-6">
+      <div className="flex flex-col justify-between gap-y-2 p-4 md:p-6">
         <div className="flex flex-col gap-y-2">
           <div className="flex flex-col gap-y-0">
             <dt className="text-medium font-medium text-foreground">Analitiche</dt>
           </div>
           <Spacer y={2} />
-          <Tabs size="sm" selectedKey={activeTab} onSelectionChange={(key) => setActiveTab(key as string)}>
+          <Tabs 
+            size="sm" 
+            selectedKey={activeTab} 
+            onSelectionChange={(key) => setActiveTab(key as string)}
+            className="overflow-x-auto"
+          >
             <Tab key="6-months" title="6 Mesi" />
             <Tab key="3-months" title="3 Mesi" />
             <Tab key="30-days" title="30 Giorni" />
             <Tab key="7-days" title="7 Giorni" />
             <Tab key="24-hours" title="24 Ore" />
           </Tabs>
-          <div className="mt-2 flex w-full items-center">
-            <div className="-my-3 flex w-full flex-wrap max-w-full items-center gap-x-3 gap-y-3 overflow-x-auto py-3">
-              {data.map(({key, change, changeType, type, value, title}) => (
-                <button
-                  key={key}
-                  className={cn(
-                    "flex min-w-[180px] flex-col gap-2 rounded-medium p-3 transition-colors",
-                    {
-                      "bg-default-100": activeChart === key,
-                    },
-                  )}
-                  onClick={() => setActiveChart(key)}
-                >
-                  <span
-                    className={cn("text-small font-medium text-default-500 transition-colors", {
-                      "text-primary": activeChart === key,
-                    })}
-                  >
-                    {title}
-                  </span>
-                  <div className="flex items-center gap-x-3">
-                    <span className="text-3xl font-bold text-foreground">
-                      {formatValue(value, type)}
-                    </span>
-                    <Chip
-                      classNames={{
-                        content: "font-medium",
-                      }}
-                      color={
-                        changeType === "positive"
-                          ? "success"
-                          : changeType === "negative"
-                            ? "danger"
-                            : "default"
-                      }
-                      radius="sm"
-                      size="sm"
-                      startContent={
-                        changeType === "positive" ? (
-                          <Icon height={16} icon={"solar:arrow-right-up-linear"} width={16} />
-                        ) : changeType === "negative" ? (
-                          <Icon height={16} icon={"solar:arrow-right-down-linear"} width={16} />
-                        ) : (
-                          <Icon height={16} icon={"solar:arrow-right-linear"} width={16} />
-                        )
-                      }
-                      variant="flat"
-                    >
-                      <span>{change}</span>
-                    </Chip>
+          
+          {viewMode === "dropdown" ? (
+            <div className="mt-4 flex w-full flex-col gap-4">
+              <Select
+                label="Seleziona metrica"
+                size="lg"
+                selectedKeys={[activeChart]}
+                onChange={(e) => setActiveChart(e.target.value)}
+                classNames={{
+                  trigger: "h-12",
+                  value: "text-medium font-medium",
+                }}
+              >
+                {data.map(({key, title}) => (
+                  <SelectItem key={key} value={key}>{title}</SelectItem>
+                ))}
+              </Select>
+              
+              {activeChartInfo && (
+                <div className="flex items-center justify-between bg-default-50 p-4 rounded-medium">
+                  <div className="flex flex-col">
+                    <span className="text-small text-default-600">{activeChartInfo.title}</span>
+                    <span className="text-2xl font-bold">{formatValue(activeChartInfo.value, activeChartInfo.type)}{activeChartInfo.suffix}</span>
                   </div>
-                </button>
-              ))}
+                  <Chip
+                    classNames={{
+                      content: "font-medium",
+                    }}
+                    color={
+                      activeChartInfo.changeType === "positive"
+                        ? "success"
+                        : activeChartInfo.changeType === "negative"
+                          ? "danger"
+                          : "default"
+                    }
+                    radius="sm"
+                    size="md"
+                    startContent={
+                      activeChartInfo.changeType === "positive" ? (
+                        <Icon height={16} icon={"solar:arrow-right-up-linear"} width={16} />
+                      ) : activeChartInfo.changeType === "negative" ? (
+                        <Icon height={16} icon={"solar:arrow-right-down-linear"} width={16} />
+                      ) : (
+                        <Icon height={16} icon={"solar:arrow-right-linear"} width={16} />
+                      )
+                    }
+                    variant="flat"
+                  >
+                    <span>{activeChartInfo.change}</span>
+                  </Chip>
+                </div>
+              )}
             </div>
-          </div>
+          ) : (
+            <div className="mt-2 flex w-full items-center">
+              <div className="-my-3 flex w-full flex-wrap items-center gap-3 overflow-x-auto py-3">
+                {data.map(({key, change, changeType, type, value, title, suffix}) => (
+                  <button
+                    key={key}
+                    className={cn(
+                      "flex min-w-[180px] max-w-[240px] flex-col gap-2 rounded-medium p-3 transition-colors",
+                      {
+                        "bg-default-100": activeChart === key,
+                      },
+                    )}
+                    onClick={() => setActiveChart(key)}
+                  >
+                    <span
+                      className={cn("text-small font-medium text-default-500 transition-colors", {
+                        "text-primary": activeChart === key,
+                      })}
+                    >
+                      {title}
+                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xl md:text-2xl font-bold text-foreground">
+                        {formatValue(value, type)}
+                        <span className="text-xs font-normal ml-1">{suffix}</span>
+                      </span>
+                      <Chip
+                        classNames={{
+                          content: "font-medium",
+                          base: "h-6",
+                        }}
+                        color={
+                          changeType === "positive"
+                            ? "success"
+                            : changeType === "negative"
+                              ? "danger"
+                              : "default"
+                        }
+                        radius="sm"
+                        size="sm"
+                        startContent={
+                          changeType === "positive" ? (
+                            <Icon height={12} icon={"solar:arrow-right-up-linear"} width={12} />
+                          ) : changeType === "negative" ? (
+                            <Icon height={12} icon={"solar:arrow-right-down-linear"} width={12} />
+                          ) : (
+                            <Icon height={12} icon={"solar:arrow-right-linear"} width={12} />
+                          )
+                        }
+                        variant="flat"
+                      >
+                        <span>{change}</span>
+                      </Chip>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <ResponsiveContainer
-        className="min-h-[300px] [&_.recharts-surface]:outline-none"
+        className="min-h-[260px] md:min-h-[300px] [&_.recharts-surface]:outline-none"
         height="100%"
         width="100%"
       >
@@ -359,8 +387,10 @@ export default function AnalyticsChart() {
           data={chartData}
           height={300}
           margin={{
-            left: 0,
-            right: 0,
+            left: 10,
+            right: 10,
+            top: 10,
+            bottom: 5,
           }}
           width={500}
         >
@@ -387,34 +417,38 @@ export default function AnalyticsChart() {
           <XAxis
             axisLine={false}
             dataKey="month"
-            style={{fontSize: "var(--heroui-font-size-tiny)", transform: "translateX(-40px)"}}
+            style={{fontSize: "var(--heroui-font-size-tiny)"}}
             tickLine={false}
+            tick={{ fontSize: 10, fill: 'hsl(var(--heroui-default-500))' }}
+            interval={viewMode === "dropdown" ? 1 : 2}
           />
           <Tooltip
             content={({label, payload}) => (
-              <div className="flex h-auto min-w-[120px] items-center gap-x-2 rounded-medium bg-foreground p-2 text-tiny shadow-small">
-                <div className="flex w-full flex-col gap-y-0">
+              <div className="flex h-auto min-w-[100px] max-w-[180px] items-center gap-x-2 rounded-medium bg-foreground p-3 text-tiny shadow-small">
+                <div className="flex w-full flex-col gap-y-1">
+                  <span className="text-small font-semibold text-background">
+                    {formatMonth(label)}
+                  </span>
                   {payload?.map((p, index) => {
                     const name = p.name;
                     const value = p.value;
 
                     return (
-                      <div key={`${index}-${name}`} className="flex w-full items-center gap-x-2">
+                      <div key={`${index}-${name}`} className="flex w-full items-center justify-between gap-x-2">
                         <div className="flex w-full items-center gap-x-1 text-small text-background">
-                          <span>{formatValue(value as number, type)}</span>
-                          <span>{suffix}</span>
+                          <span className="font-medium">{formatValue(value as number, type)}</span>
+                          <span className="opacity-70">{suffix}</span>
                         </div>
                       </div>
                     );
                   })}
-                  <span className="text-small font-medium text-foreground-400">
-                    {formatMonth(label)} 25, 2024
-                  </span>
                 </div>
               </div>
             )}
             cursor={{
-              strokeWidth: 0,
+              strokeWidth: 1,
+              stroke: "hsl(var(--heroui-default-300))",
+              strokeDasharray: "4 4",
             }}
           />
           <Area
