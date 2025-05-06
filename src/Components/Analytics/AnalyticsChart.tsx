@@ -38,78 +38,6 @@ type Chart = {
 
 const data: Chart[] = [
   {
-    key: "interventi-mensili",
-    title: "Interventi Mensili",
-    suffix: "interventi",
-    value: 147,
-    type: "number",
-    change: "12.8%",
-    changeType: "positive",
-    icon: "solar:calendar-mark-bold",
-    chartData: [
-      {month: "Gen", value: 98},
-      {month: "Feb", value: 125},
-      {month: "Mar", value: 89},
-      {month: "Apr", value: 156},
-      {month: "Mag", value: 112},
-      {month: "Giu", value: 167},
-      {month: "Lug", value: 138},
-      {month: "Ago", value: 178},
-      {month: "Set", value: 129},
-      {month: "Ott", value: 159},
-      {month: "Nov", value: 147},
-      {month: "Dic", value: 127},
-    ],
-  },
-  {
-    key: "ricavi-mensili",
-    title: "Ricavi Mensili",
-    suffix: "€",
-    value: 62300,
-    type: "number",
-    change: "15.2%",
-    changeType: "positive",
-    icon: "solar:dollar-bold",
-    chartData: [
-      {month: "Gen", value: 58700},
-      {month: "Feb", value: 69800},
-      {month: "Mar", value: 54200},
-      {month: "Apr", value: 72800},
-      {month: "Mag", value: 61500},
-      {month: "Giu", value: 68900},
-      {month: "Lug", value: 57300},
-      {month: "Ago", value: 69500},
-      {month: "Set", value: 58900},
-      {month: "Ott", value: 65200},
-      {month: "Nov", value: 62300},
-      {month: "Dic", value: 52300},
-    ],
-  },
-  {
-    key: "clienti-attivi",
-    title: "Clienti Attivi",
-    suffix: "clienti",
-    value: 2312,
-    type: "number",
-    change: "7.3%",
-    changeType: "positive",
-    icon: "solar:users-group-rounded-bold",
-    chartData: [
-      {month: "Gen", value: 2150},
-      {month: "Feb", value: 2180},
-      {month: "Mar", value: 2210},
-      {month: "Apr", value: 2245},
-      {month: "Mag", value: 2260},
-      {month: "Giu", value: 2280},
-      {month: "Lug", value: 2295},
-      {month: "Ago", value: 2305},
-      {month: "Set", value: 2270},
-      {month: "Ott", value: 2290},
-      {month: "Nov", value: 2312},
-      {month: "Dic", value: 2330},
-    ],
-  },
-  {
     key: "valore-magazzino",
     title: "Valore Magazzino",
     suffix: "€",
@@ -131,30 +59,6 @@ const data: Chart[] = [
       {month: "Ott", value: 88200},
       {month: "Nov", value: 87400},
       {month: "Dic", value: 86100},
-    ],
-  },
-  {
-    key: "tempo-risoluzione",
-    title: "Tempo Risoluzione",
-    suffix: "ore",
-    value: 3.8,
-    type: "number",
-    change: "-12.4%",
-    changeType: "positive",
-    icon: "solar:clock-circle-bold",
-    chartData: [
-      {month: "Gen", value: 4.8},
-      {month: "Feb", value: 4.6},
-      {month: "Mar", value: 4.5},
-      {month: "Apr", value: 4.3},
-      {month: "Mag", value: 4.2},
-      {month: "Giu", value: 4.0},
-      {month: "Lug", value: 4.1},
-      {month: "Ago", value: 4.0},
-      {month: "Set", value: 3.9},
-      {month: "Ott", value: 3.8},
-      {month: "Nov", value: 3.8},
-      {month: "Dic", value: 3.7},
     ],
   },
   {
@@ -180,7 +84,7 @@ const data: Chart[] = [
       {month: "Nov", value: 93.5},
       {month: "Dic", value: 94.0},
     ],
-  },
+  }
 ];
 
 const formatValue = (value: number, type: string | undefined) => {
@@ -256,11 +160,7 @@ export default function AnalyticsChart() {
     <section className="flex flex-col flex-nowrap">
       <div className="flex flex-col justify-between gap-y-2 p-4 md:p-6">
         <div className="flex flex-col gap-y-2">
-          <div className="flex flex-col gap-y-0">
-            <dt className="text-medium font-medium text-foreground">Analitiche</dt>
-          </div>
-          <Spacer y={2} />
-          
+      
           <Tabs 
             size="sm" 
             selectedKey={activeTab} 
@@ -291,15 +191,15 @@ export default function AnalyticsChart() {
                     <Icon 
                       icon={icon} 
                       width={24} 
-                      className={activeChart === key ? "text-primary" : "text-default-500"} 
+                      className={activeChart === key ? "text-primary" : "text-default-700"} 
                     />
                     <div className="mt-2 text-center">
-                      <p className={`text-xs ${activeChart === key ? "text-primary font-medium" : "text-default-500"}`}>
+                      <p className={`text-xs ${activeChart === key ? "text-primary font-medium" : "text-default-700"}`}>
                         {title}
                       </p>
-                      <p className="text-base font-semibold mt-1">
+                      <p className="text-base font-semibold mt-1 text-foreground-900">
                         {formatValue(value, type)}
-                        <span className="text-xs font-normal ml-1">{suffix}</span>
+                        <span className="text-xs font-normal ml-1 text-default-700">{suffix}</span>
                       </p>
                     </div>
                     <div className="mt-1">
@@ -350,16 +250,16 @@ export default function AnalyticsChart() {
                     onClick={() => setActiveChart(key)}
                   >
                     <span
-                      className={cn("text-small font-medium text-default-500 transition-colors", {
+                      className={cn("text-small font-medium text-foreground-900 transition-colors", {
                         "text-primary": activeChart === key,
                       })}
                     >
                       {title}
                     </span>
                     <div className="flex items-center justify-between">
-                      <span className="text-xl md:text-2xl font-bold text-foreground">
+                      <span className="text-xl md:text-2xl font-bold text-foreground-900">
                         {formatValue(value, type)}
-                        <span className="text-xs font-normal ml-1">{suffix}</span>
+                        <span className="text-xs font-normal ml-1 text-default-700">{suffix}</span>
                       </span>
                       <Chip
                         classNames={{

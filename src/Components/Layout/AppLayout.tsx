@@ -3,6 +3,7 @@
 import React from "react";
 import Sidebar from "./Sidebar";
 import MobileNavBar from "./MobileNavBar";
+import { sectionNestedItems } from "./Sidebar";
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const [isMobile, setIsMobile] = React.useState(false);
@@ -18,14 +19,14 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex h-screen bg-background overflow-y-auto">
       {/* Sidebar solo per desktop */}
-      <div className="hidden md:block">
-        <Sidebar defaultSelectedKey="home" />
+      <div className="hidden md:block h-screen sticky top-0">
+        <Sidebar defaultSelectedKey="home" items={sectionNestedItems} />
       </div>
       
       {/* Contenuto principale */}
-      <main className="flex-1 overflow-auto pb-16 md:pb-0">
+      <main className="flex-1">
         {children}
         
         {/* Barra di navigazione mobile */}
