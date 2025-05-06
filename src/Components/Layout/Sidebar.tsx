@@ -145,29 +145,29 @@ interface ThemeSwitchProps {
 }
 
 const ThemeSwitch = ({ onValueChange, isSelected }: ThemeSwitchProps) => {
-  const { Component, slots, getBaseProps, getInputProps, getWrapperProps } =
-    useSwitch({ isSelected, onValueChange });
-
   return (
-    <div className="flex flex-col gap-2">
-      <Component {...getBaseProps()}>
-        <VisuallyHidden>
-          <input {...getInputProps()} />
-        </VisuallyHidden>
-        <div
-          {...getWrapperProps()}
-          className={slots.wrapper({
-            class: [
-              "w-8 h-8",
-              "flex items-center justify-center",
-              "rounded-lg bg-default-100 hover:bg-default-200",
-            ],
-          })}
-        >
-          {isSelected ? <SunIcon /> : <MoonIcon />}
-        </div>
-      </Component>
-    </div>
+    <Button
+      fullWidth
+      className={cn(
+        "justify-start",
+        isSelected
+          ? "text-default-500 data-[hover=true]:text-foreground"
+          : "text-default-700 data-[hover=true]:text-foreground-900"
+      )}
+      startContent={
+        <Icon
+          className={isSelected ? "text-default-500" : "text-default-700"}
+          icon={
+            isSelected ? "solar:moon-bold-duotone" : "solar:sun-bold-duotone"
+          }
+          width={24}
+        />
+      }
+      variant="light"
+      onPress={() => onValueChange(!isSelected)}
+    >
+      {isSelected ? "Tema Scuro" : "Tema Chiaro"}
+    </Button>
   );
 };
 
@@ -521,24 +521,27 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
           <Spacer y={8} />
 
-          <div className="mt-auto flex flex-col gap-2">
-            <div className="flex items-center justify-between px-2">
-              <div className="flex items-center gap-2">
-                <span className="text-small text-default-600">Tema</span>
-              </div>
-            </div>
+          <div className="mt-auto flex flex-col gap-4">
             <ThemeSwitch
               isSelected={theme === "dark"}
               onValueChange={(isSelected) =>
                 setTheme(isSelected ? "dark" : "light")
               }
             />
+
             <Button
               fullWidth
-              className="justify-start text-default-500 data-[hover=true]:text-foreground"
+              className={cn(
+                "justify-start",
+                theme === "dark"
+                  ? "text-default-500 data-[hover=true]:text-foreground"
+                  : "text-default-700 data-[hover=true]:text-foreground-900"
+              )}
               startContent={
                 <Icon
-                  className="text-default-500"
+                  className={
+                    theme === "dark" ? "text-default-500" : "text-default-700"
+                  }
                   icon="solar:info-circle-line-duotone"
                   width={24}
                 />
@@ -548,10 +551,18 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               Help & Information
             </Button>
             <Button
-              className="justify-start text-default-500 data-[hover=true]:text-foreground"
+              className={cn(
+                "justify-start",
+                theme === "dark"
+                  ? "text-default-500 data-[hover=true]:text-foreground"
+                  : "text-default-700 data-[hover=true]:text-foreground-900"
+              )}
               startContent={
                 <Icon
-                  className="rotate-180 text-default-500"
+                  className={cn(
+                    "rotate-180",
+                    theme === "dark" ? "text-default-500" : "text-default-700"
+                  )}
                   icon="solar:minus-circle-line-duotone"
                   width={24}
                 />
