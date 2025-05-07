@@ -75,14 +75,9 @@ export const sectionNestedItems = [
       },
       {
         key: "vehicles",
-        title: "Vehicles",
+        title: "Veicoli",
+        icon: "mingcute:truck-line",
         href: "/vehicles",
-        startContent: (
-          <LocalShippingOutlinedIcon
-            style={{ fontSize: 20 }}
-            className="text-default-700 group-data-[selected=true]:text-foreground-900"
-          />
-        ),
       },
     ],
   },
@@ -410,7 +405,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           item.key === "vehicles" && isCompact ? (
             <Tooltip content={item.title} placement="right">
               <div className="flex w-full items-center justify-center">
-                <LocalShippingOutlinedIcon
+                <Icon
+                  icon="mingcute:truck-line"
                   style={{ fontSize: 20 }}
                   className="text-default-700 group-data-[selected=true]:text-foreground-900"
                 />
