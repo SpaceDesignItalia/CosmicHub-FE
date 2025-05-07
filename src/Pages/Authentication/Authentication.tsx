@@ -2,49 +2,67 @@ import { Button, Checkbox, Divider, Form, Input, Link } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import axios from "axios";
 import { AnimatePresence, motion } from "framer-motion";
-import { useState } from "react";
-import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
+import React, { useState } from "react";
+// import { GoogleOAuthProvider, useGoogleLogin } from "@react-oauth/google";
 
-const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
+// const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || "";
 
 // Separate component for Google login button
-const GoogleLoginButton = () => {
-  const handleGoogleSuccess = async (tokenResponse: any) => {
-    try {
-      const response = await axios.post("/Authentication/POST/GoogleLogin", {
-        credential: tokenResponse.access_token,
-      });
+// const GoogleLoginButton = () => { ... };
 
-      if (response.status === 200) {
-        window.location.href = "/";
-      }
-    } catch (error) {
-      console.error("Google login failed:", error);
-    }
-  };
+interface PasswordFieldProps {
+  name: string;
+  label: string;
+  placeholder: string;
+  isInvalid?: boolean;
+  errorMessage?: string;
+  isRequired?: boolean;
+}
 
-  const login = useGoogleLogin({
-    onSuccess: handleGoogleSuccess,
-    onError: () => console.error("Google login failed"),
-  });
+const PasswordField: React.FC<PasswordFieldProps> = ({
+  name,
+  label,
+  placeholder,
+  isInvalid,
+  errorMessage,
+  isRequired,
+}) => {
+  const [isVisible, setIsVisible] = useState(false);
+  const toggleVisibility = () => setIsVisible(!isVisible);
 
   return (
-    <Button
-      startContent={<Icon icon="flat-color-icons:google" width={24} />}
+    <Input
+      name={name}
+      label={label}
+      placeholder={placeholder}
+      type={isVisible ? "text" : "password"}
       variant="bordered"
-      onClick={() => login()}
-    >
-      Continua con Google
-    </Button>
+      isInvalid={isInvalid}
+      errorMessage={errorMessage}
+      isRequired={isRequired}
+      endContent={
+        <button type="button" onClick={toggleVisibility} className="focus:outline-none">
+          {isVisible ? (
+            <Icon
+              className="pointer-events-none text-2xl text-default-400"
+              icon="solar:eye-closed-linear"
+            />
+          ) : (
+            <Icon
+              className="pointer-events-none text-2xl text-default-400"
+              icon="solar:eye-bold"
+            />
+          )}
+        </button>
+      }
+    />
   );
 };
 
 export default function Authentication() {
-  const [isVisible, setIsVisible] = useState(false);
   const [isLogin, setIsLogin] = useState(true);
   const [isPasswordInvalid, setIsPasswordInvalid] = useState(false);
 
-  const toggleVisibility = () => setIsVisible(!isVisible);
   const toggleView = () => setIsLogin(!isLogin);
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -90,28 +108,11 @@ export default function Authentication() {
         type="email"
         variant="bordered"
       />
-      <Input
+      <PasswordField
         name="password"
-        isRequired
-        endContent={
-          <button type="button" onClick={toggleVisibility}>
-            {isVisible ? (
-              <Icon
-                className="pointer-events-none text-2xl text-default-400"
-                icon="solar:eye-closed-linear"
-              />
-            ) : (
-              <Icon
-                className="pointer-events-none text-2xl text-default-400"
-                icon="solar:eye-bold"
-              />
-            )}
-          </button>
-        }
         label="Password"
         placeholder="********"
-        type={isVisible ? "text" : "password"}
-        variant="bordered"
+        isRequired
       />
       <div className="flex w-full items-center justify-between px-1 py-2">
         <Checkbox name="remember" size="sm">
@@ -157,55 +158,21 @@ export default function Authentication() {
         type="email"
         variant="bordered"
       />
-      <Input
-        errorMessage="Le password non coincidono"
-        isInvalid={isPasswordInvalid}
+      <PasswordField
         name="password"
-        isRequired
-        endContent={
-          <button type="button" onClick={toggleVisibility}>
-            {isVisible ? (
-              <Icon
-                className="pointer-events-none text-2xl text-default-400"
-                icon="solar:eye-closed-linear"
-              />
-            ) : (
-              <Icon
-                className="pointer-events-none text-2xl text-default-400"
-                icon="solar:eye-bold"
-              />
-            )}
-          </button>
-        }
         label="Password"
         placeholder="********"
-        type={isVisible ? "text" : "password"}
-        variant="bordered"
-      />
-      <Input
-        errorMessage="Le password non coincidono"
-        isInvalid={isPasswordInvalid}
-        name="confirmPassword"
         isRequired
-        endContent={
-          <button type="button" onClick={toggleVisibility}>
-            {isVisible ? (
-              <Icon
-                className="pointer-events-none text-2xl text-default-400"
-                icon="solar:eye-closed-linear"
-              />
-            ) : (
-              <Icon
-                className="pointer-events-none text-2xl text-default-400"
-                icon="solar:eye-bold"
-              />
-            )}
-          </button>
-        }
+        isInvalid={isPasswordInvalid}
+        errorMessage="Le password non coincidono"
+      />
+      <PasswordField
+        name="confirmPassword"
         label="Conferma Password"
         placeholder="********"
-        type={isVisible ? "text" : "password"}
-        variant="bordered"
+        isRequired
+        isInvalid={isPasswordInvalid}
+        errorMessage="Le password non coincidono"
       />
       <Button className="w-full" color="primary" type="submit">
         Registrati
