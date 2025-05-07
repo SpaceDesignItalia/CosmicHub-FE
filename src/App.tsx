@@ -6,6 +6,7 @@ import Analytics from "./Pages/Analytics/Analytics";
 import Authentication from "./Pages/Authentication/Authentication";
 import Products from "./Pages/Inventory/Products";
 import Vehicles from "./Pages/Inventory/Vehicles";
+import Settings from "./Pages/Settings/Settings";
 
 function App() {
   const location = useLocation();
@@ -26,6 +27,7 @@ function App() {
         <Route path="/products" element={<Products />} />
         <Route path="/vehicles" element={<Vehicles />} />
         <Route path="/analytics" element={<Analytics />} />
+        <Route path="/settings" element={<Settings />} />
       </Routes>
     </div>
   );

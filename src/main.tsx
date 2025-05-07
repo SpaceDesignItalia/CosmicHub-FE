@@ -3,13 +3,16 @@ import { createRoot } from "react-dom/client";
 import "./index.css";
 import { BrowserRouter } from "react-router-dom";
 import App from "./App.tsx";
+import { ThemeProvider } from "./providers/ThemeProvider";
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
-      <main className="text-foreground bg-background">
-        <App />
-      </main>
+      <ThemeProvider>
+        <main className="text-foreground bg-background">
+          <App />
+        </main>
+      </ThemeProvider>
     </BrowserRouter>
   </StrictMode>
 );
