@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { Card, CardBody, CardHeader, CardFooter, Chip, Button, Progress, Tabs, Tab } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import { useVehicleTheme } from "./VehicleThemeWrapper";
+import type { VehicleStatus } from "./VehicleThemeWrapper";
 
 interface Vehicle {
   id: string;
@@ -26,6 +28,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ vehicle }) => {
   const [activeTab, setActiveTab] = useState("map");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [animationProgress, setAnimationProgress] = useState(50);
+  
+  // Utilizziamo il tema dei veicoli
+  const { colors } = useVehicleTheme();
   
   // Update current time every second
   useEffect(() => {
@@ -161,7 +166,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ vehicle }) => {
                     {isOnRoute && (
                       <svg width="100%" height="100%" viewBox="0 0 500 300" className="w-full h-full">
                         {/* Stylized map background */}
-                        <rect x="0" y="0" width="500" height="300" fill="#fafafa" className="dark:fill-[#09090b]" />
+                        <rect x="0" y="0" width="500" height="300" fill={colors.map.background} />
                         
                         {/* Background building blocks */}
                         <rect x="70" y="30" width="80" height="50" fill="#f4f4f5" className="dark:fill-[#18181b]" rx="2" />
@@ -173,32 +178,29 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ vehicle }) => {
                         {/* Background streets */}
                         <path 
                           d="M20,50 H480 M20,150 H480 M20,250 H480 M100,20 V280 M250,20 V280 M350,20 V280" 
-                          stroke="#e4e4e7" 
+                          stroke={colors.map.streets}
                           strokeWidth="12"
-                          className="dark:stroke-[#3f3f46]"
                         />
                         <path 
                           d="M20,50 H480 M20,150 H480 M20,250 H480 M100,20 V280 M250,20 V280 M350,20 V280" 
-                          stroke="#d4d4d8" 
+                          stroke={colors.map.streets}
                           strokeWidth="1"
                           strokeDasharray="6,3"
-                          className="dark:stroke-[#52525b]"
                         />
                         
                         {/* Completed vehicle path (static) */}
                         <path 
                           d={getRandomPath()} 
                           fill="none" 
-                          stroke="#d4d4d8" 
+                          stroke={colors.map.path.completed}
                           strokeWidth="5"
-                          className="dark:stroke-[#52525b]"
                         />
                         
                         {/* Active vehicle path (animated) */}
                         <path 
                           d={getRandomPath()} 
                           fill="none" 
-                          stroke="#2563eb" 
+                          stroke={colors.map.path.active}
                           strokeWidth="5" 
                           strokeDasharray="800"
                           strokeDashoffset={800 - (800 * animationProgress / 100)}
@@ -206,35 +208,35 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ vehicle }) => {
                         />
                         
                         {/* Starting point */}
-                        <circle cx="50" cy="150" r="10" fill="#22c55e" />
+                        <circle cx="50" cy="150" r="10" fill={colors.map.points.start} />
                         <circle cx="50" cy="150" r="6" fill="#fff" />
-                        <circle cx="50" cy="150" r="3" fill="#22c55e" />
+                        <circle cx="50" cy="150" r="3" fill={colors.map.points.start} />
                         
                         {/* Delivery points */}
                         {vehicle.deliveryPoints?.map((_, idx) => {
                           const x = 50 + (400 / (vehicle.deliveryPoints!.length + 1)) * (idx + 1);
                           return (
                             <g key={idx}>
-                              <circle cx={x} cy="150" r="8" fill="#0ea5e9" />
+                              <circle cx={x} cy="150" r="8" fill={colors.map.points.delivery} />
                               <circle cx={x} cy="150" r="4" fill="#fff" />
-                              <circle cx={x} cy="150" r="2" fill="#0ea5e9" />
+                              <circle cx={x} cy="150" r="2" fill={colors.map.points.delivery} />
                             </g>
                           );
                         })}
                         
                         {/* Arrival point */}
-                        <circle cx="450" cy="150" r="10" fill="#ef4444" />
+                        <circle cx="450" cy="150" r="10" fill={colors.map.points.end} />
                         <circle cx="450" cy="150" r="6" fill="#fff" />
-                        <circle cx="450" cy="150" r="3" fill="#ef4444" />
+                        <circle cx="450" cy="150" r="3" fill={colors.map.points.end} />
                         
                         {/* Current vehicle position */}
-                        <circle cx={position.x} cy={position.y} r="15" fill="#2563eb" className="animate-ping" opacity="0.3" />
-                        <circle cx={position.x} cy={position.y} r="12" fill="#2563eb" opacity="0.5" />
+                        <circle cx={position.x} cy={position.y} r="15" fill={colors.map.path.active} className="animate-ping" opacity="0.3" />
+                        <circle cx={position.x} cy={position.y} r="12" fill={colors.map.path.active} opacity="0.5" />
                         <circle cx={position.x} cy={position.y} r="8" fill="#fff" />
-                        <circle cx={position.x} cy={position.y} r="4" fill="#2563eb" />
+                        <circle cx={position.x} cy={position.y} r="4" fill={colors.map.path.active} />
                         
                         {/* Remaining time label */}
-                        <rect x={position.x - 30} y={position.y - 35} width="60" height="22" rx="4" fill="#2563eb" />
+                        <rect x={position.x - 30} y={position.y - 35} width="60" height="22" rx="4" fill={colors.map.path.active} />
                         <text x={position.x} y={position.y - 20} fill="#fff" textAnchor="middle" fontSize="12">{getRemainingTime()}</text>
                       </svg>
                     )}

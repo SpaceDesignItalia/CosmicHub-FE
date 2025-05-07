@@ -1,6 +1,8 @@
 import React from "react";
 import { Card, CardBody, Chip, Badge } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import { useVehicleTheme } from "./VehicleThemeWrapper";
+import type { VehicleStatus, VehicleType } from "./VehicleThemeWrapper";
 
 interface Vehicle {
   id: string;
@@ -25,10 +27,19 @@ interface VehicleCardProps {
 }
 
 const VehicleCard: React.FC<VehicleCardProps> = ({ veicolo, isSelected, onClick }) => {
+  // Utilizziamo il hook per accedere al tema dei veicoli
+  const { getStatusStyles, getCardClasses, colors } = useVehicleTheme();
+  
   // Determine vehicle status
   const isOnRoute = veicolo.status === "In use";
   const isWaiting = veicolo.status === "Maintenance";
   const isAvailable = veicolo.status === "Available";
+  
+  // Otteniamo gli stili per questo veicolo
+  const { bgColor, borderColor, textColor } = getStatusStyles(veicolo.status);
+  
+  // Classi per la card
+  const cardClasses = getCardClasses(isSelected);
 
   // Vehicle image
   const getVehicleImage = () => {
@@ -41,23 +52,19 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ veicolo, isSelected, onClick 
 
   return (
     <Card 
-      className={`mb-2 cursor-pointer transition-colors border ${
-        isSelected 
-          ? 'bg-blue-50 dark:bg-blue-950 border-blue-400 dark:border-blue-700 shadow-sm' 
-          : 'bg-white dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm'
-      }`}
+      className={cardClasses}
       onClick={() => onClick(veicolo)}
     >
       <CardBody className="p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className={`w-12 h-12 flex items-center justify-center rounded-lg border ${
-              isOnRoute 
-                ? 'bg-blue-50 dark:bg-blue-950 border-blue-200 dark:border-blue-700' 
-                : isAvailable 
-                  ? 'bg-green-50 dark:bg-green-950 border-green-200 dark:border-green-700' 
-                  : 'bg-amber-50 dark:bg-amber-950 border-amber-200 dark:border-amber-700'
-            }`}>
+            <div 
+              className="w-12 h-12 flex items-center justify-center rounded-lg border"
+              style={{ 
+                backgroundColor: bgColor,
+                borderColor: borderColor 
+              }}
+            >
               <img 
                 src={getVehicleImage()}
                 alt={veicolo.type}
@@ -91,12 +98,13 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ veicolo, isSelected, onClick 
           <div className="flex flex-col items-end gap-1">
             <Chip 
               size="sm"
+              style={{
+                backgroundColor: bgColor,
+                color: textColor,
+                borderColor: borderColor
+              }}
               classNames={{
-                base: isOnRoute 
-                  ? "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800" 
-                  : isAvailable 
-                    ? "bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300 border border-green-200 dark:border-green-800" 
-                    : "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                base: "border"
               }}
               startContent={
                 isOnRoute ? (

@@ -126,31 +126,31 @@ export const sectionNestedItems = [
 ];
 
 interface ThemeSwitchProps {
-  onValueChange: (isSelected: boolean) => void;
-  isSelected: boolean;
+  onToggle: () => void;
+  isDark: boolean;
 }
 
-const ThemeSwitch = ({ onValueChange, isSelected }: ThemeSwitchProps) => {
+const ThemeSwitch = ({ onToggle, isDark }: ThemeSwitchProps) => {
   return (
     <Button
       fullWidth
       className={cn(
         "justify-start",
-        isSelected
+        isDark
           ? "text-default-500 data-[hover=true]:text-foreground"
           : "text-default-700 data-[hover=true]:text-foreground-900"
       )}
       startContent={
         <Icon
-          className={isSelected ? "text-default-500" : "text-default-700"}
-          icon={isSelected ? "solar:moon-linear" : "solar:sun-2-linear"}
+          className={isDark ? "text-default-500" : "text-default-700"}
+          icon={isDark ? "solar:moon-linear" : "solar:sun-2-linear"}
           width={24}
         />
       }
       variant="light"
-      onPress={() => onValueChange(!isSelected)}
+      onPress={onToggle}
     >
-      {isSelected ? "Dark Theme" : "Light Theme"}
+      {isDark ? "Dark Theme" : "Light Theme"}
     </Button>
   );
 };
@@ -185,8 +185,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const [isMobile, setIsMobile] = React.useState(false);
     const location = useLocation();
 
-    // Uso il custom hook invece di useTheme
-    const { theme, setTheme } = useCustomTheme();
+    // Usiamo la nuova API del tema
+    const { isDark, toggleTheme } = useCustomTheme();
 
     React.useEffect(() => {
       const fetchUser = async () => {
@@ -526,26 +526,20 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           <Spacer y={8} />
 
           <div className="mt-auto flex flex-col gap-4">
-            <ThemeSwitch
-              isSelected={theme === "dark"}
-              onValueChange={(isSelected) => {
-                const newTheme = isSelected ? "dark" : "light";
-                setTheme(newTheme);
-              }}
-            />
+            <ThemeSwitch isDark={isDark} onToggle={toggleTheme} />
 
             <Button
               fullWidth
               className={cn(
                 "justify-start",
-                theme === "dark"
+                isDark
                   ? "text-default-500 data-[hover=true]:text-foreground"
                   : "text-default-700 data-[hover=true]:text-foreground-900"
               )}
               startContent={
                 <Icon
                   className={
-                    theme === "dark" ? "text-default-500" : "text-default-700"
+                    isDark ? "text-default-500" : "text-default-700"
                   }
                   icon="solar:info-circle-linear"
                   width={24}
@@ -559,7 +553,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               onPress={handleLogout}
               className={cn(
                 "justify-start",
-                theme === "dark"
+                isDark
                   ? "text-default-500 data-[hover=true]:text-foreground"
                   : "text-default-700 data-[hover=true]:text-foreground-900"
               )}
@@ -567,7 +561,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 <Icon
                   className={cn(
                     "rotate-180",
-                    theme === "dark" ? "text-default-500" : "text-default-700"
+                    isDark ? "text-default-500" : "text-default-700"
                   )}
                   icon="solar:minus-circle-linear"
                   width={24}
