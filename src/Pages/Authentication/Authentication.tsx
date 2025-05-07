@@ -40,12 +40,12 @@ const PasswordField: React.FC<PasswordFieldProps> = ({
       errorMessage={errorMessage}
       isRequired={isRequired}
       classNames={{
-        inputWrapper: "dark:bg-neutral-800 border-zinc-300 dark:border-neutral-700 focus-within:border-red-500 dark:focus-within:border-red-500",
+        inputWrapper: "dark:bg-neutral-800 border-zinc-300 dark:border-neutral-700 focus-within:border-primary-500 dark:focus-within:border-primary-500",
         input: "dark:text-neutral-200",
         label: "dark:text-neutral-400",
       }}
       endContent={
-        <button type="button" onClick={toggleVisibility} className="focus:outline-none text-neutral-500 dark:text-neutral-400 hover:text-red-500 dark:hover:text-red-400 transition-colors">
+        <button type="button" onClick={toggleVisibility} className="focus:outline-none text-neutral-500 dark:text-neutral-400 hover:text-primary-500 dark:hover:text-primary-400 transition-colors">
           {isVisible ? (
             <Icon
               className="pointer-events-none text-2xl"
@@ -101,7 +101,7 @@ export default function Authentication() {
   };
 
   const commonInputClassNames = {
-    inputWrapper: "dark:bg-neutral-800 border-zinc-300 dark:border-neutral-700 focus-within:border-red-500 dark:focus-within:border-red-500",
+    inputWrapper: "dark:bg-neutral-800 border-zinc-300 dark:border-neutral-700 focus-within:border-primary-500 dark:focus-within:border-primary-500",
     input: "dark:text-neutral-200",
     label: "dark:text-neutral-400",
   };
@@ -138,12 +138,12 @@ export default function Authentication() {
         >
           Ricordami
         </Checkbox>
-        <Link className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-medium" href="#">
+        <Link className="text-sm text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-500 font-medium" href="#">
           Password dimenticata?
         </Link>
       </div>
       <Button 
-        className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white font-semibold tracking-wide shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5"
+        className="w-full mt-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold tracking-wide shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5"
         type="submit" 
         size="lg"
       >
@@ -203,7 +203,7 @@ export default function Authentication() {
         isInvalid={isPasswordInvalid}
       />
       <Button 
-        className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white font-semibold tracking-wide shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5"
+        className="w-full mt-3 bg-primary-600 hover:bg-primary-700 text-white font-semibold tracking-wide shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5"
         type="submit" 
         size="lg"
       >
@@ -214,7 +214,7 @@ export default function Authentication() {
 
   return (
     //<GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-    <div className="flex h-screen min-h-[700px] w-full items-center justify-center p-4 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-neutral-900 dark:to-black selection:bg-red-500 selection:text-white">
+    <div className="flex h-screen min-h-[700px] w-full items-center justify-center p-4 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-neutral-900 dark:to-black selection:bg-primary-500 selection:text-white">
       <motion.div 
         className="relative flex w-full max-w-md flex-col gap-6 rounded-xl bg-white dark:bg-neutral-900 px-8 py-10 shadow-2xl border border-zinc-200 dark:border-neutral-800/70 overflow-hidden"
         initial={{ opacity: 0, y: 30, scale: 0.98 }}
@@ -222,12 +222,12 @@ export default function Authentication() {
         transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1]}} // Cubic bezier for smooth pop
       >
         {/* Elemento decorativo ispirato al design */}
-        <div className="absolute -top-1/4 -left-1/4 w-72 h-72 bg-red-500/10 dark:bg-red-500/5 rounded-full filter blur-3xl opacity-70 dark:opacity-50 animate-pulse-slow"></div>
+        <div className="absolute -top-1/4 -left-1/4 w-72 h-72 bg-primary-500/10 dark:bg-primary-500/5 rounded-full filter blur-3xl opacity-70 dark:opacity-50 animate-pulse-slow"></div>
         <div className="absolute -bottom-1/4 -right-1/4 w-60 h-60 bg-sky-500/10 dark:bg-sky-500/5 rounded-full filter blur-3xl opacity-60 dark:opacity-40 animate-pulse-slower animation-delay-2000"></div>
 
         <div className="text-center z-10">
-          <div className="mb-6 inline-flex items-center justify-center p-3 bg-red-500/10 dark:bg-red-900/30 rounded-full">
-            <Icon icon="mdi:rocket-launch-outline" className="text-5xl text-red-500 dark:text-red-400" />
+          <div className="mb-6 inline-flex items-center justify-center p-3 bg-primary-500/10 dark:bg-primary-900/30 rounded-full">
+            <Icon icon="mdi:rocket-launch-outline" className="text-5xl text-primary-500 dark:text-primary-400" />
           </div>
           <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-neutral-100">
             {isLogin ? "Bentornato su CosmicHub" : "Crea il tuo Account"}
@@ -269,7 +269,7 @@ export default function Authentication() {
 
         <p className="text-center text-sm text-zinc-700 dark:text-neutral-300 z-10">
           {isLogin ? "Non hai un account?" : "Hai già un account?"}&nbsp;
-          <Link className="font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 transition-colors" href="#" onClick={toggleView}>
+          <Link className="font-semibold text-primary-600 hover:text-primary-700 dark:text-primary-400 dark:hover:text-primary-500 transition-colors" href="#" onClick={toggleView}>
             {isLogin ? "Registrati ora" : "Accedi ora"}
           </Link>
         </p>
