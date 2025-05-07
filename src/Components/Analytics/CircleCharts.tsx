@@ -35,36 +35,6 @@ type CircleChartProps = {
 
 const data: CircleChartProps[] = [
   {
-    title: "Tipologie Interventi",
-    value: "€5.420",
-    unit: "media",
-    changePercentage: 24.8,
-    changeType: "positive",
-    categories: ["Manutenzione", "Riparazione", "Installazione", "Controllo"],
-    color: "default",
-    chartData: [
-      {name: "Manutenzione", value: 400},
-      {name: "Riparazione", value: 300},
-      {name: "Installazione", value: 300},
-      {name: "Controllo", value: 200},
-    ],
-  },
-  {
-    title: "Stato Interventi",
-    value: "€12.345",
-    unit: "totale",
-    changePercentage: 15.2,
-    changeType: "positive",
-    categories: ["Completati", "In Corso", "Programmati", "Urgenti"],
-    color: "primary",
-    chartData: [
-      {name: "Completati", value: 450},
-      {name: "In Corso", value: 300},
-      {name: "Programmati", value: 250},
-      {name: "Urgenti", value: 200},
-    ],
-  },
-  {
     title: "Tipologie Impianti",
     value: "€8.790",
     unit: "valore",
@@ -108,28 +78,12 @@ const data: CircleChartProps[] = [
       {name: "Daikin", value: 14200},
       {name: "Altri", value: 8920},
     ],
-  },
-  {
-    title: "Produttività Tecnici",
-    value: "€16.450",
-    unit: "media",
-    changePercentage: 9.8,
-    changeType: "positive",
-    categories: ["Alto", "Medio-Alto", "Medio", "Basso"],
-    color: "danger",
-    chartData: [
-      {name: "Alto", value: 6500},
-      {name: "Medio-Alto", value: 4800},
-      {name: "Medio", value: 3200},
-      {name: "Basso", value: 1950},
-    ],
-  },
+  }
 ];
 
 export default function CircleCharts() {
   return (
     <div className="flex flex-col gap-5 w-full">
-      <h2 className="text-xl font-semibold text-foreground">Metriche di Magazzino e Operatività</h2>
       <dl className="grid w-full grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
         {data.map((item, index) => (
           <CircleChartCard key={index} {...item} />
@@ -176,15 +130,15 @@ const CircleChartCard = React.forwardRef<
         <div className="flex flex-col gap-y-2 p-4 pb-0">
           <div className="flex items-center justify-between gap-x-2">
             <dt>
-              <h3 className="text-small font-medium text-default-500">{title}</h3>
+              <h3 className="text-small font-medium text-default-900">{title}</h3>
             </dt>
             <div className="flex items-center justify-end gap-x-2">
               <Select
                 aria-label="Intervallo di Tempo"
                 classNames={{
                   trigger: "min-w-[100px] min-h-7 h-7",
-                  value: "text-tiny !text-default-500",
-                  selectorIcon: "text-default-500",
+                  value: "text-tiny !text-default-900",
+                  selectorIcon: "text-default-900",
                   popoverContent: "min-w-[120px]",
                 }}
                 defaultSelectedKeys={["per-day"]}
@@ -226,7 +180,7 @@ const CircleChartCard = React.forwardRef<
           </div>
           <dd className="flex items-baseline gap-x-1">
             <span className="text-3xl font-semibold text-default-900">{value}</span>
-            <span className="text-medium font-medium text-default-500">{unit}</span>
+            <span className="text-medium font-medium text-default-900">{unit}</span>
           </dd>
         </div>
         <ResponsiveContainer
@@ -253,7 +207,7 @@ const CircleChartCard = React.forwardRef<
                           }}
                         />
                         <div className="flex w-full items-center justify-between gap-x-2 pr-1 text-xs text-default-700">
-                          <span className="text-default-500">{category}</span>
+                          <span className="text-default-900">{category}</span>
                           <span className="font-mono font-medium text-default-700">
                             {formatValue(value as number)}
                           </span>
@@ -333,7 +287,7 @@ const CircleChartCard = React.forwardRef<
           </PieChart>
         </ResponsiveContainer>
 
-        <div className="flex w-full flex-wrap justify-center gap-4 px-4 pb-4 text-tiny text-default-500">
+        <div className="flex w-full flex-wrap justify-center gap-4 px-4 pb-4 text-tiny text-default-900">
           {categories.map((category, index) => (
             <div key={index} className="flex items-center gap-2">
               <span
@@ -351,4 +305,4 @@ const CircleChartCard = React.forwardRef<
   },
 );
 
-CircleChartCard.displayName = "CircleChartCard"; 
+CircleChartCard.displayName = "CircleChartCard";  
