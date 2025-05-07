@@ -1,68 +1,68 @@
 import { Icon } from "@iconify/react";
-import VehicleTable from "../../Components/Inventory/VehicleTable";
+import VehicleTable from "../../Components/Inventory/Vehicle/VehicleTable";
 
-// Tipi di dati
-interface Veicolo {
+// Data types
+interface Vehicle {
   id: string;
-  targa: string;
-  modello: string;
-  tipo: string;
-  capacita: number;
-  stato: "Disponibile" | "In uso" | "In manutenzione";
-  ultimaRevisione: string;
+  plate: string;
+  model: string;
+  type: string;
+  capacity: number;
+  status: "Disponibile" | "In uso" | "In manutenzione";
+  lastInspection: string;
 }
 
 export default function Vehicles() {
-  // Dati di esempio
-  const veicoli: Veicolo[] = [
+  // Example data
+  const vehicles: Vehicle[] = [
     {
       id: "1",
-      targa: "AB123CD",
-      modello: "Iveco Daily",
-      tipo: "Furgone",
-      capacita: 3500,
-      stato: "Disponibile",
-      ultimaRevisione: "2023-09-15",
+      plate: "AB123CD",
+      model: "Iveco Daily",
+      type: "Van",
+      capacity: 3500,
+      status: "Disponibile",
+      lastInspection: "2023-09-15",
     },
     {
       id: "2",
-      targa: "EF456GH",
-      modello: "Fiat Ducato",
-      tipo: "Furgone",
-      capacita: 2800,
-      stato: "In uso",
-      ultimaRevisione: "2023-08-22",
+      plate: "EF456GH",
+      model: "Fiat Ducato",
+      type: "Van",
+      capacity: 2800,
+      status: "In uso",
+      lastInspection: "2023-08-22",
     },
     {
       id: "3",
-      targa: "IL789MN",
-      modello: "Mercedes Sprinter",
-      tipo: "Furgone",
-      capacita: 3000,
-      stato: "In manutenzione",
-      ultimaRevisione: "2023-07-10",
+      plate: "IL789MN",
+      model: "Mercedes Sprinter",
+      type: "Van",
+      capacity: 3000,
+      status: "In manutenzione",
+      lastInspection: "2023-07-10",
     },
     {
       id: "4",
-      targa: "OP012QR",
-      modello: "Renault Master",
-      tipo: "Furgone",
-      capacita: 2500,
-      stato: "Disponibile",
-      ultimaRevisione: "2023-10-05",
+      plate: "OP012QR",
+      model: "Renault Master",
+      type: "Van",
+      capacity: 2500,
+      status: "Disponibile",
+      lastInspection: "2023-10-05",
     },
     {
       id: "5",
-      targa: "ST345UV",
-      modello: "Iveco Eurocargo",
-      tipo: "Camion",
-      capacita: 7500,
-      stato: "Disponibile",
-      ultimaRevisione: "2023-11-12",
+      plate: "ST345UV",
+      model: "Iveco Eurocargo",
+      type: "Camion",
+      capacity: 7500,
+      status: "Disponibile",
+      lastInspection: "2023-11-12",
     },
   ];
 
-  const tipiVeicolo = ["Tutti", "Furgone", "Camion"];
+  const vehicleTypes = ["Tutti", "Van", "Camion"];
 
   return (
     <div className="w-full flex-1 flex flex-col p-4 gap-6">
@@ -78,7 +78,7 @@ export default function Vehicles() {
           <h1 className="text-2xl font-bold">Flotta Veicoli</h1>
         </div>
       </div>
-      <VehicleTable veicoli={veicoli} tipiVeicolo={tipiVeicolo} />
+      <VehicleTable vehicles={vehicles} vehicleTypes={vehicleTypes} />
     </div>
   );
 }
