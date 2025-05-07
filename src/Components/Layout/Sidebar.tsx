@@ -1,25 +1,35 @@
 "use client";
 
+import React, { useEffect, useState } from "react";
 import {
   Accordion,
   AccordionItem,
+  Avatar,
+  Button,
+  cn,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
+  Listbox,
+  ListboxItem,
+  ListboxSection,
+  Modal,
+  ModalContent,
+  ScrollShadow,
+  Spacer,
+  Tooltip,
+  useDisclosure,
   type ListboxProps,
   type ListboxSectionProps,
   type Selection,
-  Button,
-  Avatar,
-  ScrollShadow,
-  Spacer,
-  Modal,
-  ModalContent,
-  useDisclosure,
 } from "@heroui/react";
-import React from "react";
-import { Listbox, Tooltip, ListboxItem, ListboxSection } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import { cn } from "@heroui/react";
-import { useTheme } from "@heroui/use-theme";
-import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import axios from "axios";
+import { useLocation } from "react-router-dom";
+
+// Sostituisco l'import della chiave del localStorage con l'import del custom hook
+import { useCustomTheme } from "../../providers/ThemeProvider";
 
 export enum SidebarItemType {
   Nest = "nest",
@@ -52,13 +62,13 @@ export const sectionNestedItems = [
   {
     key: "home",
     title: "Home",
-    icon: "solar:home-2-line-duotone",
+    icon: "solar:home-2-linear",
     href: "/dashboard",
   },
   {
     key: "analytics",
-    title: "Analytics",
-    icon: "solar:chart-2-line-duotone",
+    title: "Analitica",
+    icon: "solar:chart-2-linear",
     href: "/analytics",
   },
   {
@@ -71,38 +81,47 @@ export const sectionNestedItems = [
         key: "products",
         title: "Products",
         icon: "solar:box-minimalistic-line-duotone",
-        href: "/products",
+        href: "/inventory/products",
+      },
+      {
+        key: "categories",
+        title: "Categorie",
+        icon: "solar:tag-linear",
+        href: "/inventory/categories",
       },
       {
         key: "vehicles",
-        title: "Vehicles",
-        href: "/vehicles",
-        startContent: (
-          <LocalShippingOutlinedIcon
-            style={{ fontSize: 20 }}
-            className="text-default-700 group-data-[selected=true]:text-foreground-900"
-          />
-        ),
+        title: "Veicoli",
+        icon: "mingcute:truck-line",
+        href: "/inventory/vehicles",
       },
     ],
   },
   {
     key: "customers",
-    title: "Customers",
-    icon: "solar:users-group-rounded-line-duotone",
+    title: "Clienti",
+    icon: "solar:users-group-rounded-linear",
     type: SidebarItemType.Nest,
     items: [
       {
         key: "overview",
-        title: "Overview",
-        icon: "solar:chart-line-duotone",
+        title: "Panoramica",
+        icon: "solar:chart-linear",
+        href: "/customers/overview",
       },
       {
         key: "reports",
-        title: "Reports",
-        icon: "solar:document-line-duotone",
+        title: "Report",
+        icon: "solar:document-linear",
+        href: "/customers/reports",
       },
     ],
+  },
+  {
+    key: "employees",
+    title: "Dipendenti",
+    icon: "solar:user-linear",
+    href: "/employees",
   },
 ];
 
@@ -124,9 +143,7 @@ const ThemeSwitch = ({ onValueChange, isSelected }: ThemeSwitchProps) => {
       startContent={
         <Icon
           className={isSelected ? "text-default-500" : "text-default-700"}
-          icon={
-            isSelected ? "solar:moon-bold-duotone" : "solar:sun-bold-duotone"
-          }
+          icon={isSelected ? "solar:moon-linear" : "solar:sun-2-linear"}
           width={24}
         />
       }
@@ -137,6 +154,12 @@ const ThemeSwitch = ({ onValueChange, isSelected }: ThemeSwitchProps) => {
     </Button>
   );
 };
+
+interface User {
+  name: string;
+  surname: string;
+  company: string;
+}
 
 const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
   (
@@ -155,11 +178,44 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     },
     ref
   ) => {
+    const [user, setUser] = useState<User | null>(null);
     const [selected, setSelected] =
       React.useState<React.Key>(defaultSelectedKey);
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [isMobile, setIsMobile] = React.useState(false);
-    const { theme, setTheme } = useTheme();
+    const location = useLocation();
+
+    // Uso il custom hook invece di useTheme
+    const { theme, setTheme } = useCustomTheme();
+
+    React.useEffect(() => {
+      const fetchUser = async () => {
+        try {
+          const userResponse = await axios.get(
+            "/Authentication/GET/GetSessionData"
+          );
+
+          const companyResponse = await axios.get(
+            "/Company/GET/GetCompanyByCompanyId",
+            {
+              params: {
+                company_id: userResponse.data.company_id,
+              },
+            }
+          );
+
+          setUser({
+            name: userResponse.data.name,
+            surname: userResponse.data.surname,
+            company: companyResponse.data.name,
+          });
+        } catch (error) {
+          console.error(error);
+        }
+      };
+
+      fetchUser();
+    }, []);
 
     React.useEffect(() => {
       const checkMobile = () => {
@@ -183,6 +239,17 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       };
     }, [isOpen]);
 
+    async function handleLogout() {
+      try {
+        const response = await axios.post("/Authentication/POST/Logout");
+        if (response.status === 200) {
+          window.location.href = "/login";
+        }
+      } catch (error) {
+        console.error(error);
+      }
+    }
+
     const sectionClasses = {
       ...sectionClassesProp,
       base: cn(sectionClassesProp?.base, "w-full", {
@@ -203,8 +270,17 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       }),
     };
 
-    const renderNestItem = React.useCallback(
+    const renderItem = React.useCallback(
       (item: SidebarItem) => {
+        const currentPath = location.pathname;
+        // Prendi il primo segmento del path (es: da "/inventory/categories" prende "inventory")
+        const firstPathSegment = currentPath.split("/")[1];
+
+        const isSelected =
+          item.type === SidebarItemType.Nest
+            ? item.key === firstPathSegment
+            : item.href === currentPath;
+
         const isNestType =
           item.items &&
           item.items?.length > 0 &&
@@ -226,6 +302,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 },
                 {
                   "inline-block w-11": isCompact && isNestType,
+                },
+                {
+                  "bg-default-100": isSelected,
                 }
               ),
             }}
@@ -275,7 +354,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   aria-label={item.title}
                   classNames={{
                     heading: "pr-3",
-                    trigger: "p-0",
+                    trigger: cn("p-0", { "bg-default-100": isSelected }),
                     content: "py-0 pl-4",
                   }}
                   title={
@@ -320,86 +399,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           </ListboxItem>
         );
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [isCompact, hideEndContent, iconClassName, items]
-    );
-
-    const renderItem = React.useCallback(
-      (item: SidebarItem) => {
-        const isNestType =
-          item.items &&
-          item.items?.length > 0 &&
-          item?.type === SidebarItemType.Nest;
-
-        if (isNestType) {
-          return renderNestItem(item);
-        }
-
-        // Gestione speciale per l'icona personalizzata dei veicoli nella modalità compatta
-        const customIconContent =
-          item.key === "vehicles" && isCompact ? (
-            <Tooltip content={item.title} placement="right">
-              <div className="flex w-full items-center justify-center">
-                <LocalShippingOutlinedIcon
-                  style={{ fontSize: 20 }}
-                  className="text-default-700 group-data-[selected=true]:text-foreground-900"
-                />
-              </div>
-            </Tooltip>
-          ) : null;
-
-        return (
-          <ListboxItem
-            {...item}
-            key={item.key}
-            endContent={
-              isCompact || hideEndContent ? null : item.endContent ?? null
-            }
-            startContent={
-              isCompact
-                ? null
-                : item.startContent ??
-                  (item.icon ? (
-                    <Icon
-                      className={cn(
-                        "text-default-700 group-data-[selected=true]:text-foreground-900",
-                        iconClassName
-                      )}
-                      icon={item.icon}
-                      width={24}
-                    />
-                  ) : null)
-            }
-            textValue={item.title}
-            title={isCompact ? null : item.title}
-          >
-            {isCompact ? (
-              item.key === "vehicles" ? (
-                customIconContent
-              ) : (
-                <Tooltip content={item.title} placement="right">
-                  <div className="flex w-full items-center justify-center">
-                    {item.icon ? (
-                      <Icon
-                        className={cn(
-                          "text-default-700 group-data-[selected=true]:text-foreground-900",
-                          iconClassName
-                        )}
-                        icon={item.icon}
-                        width={24}
-                      />
-                    ) : (
-                      item.startContent ?? null
-                    )}
-                  </div>
-                </Tooltip>
-              )
-            ) : null}
-          </ListboxItem>
-        );
-      },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [isCompact, hideEndContent, iconClassName, itemClasses?.base]
+      [isCompact, hideEndContent, iconClassName, location.pathname]
     );
 
     const SidebarContent = () => (
@@ -410,7 +410,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground">
                 <Icon
                   className="text-background"
-                  icon="solar:rocket-line-duotone"
+                  icon="solar:rocket-2-linear"
                   width={24}
                 />
               </div>
@@ -426,26 +426,45 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 onPress={onClose}
                 className="md:hidden"
               >
-                <Icon icon="solar:close-circle-line-duotone" width={24} />
+                <Icon icon="solar:close-circle-line-linear" width={24} />
               </Button>
             )}
           </div>
 
           <Spacer y={8} />
 
-          <div className="flex items-center gap-3 px-2">
-            <Avatar
-              isBordered
-              size="sm"
-              src="https://i.pravatar.cc/150?u=a04258114e29026708c"
-            />
-            <div className="flex flex-col">
-              <p className="text-small font-medium text-foreground">
-                Kate Moore
-              </p>
-              <p className="text-tiny text-default-400">Customer Support</p>
-            </div>
-          </div>
+          <Dropdown placement="bottom-start">
+            <DropdownTrigger>
+              <div className="flex cursor-pointer items-center gap-3 px-2 transition-opacity hover:opacity-80">
+                <Avatar
+                  isBordered
+                  size="sm"
+                  src="https://i.pravatar.cc/150?u=a04258114e29026708c"
+                />
+                <div className="flex flex-col">
+                  <p className="text-small font-medium text-foreground">
+                    {user?.name} {user?.surname}
+                  </p>
+                </div>
+              </div>
+            </DropdownTrigger>
+            <DropdownMenu aria-label="User Actions">
+              <DropdownItem
+                key="settings"
+                startContent={
+                  <Icon
+                    className="text-default-700"
+                    icon="solar:settings-line-duotone"
+                    width={20}
+                  />
+                }
+                href="/settings"
+              >
+                Impostazioni
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+
           <ScrollShadow className="-mr-6 h-full max-h-full py-6 pr-6">
             <Listbox
               key={isCompact ? "compact" : "default"}
@@ -487,7 +506,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 return item.items &&
                   item.items?.length > 0 &&
                   item?.type === SidebarItemType.Nest ? (
-                  renderNestItem(item)
+                  renderItem(item)
                 ) : item.items && item.items?.length > 0 ? (
                   <ListboxSection
                     key={item.key}
@@ -509,9 +528,10 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           <div className="mt-auto flex flex-col gap-4">
             <ThemeSwitch
               isSelected={theme === "dark"}
-              onValueChange={(isSelected) =>
-                setTheme(isSelected ? "dark" : "light")
-              }
+              onValueChange={(isSelected) => {
+                const newTheme = isSelected ? "dark" : "light";
+                setTheme(newTheme);
+              }}
             />
 
             <Button
@@ -527,15 +547,16 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   className={
                     theme === "dark" ? "text-default-500" : "text-default-700"
                   }
-                  icon="solar:info-circle-line-duotone"
+                  icon="solar:info-circle-linear"
                   width={24}
                 />
               }
               variant="light"
             >
-              Help & Information
+              Aiuto & Informazioni
             </Button>
             <Button
+              onPress={handleLogout}
               className={cn(
                 "justify-start",
                 theme === "dark"
@@ -548,7 +569,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                     "rotate-180",
                     theme === "dark" ? "text-default-500" : "text-default-700"
                   )}
-                  icon="solar:minus-circle-line-duotone"
+                  icon="solar:minus-circle-linear"
                   width={24}
                 />
               }
@@ -570,7 +591,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
             className="fixed left-4 top-4 z-50 md:hidden"
             onPress={onOpen}
           >
-            <Icon icon="solar:hamburger-menu-line-duotone" width={24} />
+            <Icon icon="solar:hamburger-menu-line-linear" width={24} />
           </Button>
           <Modal
             isOpen={isOpen}

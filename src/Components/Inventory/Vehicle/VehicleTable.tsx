@@ -27,63 +27,61 @@ import {
   getKeyValue,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
-
+import { useNavigate } from "react-router-dom";
 // Tipi di dati
-interface Veicolo {
+interface Vehicle {
   id: string;
-  targa: string;
-  modello: string;
-  tipo: string;
-  capacita: number;
-  stato: "Disponibile" | "In uso" | "In manutenzione";
-  ultimaRevisione: string;
+  plate: string;
+  model: string;
+  type: string;
+  capacity: number;
+  status: "Disponibile" | "In uso" | "In manutenzione";
+  lastInspection: string;
 }
 
 interface VehicleTableProps {
-  veicoli: Veicolo[];
-  tipiVeicolo: string[];
+  vehicles: Vehicle[];
+  vehicleTypes: string[];
 }
 
 export default function VehicleTable({
-  veicoli,
-  tipiVeicolo,
+  vehicles,
+  vehicleTypes,
 }: VehicleTableProps) {
-  const [ricercaVeicolo, setRicercaVeicolo] = useState("");
-  const [tipoVeicoloSelezionato, setTipoVeicoloSelezionato] = useState("Tutti");
-  const [paginaCorrenteVeicoli, setPaginaCorrenteVeicoli] = useState(1);
+  const navigate = useNavigate();
+  const [vehicleSearch, setVehicleSearch] = useState("");
+  const [selectedVehicleType, setSelectedVehicleType] = useState("Tutti");
+  const [currentVehiclePage, setCurrentVehiclePage] = useState(1);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [veicoloSelezionato, setVeicoloSelezionato] = useState<Veicolo | null>(
-    null
-  );
+  const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
 
-  const perPagina = 5;
+  const perPage = 5;
 
-  // Filtro veicoli
-  const veicoliFiltrati = veicoli.filter((veicolo) => {
-    const matchRicerca =
-      veicolo.modello.toLowerCase().includes(ricercaVeicolo.toLowerCase()) ||
-      veicolo.targa.toLowerCase().includes(ricercaVeicolo.toLowerCase());
-    const matchTipo =
-      tipoVeicoloSelezionato === "Tutti" ||
-      veicolo.tipo === tipoVeicoloSelezionato;
-    return matchRicerca && matchTipo;
+  // Filter vehicles
+  const filteredVehicles = vehicles.filter((vehicle) => {
+    const matchSearch =
+      vehicle.model.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
+      vehicle.plate.toLowerCase().includes(vehicleSearch.toLowerCase());
+    const matchType =
+      selectedVehicleType === "Tutti" || vehicle.type === selectedVehicleType;
+    return matchSearch && matchType;
   });
 
-  // Paginazione veicoli
-  const inizioIndiceVeicoli = (paginaCorrenteVeicoli - 1) * perPagina;
-  const veicoliPaginati = veicoliFiltrati.slice(
-    inizioIndiceVeicoli,
-    inizioIndiceVeicoli + perPagina
+  // Paginate vehicles
+  const vehicleStartIndex = (currentVehiclePage - 1) * perPage;
+  const paginatedVehicles = filteredVehicles.slice(
+    vehicleStartIndex,
+    vehicleStartIndex + perPage
   );
 
-  // Apri modale con dettagli veicolo
-  const apriFinestraVeicolo = (veicolo: Veicolo) => {
-    setVeicoloSelezionato(veicolo);
+  // Open vehicle modal
+  const openVehicleModal = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
     onOpen();
   };
 
-  // Colore chip in base allo stato veicolo
-  const statoVeicoloColorMap = {
+  // Status color mapping
+  const vehicleStatusColorMap = {
     Disponibile: "success",
     "In uso": "primary",
     "In manutenzione": "warning",
@@ -91,66 +89,66 @@ export default function VehicleTable({
 
   // Definizione delle colonne
   const columns = [
-    { key: "targa", label: "TARGA", align: "start" },
-    { key: "modello", label: "MODELLO", align: "start" },
-    { key: "tipo", label: "TIPO", align: "start" },
-    { key: "capacita", label: "CAPACITÀ (KG)", align: "end" },
-    { key: "ultimaRevisione", label: "ULTIMA REVISIONE", align: "center" },
-    { key: "stato", label: "STATO", align: "center" },
-    { key: "azioni", label: "AZIONI", align: "end" },
+    { key: "plate", label: "TARGA", align: "start" },
+    { key: "model", label: "MODELLO", align: "start" },
+    { key: "type", label: "TIPO", align: "start" },
+    { key: "capacity", label: "CAPACITÀ (KG)", align: "end" },
+    { key: "lastInspection", label: "ULTIMA REVISIONE", align: "center" },
+    { key: "status", label: "STATO", align: "center" },
+    { key: "actions", label: "AZIONI", align: "end" },
   ];
 
   // Renderizza celle personalizzate
-  const renderCell = (veicolo: Veicolo, columnKey: string) => {
+  const renderCell = (vehicle: Vehicle, columnKey: string) => {
     switch (columnKey) {
-      case "targa":
-        return <div className="font-medium text-left">{veicolo.targa}</div>;
-      case "modello":
-        return <div className="text-left">{veicolo.modello}</div>;
-      case "tipo":
-        return <div className="text-left">{veicolo.tipo}</div>;
-      case "capacita":
+      case "plate":
+        return <div className="font-medium text-left">{vehicle.plate}</div>;
+      case "model":
+        return <div className="text-left">{vehicle.model}</div>;
+      case "type":
+        return <div className="text-left">{vehicle.type}</div>;
+      case "capacity":
         return (
           <div className="text-right">
-            {veicolo.capacita.toLocaleString("it-IT")}
+            {vehicle.capacity.toLocaleString("it-IT")}
           </div>
         );
-      case "ultimaRevisione":
+      case "lastInspection":
         return (
           <div className="text-center">
-            {new Date(veicolo.ultimaRevisione).toLocaleDateString("it-IT")}
+            {new Date(vehicle.lastInspection).toLocaleDateString("it-IT")}
           </div>
         );
-      case "stato":
+      case "status":
         return (
           <div className="flex justify-center">
             <Chip
-              color={statoVeicoloColorMap[veicolo.stato] as any}
+              color={vehicleStatusColorMap[vehicle.status] as any}
               variant="flat"
             >
-              {veicolo.stato}
+              {vehicle.status}
             </Chip>
           </div>
         );
-      case "azioni":
+      case "actions":
         return (
           <div className="flex justify-end gap-2">
-            <Tooltip content="Visualizza dettagli">
+            <Tooltip content="View details">
               <Button
                 isIconOnly
                 size="sm"
                 variant="light"
-                onPress={() => apriFinestraVeicolo(veicolo)}
+                onPress={() => openVehicleModal(vehicle)}
               >
                 <Icon icon="solar:eye-linear" width={20} />
               </Button>
             </Tooltip>
-            <Tooltip content="Modifica">
+            <Tooltip content="Edit">
               <Button isIconOnly size="sm" variant="light">
                 <Icon icon="solar:pen-linear" width={20} />
               </Button>
             </Tooltip>
-            <Tooltip content="Elimina">
+            <Tooltip content="Delete">
               <Button isIconOnly size="sm" variant="light" color="danger">
                 <Icon icon="solar:trash-bin-trash-linear" width={20} />
               </Button>
@@ -159,7 +157,7 @@ export default function VehicleTable({
         );
       default:
         return (
-          <div className="text-left">{getKeyValue(veicolo, columnKey)}</div>
+          <div className="text-left">{getKeyValue(vehicle, columnKey)}</div>
         );
     }
   };
@@ -170,34 +168,36 @@ export default function VehicleTable({
         <CardHeader className="border-b">
           <div className="flex justify-between items-center w-full">
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold">Flotta Veicoli</h2>
               <Input
                 placeholder="Cerca per targa o modello..."
                 startContent={<Icon icon="solar:magnifer-line-duotone" />}
-                value={ricercaVeicolo}
-                onChange={(e) => setRicercaVeicolo(e.target.value)}
+                value={vehicleSearch}
+                onChange={(e) => setVehicleSearch(e.target.value)}
                 className="w-60"
               />
               <Dropdown>
                 <DropdownTrigger>
                   <Button variant="light">
-                    {tipoVeicoloSelezionato}
+                    {selectedVehicleType}
                     <Icon icon="solar:arrow-down-linear" className="ml-2" />
                   </Button>
                 </DropdownTrigger>
                 <DropdownMenu
                   aria-label="Tipi veicolo"
                   onAction={(key) =>
-                    setTipoVeicoloSelezionato(tipiVeicolo[Number(key)])
+                    setSelectedVehicleType(vehicleTypes[Number(key)])
                   }
                 >
-                  {tipiVeicolo.map((tipo, index) => (
+                  {vehicleTypes.map((tipo, index) => (
                     <DropdownItem key={index.toString()}>{tipo}</DropdownItem>
                   ))}
                 </DropdownMenu>
               </Dropdown>
             </div>
-            <Button color="primary">
+            <Button
+              color="primary"
+              onPress={() => navigate("/vehicles/add-vehicle")}
+            >
               <Icon
                 icon="material-symbols:add"
                 className="mr-1"
@@ -244,11 +244,11 @@ export default function VehicleTable({
               ))}
             </TableHeader>
             <TableBody emptyContent="Nessun veicolo trovato">
-              {veicoliPaginati.map((veicolo) => (
-                <TableRow key={veicolo.id}>
+              {paginatedVehicles.map((vehicle) => (
+                <TableRow key={vehicle.id}>
                   {(columnKey) => (
                     <TableCell>
-                      {renderCell(veicolo, columnKey.toString())}
+                      {renderCell(vehicle, columnKey.toString())}
                     </TableCell>
                   )}
                 </TableRow>
@@ -257,10 +257,10 @@ export default function VehicleTable({
           </Table>
           <div className="flex w-full justify-center py-4 bg-default-100">
             <Pagination
-              total={Math.ceil(veicoliFiltrati.length / perPagina)}
+              total={Math.ceil(filteredVehicles.length / perPage)}
               initialPage={1}
-              page={paginaCorrenteVeicoli}
-              onChange={setPaginaCorrenteVeicoli}
+              page={currentVehiclePage}
+              onChange={setCurrentVehiclePage}
               showControls
               size="lg"
               radius="lg"
@@ -280,34 +280,32 @@ export default function VehicleTable({
       {/* Modale dettaglio veicolo */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalContent>
-          {veicoloSelezionato && (
+          {selectedVehicle && (
             <>
               <ModalHeader className="flex flex-col gap-1">
-                Dettaglio Veicolo
+                Vehicle Details
               </ModalHeader>
               <ModalBody>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-small text-default-500">ID Veicolo</p>
-                    <p>{veicoloSelezionato.id}</p>
+                    <p>{selectedVehicle.id}</p>
                   </div>
                   <div>
                     <p className="text-small text-default-500">Targa</p>
-                    <p>{veicoloSelezionato.targa}</p>
+                    <p>{selectedVehicle.plate}</p>
                   </div>
                   <div>
                     <p className="text-small text-default-500">Modello</p>
-                    <p>{veicoloSelezionato.modello}</p>
+                    <p>{selectedVehicle.model}</p>
                   </div>
                   <div>
                     <p className="text-small text-default-500">Tipo</p>
-                    <p>{veicoloSelezionato.tipo}</p>
+                    <p>{selectedVehicle.type}</p>
                   </div>
                   <div>
                     <p className="text-small text-default-500">Capacità</p>
-                    <p>
-                      {veicoloSelezionato.capacita.toLocaleString("it-IT")} kg
-                    </p>
+                    <p>{selectedVehicle.capacity.toLocaleString("it-IT")} kg</p>
                   </div>
                   <div>
                     <p className="text-small text-default-500">
@@ -315,7 +313,7 @@ export default function VehicleTable({
                     </p>
                     <p>
                       {new Date(
-                        veicoloSelezionato.ultimaRevisione
+                        selectedVehicle.lastInspection
                       ).toLocaleDateString("it-IT")}
                     </p>
                   </div>
@@ -323,11 +321,11 @@ export default function VehicleTable({
                     <p className="text-small text-default-500">Stato</p>
                     <Chip
                       color={
-                        statoVeicoloColorMap[veicoloSelezionato.stato] as any
+                        vehicleStatusColorMap[selectedVehicle.status] as any
                       }
                       variant="flat"
                     >
-                      {veicoloSelezionato.stato}
+                      {selectedVehicle.status}
                     </Chip>
                   </div>
                 </div>

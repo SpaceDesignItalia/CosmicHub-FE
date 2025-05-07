@@ -5,8 +5,8 @@ import VehicleCard from "../../Components/Inventory/VehicleCard";
 import VehicleMap from "../../Components/Inventory/VehicleMap";
 import { Input, Button, Dropdown, DropdownTrigger, DropdownMenu, DropdownItem, Chip, Divider } from "@heroui/react";
 
-// Tipi di dati
-interface Veicolo {
+// Data types
+interface Vehicle {
   id: string;
   targa: string;
   modello: string;

@@ -1,88 +1,87 @@
-import { useState } from "react";
-import ProductTable from "../../Components/Inventory/ProductTable";
 import { Icon } from "@iconify/react";
+import ProductTable from "../../Components/Inventory/Product/ProductTable";
 
-// Tipi di dati
-interface Prodotto {
+// Data types
+interface Product {
   id: string;
-  nome: string;
-  categoria: string;
-  quantita: number;
-  prezzo: number;
-  stato: "Disponibile" | "Esaurito" | "Bassa giacenza";
+  name: string;
+  category: string;
+  quantity: number;
+  price: number;
+  status: "Disponibile" | "Esaurito" | "Bassa giacenza";
 }
 
 export default function Products() {
-  // Dati di esempio
-  const prodotti: Prodotto[] = [
+  // Example data
+  const products: Product[] = [
     {
       id: "1",
-      nome: "Prodotto A",
-      categoria: "Elettronica",
-      quantita: 150,
-      prezzo: 99.99,
-      stato: "Disponibile",
+      name: "Product A",
+      category: "Elettronica",
+      quantity: 150,
+      price: 99.99,
+      status: "Disponibile",
     },
     {
       id: "2",
-      nome: "Prodotto B",
-      categoria: "Abbigliamento",
-      quantita: 50,
-      prezzo: 29.99,
-      stato: "Disponibile",
+      name: "Product B",
+      category: "Abbigliamento",
+      quantity: 50,
+      price: 29.99,
+      status: "Disponibile",
     },
     {
       id: "3",
-      nome: "Prodotto C",
-      categoria: "Casa",
-      quantita: 5,
-      prezzo: 199.5,
-      stato: "Bassa giacenza",
+      name: "Product C",
+      category: "Casa",
+      quantity: 5,
+      price: 199.5,
+      status: "Bassa giacenza",
     },
     {
       id: "4",
-      nome: "Prodotto D",
-      categoria: "Elettronica",
-      quantita: 0,
-      prezzo: 499.99,
-      stato: "Esaurito",
+      name: "Product D",
+      category: "Elettronica",
+      quantity: 0,
+      price: 499.99,
+      status: "Esaurito",
     },
     {
       id: "5",
-      nome: "Prodotto E",
-      categoria: "Alimentari",
-      quantita: 200,
-      prezzo: 5.99,
-      stato: "Disponibile",
+      name: "Product E",
+      category: "Alimentari",
+      quantity: 200,
+      price: 5.99,
+      status: "Disponibile",
     },
     {
       id: "6",
-      nome: "Prodotto F",
-      categoria: "Casa",
-      quantita: 75,
-      prezzo: 59.99,
-      stato: "Disponibile",
+      name: "Product F",
+      category: "Casa",
+      quantity: 75,
+      price: 59.99,
+      status: "Disponibile",
     },
     {
       id: "7",
-      nome: "Prodotto G",
-      categoria: "Elettronica",
-      quantita: 8,
-      prezzo: 899.99,
-      stato: "Bassa giacenza",
+      name: "Product G",
+      category: "Elettronica",
+      quantity: 8,
+      price: 899.99,
+      status: "Bassa giacenza",
     },
     {
       id: "8",
-      nome: "Prodotto H",
-      categoria: "Abbigliamento",
-      quantita: 120,
-      prezzo: 19.99,
-      stato: "Disponibile",
+      name: "Product H",
+      category: "Abbigliamento",
+      quantity: 120,
+      price: 19.99,
+      status: "Disponibile",
     },
   ];
 
-  const categorie = [
-    "Tutte",
+  const categories = [
+    "Tutti",
     "Elettronica",
     "Abbigliamento",
     "Casa",
@@ -99,10 +98,10 @@ export default function Products() {
               className="text-primary text-2xl"
             />
           </div>
-          <h1 className="text-2xl font-bold">Inventario Prodotti</h1>
+          <h1 className="text-2xl font-bold">Product Inventory</h1>
         </div>
       </div>
-      <ProductTable prodotti={prodotti} categorie={categorie} />
+      <ProductTable products={products} categories={categories} />
     </div>
   );
 }
