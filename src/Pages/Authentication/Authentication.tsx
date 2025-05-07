@@ -40,18 +40,20 @@ const PasswordField: React.FC<PasswordFieldProps> = ({
       errorMessage={errorMessage}
       isRequired={isRequired}
       classNames={{
-        inputWrapper: "dark:bg-zinc-800", // Sfondo leggermente più scuro per input in dark mode
+        inputWrapper: "dark:bg-neutral-800 border-zinc-300 dark:border-neutral-700 focus-within:border-red-500 dark:focus-within:border-red-500",
+        input: "dark:text-neutral-200",
+        label: "dark:text-neutral-400",
       }}
       endContent={
-        <button type="button" onClick={toggleVisibility} className="focus:outline-none">
+        <button type="button" onClick={toggleVisibility} className="focus:outline-none text-neutral-500 dark:text-neutral-400 hover:text-red-500 dark:hover:text-red-400 transition-colors">
           {isVisible ? (
             <Icon
-              className="pointer-events-none text-2xl text-default-400"
+              className="pointer-events-none text-2xl"
               icon="solar:eye-closed-linear"
             />
           ) : (
             <Icon
-              className="pointer-events-none text-2xl text-default-400"
+              className="pointer-events-none text-2xl"
               icon="solar:eye-bold"
             />
           )}
@@ -67,7 +69,7 @@ export default function Authentication() {
 
   const toggleView = () => {
     setIsLogin(!isLogin);
-    setIsPasswordInvalid(false); // Resetta l'errore della password quando si cambia vista
+    setIsPasswordInvalid(false);
   }
 
   const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
@@ -79,7 +81,6 @@ export default function Authentication() {
       setIsPasswordInvalid(true);
       return;
     }
-
     setIsPasswordInvalid(false);
 
     const endpoint = isLogin
@@ -96,13 +97,18 @@ export default function Authentication() {
       })
       .catch((error) => {
         console.error("Authentication failed:", error);
-        // Qui potresti voler mostrare un messaggio di errore all'utente
       });
+  };
+
+  const commonInputClassNames = {
+    inputWrapper: "dark:bg-neutral-800 border-zinc-300 dark:border-neutral-700 focus-within:border-red-500 dark:focus-within:border-red-500",
+    input: "dark:text-neutral-200",
+    label: "dark:text-neutral-400",
   };
 
   const LoginForm = () => (
     <Form
-      className="flex flex-col gap-4" // Aumentato leggermente il gap
+      className="flex flex-col gap-5" // Aumentato gap
       validationBehavior="native"
       onSubmit={handleSubmit}
     >
@@ -110,12 +116,10 @@ export default function Authentication() {
         name="email"
         isRequired
         label="Email"
-        placeholder="email@esempio.com" // Italianizzato
+        placeholder="email@esempio.com"
         type="email"
         variant="bordered"
-        classNames={{
-          inputWrapper: "dark:bg-zinc-800",
-        }}
+        classNames={commonInputClassNames}
       />
       <PasswordField
         name="password"
@@ -124,14 +128,25 @@ export default function Authentication() {
         isRequired
       />
       <div className="flex w-full items-center justify-between px-1">
-        <Checkbox name="remember" size="sm" classNames={{ label: "text-zinc-700 dark:text-zinc-300"}}>
+        <Checkbox 
+          name="remember" 
+          size="sm" 
+          classNames={{ 
+            label: "text-sm text-zinc-700 dark:text-neutral-300",
+            wrapper: "border-zinc-400 dark:border-neutral-500"
+          }}
+        >
           Ricordami
         </Checkbox>
-        <Link className="text-sm text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" href="#">
+        <Link className="text-sm text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 font-medium" href="#">
           Password dimenticata?
         </Link>
       </div>
-      <Button className="w-full mt-2" color="primary" type="submit" size="lg">
+      <Button 
+        className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white font-semibold tracking-wide shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5"
+        type="submit" 
+        size="lg"
+      >
         Accedi
       </Button>
     </Form>
@@ -139,11 +154,11 @@ export default function Authentication() {
 
   const RegisterForm = () => (
     <Form
-      className="flex flex-col gap-4" // Aumentato leggermente il gap
+      className="flex flex-col gap-5" // Aumentato gap
       validationBehavior="native"
       onSubmit={handleSubmit}
     >
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-4">
         <Input
           name="name"
           isRequired
@@ -151,9 +166,7 @@ export default function Authentication() {
           placeholder="Mario"
           type="text"
           variant="bordered"
-          classNames={{
-            inputWrapper: "dark:bg-zinc-800",
-          }}
+          classNames={commonInputClassNames}
         />
         <Input
           name="surname"
@@ -162,21 +175,17 @@ export default function Authentication() {
           placeholder="Rossi"
           type="text"
           variant="bordered"
-          classNames={{
-            inputWrapper: "dark:bg-zinc-800",
-          }}
+          classNames={commonInputClassNames}
         />
       </div>
       <Input
         name="email"
         isRequired
         label="Email"
-        placeholder="email@esempio.com" // Italianizzato
+        placeholder="email@esempio.com"
         type="email"
         variant="bordered"
-        classNames={{
-          inputWrapper: "dark:bg-zinc-800",
-        }}
+        classNames={commonInputClassNames}
       />
       <PasswordField
         name="password"
@@ -192,9 +201,12 @@ export default function Authentication() {
         placeholder="********"
         isRequired
         isInvalid={isPasswordInvalid}
-        // Non mostrare il messaggio di errore qui, già presente sopra
       />
-      <Button className="w-full mt-2" color="primary" type="submit" size="lg">
+      <Button 
+        className="w-full mt-3 bg-red-600 hover:bg-red-700 text-white font-semibold tracking-wide shadow-md hover:shadow-lg transition-all duration-300 ease-in-out transform hover:-translate-y-0.5"
+        type="submit" 
+        size="lg"
+      >
         Registrati
       </Button>
     </Form>
@@ -202,57 +214,62 @@ export default function Authentication() {
 
   return (
     //<GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-    <div className="flex h-screen min-h-[700px] w-full items-center justify-center p-4 bg-slate-100 dark:bg-zinc-900 selection:bg-primary-500 selection:text-white">
+    <div className="flex h-screen min-h-[700px] w-full items-center justify-center p-4 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-neutral-900 dark:to-black selection:bg-red-500 selection:text-white">
       <motion.div 
-        className="flex w-full max-w-md flex-col gap-6 rounded-xl bg-white dark:bg-zinc-800/50 backdrop-blur-lg px-8 py-10 shadow-2xl border border-slate-200 dark:border-zinc-700/50"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: "circOut" }}
+        className="relative flex w-full max-w-md flex-col gap-6 rounded-xl bg-white dark:bg-neutral-900 px-8 py-10 shadow-2xl border border-zinc-200 dark:border-neutral-800/70 overflow-hidden"
+        initial={{ opacity: 0, y: 30, scale: 0.98 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1]}} // Cubic bezier for smooth pop
       >
-        <div className="text-center">
-          {/* Potresti inserire un logo qui sopra, se disponibile */}
-          {/* Esempio: <img src="/logo.svg" alt="CosmicHub Logo" className="w-16 h-16 mx-auto mb-4" /> */}
-          <h1 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
-            {isLogin ? "Bentornato!" : "Crea un Account"}
+        {/* Elemento decorativo ispirato al design */}
+        <div className="absolute -top-1/4 -left-1/4 w-72 h-72 bg-red-500/10 dark:bg-red-500/5 rounded-full filter blur-3xl opacity-70 dark:opacity-50 animate-pulse-slow"></div>
+        <div className="absolute -bottom-1/4 -right-1/4 w-60 h-60 bg-sky-500/10 dark:bg-sky-500/5 rounded-full filter blur-3xl opacity-60 dark:opacity-40 animate-pulse-slower animation-delay-2000"></div>
+
+        <div className="text-center z-10">
+          <div className="mb-6 inline-flex items-center justify-center p-3 bg-red-500/10 dark:bg-red-900/30 rounded-full">
+            <Icon icon="mdi:rocket-launch-outline" className="text-5xl text-red-500 dark:text-red-400" />
+          </div>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-neutral-100">
+            {isLogin ? "Bentornato su CosmicHub" : "Crea il tuo Account"}
           </h1>
-          <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
-            {isLogin ? "Accedi per continuare su CosmicHub." : "Unisciti a noi per iniziare la tua avventura cosmica."}
+          <p className="mt-2 text-sm text-zinc-600 dark:text-neutral-400">
+            {isLogin ? "Accedi per esplorare nuove frontiere." : "Registrati e inizia il tuo viaggio interstellare."}
           </p>
         </div>
         
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={isLogin ? "login" : "register"}
-            initial={{ opacity: 0, x: isLogin ? -20 : 20, scale: 0.98 }}
-            animate={{
-              opacity: 1,
-              x: 0,
-              scale: 1,
-              transition: {
-                type: "spring",
-                stiffness: 260,
-                damping: 20,
-              },
-            }}
-            exit={{
-              opacity: 0,
-              x: isLogin ? 20 : -20,
-              scale: 0.98,
-              transition: {
-                duration: 0.2,
-                ease: "circIn"
-              },
-            }}
-          >
-            {isLogin ? <LoginForm /> : <RegisterForm />}
-          </motion.div>
-        </AnimatePresence>
+        <div className="z-10">
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={isLogin ? "login" : "register"}
+              initial={{ opacity: 0, x: isLogin ? -30 : 30, scale: 0.98 }}
+              animate={{
+                opacity: 1,
+                x: 0,
+                scale: 1,
+                transition: {
+                  type: "spring",
+                  stiffness: 220,
+                  damping: 22,
+                },
+              }}
+              exit={{
+                opacity: 0,
+                x: isLogin ? 30 : -30,
+                scale: 0.98,
+                transition: {
+                  duration: 0.25,
+                  ease: "circIn"
+                },
+              }}
+            >
+              {isLogin ? <LoginForm /> : <RegisterForm />}
+            </motion.div>
+          </AnimatePresence>
+        </div>
 
-        
-
-        <p className="text-center text-sm text-zinc-700 dark:text-zinc-300">
+        <p className="text-center text-sm text-zinc-700 dark:text-neutral-300 z-10">
           {isLogin ? "Non hai un account?" : "Hai già un account?"}&nbsp;
-          <Link className="font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300" href="#" onClick={toggleView}>
+          <Link className="font-semibold text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-500 transition-colors" href="#" onClick={toggleView}>
             {isLogin ? "Registrati ora" : "Accedi ora"}
           </Link>
         </p>
