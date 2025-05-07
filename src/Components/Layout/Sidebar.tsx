@@ -463,18 +463,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
             </DropdownTrigger>
             <DropdownMenu aria-label="User Actions">
               <DropdownItem
-                key="profile"
-                startContent={
-                  <Icon
-                    className="text-default-700"
-                    icon="solar:user-circle-line-duotone"
-                    width={20}
-                  />
-                }
-              >
-                Profilo
-              </DropdownItem>
-              <DropdownItem
                 key="settings"
                 startContent={
                   <Icon

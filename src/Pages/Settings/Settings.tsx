@@ -31,28 +31,8 @@ const Settings = () => {
   // Gestisce il cambio del tema
   const handleThemeChange = () => {
     const newTheme = isDark ? "light" : "dark";
-
-    // Aggiorna il tema nel localStorage
-    localStorage.setItem("cosmichub-theme-mode", newTheme);
-
-    // Aggiorna il tema nell'applicazione
     setTheme(newTheme);
   };
-
-  // Sincronizza il tema con localStorage
-  useEffect(() => {
-    const storedTheme = localStorage.getItem("cosmichub-theme-mode");
-
-    // Se c'è un tema memorizzato e diverso da quello corrente, applicalo
-    if (storedTheme && storedTheme !== theme) {
-      setTheme(storedTheme as "light" | "dark");
-    }
-
-    // Se non c'è un tema memorizzato, salva quello attuale
-    if (!storedTheme) {
-      localStorage.setItem("cosmichub-theme-mode", theme);
-    }
-  }, [theme, setTheme]);
 
   // Icona occhio per i campi password
   const renderEyeIcon = (isVisible: boolean, toggleVisibility: () => void) => (
