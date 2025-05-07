@@ -24,10 +24,8 @@ import {
   type ListboxSectionProps,
   type Selection,
 } from "@heroui/react";
-import { Listbox, Tooltip, ListboxItem, ListboxSection } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import axios from "axios";
-import React, { useState } from "react";
 import { useLocation } from "react-router-dom";
 
 // Sostituisco l'import della chiave del localStorage con l'import del custom hook
