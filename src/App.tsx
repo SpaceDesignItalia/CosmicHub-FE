@@ -54,6 +54,8 @@ function App() {
     return <div>Loading...</div>;
   }
 
+  console.log(isAuth);
+
   const EmployeeProtectedRoutes: React.FC = () => {
     return (
       <Routes>
@@ -75,8 +77,12 @@ function App() {
       )}
 
       <Routes>
-        <Route path="/" element={<Authentication />} />
-        <Route path="/login" element={<Authentication />} />
+        {!isAuth && (
+          <>
+            <Route path="/" element={<Authentication />} />
+            <Route path="/login" element={<Authentication />} />
+          </>
+        )}
         <Route
           path="/"
           element={
