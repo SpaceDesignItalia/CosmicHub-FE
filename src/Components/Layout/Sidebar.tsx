@@ -1,5 +1,6 @@
 "use client";
 
+import React, { useEffect } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -13,13 +14,23 @@ import {
   Modal,
   ModalContent,
   useDisclosure,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
 } from "@heroui/react";
-import React, { useState } from "react";
+import React from "react";
 import { Listbox, Tooltip, ListboxItem, ListboxSection } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { cn } from "@heroui/react";
 import { useTheme } from "@heroui/use-theme";
 import axios from "axios";
+
+// Sostituisco l'import della chiave del localStorage con l'import del custom hook
+import {
+  useCustomTheme,
+  THEME_STORAGE_KEY,
+} from "../../providers/ThemeProvider";
 
 export enum SidebarItemType {
   Nest = "nest",
@@ -184,7 +195,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       React.useState<React.Key>(defaultSelectedKey);
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [isMobile, setIsMobile] = React.useState(false);
-    const { theme, setTheme } = useTheme();
+
+    // Uso il custom hook invece di useTheme
+    const { theme, setTheme } = useCustomTheme();
 
     React.useEffect(() => {
       const fetchUser = async () => {
@@ -499,19 +512,39 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
           <Spacer y={8} />
 
-          <div className="flex items-center gap-3 px-2">
-            <Avatar
-              isBordered
-              size="sm"
-              src="https://i.pravatar.cc/150?u=a04258114e29026708c"
-            />
-            <div className="flex flex-col">
-              <p className="text-small font-medium text-foreground">
-                {user?.name} {user?.surname}
-              </p>
-              <p className="text-tiny text-default-400">{user?.company}</p>
-            </div>
-          </div>
+          <Dropdown placement="bottom-start">
+            <DropdownTrigger>
+              <div className="flex cursor-pointer items-center gap-3 px-2 transition-opacity hover:opacity-80">
+                <Avatar
+                  isBordered
+                  size="sm"
+                  src="https://i.pravatar.cc/150?u=a04258114e29026708c"
+                />
+                <div className="flex flex-col">
+                  <p className="text-small font-medium text-foreground">
+{user?.name} {user?.surname}
+</p>
+                </div>
+              </div>
+            </DropdownTrigger>
+            <DropdownMenu aria-label="User Actions">
+              <DropdownItem
+                key="settings"
+                startContent={
+                  <Icon
+                    className="text-default-700"
+                    icon="solar:settings-line-duotone"
+                    width={20}
+                  />
+                }
+                href="/settings"
+              >
+                Impostazioni
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
+
+                
           <ScrollShadow className="-mr-6 h-full max-h-full py-6 pr-6">
             <Listbox
               key={isCompact ? "compact" : "default"}
@@ -575,9 +608,10 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           <div className="mt-auto flex flex-col gap-4">
             <ThemeSwitch
               isSelected={theme === "dark"}
-              onValueChange={(isSelected) =>
-                setTheme(isSelected ? "dark" : "light")
-              }
+              onValueChange={(isSelected) => {
+                const newTheme = isSelected ? "dark" : "light";
+                setTheme(newTheme);
+              }}
             />
 
             <Button

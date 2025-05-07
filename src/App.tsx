@@ -7,6 +7,7 @@ import Authentication from "./Pages/Authentication/Authentication";
 import Dashboard from "./Pages/Dashboard/Dashboard";
 import Products from "./Pages/Inventory/Products";
 import Vehicles from "./Pages/Inventory/Vehicles";
+import Settings from "./Pages/Settings/Settings";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_API_URL;
@@ -98,6 +99,7 @@ function App() {
             )
           }
         />
+        <Route path="/settings" element={<Settings />} />
       </Routes>
     </div>
   );
