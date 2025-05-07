@@ -60,8 +60,8 @@ function App() {
         <Route element={<Outlet />}>
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/products" element={<Products />} />
-          <Route path="/vehicles" element={<Vehicles />} />
+          <Route path="/inventory/products" element={<Products />} />
+          <Route path="/inventory/vehicles" element={<Vehicles />} />
           <Route path="/analytics" element={<Analytics />} />
         </Route>
       </Routes>

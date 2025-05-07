@@ -1,36 +1,33 @@
-"use client";
-
-import React, { useEffect } from "react";
 import {
   Accordion,
   AccordionItem,
+  Avatar,
+  Button,
+  cn,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
+  Listbox,
+  ListboxItem,
+  ListboxSection,
+  Modal,
+  ModalContent,
+  ScrollShadow,
+  Spacer,
+  Tooltip,
+  useDisclosure,
   type ListboxProps,
   type ListboxSectionProps,
   type Selection,
-  Button,
-  Avatar,
-  ScrollShadow,
-  Spacer,
-  Modal,
-  ModalContent,
-  useDisclosure,
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
 } from "@heroui/react";
-import React from "react";
-import { Listbox, Tooltip, ListboxItem, ListboxSection } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import { cn } from "@heroui/react";
-import { useTheme } from "@heroui/use-theme";
 import axios from "axios";
+import React, { useState } from "react";
+import { useLocation } from "react-router-dom";
 
 // Sostituisco l'import della chiave del localStorage con l'import del custom hook
-import {
-  useCustomTheme,
-  THEME_STORAGE_KEY,
-} from "../../providers/ThemeProvider";
+import { useCustomTheme } from "../../providers/ThemeProvider";
 
 export enum SidebarItemType {
   Nest = "nest",
@@ -82,13 +79,19 @@ export const sectionNestedItems = [
         key: "products",
         title: "Products",
         icon: "solar:box-minimalistic-line-duotone",
-        href: "/products",
+        href: "/inventory/products",
+      },
+      {
+        key: "categories",
+        title: "Categorie",
+        icon: "solar:tag-linear",
+        href: "/inventory/categories",
       },
       {
         key: "vehicles",
         title: "Veicoli",
         icon: "mingcute:truck-line",
-        href: "/vehicles",
+        href: "/inventory/vehicles",
       },
     ],
   },
@@ -102,30 +105,13 @@ export const sectionNestedItems = [
         key: "overview",
         title: "Panoramica",
         icon: "solar:chart-linear",
+        href: "/customers/overview",
       },
       {
         key: "reports",
         title: "Report",
         icon: "solar:document-linear",
-      },
-    ],
-  },
-  {
-    key: "products",
-    title: "Prodotti",
-    icon: "solar:box-linear",
-    type: SidebarItemType.Nest,
-    items: [
-      {
-        key: "inventory",
-        title: "Inventario",
-        icon: "solar:box-minimalistic-linear",
-        href: "/inventory",
-      },
-      {
-        key: "categories",
-        title: "Categorie",
-        icon: "solar:tag-linear",
+        href: "/customers/reports",
       },
     ],
   },
@@ -195,6 +181,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       React.useState<React.Key>(defaultSelectedKey);
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [isMobile, setIsMobile] = React.useState(false);
+    const location = useLocation();
 
     // Uso il custom hook invece di useTheme
     const { theme, setTheme } = useCustomTheme();
@@ -281,8 +268,17 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       }),
     };
 
-    const renderNestItem = React.useCallback(
+    const renderItem = React.useCallback(
       (item: SidebarItem) => {
+        const currentPath = location.pathname;
+        // Prendi il primo segmento del path (es: da "/inventory/categories" prende "inventory")
+        const firstPathSegment = currentPath.split("/")[1];
+
+        const isSelected =
+          item.type === SidebarItemType.Nest
+            ? item.key === firstPathSegment
+            : item.href === currentPath;
+
         const isNestType =
           item.items &&
           item.items?.length > 0 &&
@@ -304,6 +300,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 },
                 {
                   "inline-block w-11": isCompact && isNestType,
+                },
+                {
+                  "bg-default-100": isSelected,
                 }
               ),
             }}
@@ -353,7 +352,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   aria-label={item.title}
                   classNames={{
                     heading: "pr-3",
-                    trigger: "p-0",
+                    trigger: cn("p-0", { "bg-default-100": isSelected }),
                     content: "py-0 pl-4",
                   }}
                   title={
@@ -398,87 +397,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           </ListboxItem>
         );
       },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [isCompact, hideEndContent, iconClassName, items]
-    );
-
-    const renderItem = React.useCallback(
-      (item: SidebarItem) => {
-        const isNestType =
-          item.items &&
-          item.items?.length > 0 &&
-          item?.type === SidebarItemType.Nest;
-
-        if (isNestType) {
-          return renderNestItem(item);
-        }
-
-        // Gestione speciale per l'icona personalizzata dei veicoli nella modalità compatta
-        const customIconContent =
-          item.key === "vehicles" && isCompact ? (
-            <Tooltip content={item.title} placement="right">
-              <div className="flex w-full items-center justify-center">
-                <Icon
-                  icon="mingcute:truck-line"
-                  style={{ fontSize: 20 }}
-                  className="text-default-700 group-data-[selected=true]:text-foreground-900"
-                />
-              </div>
-            </Tooltip>
-          ) : null;
-
-        return (
-          <ListboxItem
-            {...item}
-            key={item.key}
-            endContent={
-              isCompact || hideEndContent ? null : item.endContent ?? null
-            }
-            startContent={
-              isCompact
-                ? null
-                : item.startContent ??
-                  (item.icon ? (
-                    <Icon
-                      className={cn(
-                        "text-default-700 group-data-[selected=true]:text-foreground-900",
-                        iconClassName
-                      )}
-                      icon={item.icon}
-                      width={24}
-                    />
-                  ) : null)
-            }
-            textValue={item.title}
-            title={isCompact ? null : item.title}
-          >
-            {isCompact ? (
-              item.key === "vehicles" ? (
-                customIconContent
-              ) : (
-                <Tooltip content={item.title} placement="right">
-                  <div className="flex w-full items-center justify-center">
-                    {item.icon ? (
-                      <Icon
-                        className={cn(
-                          "text-default-700 group-data-[selected=true]:text-foreground-900",
-                          iconClassName
-                        )}
-                        icon={item.icon}
-                        width={24}
-                      />
-                    ) : (
-                      item.startContent ?? null
-                    )}
-                  </div>
-                </Tooltip>
-              )
-            ) : null}
-          </ListboxItem>
-        );
-      },
-      // eslint-disable-next-line react-hooks/exhaustive-deps
-      [isCompact, hideEndContent, iconClassName, itemClasses?.base]
+      [isCompact, hideEndContent, iconClassName, location.pathname]
     );
 
     const SidebarContent = () => (
@@ -522,8 +441,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 />
                 <div className="flex flex-col">
                   <p className="text-small font-medium text-foreground">
-{user?.name} {user?.surname}
-</p>
+                    {user?.name} {user?.surname}
+                  </p>
                 </div>
               </div>
             </DropdownTrigger>
@@ -544,7 +463,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
             </DropdownMenu>
           </Dropdown>
 
-                
           <ScrollShadow className="-mr-6 h-full max-h-full py-6 pr-6">
             <Listbox
               key={isCompact ? "compact" : "default"}
@@ -586,7 +504,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 return item.items &&
                   item.items?.length > 0 &&
                   item?.type === SidebarItemType.Nest ? (
-                  renderNestItem(item)
+                  renderItem(item)
                 ) : item.items && item.items?.length > 0 ? (
                   <ListboxSection
                     key={item.key}
