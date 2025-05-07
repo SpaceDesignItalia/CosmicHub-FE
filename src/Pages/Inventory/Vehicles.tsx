@@ -23,12 +23,12 @@ interface Vehicle {
 }
 
 export default function Vehicles() {
-  const [ricercaVeicolo, setRicercaVeicolo] = useState("");
-  const [tipoVeicoloSelezionato, setTipoVeicoloSelezionato] = useState("Tutti");
-  const [veicoloSelezionato, setVeicoloSelezionato] = useState<Veicolo | null>(null);
+  const [ricercaVeichle, setRicercaVeichle] = useState("");
+  const [tipoVeichleSelezionato, setTipoVeichleSelezionato] = useState("Tutti");
+  const [VeichleSelezionato, setVeichleSelezionato] = useState<Veichle | null>(null);
 
   // Dati di esempio aggiornati
-  const veicoli: Veicolo[] = [
+  const veicoli: Veichle[] = [
     {
       id: "1",
       targa: "AB123CD",
@@ -113,38 +113,38 @@ export default function Vehicles() {
   ];
 
   // Filtro veicoli
-  const veicoliFiltrati = veicoli.filter((veicolo) => {
+  const veicoliFiltrati = veicoli.filter((Veichle) => {
     const matchRicerca =
-      veicolo.modello.toLowerCase().includes(ricercaVeicolo.toLowerCase()) ||
-      veicolo.targa.toLowerCase().includes(ricercaVeicolo.toLowerCase());
+      Veichle.modello.toLowerCase().includes(ricercaVeichle.toLowerCase()) ||
+      Veichle.targa.toLowerCase().includes(ricercaVeichle.toLowerCase());
     const matchTipo =
-      tipoVeicoloSelezionato === "Tutti" ||
-      veicolo.tipo === tipoVeicoloSelezionato;
+      tipoVeichleSelezionato === "Tutti" ||
+      Veichle.tipo === tipoVeichleSelezionato;
     return matchRicerca && matchTipo;
   });
 
-  const tipiVeicolo = ["Tutti", "Furgone grande", "Furgone piccolo"];
+  const tipiVeichle = ["Tutti", "Furgone grande", "Furgone piccolo"];
 
-  // Gestisce il click su un veicolo - definito con useCallback per evitare rirender inutili
-  const selezionaVeicolo = useCallback((veicolo: Veicolo) => {
-    setVeicoloSelezionato(veicolo);
+  // Gestisce il click su un Veichle - definito con useCallback per evitare rirender inutili
+  const selezionaVeichle = useCallback((Veichle: Veichle) => {
+    setVeichleSelezionato(Veichle);
   }, []);
 
-  // Seleziona il primo veicolo all'avvio
+  // Seleziona il primo Veichle all'avvio
   useEffect(() => {
-    if (veicoliFiltrati.length > 0 && !veicoloSelezionato) {
-      setVeicoloSelezionato(veicoliFiltrati[0]);
+    if (veicoliFiltrati.length > 0 && !VeichleSelezionato) {
+      setVeichleSelezionato(veicoliFiltrati[0]);
     }
   }, []);
 
   // Reset selezione quando i filtri cambiano
   useEffect(() => {
     if (veicoliFiltrati.length === 0) {
-      setVeicoloSelezionato(null);
-    } else if (veicoloSelezionato && !veicoliFiltrati.some(v => v.id === veicoloSelezionato.id)) {
-      setVeicoloSelezionato(veicoliFiltrati[0]);
+      setVeichleSelezionato(null);
+    } else if (VeichleSelezionato && !veicoliFiltrati.some(v => v.id === VeichleSelezionato.id)) {
+      setVeichleSelezionato(veicoliFiltrati[0]);
     }
-  }, [ricercaVeicolo, tipoVeicoloSelezionato, veicoliFiltrati]);
+  }, [ricercaVeichle, tipoVeichleSelezionato, veicoliFiltrati]);
 
   return (
     <div className="w-full flex-1 flex flex-col p-5 gap-5 bg-zinc-50 dark:bg-zinc-950">
@@ -167,8 +167,8 @@ export default function Vehicles() {
           <Input
             placeholder="Cerca per targa o modello..."
             startContent={<Icon icon="solar:magnifer-line-duotone" className="text-zinc-500 dark:text-zinc-400" />}
-            value={ricercaVeicolo}
-            onChange={(e) => setRicercaVeicolo(e.target.value)}
+            value={ricercaVeichle}
+            onChange={(e) => setRicercaVeichle(e.target.value)}
             className="w-60"
             classNames={{
               base: "bg-white dark:bg-zinc-900",
@@ -180,15 +180,15 @@ export default function Vehicles() {
               <Button 
                 className="bg-white text-zinc-800 border-zinc-200 dark:bg-zinc-900 dark:text-zinc-200 dark:border-zinc-700"
               >
-                {tipoVeicoloSelezionato}
+                {tipoVeichleSelezionato}
                 <Icon icon="solar:arrow-down-linear" className="ml-2" />
               </Button>
             </DropdownTrigger>
             <DropdownMenu
-              aria-label="Tipi veicolo"
-              onAction={(key) => setTipoVeicoloSelezionato(tipiVeicolo[Number(key)])}
+              aria-label="Tipi Veichle"
+              onAction={(key) => setTipoVeichleSelezionato(tipiVeichle[Number(key)])}
             >
-              {tipiVeicolo.map((tipo, index) => (
+              {tipiVeichle.map((tipo, index) => (
                 <DropdownItem key={index.toString()}>{tipo}</DropdownItem>
               ))}
             </DropdownMenu>
@@ -197,33 +197,33 @@ export default function Vehicles() {
       </div>
 
       {/* Filtri applicati */}
-      {(tipoVeicoloSelezionato !== "Tutti" || ricercaVeicolo) && (
+      {(tipoVeichleSelezionato !== "Tutti" || ricercaVeichle) && (
         <div className="flex flex-wrap gap-2 bg-white dark:bg-zinc-900 p-3 rounded-xl border border-zinc-100 dark:border-zinc-800">
           <div className="text-sm text-zinc-700 dark:text-zinc-300 font-medium">Filtri attivi:</div>
-          {tipoVeicoloSelezionato !== "Tutti" && (
+          {tipoVeichleSelezionato !== "Tutti" && (
             <Chip 
               variant="flat" 
               size="sm" 
-              onClose={() => setTipoVeicoloSelezionato("Tutti")}
+              onClose={() => setTipoVeichleSelezionato("Tutti")}
               classNames={{
                 base: "bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300 border border-blue-200 dark:border-blue-800",
                 closeButton: "text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900"
               }}
             >
-              Tipo: {tipoVeicoloSelezionato}
+              Tipo: {tipoVeichleSelezionato}
             </Chip>
           )}
-          {ricercaVeicolo && (
+          {ricercaVeichle && (
             <Chip 
               variant="flat" 
               size="sm" 
-              onClose={() => setRicercaVeicolo("")}
+              onClose={() => setRicercaVeichle("")}
               classNames={{
                 base: "bg-teal-50 text-teal-700 dark:bg-teal-950 dark:text-teal-300 border border-teal-200 dark:border-teal-800",
                 closeButton: "text-teal-700 dark:text-teal-300 hover:bg-teal-100 dark:hover:bg-teal-900"
               }}
             >
-              Ricerca: {ricercaVeicolo}
+              Ricerca: {ricercaVeichle}
             </Chip>
           )}
         </div>
@@ -236,34 +236,34 @@ export default function Vehicles() {
           <div className="flex justify-between items-center p-4 border-b border-zinc-100 dark:border-zinc-800">
             <h2 className="text-lg font-semibold text-zinc-900 dark:text-zinc-50">Flotta veicoli</h2>
             <div className="text-sm text-zinc-600 dark:text-zinc-300">
-              {veicoliFiltrati.length} {veicoliFiltrati.length === 1 ? 'veicolo' : 'veicoli'}
+              {veicoliFiltrati.length} {veicoliFiltrati.length === 1 ? 'Veichle' : 'veicoli'}
             </div>
           </div>
           <div className="overflow-y-auto py-2 px-4 flex-1 bg-zinc-50 dark:bg-zinc-950">
             {veicoliFiltrati.length > 0 ? (
-              veicoliFiltrati.map((veicolo) => (
+              veicoliFiltrati.map((Veichle) => (
                 <VehicleCard 
-                  key={veicolo.id} 
-                  veicolo={veicolo} 
-                  isSelected={veicoloSelezionato?.id === veicolo.id}
-                  onClick={selezionaVeicolo}
+                  key={Veichle.id} 
+                  Veichle={Veichle} 
+                  isSelected={VeichleSelezionato?.id === Veichle.id}
+                  onClick={selezionaVeichle}
                 />
               ))
             ) : (
               <div className="text-center py-8 text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 rounded-lg my-2 border border-zinc-100 dark:border-zinc-800">
                 <Icon icon="mdi:truck-remove" className="text-4xl mb-2 text-zinc-400 dark:text-zinc-500" />
-                <p>Nessun veicolo trovato</p>
+                <p>Nessun Veichle trovato</p>
                 <p className="text-xs mt-2 text-zinc-500 dark:text-zinc-400">Prova a modificare i filtri di ricerca</p>
               </div>
             )}
           </div>
         </div>
 
-        {/* Colonna destra - Mappa del veicolo selezionato */}
+        {/* Colonna destra - Mappa del Veichle selezionato */}
         <div className="lg:col-span-2 max-h-full overflow-hidden flex flex-col">
-          {veicoloSelezionato ? (
+          {VeichleSelezionato ? (
             <div className="h-full bg-white dark:bg-zinc-900 rounded-xl overflow-hidden border border-zinc-100 dark:border-zinc-800">
-              <VehicleMap veicolo={veicoloSelezionato} />
+              <VehicleMap Veichle={VeichleSelezionato} />
             </div>
           ) : (
             <div className="h-full flex items-center justify-center text-zinc-600 dark:text-zinc-300 bg-white dark:bg-zinc-900 rounded-xl border border-zinc-100 dark:border-zinc-800">
@@ -271,9 +271,9 @@ export default function Vehicles() {
                 <div className="bg-zinc-50 dark:bg-zinc-950 p-6 rounded-full inline-block mb-4 border border-zinc-100 dark:border-zinc-800">
                   <Icon icon="mdi:map-search" className="text-5xl text-zinc-400 dark:text-zinc-500" />
                 </div>
-                <h3 className="text-xl font-semibold mb-2 text-zinc-800 dark:text-zinc-200">Nessun veicolo selezionato</h3>
+                <h3 className="text-xl font-semibold mb-2 text-zinc-800 dark:text-zinc-200">Nessun Veichle selezionato</h3>
                 <p className="max-w-md text-zinc-600 dark:text-zinc-300">
-                  Seleziona un veicolo dalla lista a sinistra per visualizzare i dettagli e la posizione sulla mappa
+                  Seleziona un Veichle dalla lista a sinistra per visualizzare i dettagli e la posizione sulla mappa
                 </p>
               </div>
             </div>
