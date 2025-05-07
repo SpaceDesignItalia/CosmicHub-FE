@@ -2,40 +2,40 @@ import React, { useState, useEffect } from "react";
 import { Card, CardBody, CardHeader, CardFooter, Chip, Button, Progress, Tabs, Tab } from "@heroui/react";
 import { Icon } from "@iconify/react";
 
-interface Veicolo {
+interface Vehicle {
   id: string;
-  targa: string;
-  modello: string;
-  tipo: "Furgone grande" | "Furgone piccolo";
-  capacita: number;
-  stato: "Disponibile" | "In uso" | "In manutenzione";
-  ultimaRevisione: string;
-  capacitàUtilizzata?: number;
-  posizione?: string;
-  tempoDiViaggio?: string;
-  oraStimaArrivo?: string;
-  coordinate?: { lat: number; lng: number };
-  puntiConsegna?: { indirizzo: string; ora: string }[];
+  plate: string;
+  model: string;
+  type: "Large Van" | "Small Van";
+  capacity: number;
+  status: "Available" | "In use" | "Maintenance";
+  lastCheck: string;
+  usedCapacity?: number;
+  position?: string;
+  travelTime?: string;
+  eta?: string;
+  coordinates?: { lat: number; lng: number };
+  deliveryPoints?: { address: string; time: string }[];
 }
 
 interface VehicleMapProps {
-  veicolo: Veicolo;
+  vehicle: Vehicle;
 }
 
-const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
-  const [activeTab, setActiveTab] = useState("mappa");
+const VehicleMap: React.FC<VehicleMapProps> = ({ vehicle }) => {
+  const [activeTab, setActiveTab] = useState("map");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [animationProgress, setAnimationProgress] = useState(50);
   
-  // Aggiorna il tempo corrente ogni secondo
+  // Update current time every second
   useEffect(() => {
     const interval = setInterval(() => {
       setCurrentTime(new Date());
       
-      // Aggiorna la posizione del veicolo sulla mappa per un effetto di movimento
+      // Update vehicle position on map for movement effect
       if (isOnRoute) {
         setAnimationProgress(prev => {
-          // Simula movimento tra 20% e 80% del percorso
+          // Simulate movement between 20% and 80% of route
           if (prev >= 80) return 20;
           return prev + 1;
         });
@@ -45,37 +45,37 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
     return () => clearInterval(interval);
   }, []);
   
-  const isOnRoute = veicolo.stato === "In uso";
-  const isWaiting = veicolo.stato === "In manutenzione";
-  const isAvailable = veicolo.stato === "Disponibile";
-  const capacityUsed = veicolo.capacitàUtilizzata || 0;
+  const isOnRoute = vehicle.status === "In use";
+  const isWaiting = vehicle.status === "Maintenance";
+  const isAvailable = vehicle.status === "Available";
+  const capacityUsed = vehicle.usedCapacity || 0;
   
-  // Genera percorso fittizio per demo
+  // Generate random path for demo
   const getRandomPath = () => {
     const paths = [
       "M50,150 Q100,50 150,150 T250,150 T350,150 T450,150",
       "M50,150 C150,50 250,250 450,150",
       "M50,150 Q120,20 250,150 Q380,280 450,150"
     ];
-    return paths[veicolo.id.charCodeAt(0) % paths.length];
+    return paths[vehicle.id.charCodeAt(0) % paths.length];
   };
   
-  // Calcola la posizione corrente sul percorso (per animazione)
+  // Calculate current position on path (for animation)
   const getCurrentPosition = () => {
-    // Questo è un calcolo semplificato per dimostrare il concetto
-    // In un'implementazione reale, si calcolerebbero le coordinate basate sul percorso SVG
+    // This is a simplified calculation to demonstrate the concept
+    // In a real implementation, coordinates would be calculated based on SVG path
     return {
       x: 50 + (400 * animationProgress / 100),
       y: 150 + Math.sin(animationProgress / 10) * 30
     };
   };
   
-  // Calcola il tempo rimanente stimato
+  // Calculate estimated remaining time
   const getRemainingTime = () => {
-    if (!veicolo.tempoDiViaggio) return "N/D";
+    if (!vehicle.travelTime) return "N/A";
     
-    // Esempio di calcolo rimanente in un formato mm:ss
-    const [hours, minutes, seconds] = veicolo.tempoDiViaggio.split(":").map(Number);
+    // Example of remaining time calculation in mm:ss format
+    const [hours, minutes, seconds] = vehicle.travelTime.split(":").map(Number);
     const totalSeconds = hours * 3600 + minutes * 60 + seconds;
     const remainingSeconds = totalSeconds * (1 - animationProgress / 100);
     
@@ -86,8 +86,8 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
     return `${rHours.toString().padStart(2, '0')}:${rMinutes.toString().padStart(2, '0')}:${rSeconds.toString().padStart(2, '0')}`;
   };
   
-  // Formato del tempo corrente
-  const formattedTime = currentTime.toLocaleTimeString('it-IT', { 
+  // Current time format
+  const formattedTime = currentTime.toLocaleTimeString('en-US', { 
     hour: '2-digit', 
     minute: '2-digit',
     second: '2-digit' 
@@ -100,7 +100,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
       <CardHeader className="flex justify-between items-center px-5 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className="text-xl font-semibold text-zinc-800 dark:text-zinc-50">{veicolo.targa} - {veicolo.modello}</h3>
+            <h3 className="text-xl font-semibold text-zinc-800 dark:text-zinc-50">{vehicle.plate} - {vehicle.model}</h3>
             {isOnRoute && (
               <Chip
                 size="sm"
@@ -110,13 +110,13 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
                   base: "animate-pulse bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300"
                 }}
               >
-                In tempo reale
+                Real-time
               </Chip>
             )}
           </div>
           <p className="text-sm text-zinc-500 dark:text-zinc-300 flex items-center gap-1 mt-1">
             <Icon icon="mdi:map-marker" className="text-blue-600 dark:text-blue-300" />
-            {veicolo.posizione || "Posizione non disponibile"}
+            {vehicle.position || "Position not available"}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -145,32 +145,32 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
             tab: "py-3 text-zinc-600 dark:text-zinc-400 data-[selected=true]:text-blue-600 dark:data-[selected=true]:text-blue-300"
           }}
         >
-          <Tab key="mappa" title={(
+          <Tab key="map" title={(
             <div className="flex items-center gap-2">
               <Icon icon="mdi:map" />
-              <span>Mappa</span>
+              <span>Map</span>
             </div>
           )}>
             <div className="p-5 bg-white dark:bg-zinc-900">
-              {/* Mappa e percorso */}
+              {/* Map and route */}
               <div className="w-full bg-zinc-50 dark:bg-zinc-950 rounded-xl overflow-hidden relative mb-5 border border-zinc-200 dark:border-zinc-800">
                 <div className="h-[350px] relative">
-                  {/* Mappa simulata */}
+                  {/* Simulated map */}
                   <div className="absolute inset-0 bg-zinc-50 dark:bg-zinc-950">
-                    {/* Percorsi e marker */}
+                    {/* Paths and markers */}
                     {isOnRoute && (
                       <svg width="100%" height="100%" viewBox="0 0 500 300" className="w-full h-full">
-                        {/* Sfondo mappa stilizzato */}
+                        {/* Stylized map background */}
                         <rect x="0" y="0" width="500" height="300" fill="#fafafa" className="dark:fill-[#09090b]" />
                         
-                        {/* Blocchi di edifici di sfondo */}
+                        {/* Background building blocks */}
                         <rect x="70" y="30" width="80" height="50" fill="#f4f4f5" className="dark:fill-[#18181b]" rx="2" />
                         <rect x="170" y="40" width="60" height="30" fill="#f4f4f5" className="dark:fill-[#18181b]" rx="2" />
                         <rect x="350" y="70" width="90" height="40" fill="#f4f4f5" className="dark:fill-[#18181b]" rx="2" />
                         <rect x="100" y="200" width="70" height="60" fill="#f4f4f5" className="dark:fill-[#18181b]" rx="2" />
                         <rect x="250" y="220" width="120" height="40" fill="#f4f4f5" className="dark:fill-[#18181b]" rx="2" />
                         
-                        {/* Strade di background */}
+                        {/* Background streets */}
                         <path 
                           d="M20,50 H480 M20,150 H480 M20,250 H480 M100,20 V280 M250,20 V280 M350,20 V280" 
                           stroke="#e4e4e7" 
@@ -185,7 +185,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
                           className="dark:stroke-[#52525b]"
                         />
                         
-                        {/* Percorso del veicolo completato (statico) */}
+                        {/* Completed vehicle path (static) */}
                         <path 
                           d={getRandomPath()} 
                           fill="none" 
@@ -194,7 +194,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
                           className="dark:stroke-[#52525b]"
                         />
                         
-                        {/* Percorso del veicolo attivo (animato) */}
+                        {/* Active vehicle path (animated) */}
                         <path 
                           d={getRandomPath()} 
                           fill="none" 
@@ -205,14 +205,14 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
                           className="transition-all duration-1000 ease-linear"
                         />
                         
-                        {/* Punto di partenza */}
+                        {/* Starting point */}
                         <circle cx="50" cy="150" r="10" fill="#22c55e" />
                         <circle cx="50" cy="150" r="6" fill="#fff" />
                         <circle cx="50" cy="150" r="3" fill="#22c55e" />
                         
-                        {/* Punti di consegna intermedi */}
-                        {veicolo.puntiConsegna?.map((_, idx) => {
-                          const x = 50 + (400 / (veicolo.puntiConsegna!.length + 1)) * (idx + 1);
+                        {/* Delivery points */}
+                        {vehicle.deliveryPoints?.map((_, idx) => {
+                          const x = 50 + (400 / (vehicle.deliveryPoints!.length + 1)) * (idx + 1);
                           return (
                             <g key={idx}>
                               <circle cx={x} cy="150" r="8" fill="#0ea5e9" />
@@ -222,18 +222,18 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
                           );
                         })}
                         
-                        {/* Punto di arrivo */}
+                        {/* Arrival point */}
                         <circle cx="450" cy="150" r="10" fill="#ef4444" />
                         <circle cx="450" cy="150" r="6" fill="#fff" />
                         <circle cx="450" cy="150" r="3" fill="#ef4444" />
                         
-                        {/* Posizione attuale del veicolo */}
+                        {/* Current vehicle position */}
                         <circle cx={position.x} cy={position.y} r="15" fill="#2563eb" className="animate-ping" opacity="0.3" />
                         <circle cx={position.x} cy={position.y} r="12" fill="#2563eb" opacity="0.5" />
                         <circle cx={position.x} cy={position.y} r="8" fill="#fff" />
                         <circle cx={position.x} cy={position.y} r="4" fill="#2563eb" />
                         
-                        {/* Etichetta tempo rimanente */}
+                        {/* Remaining time label */}
                         <rect x={position.x - 30} y={position.y - 35} width="60" height="22" rx="4" fill="#2563eb" />
                         <text x={position.x} y={position.y - 20} fill="#fff" textAnchor="middle" fontSize="12">{getRemainingTime()}</text>
                       </svg>
@@ -248,10 +248,10 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
                                 <Icon icon="mdi:truck-check" className="text-5xl text-green-600 dark:text-green-300" />
                               </div>
                               <p className="text-zinc-700 dark:text-zinc-200 font-medium text-lg">
-                                Veicolo disponibile nel deposito
+                                Vehicle available in depot
                               </p>
                               <p className="text-sm text-zinc-500 dark:text-zinc-300 mt-1">
-                                Pronto per la prossima missione
+                                Ready for next mission
                               </p>
                             </>
                           ) : (
@@ -260,10 +260,10 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
                                 <Icon icon="mdi:truck-wrench" className="text-5xl text-amber-600 dark:text-amber-300" />
                               </div>
                               <p className="text-zinc-700 dark:text-zinc-200 font-medium text-lg">
-                                Veicolo in manutenzione
+                                Vehicle in maintenance
                               </p>
                               <p className="text-sm text-zinc-500 dark:text-zinc-300 mt-1">
-                                Ritorno in servizio previsto a breve
+                                Expected back in service soon
                               </p>
                             </>
                           )}
@@ -274,55 +274,55 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
                 </div>
               </div>
               
-              {/* Dettagli percorso (solo se il veicolo è in viaggio) */}
+              {/* Route details (only if vehicle is in use) */}
               {isOnRoute && (
                 <div className="mt-4 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800">
                   <div className="flex justify-between items-center mb-4">
                     <h4 className="text-md font-semibold text-zinc-800 dark:text-zinc-50 flex items-center gap-2">
                       <Icon icon="mdi:road-variant" className="text-blue-600 dark:text-blue-300" />
-                      <span>Percorso Attivo</span>
+                      <span>Active Route</span>
                     </h4>
                     <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 py-1 px-3 rounded-full text-zinc-600 dark:text-zinc-200">
                       <Icon icon="mdi:clock-outline" className="text-zinc-500 dark:text-zinc-300" />
-                      <span className="text-sm font-medium">ETA: {veicolo.oraStimaArrivo}</span>
+                      <span className="text-sm font-medium">ETA: {vehicle.eta}</span>
                     </div>
                   </div>
                   
                   <div className="space-y-0 ml-4">
-                    {/* Punto di partenza */}
+                    {/* Starting point */}
                     <div className="relative pl-8 pb-6">
                       <div className="absolute left-0 top-1 h-full w-0.5 bg-green-500/30"></div>
                       <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-green-50 dark:bg-green-950 flex items-center justify-center border border-green-200 dark:border-green-900">
                         <div className="w-3 h-3 rounded-full bg-green-500"></div>
                       </div>
                       <div>
-                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Deposito Centrale</span>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-300">Partenza</p>
+                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">Central Depot</span>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-300">Departure</p>
                       </div>
                     </div>
                     
-                    {/* Punti di consegna */}
-                    {veicolo.puntiConsegna?.map((punto, index) => (
+                    {/* Delivery points */}
+                    {vehicle.deliveryPoints?.map((point, index) => (
                       <div key={index} className="relative pl-8 pb-6">
                         <div className="absolute left-0 top-1 h-full w-0.5 bg-blue-500/30"></div>
                         <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950 flex items-center justify-center border border-blue-200 dark:border-blue-900">
                           <div className="w-3 h-3 rounded-full bg-blue-500"></div>
                         </div>
                         <div>
-                          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{punto.indirizzo}</span>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-300">Previsto: {punto.ora}</p>
+                          <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{point.address}</span>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-300">Scheduled: {point.time}</p>
                         </div>
                       </div>
                     ))}
                     
-                    {/* Punto di arrivo */}
+                    {/* Arrival point */}
                     <div className="relative pl-8">
                       <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center border border-red-200 dark:border-red-900">
                         <div className="w-3 h-3 rounded-full bg-red-500"></div>
                       </div>
                       <div>
-                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{veicolo.posizione}</span>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-300">Destinazione finale</p>
+                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">{vehicle.position}</span>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-300">Final destination</p>
                       </div>
                     </div>
                   </div>
@@ -334,47 +334,47 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
           <Tab key="info" title={(
             <div className="flex items-center gap-2">
               <Icon icon="mdi:information" />
-              <span>Dettagli</span>
+              <span>Details</span>
             </div>
           )}>
             <div className="p-5 bg-white dark:bg-zinc-900">
-              {/* Info veicolo */}
+              {/* Vehicle info */}
               <div className="grid grid-cols-2 gap-4 mb-5">
                 <div className="col-span-2 bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">Tipo veicolo</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">Vehicle type</p>
                   <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-blue-50 dark:bg-blue-950">
                       <Icon 
-                        icon={veicolo.tipo === "Furgone grande" ? "mdi:truck" : "mdi:car-estate"} 
+                        icon={vehicle.type === "Large Van" ? "mdi:truck" : "mdi:car-estate"} 
                         className="text-blue-600 dark:text-blue-300 text-2xl"
                       />
                     </div>
-                    <p className="font-medium text-lg text-zinc-800 dark:text-zinc-50">{veicolo.tipo}</p>
+                    <p className="font-medium text-lg text-zinc-800 dark:text-zinc-50">{vehicle.type}</p>
                   </div>
                 </div>
                 
                 <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">Targa</p>
-                  <p className="font-medium text-lg text-zinc-800 dark:text-zinc-50">{veicolo.targa}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">License plate</p>
+                  <p className="font-medium text-lg text-zinc-800 dark:text-zinc-50">{vehicle.plate}</p>
                 </div>
                 
                 <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">Modello</p>
-                  <p className="font-medium text-lg text-zinc-800 dark:text-zinc-50">{veicolo.modello}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">Model</p>
+                  <p className="font-medium text-lg text-zinc-800 dark:text-zinc-50">{vehicle.model}</p>
                 </div>
                 
                 <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">Capacità</p>
-                  <p className="font-medium text-lg text-zinc-800 dark:text-zinc-50">{veicolo.capacita.toLocaleString("it-IT")} kg</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">Capacity</p>
+                  <p className="font-medium text-lg text-zinc-800 dark:text-zinc-50">{vehicle.capacity.toLocaleString("en-US")} kg</p>
                 </div>
                 
                 <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">Ultima revisione</p>
-                  <p className="font-medium text-zinc-800 dark:text-zinc-50">{new Date(veicolo.ultimaRevisione).toLocaleDateString("it-IT")}</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">Last check</p>
+                  <p className="font-medium text-zinc-800 dark:text-zinc-50">{new Date(vehicle.lastCheck).toLocaleDateString("en-US")}</p>
                 </div>
                 
                 <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">Stato</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">Status</p>
                   <Chip
                     size="md"
                     classNames={{
@@ -385,40 +385,40 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
                           : "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300"
                     }}
                   >
-                    {isOnRoute ? "In viaggio" : veicolo.stato}
+                    {isOnRoute ? "In use" : vehicle.status}
                   </Chip>
                 </div>
               </div>
               
-              {/* Statistiche del veicolo */}
+              {/* Vehicle statistics */}
               <div className="mb-5">
                 <h4 className="text-md font-semibold mb-3 text-zinc-800 dark:text-zinc-50 flex items-center gap-2">
                   <Icon icon="mdi:chart-box" className="text-blue-600 dark:text-blue-300" />
-                  <span>Statistiche</span>
+                  <span>Statistics</span>
                 </h4>
                 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl flex flex-col items-center border border-zinc-200 dark:border-zinc-800">
                     <Icon icon="mdi:calendar-check" className="text-green-600 dark:text-green-300 text-2xl mb-1" />
-                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Consegne</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Deliveries</p>
                     <p className="font-bold text-lg text-zinc-800 dark:text-zinc-50">127</p>
                   </div>
                   
                   <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl flex flex-col items-center border border-zinc-200 dark:border-zinc-800">
                     <Icon icon="mdi:map-marker-distance" className="text-blue-600 dark:text-blue-300 text-2xl mb-1" />
-                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Km totali</p>
-                    <p className="font-bold text-lg text-zinc-800 dark:text-zinc-50">12.586</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Total km</p>
+                    <p className="font-bold text-lg text-zinc-800 dark:text-zinc-50">12,586</p>
                   </div>
                   
                   <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl flex flex-col items-center border border-zinc-200 dark:border-zinc-800">
                     <Icon icon="mdi:fuel" className="text-amber-600 dark:text-amber-300 text-2xl mb-1" />
-                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Consumo</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Consumption</p>
                     <p className="font-bold text-lg text-zinc-800 dark:text-zinc-50">8.2 l/100km</p>
                   </div>
                   
                   <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl flex flex-col items-center border border-zinc-200 dark:border-zinc-800">
                     <Icon icon="mdi:wrench" className="text-red-600 dark:text-red-300 text-2xl mb-1" />
-                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Manutenzioni</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Maintenance</p>
                     <p className="font-bold text-lg text-zinc-800 dark:text-zinc-50">3</p>
                   </div>
                 </div>
@@ -428,12 +428,12 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
                 <div className="mb-4">
                   <h4 className="text-md font-semibold mb-3 text-zinc-800 dark:text-zinc-50 flex items-center gap-2">
                     <Icon icon="mdi:package-variant" className="text-blue-600 dark:text-blue-300" />
-                    <span>Carico corrente</span>
+                    <span>Current load</span>
                   </h4>
                   
                   <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
                     <div className="flex justify-between mb-2">
-                      <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Capacità utilizzata</p>
+                      <p className="text-sm font-medium text-zinc-700 dark:text-zinc-200">Used capacity</p>
                       <p className="text-sm font-bold text-blue-600 dark:text-blue-300">{capacityUsed}%</p>
                     </div>
                     <Progress 
@@ -448,7 +448,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
                     />
                     <div className="flex justify-between mt-3 text-xs text-zinc-500 dark:text-zinc-300">
                       <span>0 kg</span>
-                      <span>{veicolo.capacita.toLocaleString("it-IT")} kg</span>
+                      <span>{vehicle.capacity.toLocaleString("en-US")} kg</span>
                     </div>
                   </div>
                 </div>
@@ -462,7 +462,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
         <div className="flex items-center gap-2">
           <Icon icon="mdi:clock-time-four" className="text-zinc-500 dark:text-zinc-300" />
           <span className="text-sm text-zinc-500 dark:text-zinc-300">
-            Ultima attività: {new Date().toLocaleDateString("it-IT")} {formattedTime}
+            Last activity: {new Date().toLocaleDateString("en-US")} {formattedTime}
           </span>
         </div>
         <div>
@@ -470,7 +470,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ veicolo }) => {
             size="sm"
             className="bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
           >
-            Storico
+            History
           </Button>
         </div>
       </CardFooter>
