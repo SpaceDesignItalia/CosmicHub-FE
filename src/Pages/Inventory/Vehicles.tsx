@@ -1,7 +1,5 @@
-import { useState } from "react";
-import VehicleTable from "../../Components/Inventory/VehicleTable";
 import { Icon } from "@iconify/react";
-import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
+import VehicleTable from "../../Components/Inventory/VehicleTable";
 
 // Tipi di dati
 interface Veicolo {
@@ -71,7 +69,8 @@ export default function Vehicles() {
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <LocalShippingOutlinedIcon
+            <Icon
+              icon="mingcute:truck-line"
               className="text-primary"
               style={{ fontSize: 28 }}
             />
