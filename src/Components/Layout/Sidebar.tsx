@@ -19,6 +19,7 @@ import { Listbox, Tooltip, ListboxItem, ListboxSection } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { cn } from "@heroui/react";
 import { useTheme } from "@heroui/use-theme";
+import LocalShippingOutlinedIcon from "@mui/icons-material/LocalShippingOutlined";
 
 export enum SidebarItemType {
   Nest = "nest",
@@ -61,6 +62,31 @@ export const sectionNestedItems = [
     href: "/analytics",
   },
   {
+    key: "inventory",
+    title: "Inventory",
+    icon: "solar:box-line-duotone",
+    type: SidebarItemType.Nest,
+    items: [
+      {
+        key: "products",
+        title: "Products",
+        icon: "solar:box-minimalistic-line-duotone",
+        href: "/products",
+      },
+      {
+        key: "vehicles",
+        title: "Vehicles",
+        href: "/vehicles",
+        startContent: (
+          <LocalShippingOutlinedIcon
+            style={{ fontSize: 20 }}
+            className="text-default-700 group-data-[selected=true]:text-foreground-900"
+          />
+        ),
+      },
+    ],
+  },
+  {
     key: "customers",
     title: "Customers",
     icon: "solar:users-group-rounded-line-duotone",
@@ -75,25 +101,6 @@ export const sectionNestedItems = [
         key: "reports",
         title: "Reports",
         icon: "solar:document-line-duotone",
-      },
-    ],
-  },
-  {
-    key: "products",
-    title: "Products",
-    icon: "solar:box-line-duotone",
-    type: SidebarItemType.Nest,
-    items: [
-      {
-        key: "inventory",
-        title: "Inventory",
-        icon: "solar:box-minimalistic-line-duotone",
-        href: "/inventory",
-      },
-      {
-        key: "categories",
-        title: "Categories",
-        icon: "solar:category-line-duotone",
       },
     ],
   },
@@ -126,7 +133,7 @@ const ThemeSwitch = ({ onValueChange, isSelected }: ThemeSwitchProps) => {
       variant="light"
       onPress={() => onValueChange(!isSelected)}
     >
-      {isSelected ? "Tema Scuro" : "Tema Chiaro"}
+      {isSelected ? "Dark Theme" : "Light Theme"}
     </Button>
   );
 };
@@ -328,6 +335,19 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           return renderNestItem(item);
         }
 
+        // Gestione speciale per l'icona personalizzata dei veicoli nella modalità compatta
+        const customIconContent =
+          item.key === "vehicles" && isCompact ? (
+            <Tooltip content={item.title} placement="right">
+              <div className="flex w-full items-center justify-center">
+                <LocalShippingOutlinedIcon
+                  style={{ fontSize: 20 }}
+                  className="text-default-700 group-data-[selected=true]:text-foreground-900"
+                />
+              </div>
+            </Tooltip>
+          ) : null;
+
         return (
           <ListboxItem
             {...item}
@@ -336,26 +356,10 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               isCompact || hideEndContent ? null : item.endContent ?? null
             }
             startContent={
-              isCompact ? null : item.icon ? (
-                <Icon
-                  className={cn(
-                    "text-default-700 group-data-[selected=true]:text-foreground-900",
-                    iconClassName
-                  )}
-                  icon={item.icon}
-                  width={24}
-                />
-              ) : (
-                item.startContent ?? null
-              )
-            }
-            textValue={item.title}
-            title={isCompact ? null : item.title}
-          >
-            {isCompact ? (
-              <Tooltip content={item.title} placement="right">
-                <div className="flex w-full items-center justify-center">
-                  {item.icon ? (
+              isCompact
+                ? null
+                : item.startContent ??
+                  (item.icon ? (
                     <Icon
                       className={cn(
                         "text-default-700 group-data-[selected=true]:text-foreground-900",
@@ -364,11 +368,32 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                       icon={item.icon}
                       width={24}
                     />
-                  ) : (
-                    item.startContent ?? null
-                  )}
-                </div>
-              </Tooltip>
+                  ) : null)
+            }
+            textValue={item.title}
+            title={isCompact ? null : item.title}
+          >
+            {isCompact ? (
+              item.key === "vehicles" ? (
+                customIconContent
+              ) : (
+                <Tooltip content={item.title} placement="right">
+                  <div className="flex w-full items-center justify-center">
+                    {item.icon ? (
+                      <Icon
+                        className={cn(
+                          "text-default-700 group-data-[selected=true]:text-foreground-900",
+                          iconClassName
+                        )}
+                        icon={item.icon}
+                        width={24}
+                      />
+                    ) : (
+                      item.startContent ?? null
+                    )}
+                  </div>
+                </Tooltip>
+              )
             ) : null}
           </ListboxItem>
         );
