@@ -28,113 +28,111 @@ import {
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 
-// Tipi di dati
-interface Prodotto {
+// Data types
+interface Product {
   id: string;
-  nome: string;
-  categoria: string;
-  quantita: number;
-  prezzo: number;
-  stato: "Disponibile" | "Esaurito" | "Bassa giacenza";
+  name: string;
+  category: string;
+  quantity: number;
+  price: number;
+  status: "Disponibile" | "Esaurito" | "Bassa giacenza";
 }
 
 interface ProductTableProps {
-  prodotti: Prodotto[];
-  categorie: string[];
+  products: Product[];
+  categories: string[];
 }
 
 export default function ProductTable({
-  prodotti,
-  categorie,
+  products,
+  categories,
 }: ProductTableProps) {
-  const [ricerca, setRicerca] = useState("");
-  const [categoriaSelezionata, setCategoriaSelezionata] = useState("Tutte");
-  const [paginaCorrente, setPaginaCorrente] = useState(1);
+  const [search, setSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("Tutti");
+  const [currentPage, setCurrentPage] = useState(1);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [prodottoSelezionato, setProdottoSelezionato] =
-    useState<Prodotto | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
 
-  const perPagina = 5;
+  const perPage = 5;
 
-  // Filtro prodotti
-  const prodottiFiltrati = prodotti.filter((prodotto) => {
-    const matchRicerca = prodotto.nome
+  // Filter products
+  const filteredProducts = products.filter((product) => {
+    const matchSearch = product.name
       .toLowerCase()
-      .includes(ricerca.toLowerCase());
-    const matchCategoria =
-      categoriaSelezionata === "Tutte" ||
-      prodotto.categoria === categoriaSelezionata;
-    return matchRicerca && matchCategoria;
+      .includes(search.toLowerCase());
+    const matchCategory =
+      selectedCategory === "Tutti" || product.category === selectedCategory;
+    return matchSearch && matchCategory;
   });
 
-  // Paginazione prodotti
-  const inizioIndice = (paginaCorrente - 1) * perPagina;
-  const prodottiPaginati = prodottiFiltrati.slice(
-    inizioIndice,
-    inizioIndice + perPagina
+  // Paginate products
+  const startIndex = (currentPage - 1) * perPage;
+  const paginatedProducts = filteredProducts.slice(
+    startIndex,
+    startIndex + perPage
   );
 
-  // Apri modale con dettagli prodotto
-  const apriFinestraProdotto = (prodotto: Prodotto) => {
-    setProdottoSelezionato(prodotto);
+  // Open product modal
+  const openProductModal = (product: Product) => {
+    setSelectedProduct(product);
     onOpen();
   };
 
-  // Colore chip in base allo stato prodotto
-  const statoColorMap = {
+  // Status color mapping
+  const statusColorMap = {
     Disponibile: "success",
     "Bassa giacenza": "warning",
     Esaurito: "danger",
   };
 
-  // Definizione delle colonne
+  // Column definitions
   const columns = [
-    { key: "nome", label: "NOME", align: "start" },
-    { key: "categoria", label: "CATEGORIA", align: "start" },
-    { key: "quantita", label: "QUANTITÀ", align: "center" },
-    { key: "prezzo", label: "PREZZO", align: "end" },
-    { key: "stato", label: "STATO", align: "center" },
-    { key: "azioni", label: "AZIONI", align: "end" },
+    { key: "name", label: "NOME", align: "start" },
+    { key: "category", label: "CATEGORIA", align: "start" },
+    { key: "quantity", label: "QUANTITÀ", align: "center" },
+    { key: "price", label: "PREZZO", align: "end" },
+    { key: "status", label: "STATO", align: "center" },
+    { key: "actions", label: "AZIONI", align: "end" },
   ];
 
-  // Renderizza celle personalizzate
-  const renderCell = (prodotto: Prodotto, columnKey: string) => {
+  // Render custom cells
+  const renderCell = (product: Product, columnKey: string) => {
     switch (columnKey) {
-      case "nome":
-        return <div className="font-medium text-left">{prodotto.nome}</div>;
-      case "categoria":
-        return <div className="text-left">{prodotto.categoria}</div>;
-      case "quantita":
-        return <div className="text-center">{prodotto.quantita}</div>;
-      case "prezzo":
-        return <div className="text-right">€{prodotto.prezzo.toFixed(2)}</div>;
-      case "stato":
+      case "name":
+        return <div className="font-medium text-left">{product.name}</div>;
+      case "category":
+        return <div className="text-left">{product.category}</div>;
+      case "quantity":
+        return <div className="text-center">{product.quantity}</div>;
+      case "price":
+        return <div className="text-right">€{product.price.toFixed(2)}</div>;
+      case "status":
         return (
           <div className="flex justify-center">
-            <Chip color={statoColorMap[prodotto.stato] as any} variant="flat">
-              {prodotto.stato}
+            <Chip color={statusColorMap[product.status] as any} variant="flat">
+              {product.status}
             </Chip>
           </div>
         );
-      case "azioni":
+      case "actions":
         return (
           <div className="flex justify-end gap-2">
-            <Tooltip content="Visualizza dettagli">
+            <Tooltip content="View details">
               <Button
                 isIconOnly
                 size="sm"
                 variant="light"
-                onPress={() => apriFinestraProdotto(prodotto)}
+                onPress={() => openProductModal(product)}
               >
                 <Icon icon="solar:eye-linear" width={20} />
               </Button>
             </Tooltip>
-            <Tooltip content="Modifica">
+            <Tooltip content="Edit">
               <Button isIconOnly size="sm" variant="light">
                 <Icon icon="solar:pen-linear" width={20} />
               </Button>
             </Tooltip>
-            <Tooltip content="Elimina">
+            <Tooltip content="Delete">
               <Button isIconOnly size="sm" variant="light" color="danger">
                 <Icon icon="solar:trash-bin-trash-linear" width={20} />
               </Button>
@@ -143,7 +141,7 @@ export default function ProductTable({
         );
       default:
         return (
-          <div className="text-left">{getKeyValue(prodotto, columnKey)}</div>
+          <div className="text-left">{getKeyValue(product, columnKey)}</div>
         );
     }
   };
@@ -154,28 +152,27 @@ export default function ProductTable({
         <CardHeader className="border-b">
           <div className="flex justify-between items-center w-full">
             <div className="flex items-center gap-3">
-              <h2 className="text-xl font-bold">Inventario Prodotti</h2>
               <Input
                 placeholder="Cerca prodotto..."
                 startContent={<Icon icon="solar:magnifer-line-duotone" />}
-                value={ricerca}
-                onChange={(e) => setRicerca(e.target.value)}
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
                 className="w-60"
               />
               <Dropdown>
                 <DropdownTrigger>
                   <Button variant="light">
-                    {categoriaSelezionata}
+                    {selectedCategory}
                     <Icon icon="solar:arrow-down-linear" className="ml-2" />
                   </Button>
                 </DropdownTrigger>
                 <DropdownMenu
-                  aria-label="Categorie prodotti"
+                  aria-label="Product categories"
                   onAction={(key) =>
-                    setCategoriaSelezionata(categorie[Number(key)])
+                    setSelectedCategory(categories[Number(key)])
                   }
                 >
-                  {categorie.map((cat, index) => (
+                  {categories.map((cat, index) => (
                     <DropdownItem key={index.toString()}>{cat}</DropdownItem>
                   ))}
                 </DropdownMenu>
@@ -194,7 +191,7 @@ export default function ProductTable({
         </CardHeader>
         <CardBody className="p-0">
           <Table
-            aria-label="Tabella prodotti"
+            aria-label="Products table"
             hideHeader={false}
             shadow="none"
             className="rounded-md overflow-hidden"
@@ -227,12 +224,12 @@ export default function ProductTable({
                 </TableColumn>
               ))}
             </TableHeader>
-            <TableBody emptyContent="Nessun prodotto trovato">
-              {prodottiPaginati.map((prodotto) => (
-                <TableRow key={prodotto.id}>
+            <TableBody emptyContent="No products found">
+              {paginatedProducts.map((product) => (
+                <TableRow key={product.id}>
                   {(columnKey) => (
                     <TableCell>
-                      {renderCell(prodotto, columnKey.toString())}
+                      {renderCell(product, columnKey.toString())}
                     </TableCell>
                   )}
                 </TableRow>
@@ -241,10 +238,10 @@ export default function ProductTable({
           </Table>
           <div className="flex w-full justify-center py-4 bg-default-100">
             <Pagination
-              total={Math.ceil(prodottiFiltrati.length / perPagina)}
+              total={Math.ceil(filteredProducts.length / perPage)}
               initialPage={1}
-              page={paginaCorrente}
-              onChange={setPaginaCorrente}
+              page={currentPage}
+              onChange={setCurrentPage}
               showControls
               size="lg"
               radius="lg"
@@ -261,53 +258,53 @@ export default function ProductTable({
         </CardBody>
       </Card>
 
-      {/* Modale dettaglio prodotto */}
+      {/* Product details modal */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalContent>
-          {prodottoSelezionato && (
+          {selectedProduct && (
             <>
               <ModalHeader className="flex flex-col gap-1">
-                Dettaglio Prodotto
+                Product Details
               </ModalHeader>
               <ModalBody>
                 <div className="grid grid-cols-2 gap-4">
                   <div>
-                    <p className="text-small text-default-500">ID Prodotto</p>
-                    <p>{prodottoSelezionato.id}</p>
+                    <p className="text-small text-default-500">Product ID</p>
+                    <p>{selectedProduct.id}</p>
                   </div>
                   <div>
-                    <p className="text-small text-default-500">Nome</p>
-                    <p>{prodottoSelezionato.nome}</p>
+                    <p className="text-small text-default-500">Name</p>
+                    <p>{selectedProduct.name}</p>
                   </div>
                   <div>
-                    <p className="text-small text-default-500">Categoria</p>
-                    <p>{prodottoSelezionato.categoria}</p>
+                    <p className="text-small text-default-500">Category</p>
+                    <p>{selectedProduct.category}</p>
                   </div>
                   <div>
-                    <p className="text-small text-default-500">Quantità</p>
-                    <p>{prodottoSelezionato.quantita}</p>
+                    <p className="text-small text-default-500">Quantity</p>
+                    <p>{selectedProduct.quantity}</p>
                   </div>
                   <div>
-                    <p className="text-small text-default-500">Prezzo</p>
-                    <p>€{prodottoSelezionato.prezzo.toFixed(2)}</p>
+                    <p className="text-small text-default-500">Price</p>
+                    <p>€{selectedProduct.price.toFixed(2)}</p>
                   </div>
-                  <div className="col-span-2">
-                    <p className="text-small text-default-500">Stato</p>
+                  <div>
+                    <p className="text-small text-default-500">Status</p>
                     <Chip
-                      color={statoColorMap[prodottoSelezionato.stato] as any}
+                      color={statusColorMap[selectedProduct.status] as any}
                       variant="flat"
                     >
-                      {prodottoSelezionato.stato}
+                      {selectedProduct.status}
                     </Chip>
                   </div>
                 </div>
               </ModalBody>
               <ModalFooter>
                 <Button color="danger" variant="light" onPress={onClose}>
-                  Chiudi
+                  Close
                 </Button>
                 <Button color="primary" onPress={onClose}>
-                  Modifica
+                  Edit
                 </Button>
               </ModalFooter>
             </>
