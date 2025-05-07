@@ -39,7 +39,7 @@ export default function Dashboard() {
                   <p className="text-default-900">Valore Totale</p>
                   <h3 className="text-2xl font-bold">€184.250</h3>
                 </div>
-                <div className="bg-primary-100 p-2 rounded-full">
+                <div className="bg-primary-200 p-2 rounded-full">
                   <Icon icon="solar:box-bold" className="text-primary" width={24} />
                 </div>
               </div>

@@ -399,33 +399,7 @@ export default function AnalyticsChart() {
           />
         </AreaChart>
       </ResponsiveContainer>
-      <Dropdown
-        classNames={{
-          content: "min-w-[120px]",
-        }}
-        placement="bottom-end"
-      >
-        <DropdownTrigger>
-          <Button
-            isIconOnly
-            className="absolute right-2 top-2 w-auto rounded-full"
-            size="sm"
-            variant="light"
-          >
-            <Icon height={16} icon="solar:menu-dots-bold" width={16} />
-          </Button>
-        </DropdownTrigger>
-        <DropdownMenu
-          itemClasses={{
-            title: "text-tiny",
-          }}
-          variant="flat"
-        >
-          <DropdownItem key="view-details">Visualizza Dettagli</DropdownItem>
-          <DropdownItem key="export-data">Esporta Dati</DropdownItem>
-          <DropdownItem key="set-alert">Imposta Alert</DropdownItem>
-        </DropdownMenu>
-      </Dropdown>
+   
     </section>
   );
 } 
