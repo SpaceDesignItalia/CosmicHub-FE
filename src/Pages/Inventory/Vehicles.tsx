@@ -48,6 +48,7 @@ export default function Vehicles() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedVehicleType, setSelectedVehicleType] = useState("Tutti");
   const selectedVehicleRef = useRef<HTMLDivElement>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Tipi di veicolo disponibili
   const vehicleTypes = ["Tutti", "Large Van", "Small Van"];
@@ -94,7 +95,6 @@ export default function Vehicles() {
         }
         setError("");
       } catch (error) {
-        console.error("Errore durante il caricamento dei veicoli:", error);
         setError("Impossibile caricare i veicoli. Riprova più tardi.");
       } finally {
         setIsLoading(false);
@@ -122,7 +122,6 @@ export default function Vehicles() {
 
   // Gestisci selezione veicolo
   const handleVehicleSelect = (vehicle: Vehicle) => {
-    console.log("Veicolo selezionato:", vehicle);
     setSelectedVehicle(vehicle);
 
     // Aggiungiamo un timeout per assicurarci che il DOM si aggiorna prima di effettuare lo scroll
@@ -134,6 +133,42 @@ export default function Vehicles() {
         });
       }
     }, 100);
+  };
+
+  // Gestisci eliminazione veicolo
+  const handleDeleteVehicle = async () => {
+    if (!selectedVehicle) return;
+
+    setIsDeleting(true);
+    try {
+      await axios.delete(`/Warehouse/DELETE/DeleteVehicle`, {
+        params: {
+          vehicleId: selectedVehicle.id,
+        },
+      });
+
+      // Rimuovi il veicolo dall'array locale
+      setVehicles((prevVehicles) =>
+        prevVehicles.filter((v) => v.id !== selectedVehicle.id)
+      );
+
+      // Se il veicolo eliminato è quello selezionato, deselezionalo
+      if (selectedVehicle && vehicles.length > 1) {
+        const index = vehicles.findIndex((v) => v.id === selectedVehicle.id);
+        const nextIndex = index === vehicles.length - 1 ? index - 1 : index + 1;
+        setSelectedVehicle(vehicles[nextIndex]);
+      } else {
+        setSelectedVehicle(null);
+      }
+
+      // Feedback all'utente - in una vera applicazione useremmo un sistema di toast
+      console.log(`Veicolo ${selectedVehicle.plate} eliminato con successo`);
+    } catch (error) {
+      console.error("Errore durante l'eliminazione del veicolo:", error);
+      setError("Impossibile eliminare il veicolo. Riprova più tardi.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   return (
@@ -279,7 +314,13 @@ export default function Vehicles() {
               {/* Dettaglio veicolo (nascosto in modalità lista, 8 colonne in modalità griglia) */}
               {activeTab === "grid" && selectedVehicle && (
                 <div className="lg:col-span-8">
-                  <VehicleMap vehicle={selectedVehicle} />
+                  <VehicleMap
+                    vehicle={selectedVehicle}
+                    onEdit={() =>
+                      navigate(`/inventory/vehicles/edit/${selectedVehicle.id}`)
+                    }
+                    onDelete={handleDeleteVehicle}
+                  />
                 </div>
               )}
             </div>

@@ -15,7 +15,10 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
+  DatePicker,
 } from "@heroui/react";
+import { parseDate } from "@internationalized/date";
+import type { DateValue } from "@internationalized/date";
 
 axios.defaults.baseURL = import.meta.env.VITE_API_URL;
 
@@ -43,11 +46,19 @@ export default function AddVehicle() {
   };
 
   // Gestisce il cambio della data
-  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({
-      ...formData,
-      last_inspection_date: e.target.value,
-    });
+  const handleDateChange = (value: DateValue | null) => {
+    if (value) {
+      // Converte il DateValue in una stringa di data nel formato YYYY-MM-DD
+      const year = value.year;
+      const month = value.month.toString().padStart(2, "0");
+      const day = value.day.toString().padStart(2, "0");
+      const dateString = `${year}-${month}-${day}`;
+
+      setFormData({
+        ...formData,
+        last_inspection_date: dateString,
+      });
+    }
   };
 
   // Gestisce l'invio del form
@@ -86,7 +97,6 @@ export default function AddVehicle() {
       // Apri il modal di successo
       onOpen();
     } catch (error) {
-      console.error("Errore durante l'aggiunta del veicolo:", error);
       setFormError(
         "Si è verificato un errore durante l'aggiunta del veicolo. Riprova più tardi."
       );
@@ -210,11 +220,13 @@ export default function AddVehicle() {
                 >
                   Data Ultima Ispezione *
                 </label>
-                <Input
+                <DatePicker
                   id="last_inspection_date"
-                  name="last_inspection_date"
-                  type="date"
-                  value={formData.last_inspection_date}
+                  value={
+                    formData.last_inspection_date
+                      ? parseDate(formData.last_inspection_date)
+                      : null
+                  }
                   onChange={handleDateChange}
                   className="w-full"
                 />

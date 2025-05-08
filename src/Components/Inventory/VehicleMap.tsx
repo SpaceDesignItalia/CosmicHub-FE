@@ -9,6 +9,12 @@ import {
   Progress,
   Tabs,
   Tab,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useVehicleTheme } from "./VehicleThemeWrapper";
@@ -36,12 +42,19 @@ interface Vehicle {
 
 interface VehicleMapProps {
   vehicle: Vehicle;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }
 
-const VehicleMap: React.FC<VehicleMapProps> = ({ vehicle }) => {
+const VehicleMap: React.FC<VehicleMapProps> = ({
+  vehicle,
+  onEdit,
+  onDelete,
+}) => {
   const [activeTab, setActiveTab] = useState("map");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [animationProgress, setAnimationProgress] = useState(50);
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   // Utilizziamo il tema dei veicoli
   const { colors } = useVehicleTheme();
@@ -130,6 +143,21 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ vehicle }) => {
 
   const position = getCurrentPosition();
 
+  // Gestione dell'eliminazione con conferma
+  const handleDeleteClick = () => {
+    if (onDelete) {
+      onOpen();
+    }
+  };
+
+  // Conferma eliminazione
+  const confirmDelete = () => {
+    if (onDelete) {
+      onDelete();
+      onClose();
+    }
+  };
+
   return (
     <Card className="h-full border-none bg-transparent">
       <CardHeader className="flex justify-between items-center px-5 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
@@ -160,6 +188,28 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ vehicle }) => {
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {onEdit && (
+            <Button
+              size="sm"
+              color="primary"
+              startContent={<Icon icon="solar:pen-bold" className="text-sm" />}
+              onPress={onEdit}
+            >
+              Modifica
+            </Button>
+          )}
+          {onDelete && (
+            <Button
+              size="sm"
+              color="danger"
+              startContent={
+                <Icon icon="solar:trash-bin-trash-bold" className="text-sm" />
+              }
+              onPress={handleDeleteClick}
+            >
+              Elimina
+            </Button>
+          )}
           <div className="text-sm bg-zinc-100 dark:bg-zinc-800 py-1 px-3 rounded-full text-zinc-600 dark:text-zinc-200">
             {formattedTime}
           </div>
@@ -741,6 +791,44 @@ const VehicleMap: React.FC<VehicleMapProps> = ({ vehicle }) => {
           </Button>
         </div>
       </CardFooter>
+
+      {/* Modale di conferma eliminazione */}
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalContent>
+          <>
+            <ModalHeader className="flex flex-col gap-1">
+              Conferma Eliminazione
+            </ModalHeader>
+            <ModalBody>
+              <div className="flex flex-col items-center text-center gap-2">
+                <div className="w-16 h-16 rounded-full bg-danger-100 dark:bg-danger-900 flex items-center justify-center mb-2">
+                  <Icon
+                    icon="solar:danger-triangle-bold"
+                    className="text-4xl text-danger-500"
+                  />
+                </div>
+                <p className="text-lg font-medium">
+                  Sei sicuro di voler eliminare questo veicolo?
+                </p>
+                <p>
+                  {vehicle.model} ({plateNumber})
+                </p>
+                <p className="text-sm text-danger-500">
+                  Questa azione non può essere annullata.
+                </p>
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="flat" onPress={onClose}>
+                Annulla
+              </Button>
+              <Button color="danger" onPress={confirmDelete}>
+                Elimina
+              </Button>
+            </ModalFooter>
+          </>
+        </ModalContent>
+      </Modal>
     </Card>
   );
 };
