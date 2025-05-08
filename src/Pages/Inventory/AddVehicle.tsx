@@ -1,0 +1,270 @@
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Icon } from "@iconify/react";
+import axios from "axios";
+import {
+  Card,
+  CardBody,
+  CardHeader,
+  Input,
+  Button,
+  Divider,
+  useDisclosure,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+} from "@heroui/react";
+
+axios.defaults.baseURL = import.meta.env.VITE_API_URL;
+
+export default function AddVehicle() {
+  const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [formError, setFormError] = useState("");
+  const { isOpen, onOpen, onClose } = useDisclosure();
+
+  // Form data state
+  const [formData, setFormData] = useState({
+    name: "",
+    license_plate: "",
+    capacity: "",
+    last_inspection_date: new Date().toISOString().split("T")[0],
+  });
+
+  // Gestisce i cambiamenti nei campi del form
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: value,
+    });
+  };
+
+  // Gestisce il cambio della data
+  const handleDateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFormData({
+      ...formData,
+      last_inspection_date: e.target.value,
+    });
+  };
+
+  // Gestisce l'invio del form
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+    setFormError("");
+
+    // Validazione base
+    if (
+      !formData.name ||
+      !formData.license_plate ||
+      !formData.capacity ||
+      !formData.last_inspection_date
+    ) {
+      setFormError("Tutti i campi sono obbligatori");
+      setIsLoading(false);
+      return;
+    }
+
+    try {
+      // Prepara i dati per l'API
+      const warehouseData = {
+        name: formData.name,
+        location: "N/A",
+        license_plate: formData.license_plate,
+        capacity: parseInt(formData.capacity),
+        company_id: 1, // Valore predefinito o da ottenere dal contesto dell'applicazione
+        created_by: 1, // Valore predefinito o ID dell'utente corrente
+        last_inspection_date: formData.last_inspection_date,
+      };
+
+      // Chiamata API per aggiungere il veicolo
+      await axios.post("/Warehouse/POST/CreateVehicle", warehouseData);
+
+      // Apri il modal di successo
+      onOpen();
+    } catch (error) {
+      console.error("Errore durante l'aggiunta del veicolo:", error);
+      setFormError(
+        "Si è verificato un errore durante l'aggiunta del veicolo. Riprova più tardi."
+      );
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Reindirizza alla pagina dei veicoli dopo l'aggiunta
+  const handleSuccessConfirm = () => {
+    onClose();
+    navigate("/inventory/vehicles");
+  };
+
+  return (
+    <div className="w-full flex-1 flex flex-col p-5 gap-5 bg-zinc-50 dark:bg-zinc-950">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
+            <Icon
+              icon="mdi:truck-plus"
+              className="text-2xl text-blue-700 dark:text-blue-300"
+              width={28}
+            />
+          </div>
+          <div>
+            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
+              Aggiungi Veicolo
+            </h1>
+            <p className="text-sm text-zinc-600 dark:text-zinc-300">
+              Inserisci i dettagli del nuovo veicolo
+            </p>
+          </div>
+        </div>
+
+        <Button
+          variant="light"
+          color="default"
+          startContent={<Icon icon="solar:arrow-left-linear" />}
+          onPress={() => navigate("/inventory/vehicles")}
+        >
+          Torna ai Veicoli
+        </Button>
+      </div>
+
+      {/* Form Card */}
+      <Card className="shadow-sm rounded-xl overflow-hidden border-2 border-default-200">
+        <CardHeader className="border-b">
+          <h2 className="text-xl font-semibold">Informazioni Veicolo</h2>
+        </CardHeader>
+        <CardBody className="p-6">
+          {formError && (
+            <div className="mb-4 p-3 bg-danger-50 text-danger-700 dark:bg-danger-900 dark:text-danger-300 rounded-lg border border-danger-200 dark:border-danger-800">
+              {formError}
+            </div>
+          )}
+
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Nome veicolo */}
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Nome Veicolo *
+                </label>
+                <Input
+                  id="name"
+                  name="name"
+                  placeholder="Es. Iveco Daily"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Targa */}
+              <div>
+                <label
+                  htmlFor="license_plate"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Targa *
+                </label>
+                <Input
+                  id="license_plate"
+                  name="license_plate"
+                  placeholder="Es. AB123CD"
+                  value={formData.license_plate}
+                  onChange={handleChange}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Capacità */}
+              <div>
+                <label
+                  htmlFor="capacity"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Capacità (kg) *
+                </label>
+                <Input
+                  id="capacity"
+                  name="capacity"
+                  type="number"
+                  placeholder="Es. 3500"
+                  value={formData.capacity}
+                  onChange={handleChange}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Data ultima ispezione */}
+              <div>
+                <label
+                  htmlFor="last_inspection_date"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Data Ultima Ispezione *
+                </label>
+                <Input
+                  id="last_inspection_date"
+                  name="last_inspection_date"
+                  type="date"
+                  value={formData.last_inspection_date}
+                  onChange={handleDateChange}
+                  className="w-full"
+                />
+              </div>
+            </div>
+
+            <Divider className="my-6" />
+
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="flat"
+                color="default"
+                onPress={() => navigate("/inventory/vehicles")}
+              >
+                Annulla
+              </Button>
+              <Button type="submit" color="primary" isLoading={isLoading}>
+                Aggiungi Veicolo
+              </Button>
+            </div>
+          </form>
+        </CardBody>
+      </Card>
+
+      {/* Modal di successo */}
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            Veicolo aggiunto con successo
+          </ModalHeader>
+          <ModalBody>
+            <div className="flex flex-col items-center justify-center p-4">
+              <div className="w-16 h-16 rounded-full bg-success-100 dark:bg-success-900 flex items-center justify-center mb-4">
+                <Icon
+                  icon="mdi:check"
+                  className="text-4xl text-success-600 dark:text-success-400"
+                />
+              </div>
+              <p className="text-center">
+                Il veicolo è stato aggiunto correttamente al sistema.
+              </p>
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button color="primary" onPress={handleSuccessConfirm} fullWidth>
+              Torna ai Veicoli
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+    </div>
+  );
+}

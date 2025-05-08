@@ -1,4 +1,5 @@
 import { useState } from "react";
+import axios from "axios";
 import {
   Card,
   CardBody,
@@ -28,6 +29,8 @@ import {
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useNavigate } from "react-router-dom";
+import VehicleMap from "../VehicleMap";
+
 // Tipi di dati
 interface Vehicle {
   id: string;
@@ -54,6 +57,9 @@ export default function VehicleTable({
   const [currentVehiclePage, setCurrentVehiclePage] = useState(1);
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   const perPage = 5;
 
@@ -78,6 +84,35 @@ export default function VehicleTable({
   const openVehicleModal = (vehicle: Vehicle) => {
     setSelectedVehicle(vehicle);
     onOpen();
+  };
+
+  // Open delete confirmation modal
+  const openDeleteModal = (vehicle: Vehicle) => {
+    setSelectedVehicle(vehicle);
+    setDeleteError("");
+    setIsDeleteModalOpen(true);
+  };
+
+  // Delete vehicle
+  const deleteVehicle = async () => {
+    if (!selectedVehicle) return;
+
+    setIsDeleting(true);
+    setDeleteError("");
+
+    try {
+      await axios.delete(`/api/v1/warehouses/${selectedVehicle.id}`);
+      // Chiudi il modal e aggiorna la pagina
+      setIsDeleteModalOpen(false);
+      // Qui dovresti aggiornare la lista dei veicoli - in un'applicazione reale
+      // potresti fare un refresh dei dati o rimuovere l'elemento dall'array locale
+      window.location.reload();
+    } catch (error) {
+      console.error("Errore durante l'eliminazione del veicolo:", error);
+      setDeleteError("Impossibile eliminare il veicolo. Riprova più tardi.");
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   // Status color mapping
@@ -133,7 +168,7 @@ export default function VehicleTable({
       case "actions":
         return (
           <div className="flex justify-end gap-2">
-            <Tooltip content="View details">
+            <Tooltip content="Visualizza dettagli">
               <Button
                 isIconOnly
                 size="sm"
@@ -143,13 +178,24 @@ export default function VehicleTable({
                 <Icon icon="solar:eye-linear" width={20} />
               </Button>
             </Tooltip>
-            <Tooltip content="Edit">
-              <Button isIconOnly size="sm" variant="light">
+            <Tooltip content="Modifica">
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                onPress={() => navigate(`/vehicles/edit/${vehicle.id}`)}
+              >
                 <Icon icon="solar:pen-linear" width={20} />
               </Button>
             </Tooltip>
-            <Tooltip content="Delete">
-              <Button isIconOnly size="sm" variant="light" color="danger">
+            <Tooltip content="Elimina">
+              <Button
+                isIconOnly
+                size="sm"
+                variant="light"
+                color="danger"
+                onPress={() => openDeleteModal(vehicle)}
+              >
                 <Icon icon="solar:trash-bin-trash-linear" width={20} />
               </Button>
             </Tooltip>
@@ -160,6 +206,22 @@ export default function VehicleTable({
           <div className="text-left">{getKeyValue(vehicle, columnKey)}</div>
         );
     }
+  };
+
+  // Adatta il veicolo al formato richiesto dal componente VehicleMap
+  const adaptVehicleForMap = (vehicle: Vehicle) => {
+    return {
+      id: vehicle.id,
+      license_plate: vehicle.plate,
+      model: vehicle.model,
+      type: vehicle.type,
+      capacity: vehicle.capacity,
+      stato: vehicle.status,
+      last_inspection_date: vehicle.lastInspection,
+      // Valori predefiniti per la visualizzazione sulla mappa
+      usedCapacity: 0,
+      position: "Deposito principale",
+    };
   };
 
   return (
@@ -196,7 +258,7 @@ export default function VehicleTable({
             </div>
             <Button
               color="primary"
-              onPress={() => navigate("/vehicles/add-vehicle")}
+              onPress={() => navigate("/inventory/vehicles/add-vehicle")}
             >
               <Icon
                 icon="material-symbols:add"
@@ -277,65 +339,92 @@ export default function VehicleTable({
         </CardBody>
       </Card>
 
-      {/* Modale dettaglio veicolo */}
-      <Modal isOpen={isOpen} onClose={onClose}>
+      {/* Modale dettaglio veicolo con VehicleMap */}
+      <Modal
+        isOpen={isOpen}
+        onClose={onClose}
+        size="4xl"
+        classNames={{
+          base: "max-w-5xl",
+        }}
+      >
+        <ModalContent>
+          {selectedVehicle && (
+            <>
+              <ModalHeader className="flex flex-col gap-1 border-b">
+                Dettagli Veicolo - {selectedVehicle.plate}
+              </ModalHeader>
+              <ModalBody className="p-0">
+                {/* Utilizziamo VehicleMap per mostrare i dettagli del veicolo */}
+                <VehicleMap vehicle={adaptVehicleForMap(selectedVehicle)} />
+              </ModalBody>
+              <ModalFooter className="border-t">
+                <Button color="danger" variant="light" onPress={onClose}>
+                  Chiudi
+                </Button>
+                <Button
+                  color="primary"
+                  onPress={() => {
+                    onClose();
+                    navigate(`/vehicles/edit/${selectedVehicle.id}`);
+                  }}
+                >
+                  Modifica
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+
+      {/* Modale conferma eliminazione */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={() => setIsDeleteModalOpen(false)}
+      >
         <ModalContent>
           {selectedVehicle && (
             <>
               <ModalHeader className="flex flex-col gap-1">
-                Vehicle Details
+                Conferma Eliminazione
               </ModalHeader>
               <ModalBody>
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-small text-default-500">ID Veicolo</p>
-                    <p>{selectedVehicle.id}</p>
+                <div className="flex flex-col items-center text-center gap-2">
+                  <div className="w-16 h-16 rounded-full bg-danger-100 dark:bg-danger-900 flex items-center justify-center mb-2">
+                    <Icon
+                      icon="solar:danger-triangle-bold"
+                      className="text-4xl text-danger-500"
+                    />
                   </div>
-                  <div>
-                    <p className="text-small text-default-500">Targa</p>
-                    <p>{selectedVehicle.plate}</p>
-                  </div>
-                  <div>
-                    <p className="text-small text-default-500">Modello</p>
-                    <p>{selectedVehicle.model}</p>
-                  </div>
-                  <div>
-                    <p className="text-small text-default-500">Tipo</p>
-                    <p>{selectedVehicle.type}</p>
-                  </div>
-                  <div>
-                    <p className="text-small text-default-500">Capacità</p>
-                    <p>{selectedVehicle.capacity.toLocaleString("it-IT")} kg</p>
-                  </div>
-                  <div>
-                    <p className="text-small text-default-500">
-                      Ultima Revisione
-                    </p>
-                    <p>
-                      {new Date(
-                        selectedVehicle.lastInspection
-                      ).toLocaleDateString("it-IT")}
-                    </p>
-                  </div>
-                  <div className="col-span-2">
-                    <p className="text-small text-default-500">Stato</p>
-                    <Chip
-                      color={
-                        vehicleStatusColorMap[selectedVehicle.status] as any
-                      }
-                      variant="flat"
-                    >
-                      {selectedVehicle.status}
-                    </Chip>
-                  </div>
+                  <p className="text-lg font-medium">
+                    Sei sicuro di voler eliminare questo veicolo?
+                  </p>
+                  <p>
+                    {selectedVehicle.model} ({selectedVehicle.plate})
+                  </p>
+                  <p className="text-sm text-danger-500">
+                    Questa azione non può essere annullata.
+                  </p>
+                  {deleteError && (
+                    <div className="mt-2 p-3 bg-danger-50 text-danger-700 dark:bg-danger-900 dark:text-danger-300 rounded-lg w-full">
+                      {deleteError}
+                    </div>
+                  )}
                 </div>
               </ModalBody>
               <ModalFooter>
-                <Button color="danger" variant="light" onPress={onClose}>
-                  Chiudi
+                <Button
+                  variant="flat"
+                  onPress={() => setIsDeleteModalOpen(false)}
+                >
+                  Annulla
                 </Button>
-                <Button color="primary" onPress={onClose}>
-                  Modifica
+                <Button
+                  color="danger"
+                  onPress={deleteVehicle}
+                  isLoading={isDeleting}
+                >
+                  Elimina
                 </Button>
               </ModalFooter>
             </>

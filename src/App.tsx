@@ -8,6 +8,7 @@ import Dashboard from "./Pages/Dashboard/Dashboard";
 import Products from "./Pages/Inventory/Products";
 import Vehicles from "./Pages/Inventory/Vehicles";
 import Settings from "./Pages/Settings/Settings";
+import AddVehicle from "./Pages/Inventory/AddVehicle";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_API_URL;
@@ -64,6 +65,10 @@ function App() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/inventory/products" element={<Products />} />
           <Route path="/inventory/vehicles" element={<Vehicles />} />
+          <Route
+            path="/inventory/vehicles/add-vehicle"
+            element={<AddVehicle />}
+          />
           <Route path="/analytics" element={<Analytics />} />
         </Route>
       </Routes>
