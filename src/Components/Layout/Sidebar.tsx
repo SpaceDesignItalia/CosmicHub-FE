@@ -95,6 +95,13 @@ export const sectionNestedItems = [
         icon: "mingcute:truck-line",
         href: "/inventory/vehicles",
       },
+      {
+        key: "warehouses",
+        title: "Magazzini",
+        icon: "solar:warehouse-3-bold-duotone",
+        type: SidebarItemType.Nest,
+        items: [], // Questo array sarà popolato dinamicamente con i magazzini dal backend
+      },
     ],
   },
   {
@@ -161,6 +168,21 @@ interface User {
   company: string;
 }
 
+// Interfaccia per il tipo di magazzino
+interface Warehouse {
+  warehouse_id: string;
+  name: string;
+  location: string;
+  company_id: string;
+  created_at: Date;
+  created_by: string;
+  capacity: string;
+  type: string;
+  license_plate: string | null;
+  last_inspection: string | null;
+  type_name: string;
+}
+
 const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
   (
     {
@@ -184,10 +206,15 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [isMobile, setIsMobile] = React.useState(false);
     const location = useLocation();
+    // Stato per i magazzini
+    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+    // Stato per gli elementi della sidebar con magazzini
+    const [sidebarItems, setSidebarItems] = useState<SidebarItem[]>(items);
 
     // Usiamo la nuova API del tema
     const { isDark, toggleTheme } = useCustomTheme();
 
+    // Effetto per caricare i dati utente
     React.useEffect(() => {
       const fetchUser = async () => {
         try {
@@ -216,6 +243,70 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
       fetchUser();
     }, []);
+
+    // Funzione per creare l'array di elementi sidebar con i magazzini integrati
+    const getSidebarItemsWithWarehouses = (
+      warehouseList: Warehouse[]
+    ): SidebarItem[] => {
+      // Creiamo elementi per ciascun magazzino
+      const warehouseElements = warehouseList.map((warehouse) => ({
+        key: `warehouse-${warehouse.warehouse_id}`,
+        title: warehouse.name,
+        icon: "solar:warehouse-bold",
+        href: `/warehouses/${warehouse.warehouse_id}`,
+      }));
+
+      // Creiamo una nuova struttura degli elementi sidebar
+      return sectionNestedItems.map((item) => {
+        // Se l'elemento è "inventory", aggiorniamo i suoi sottoelementi
+        if (item.key === "inventory" && item.items) {
+          // Creiamo una copia degli items di inventory
+          const updatedInventoryItems = item.items.map((subItem) => {
+            // Se il sottoelemento è "warehouses", aggiorniamo i suoi elementi
+            if (subItem.key === "warehouses") {
+              return {
+                ...subItem,
+                items: warehouseElements as SidebarItem[],
+              };
+            }
+            return subItem;
+          });
+
+          // Restituiamo l'elemento inventory aggiornato
+          return {
+            ...item,
+            items: updatedInventoryItems,
+          };
+        }
+        return item;
+      });
+    };
+
+    // Nuovo effetto per caricare i magazzini
+    React.useEffect(() => {
+      const fetchWarehouses = async () => {
+        try {
+          const response = await axios.get("/Warehouse/GET/GetAllWarehouses");
+
+          // Filtriamo solo i magazzini di tipo "warehouse"
+          const warehouseItems = response.data.filter(
+            (warehouse: Warehouse) => warehouse.type_name === "warehouse"
+          );
+
+          setWarehouses(warehouseItems);
+
+          // Creiamo una nuova struttura degli elementi sidebar con i magazzini
+          if (warehouseItems.length > 0) {
+            const updatedItems = getSidebarItemsWithWarehouses(warehouseItems);
+            setSidebarItems(updatedItems);
+          }
+        } catch (error) {
+          console.error("Errore nel caricamento dei magazzini:", error);
+        }
+      };
+
+      fetchWarehouses();
+    }, []); // Rimuovo la dipendenza da items per eseguire solo all'avvio
 
     React.useEffect(() => {
       const checkMobile = () => {
@@ -276,10 +367,14 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         // Prendi il primo segmento del path (es: da "/inventory/categories" prende "inventory")
         const firstPathSegment = currentPath.split("/")[1];
 
+        // Gestisce anche i percorsi dei magazzini
         const isSelected =
           item.type === SidebarItemType.Nest
             ? item.key === firstPathSegment
-            : item.href === currentPath;
+            : item.href === currentPath ||
+              (currentPath.startsWith("/warehouses/") &&
+                item.href?.startsWith("/warehouses/") &&
+                item.href === `/warehouses/${currentPath.split("/")[2]}`);
 
         const isNestType =
           item.items &&
@@ -488,7 +583,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   itemClasses?.title
                 ),
               }}
-              items={items}
+              items={sidebarItems}
               selectedKeys={[selected] as unknown as Selection}
               selectionMode="single"
               variant="flat"
@@ -538,9 +633,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               )}
               startContent={
                 <Icon
-                  className={
-                    isDark ? "text-default-500" : "text-default-700"
-                  }
+                  className={isDark ? "text-default-500" : "text-default-700"}
                   icon="solar:info-circle-linear"
                   width={24}
                 />
