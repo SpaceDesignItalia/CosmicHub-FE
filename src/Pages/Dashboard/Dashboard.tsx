@@ -150,13 +150,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
 
 export default function Dashboard() {
   const [currentEmployees, setCurrentEmployees] = useState<Employee[]>([]);
-  const { isOpen: isNewEmployeeModalOpen, onOpen: onNewEmployeeModalOpen, onClose: onNewEmployeeModalClose } = useDisclosure();
-  const [newEmployeeData, setNewEmployeeData] = useState({
-    name: "",
-    password: "",
-    role: "",
-    photo: "",
-  });
+  const [searchQuery, setSearchQuery] = useState<string>("");
 
   useEffect(() => {
     const fetchEmployees = () => {
@@ -175,97 +169,57 @@ export default function Dashboard() {
     fetchEmployees();
   }, []);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setNewEmployeeData(prevData => ({
-      ...prevData,
-      [name]: value,
-    }));
-  };
-
-  const handleAddEmployee = () => {
-    const newId = currentEmployees.length > 0 ? Math.max(...currentEmployees.map(e => e.id)) + 1 : 1;
-    const employeeToAdd: Employee = {
-      id: newId,
-      name: newEmployeeData.name,
-      password: newEmployeeData.password,
-      role: newEmployeeData.role,
-      photo: newEmployeeData.photo,
-      // assignedVan can be added later if needed
-    };
-    setCurrentEmployees(prevEmployees => [...prevEmployees, employeeToAdd]);
-    onNewEmployeeModalClose();
-    setNewEmployeeData({ name: "", password: "", role: "", photo: "" });
-  };
+  // Funzione per filtrare i dipendenti in base alla query di ricerca
+  const filteredEmployees = currentEmployees.filter(employee => {
+    if (!searchQuery.trim()) return true;
+    const searchLower = searchQuery.toLowerCase();
+    
+    // Cerca in nome, ruolo e targa del veicolo (se assegnato)
+    return (
+      (employee.name && employee.name.toLowerCase().includes(searchLower)) || 
+      (employee.role && employee.role.toLowerCase().includes(searchLower)) ||
+      (employee.assignedVan && employee.assignedVan.licensePlate.toLowerCase().includes(searchLower)) ||
+      (employee.assignedVan && employee.assignedVan.model.toLowerCase().includes(searchLower))
+    );
+  });
 
   return (
     <div className="w-full flex-1 flex flex-col p-4 gap-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col gap-4">
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
             <Icon icon="solar:users-group-rounded-bold" className="text-primary" width={28} />
           </div>
-          <h1 className="text-2xl font-bold">Technical Team</h1>
+          <h1 className="text-2xl font-bold">Team Tecnico</h1>
         </div>
-        <Button color="primary" startContent={<Icon icon="solar:add-circle-bold" />} onPress={onNewEmployeeModalOpen}>
-          New Employee
-        </Button>
+        
+        {/* Barra di ricerca */}
+        <div className="w-full">
+          <Input
+            placeholder="Cerca per nome, ruolo o veicolo..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            size="md"
+            startContent={<Icon icon="solar:magnifer-linear" className="text-default-400" />}
+            isClearable
+            onClear={() => setSearchQuery("")}
+            className="max-w-md"
+          />
+        </div>
       </div>
       
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {currentEmployees.map(employee => (
+        {filteredEmployees.map(employee => (
           <EmployeeCard key={employee.id} employee={employee} />
         ))}
+        {filteredEmployees.length === 0 && (
+          <div className="col-span-full flex flex-col items-center justify-center p-8 text-center">
+            <Icon icon="solar:magnifer-failed-linear" className="text-default-400 mb-4" width={48} height={48} />
+            <p className="text-xl font-medium text-default-600">Nessun dipendente trovato</p>
+            <p className="text-sm text-default-400 mt-2">Prova con termini di ricerca diversi</p>
+          </div>
+        )}
       </div>
-
-      {/* New Employee Modal */}
-      <Modal isOpen={isNewEmployeeModalOpen} onClose={onNewEmployeeModalClose} size="lg">
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">Add New Employee</ModalHeader>
-          <ModalBody>
-            <Input
-              placeholder="Name"
-              name="name"
-              value={newEmployeeData.name}
-              onChange={handleInputChange}
-              fullWidth
-              className="mb-4"
-            />
-            <Input
-              placeholder="Password"
-              name="password"
-              type="password"
-              value={newEmployeeData.password}
-              onChange={handleInputChange}
-              fullWidth
-              className="mb-4"
-            />
-            <Input
-              placeholder="Role (e.g., Senior Technician)"
-              name="role"
-              value={newEmployeeData.role}
-              onChange={handleInputChange}
-              fullWidth
-              className="mb-4"
-            />
-            <Input
-              placeholder="Photo URL"
-              name="photo"
-              value={newEmployeeData.photo}
-              onChange={handleInputChange}
-              fullWidth
-            />
-          </ModalBody>
-          <ModalFooter>
-            <Button color="danger" variant="light" onPress={onNewEmployeeModalClose}>
-              Cancel
-            </Button>
-            <Button color="primary" onPress={handleAddEmployee}>
-              Add Employee
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
     </div>
   );
 }
