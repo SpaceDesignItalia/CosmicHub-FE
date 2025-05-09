@@ -248,7 +248,16 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const getSidebarItemsWithWarehouses = (
       warehouseList: Warehouse[]
     ): SidebarItem[] => {
-      // Creiamo elementi per ciascun magazzino
+      // Creo un elemento per aggiungere un nuovo magazzino con stile diverso per renderlo più visibile
+      const addWarehouseElement: SidebarItem = {
+        key: "add-warehouse",
+        title: "Aggiungi Magazzino",
+        icon: "solar:plus-bold",
+        href: "/warehouses/new",
+        className: "mt-2 text-primary", // Aggiungo classe per evidenziare
+      };
+
+      // Creiamo elementi per ciascun magazzino se esistono
       const warehouseElements = warehouseList.map((warehouse) => ({
         key: `warehouse-${warehouse.warehouse_id}`,
         title: warehouse.name,
@@ -256,18 +265,28 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         href: `/warehouses/${warehouse.warehouse_id}`,
       }));
 
+      // Aggiungiamo l'elemento per l'aggiunta magazzino alla fine dell'array
+      const allWarehouseItems = [...warehouseElements, addWarehouseElement];
+
       // Creiamo una nuova struttura degli elementi sidebar
       return sectionNestedItems.map((item) => {
         // Se l'elemento è "inventory", aggiorniamo i suoi sottoelementi
         if (item.key === "inventory" && item.items) {
           // Creiamo una copia degli items di inventory
           const updatedInventoryItems = item.items.map((subItem) => {
-            // Se il sottoelemento è "warehouses", aggiorniamo i suoi elementi
+            // Se il sottoelemento è "warehouses", controlliamo se ci sono magazzini
             if (subItem.key === "warehouses") {
-              return {
-                ...subItem,
-                items: warehouseElements as SidebarItem[],
-              };
+              if (warehouseList.length > 0) {
+                // Se ci sono magazzini, conserviamo il tipo Nest e aggiorniamo gli items
+                return {
+                  ...subItem,
+                  items: allWarehouseItems,
+                  type: SidebarItemType.Nest, // Assicuriamoci che sia di tipo Nest
+                };
+              } else {
+                // Se non ci sono magazzini, mostriamo solo "Aggiungi Magazzino"
+                return addWarehouseElement;
+              }
             }
             return subItem;
           });
@@ -295,11 +314,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
           setWarehouses(warehouseItems);
 
-          // Creiamo una nuova struttura degli elementi sidebar con i magazzini
-          if (warehouseItems.length > 0) {
-            const updatedItems = getSidebarItemsWithWarehouses(warehouseItems);
-            setSidebarItems(updatedItems);
-          }
+          // Aggiorniamo sempre la sidebar con il pulsante "Aggiungi magazzino"
+          const updatedItems = getSidebarItemsWithWarehouses(warehouseItems);
+          setSidebarItems(updatedItems);
         } catch (error) {
           console.error("Errore nel caricamento dei magazzini:", error);
         }

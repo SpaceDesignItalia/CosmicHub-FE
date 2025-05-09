@@ -56,6 +56,7 @@ const WarehouseDetail: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<string>("overview");
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
   // Stati per il modal di modifica
   const {
@@ -67,14 +68,13 @@ const WarehouseDetail: React.FC = () => {
     name: string;
     location: string;
     capacity: string;
-    type: string;
   }>({
     name: "",
     location: "",
     capacity: "",
-    type: "",
   });
   const [isEditLoading, setIsEditLoading] = useState<boolean>(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Stati per il modal di eliminazione
   const {
@@ -101,13 +101,15 @@ const WarehouseDetail: React.FC = () => {
             name: response.data.name || "",
             location: response.data.location || "",
             capacity: response.data.capacity || "",
-            type: response.data.type || "",
           });
         }
 
         // Dopo aver caricato i dati del magazzino, recuperiamo le informazioni dell'azienda
         if (response.data && response.data.company_id) {
-          fetchCompanyDetails(response.data.company_id);
+          await fetchCompanyDetails(response.data.company_id);
+        } else {
+          // Se non c'è company_id, impostiamo comunque loading a false
+          setLoading(false);
         }
 
         setError(null);
@@ -143,8 +145,18 @@ const WarehouseDetail: React.FC = () => {
       }
     };
 
+    const fetchWarehouses = async () => {
+      try {
+        const response = await axios.get("/Warehouse/GET/GetAllWarehouses");
+        setWarehouses(response.data || []);
+      } catch (err) {
+        console.error("Errore nel caricamento dei magazzini:", err);
+      }
+    };
+
     if (id) {
       fetchWarehouseDetails();
+      fetchWarehouses();
     }
   }, [id]);
 
@@ -172,12 +184,11 @@ const WarehouseDetail: React.FC = () => {
     setIsEditLoading(true);
     try {
       // Endpoint per l'aggiornamento del magazzino
-      await axios.put(`/Warehouse/PUT/UpdateWarehouse`, {
+      await axios.put(`/Warehouse/UPDATE/UpdateWarehouse`, {
         warehouse_id: id,
         name: editForm.name,
         location: editForm.location,
         capacity: editForm.capacity,
-        type: editForm.type,
         company_id: warehouse.company_id,
       });
 
@@ -189,11 +200,16 @@ const WarehouseDetail: React.FC = () => {
           name: editForm.name,
           location: editForm.location,
           capacity: editForm.capacity,
-          type: editForm.type,
         };
       });
 
       onEditClose();
+      // Mostra il messaggio di successo
+      setSuccessMessage("Magazzino modificato con successo!");
+      // Nascondi il messaggio dopo 3 secondi
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 3000);
     } catch (error) {
       console.error("Errore durante l'aggiornamento del magazzino:", error);
       // Gestire l'errore qui (es. mostrare un messaggio all'utente)
@@ -299,6 +315,16 @@ const WarehouseDetail: React.FC = () => {
         <BreadcrumbItem>{warehouse.name}</BreadcrumbItem>
       </Breadcrumbs>
 
+      {/* Messaggio di successo */}
+      {successMessage && (
+        <div className="mb-4 rounded-md bg-success-100 p-4 text-success-700">
+          <div className="flex items-center">
+            <Icon icon="solar:check-circle-bold" className="mr-2" width={20} />
+            <p>{successMessage}</p>
+          </div>
+        </div>
+      )}
+
       {/* Header con info principali */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
         <div className="flex items-center">
@@ -374,18 +400,6 @@ const WarehouseDetail: React.FC = () => {
                     handleEditFormChange("capacity", e.target.value)
                   }
                 />
-              </div>
-              <div>
-                <p className="mb-2 text-sm">Tipo</p>
-                <Select
-                  placeholder="Seleziona il tipo"
-                  selectedKeys={editForm.type ? [editForm.type] : []}
-                  onChange={(e) => handleEditFormChange("type", e.target.value)}
-                >
-                  <SelectItem key="1">Magazzino Fisico</SelectItem>
-                  <SelectItem key="2">Magazzino Mobile</SelectItem>
-                  <SelectItem key="3">Deposito</SelectItem>
-                </Select>
               </div>
             </div>
           </ModalBody>
@@ -593,24 +607,52 @@ const WarehouseDetail: React.FC = () => {
         </div>
       )}
 
-      {selectedTab === "history" && (
+      {selectedTab === "history" && warehouses && warehouses.length === 0 ? (
         <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-default-200">
           <div className="text-center">
             <div className="flex justify-center">
               <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
                 <Icon
-                  icon="solar:history-bold"
+                  icon="solar:add-circle-bold"
                   className="text-primary"
                   width={40}
                 />
               </div>
             </div>
-            <p className="mt-4 text-default-500">Storico non disponibile</p>
-            <Button color="primary" className="mt-4" size="sm">
-              Visualizza Storico
+            <p className="mt-4 text-default-500">
+              Non ci sono magazzini disponibili
+            </p>
+            <Button
+              color="primary"
+              className="mt-4"
+              size="sm"
+              startContent={<Icon icon="solar:add-circle-bold" width={18} />}
+              href="/warehouses/new"
+            >
+              Aggiungi Magazzino
             </Button>
           </div>
         </div>
+      ) : (
+        selectedTab === "history" && (
+          <div className="flex h-64 items-center justify-center rounded-lg border-2 border-dashed border-default-200">
+            <div className="text-center">
+              <div className="flex justify-center">
+                <div className="flex h-20 w-20 items-center justify-center rounded-full bg-primary/10">
+                  <Icon
+                    icon="solar:history-bold"
+                    className="text-primary"
+                    width={40}
+                  />
+                </div>
+              </div>
+              <p className="mt-4 text-default-500">Storico non disponibile</p>
+              <Button color="primary" className="mt-4" size="sm">
+                Visualizza Storico
+              </Button>
+            </div>
+          </div>
+        )
       )}
     </div>
   );
