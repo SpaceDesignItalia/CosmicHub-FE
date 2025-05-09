@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Tabs,
   Tab,
@@ -8,20 +8,69 @@ import {
   Button,
   Switch,
   Divider,
+  Spinner,
+  Tooltip,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  useDisclosure,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { cn } from "@heroui/react";
 import { useCustomTheme } from "../../providers/ThemeProvider";
+import axios from "axios";
+
+// Interfaccia per i dati dell'utente
+interface UserProfile {
+  id?: number;
+  name: string;
+  surname: string;
+  email: string;
+  role: string;
+  photo?: string;
+}
+
+// Interfaccia per i dati della password
+interface PasswordData {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
 
 const Settings = () => {
   const [activeTab, setActiveTab] = useState("profile");
   const { theme, setTheme } = useCustomTheme();
   const isDark = theme === "dark";
 
+  // Stati per i dati dell'utente
+  const [userProfile, setUserProfile] = useState<UserProfile>({
+    name: "",
+    surname: "",
+    email: "",
+    role: "",
+    photo: "",
+  });
+  
+  // Stati per la gestione delle password
+  const [passwordData, setPasswordData] = useState<PasswordData>({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+  
   // Stati per mostrare/nascondere le password
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Stati per feedback all'utente
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState("");
+  const { isOpen, onOpen, onClose } = useDisclosure();
 
   // Funzione per gestire il cambio di tab
   const handleTabChange = (key: React.Key) => {
@@ -32,6 +81,115 @@ const Settings = () => {
   const handleThemeChange = () => {
     const newTheme = isDark ? "light" : "dark";
     setTheme(newTheme);
+  };
+  
+  // Recupera i dati dell'utente
+  useEffect(() => {
+    const fetchUserData = () => {
+      setIsLoading(true);
+      axios.get("/Authentication/GET/GetSessionData", { withCredentials: true })
+        .then((response) => {
+          if (response.data) {
+            setUserProfile({
+              id: response.data.id,
+              name: response.data.name || "",
+              surname: response.data.surname || "",
+              email: response.data.email || "",
+              role: response.data.role || "",
+              photo: response.data.photo || "https://i.pravatar.cc/150?u=a04258114e29026708c",
+            });
+            console.log(response.data);
+          }
+        })
+        .catch((error) => {
+          console.error("Errore nel recupero dei dati utente:", error);
+          setErrorMessage("Impossibile caricare i dati dell'utente");
+          onOpen();
+        })
+        .finally(() => {
+          setIsLoading(false);
+        });
+    };
+
+    fetchUserData();
+  }, []);
+  
+  // Gestisce l'aggiornamento dei campi del profilo
+  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setUserProfile((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+  
+  // Gestisce l'aggiornamento dei campi della password
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+    setPasswordData((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+  
+  // Salva le modifiche al profilo
+  const handleSaveProfile = () => {
+    setIsSaving(true);
+    setSaveSuccess(false);
+    
+    axios.put("/User/PUT/UpdateUserInfo", { userData: userProfile }, { withCredentials: true })
+      .then((response) => {
+        if (response.status === 200) {
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 3000);
+        }
+      })
+      .catch((error) => {
+        console.error("Errore nell'aggiornamento del profilo:", error);
+        setErrorMessage("Impossibile aggiornare i dati del profilo");
+        onOpen();
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
+  };
+  
+  // Salva le nuove password
+  const handleSavePassword = () => {
+    // Valida che le password corrispondano
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      setErrorMessage("Le password non corrispondono");
+      onOpen();
+      return;
+    }
+    
+    setIsSaving(true);
+    setSaveSuccess(false);
+    
+    axios.put("/User/PUT/UpdateUserPassword", { 
+      currentPassword: passwordData.currentPassword,
+      newPassword: passwordData.newPassword
+    }, { withCredentials: true })
+      .then((response) => {
+        if (response.status === 200) {
+          setSaveSuccess(true);
+          setTimeout(() => setSaveSuccess(false), 3000);
+          // Reset password fields
+          setPasswordData({
+            currentPassword: "",
+            newPassword: "",
+            confirmPassword: ""
+          });
+        }
+      })
+      .catch((error) => {
+        console.error("Errore nell'aggiornamento della password:", error);
+        setErrorMessage(error.response?.data || "Impossibile aggiornare la password");
+        onOpen();
+      })
+      .finally(() => {
+        setIsSaving(false);
+      });
   };
 
   // Icona occhio per i campi password
@@ -66,7 +224,7 @@ const Settings = () => {
                 <div className="flex items-center gap-4">
                   <div className="h-24 w-24 overflow-hidden rounded-full bg-default-100">
                     <img
-                      src="https://i.pravatar.cc/150?u=a04258114e29026708c"
+                      src={userProfile.photo || "https://i.pravatar.cc/150?u=a04258114e29026708c"}
                       alt="Immagine profilo"
                       className="h-full w-full object-cover"
                     />
@@ -82,25 +240,43 @@ const Settings = () => {
                 </div>
               </div>
               <Divider />
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                <Input label="Nome" placeholder="Kate" defaultValue="Kate" />
-                <Input
-                  label="Cognome"
-                  placeholder="Moore"
-                  defaultValue="Moore"
-                />
-                <Input
-                  label="Email"
-                  placeholder="email@esempio.com"
-                  defaultValue="kate.moore@cosmichub.com"
-                  type="email"
-                />
-                <Input
-                  label="Ruolo"
-                  placeholder="Ruolo aziendale"
-                  defaultValue="Customer Support"
-                />
-              </div>
+              {isLoading ? (
+                <div className="flex justify-center py-8">
+                  <Spinner color="primary" size="lg" />
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                  <Input 
+                    name="name"
+                    label="Nome" 
+                    placeholder="Nome" 
+                    value={userProfile.name}
+                    onChange={handleProfileChange}
+                  />
+                  <Input
+                    name="surname"
+                    label="Cognome"
+                    placeholder="Cognome"
+                    value={userProfile.surname}
+                    onChange={handleProfileChange}
+                  />
+                  <Input
+                    name="email"
+                    label="Email"
+                    placeholder="email@esempio.com"
+                    value={userProfile.email}
+                    type="email"
+                    onChange={handleProfileChange}
+                  />
+                  <Input
+                    name="role"
+                    label="Ruolo"
+                    placeholder="Ruolo aziendale"
+                    value={userProfile.role}
+                    onChange={handleProfileChange}
+                  />
+                </div>
+              )}
             </CardBody>
           </Card>
         );
@@ -117,25 +293,34 @@ const Settings = () => {
               <Divider />
               <div className="flex flex-col gap-4">
                 <Input
+                  name="currentPassword"
                   label="Password Attuale"
                   type={showCurrentPassword ? "text" : "password"}
                   placeholder="••••••••"
+                  value={passwordData.currentPassword}
+                  onChange={handlePasswordChange}
                   endContent={renderEyeIcon(showCurrentPassword, () =>
                     setShowCurrentPassword(!showCurrentPassword)
                   )}
                 />
                 <Input
+                  name="newPassword"
                   label="Nuova Password"
                   type={showNewPassword ? "text" : "password"}
                   placeholder="••••••••"
+                  value={passwordData.newPassword}
+                  onChange={handlePasswordChange}
                   endContent={renderEyeIcon(showNewPassword, () =>
                     setShowNewPassword(!showNewPassword)
                   )}
                 />
                 <Input
+                  name="confirmPassword"
                   label="Conferma Nuova Password"
                   type={showConfirmPassword ? "text" : "password"}
                   placeholder="••••••••"
+                  value={passwordData.confirmPassword}
+                  onChange={handlePasswordChange}
                   endContent={renderEyeIcon(showConfirmPassword, () =>
                     setShowConfirmPassword(!showConfirmPassword)
                   )}
@@ -248,29 +433,6 @@ const Settings = () => {
     }
   };
 
-  // Funzione per creare una tab con stile migliorato
-  const renderTabTitle = (key: string, icon: string, label: string) => {
-    const isActive = activeTab === key;
-    return (
-      <div className="flex items-center gap-3">
-        <Icon
-          icon={`solar:${icon}-bold-duotone`}
-          width={22}
-          className={isActive ? "text-warning font-bold" : "text-foreground"}
-        />
-        <span
-          className={
-            isActive
-              ? "text-warning font-medium"
-              : "text-foreground font-medium"
-          }
-        >
-          {label}
-        </span>
-      </div>
-    );
-  };
-
   // Tab personalizzata con la righina gialla
   const renderCustomTab = (key: string, icon: string, label: string) => {
     const isActive = activeTab === key;
@@ -314,6 +476,29 @@ const Settings = () => {
     );
   };
 
+  // Renderizza il pulsante salva con feedback
+  const renderSaveButton = () => {
+    return (
+      <div className="relative">
+        <Button 
+          color="primary" 
+          isLoading={isSaving}
+          onClick={activeTab === "profile" ? handleSaveProfile : 
+                  activeTab === "account" ? handleSavePassword : undefined}
+          className="min-w-[140px]"
+        >
+          {isSaving ? "Salvataggio..." : "Salva Modifiche"}
+        </Button>
+        {saveSuccess && (
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 bg-success-100 text-success-700 px-3 py-1 rounded-md text-sm flex items-center gap-1 whitespace-nowrap">
+            <Icon icon="solar:check-circle-bold" className="text-success-600" />
+            Salvato con successo
+          </div>
+        )}
+      </div>
+    );
+  };
+
   return (
     <div className="flex w-full flex-col gap-4 p-6">
       <div className="flex flex-col">
@@ -345,10 +530,25 @@ const Settings = () => {
 
           <div className="flex justify-end gap-2">
             <Button variant="flat">Annulla</Button>
-            <Button color="primary">Salva Modifiche</Button>
+            {renderSaveButton()}
           </div>
         </div>
       </div>
+      
+      {/* Modal di errore */}
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1 text-danger">Errore</ModalHeader>
+          <ModalBody>
+            <p>{errorMessage}</p>
+          </ModalBody>
+          <ModalFooter>
+            <Button color="danger" variant="light" onPress={onClose}>
+              Chiudi
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
 };
