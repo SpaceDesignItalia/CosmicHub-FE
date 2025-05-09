@@ -222,13 +222,19 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const getSidebarItemsWithWarehouses = (
       warehouseList: Warehouse[]
     ): SidebarItem[] => {
-      // Creo un elemento per aggiungere un nuovo magazzino con stile diverso per renderlo più visibile
+      // Creo un elemento per aggiungere un nuovo magazzino SOLO come icona gialla con tooltip
       const addWarehouseElement: SidebarItem = {
         key: "add-warehouse",
-        title: "Aggiungi Magazzino",
-        icon: "solar:plus-bold",
+        title: "",
+        startContent: (
+          <Tooltip content="Aggiungi Magazzino" placement="right">
+            <span className="rounded-full hover:bg-warning/20 transition-colors">
+              <Icon icon="solar:add-circle-bold" className="text-warning text-2xl" />
+            </span>
+          </Tooltip>
+        ),
         href: "/warehouses/new",
-        className: "mt-2 text-primary", // Aggiungo classe per evidenziare
+        className: "mt-2 flex items-center justify-center !shadow-none !bg-transparent"
       };
 
       // Creiamo elementi per ciascun magazzino se esistono
@@ -258,7 +264,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   type: SidebarItemType.Nest, // Assicuriamoci che sia di tipo Nest
                 };
               } else {
-                // Se non ci sono magazzini, mostriamo solo "Aggiungi Magazzino"
+                // Se non ci sono magazzini, mostriamo solo l'icona
                 return addWarehouseElement;
               }
             }

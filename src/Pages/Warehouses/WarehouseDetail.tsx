@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
@@ -27,6 +27,74 @@ import {
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { ResponsiveContainer, RadialBarChart, RadialBar, Cell, PolarAngleAxis } from "recharts";
+import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+
+// Stili personalizzati per la mappa
+const mapStyles = [
+  {
+    featureType: 'poi',
+    elementType: 'labels',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'transit',
+    elementType: 'labels',
+    stylers: [{ visibility: 'off' }],
+  },
+  {
+    featureType: 'water',
+    elementType: 'geometry',
+    stylers: [{ color: '#c8d7d4' }],
+  },
+  {
+    featureType: 'landscape.natural',
+    elementType: 'geometry',
+    stylers: [{ color: '#f0f0f0' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'geometry',
+    stylers: [{ color: '#ffffff' }],
+  },
+  {
+    featureType: 'road',
+    elementType: 'labels.text.fill',
+    stylers: [{ color: '#666666' }],
+  },
+  {
+    featureType: 'road.arterial',
+    elementType: 'geometry',
+    stylers: [{ color: '#ffffff' }],
+  },
+  {
+    featureType: 'road.highway',
+    elementType: 'geometry',
+    stylers: [{ color: '#ffffff' }],
+  },
+  {
+    featureType: 'road.local',
+    elementType: 'geometry',
+    stylers: [{ color: '#ffffff' }],
+  },
+];
+
+// Componente bottone della mappa
+interface MapButtonProps {
+  onClick: React.MouseEventHandler<HTMLButtonElement>;
+  className?: string;
+  children: React.ReactNode;
+}
+
+const MapButton = ({ onClick, children, className = '' }: MapButtonProps) => (
+  <button
+    onClick={onClick}
+    className={`rounded-full border border-default-200 bg-background p-2 text-foreground transition-colors hover:bg-primary hover:text-white hover:border-primary ${className}`}
+  >
+    {children}
+  </button>
+);
+
+const libraries: ("places" | "geometry" | "drawing" | "visualization")[] = [];
 
 // Definizione dell'interfaccia Warehouse basata sui dati forniti
 interface Warehouse {
@@ -41,6 +109,9 @@ interface Warehouse {
   license_plate: string | null;
   last_inspection: string | null;
   type_name: string;
+  latitude?: number;
+  longitude?: number;
+  last_updated?: Date | string;
 }
 
 interface Company {
@@ -58,6 +129,18 @@ const WarehouseDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<string>("overview");
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  
+  // Stati per la mappa Google Maps
+  const [map, setMap] = useState<google.maps.Map | null>(null);
+  const [zoom, setZoom] = useState(15);
+  const { isLoaded } = useJsApiLoader({
+    id: 'google-map-script',
+    googleMapsApiKey: "AIzaSyCiwX6kfGN0syLMPqy1JXLNxct0woowciA",
+    libraries: libraries,
+  });
+  
+  // Stato per la finestra info della mappa (per compatibilità)
+  const [infoOpen, setInfoOpen] = useState(false);
 
   // Stati per il modal di modifica
   const {
@@ -84,6 +167,47 @@ const WarehouseDetail: React.FC = () => {
     onClose: onDeleteClose,
   } = useDisclosure();
   const [isDeleteLoading, setIsDeleteLoading] = useState<boolean>(false);
+  
+  // Funzioni per la mappa
+  const onLoad = useCallback(
+    (map: google.maps.Map) => {
+      map.setZoom(zoom);
+      setMap(map);
+    },
+    [zoom]
+  );
+
+  const onUnmount = useCallback(() => {
+    setMap(null);
+  }, []);
+
+  const handleZoomIn = () => {
+    if (map) {
+      const newZoom = Math.min((map.getZoom() || 15) + 1, 20);
+      map.setZoom(newZoom);
+      setZoom(newZoom);
+    }
+  };
+
+  const handleZoomOut = () => {
+    if (map) {
+      const currentZoom = map.getZoom() || 15;
+      const newZoom = Math.max(currentZoom - 1, 1);
+      map.setZoom(newZoom);
+      setZoom(newZoom);
+    }
+  };
+
+  const handleOpenNavigation = () => {
+    if (warehouse && warehouse.location) {
+      const address = encodeURIComponent(warehouse.location);
+      const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+      const url = isMobile
+        ? `https://maps.google.com/?q=${address}`
+        : `https://www.google.com/maps/dir/?api=1&destination=${address}`;
+      window.open(url, '_blank');
+    }
+  };
 
   useEffect(() => {
     const fetchWarehouseDetails = async () => {
@@ -464,25 +588,26 @@ const WarehouseDetail: React.FC = () => {
 
       {/* Contenuto in base alla tab selezionata */}
       {selectedTab === "overview" && (
-        <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
-          {/* Card Informazioni generali */}
-          <Card className="col-span-1 xl:col-span-2">
+        <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+          {/* Card Informazioni generali - Occupazione 2/3 in prima riga */}
+          <Card className="col-span-1 md:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
-              <h2 className="text-lg font-semibold">Informazioni Generali</h2>
+              <div className="flex items-center">
+                <Icon icon="solar:info-circle-bold" className="mr-2 text-primary" width={20} />
+                <h2 className="text-lg font-semibold">Informazioni Generali</h2>
+              </div>
             </CardHeader>
             <Divider />
             <CardBody>
-              <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+              <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm text-default-500">Nome</p>
-                    <p className="text-foreground">{warehouse.name}</p>
+                    <p className="text-foreground font-medium">{warehouse.name}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-default-500">Posizione</p>
-                    <p className="text-foreground">
-                      {warehouse.location || "Non specificata"}
-                    </p>
+                    <p className="text-sm text-default-500">ID</p>
+                    <p className="text-foreground font-medium">{warehouse.warehouse_id}</p>
                   </div>
                   <div>
                     <p className="text-sm text-default-500">Tipo</p>
@@ -493,34 +618,47 @@ const WarehouseDetail: React.FC = () => {
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-default-500">
-                      Data di creazione
-                    </p>
-                    <p className="text-foreground">
-                      {formatDate(warehouse.created_at)}
-                    </p>
+                    <p className="text-sm text-default-500">Data di creazione</p>
+                    <p className="text-foreground font-medium">{formatDate(warehouse.created_at)}</p>
                   </div>
                   <div>
                     <p className="text-sm text-default-500">Creato da</p>
-                    <p className="text-foreground">
-                      ID: {warehouse.created_by}
-                    </p>
+                    <p className="text-foreground font-medium">ID: {warehouse.created_by}</p>
                   </div>
                   <div>
-                    <p className="text-sm text-default-500">Azienda</p>
-                    <p className="text-foreground">
-                      {companyName || warehouse.company_id}
+                    <p className="text-sm text-default-500">Ultima modifica</p>
+                    <p className="text-foreground font-medium">
+                      {warehouse.last_updated ? formatDate(warehouse.last_updated) : "Mai modificato"}
                     </p>
                   </div>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-default-500">Azienda</p>
+                    <p className="text-foreground font-medium">{companyName || warehouse.company_id}</p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-default-500">Indirizzo</p>
+                    <p className="text-foreground font-medium">{warehouse.location || "Non specificato"}</p>
+                  </div>
+                  {warehouse.last_inspection && (
+                    <div>
+                      <p className="text-sm text-default-500">Ultima ispezione</p>
+                      <p className="text-foreground font-medium">{formatDate(warehouse.last_inspection)}</p>
+                    </div>
+                  )}
                 </div>
               </div>
             </CardBody>
           </Card>
 
-          {/* Card Capacità */}
+          {/* Card Capacità - Occupazione 1/3 in prima riga */}
           <Card className="col-span-1">
             <CardHeader className="flex flex-row items-center justify-between">
-              <h2 className="text-lg font-semibold">Capacità</h2>
+              <div className="flex items-center">
+                <Icon icon="solar:box-minimalistic-bold" className="mr-2 text-primary" width={20} />
+                <h2 className="text-lg font-semibold">Capacità</h2>
+              </div>
             </CardHeader>
             <Divider />
             <CardBody>
@@ -557,12 +695,92 @@ const WarehouseDetail: React.FC = () => {
                     <p className="mt-2 text-sm text-default-500">Utilizzato</p>
                   </div>
                 </div>
-                <div className="mt-8 text-center">
+                <div className="mt-4 text-center">
                   <p className="text-sm text-default-500">Capacità totale</p>
                   <p className="text-xl font-semibold">
                     {parseInt(warehouse.capacity).toLocaleString()} m³
                   </p>
                 </div>
+              </div>
+            </CardBody>
+          </Card>
+
+          {/* Card Mappa posizione - Spostata in fondo a tutta larghezza */}
+          <Card className="col-span-1 md:col-span-3">
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div className="flex items-center">
+                <Icon icon="solar:map-point-linear" className="mr-2 text-primary" width={20} />
+                <h2 className="text-lg font-semibold">Mappa Posizione</h2>
+              </div>
+            </CardHeader>
+            <Divider />
+            <CardBody>
+              <div className="relative h-96 w-full rounded-lg overflow-hidden">
+                {/* Coordinate hardcoded, da sostituire con quelle reali dal DB */}
+                {(() => {
+                  const latitude = warehouse.latitude || 45.4642; // fallback Milano
+                  const longitude = warehouse.longitude || 9.19;
+                  const center = { lat: latitude, lng: longitude };
+                  
+                  if (!isLoaded) {
+                    return (
+                      <div className="flex h-full w-full items-center justify-center rounded-lg bg-default-100">
+                        <span className="text-default-500">Caricamento mappa...</span>
+                      </div>
+                    );
+                  }
+
+                  const mapOptions = {
+                    disableDefaultUI: true,
+                    styles: mapStyles,
+                    zoomControl: false,
+                  };
+                  
+                  return (
+                    <div className="relative h-full w-full">
+                      <GoogleMap
+                        mapContainerClassName="w-full h-full rounded-lg"
+                        center={center}
+                        zoom={zoom}
+                        onLoad={onLoad}
+                        onUnmount={onUnmount}
+                        options={mapOptions}
+                      >
+                        <Marker position={center} />
+                      </GoogleMap>
+                      
+                      <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-10">
+                        <Button 
+                          isIconOnly 
+                          className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200"
+                          size="md"
+                          onClick={handleZoomIn}
+                        >
+                          <Icon icon="solar:add-bold" width={20} />
+                        </Button>
+                        <Button 
+                          isIconOnly 
+                          className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200"
+                          size="md"
+                          onClick={handleZoomOut}
+                        >
+                          <Icon icon="solar:minus-bold" width={20} />
+                        </Button>
+                      </div>
+                      
+                      <div className="absolute bottom-6 left-6 z-10">
+                        <Button
+                          className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200 flex items-center gap-2 px-4"
+                          onClick={handleOpenNavigation}
+                          size="md"
+                          startContent={<Icon icon="solar:map-point-bold" width={18} />}
+                        >
+                          Apri navigazione
+                        </Button>
+                      </div>
+                    </div>
+                  );
+                })()}
               </div>
             </CardBody>
           </Card>
