@@ -98,37 +98,11 @@ export const sectionNestedItems = [
       {
         key: "warehouses",
         title: "Magazzini",
-        icon: "solar:warehouse-3-bold-duotone",
+        icon: "mdi:warehouse",
         type: SidebarItemType.Nest,
         items: [], // Questo array sarà popolato dinamicamente con i magazzini dal backend
       },
     ],
-  },
-  {
-    key: "customers",
-    title: "Clienti",
-    icon: "solar:users-group-rounded-linear",
-    type: SidebarItemType.Nest,
-    items: [
-      {
-        key: "overview",
-        title: "Panoramica",
-        icon: "solar:chart-linear",
-        href: "/customers/overview",
-      },
-      {
-        key: "reports",
-        title: "Report",
-        icon: "solar:document-linear",
-        href: "/customers/reports",
-      },
-    ],
-  },
-  {
-    key: "employees",
-    title: "Dipendenti",
-    icon: "solar:user-linear",
-    href: "/employees",
   },
 ];
 

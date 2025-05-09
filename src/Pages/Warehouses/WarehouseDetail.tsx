@@ -26,6 +26,7 @@ import {
   Textarea,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import { ResponsiveContainer, RadialBarChart, RadialBar, Cell, PolarAngleAxis } from "recharts";
 
 // Definizione dell'interfaccia Warehouse basata sui dati forniti
 interface Warehouse {
@@ -286,7 +287,7 @@ const WarehouseDetail: React.FC = () => {
   }
 
   // Valore fisso al 50% per la percentuale di capacità
-  const capacityUsage = 50;
+  const capacityUsage = 69;
   const capacityColor =
     capacityUsage > 80 ? "danger" : capacityUsage > 60 ? "warning" : "success";
 
@@ -511,30 +512,33 @@ const WarehouseDetail: React.FC = () => {
             <CardBody>
               <div className="flex flex-col items-center justify-center">
                 <div className="relative flex h-48 w-48 items-center justify-center">
-                  <svg className="h-48 w-48" viewBox="0 0 36 36">
-                    {/* Sfondo del cerchio */}
-                    <circle
-                      cx="18"
-                      cy="18"
-                      r="15.9155"
-                      fill="none"
-                      className="stroke-default-100"
-                      strokeWidth="3"
-                    />
-
-                    {/* Arco percentuale colorato */}
-                    <path
-                      className={`stroke-${capacityColor}`}
-                      fill="none"
-                      strokeWidth="3"
-                      strokeLinecap="round"
-                      strokeDasharray={`${capacityUsage}, 100`}
-                      d="M18 2.0845
-                        a 15.9155 15.9155 0 0 1 0 31.831
-                        a 15.9155 15.9155 0 0 1 0 -31.831"
-                    />
-                  </svg>
-                  <div className="absolute text-center">
+                  <ResponsiveContainer width="100%" height={192}>
+                    <RadialBarChart
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={70}
+                      outerRadius={90}
+                      barSize={12}
+                      data={[{ name: "Utilizzato", value: capacityUsage, fill: `hsl(var(--heroui-${capacityColor}))` }]}
+                      startAngle={90}
+                      endAngle={-270}
+                    >
+                      <PolarAngleAxis
+                        type="number"
+                        domain={[0, 100]}
+                        angleAxisId={0}
+                        tick={false}
+                      />
+                      <RadialBar
+                        background
+                        dataKey="value"
+                        cornerRadius={12}
+                      >
+                        <Cell fill={`hsl(var(--heroui-${capacityColor}))`} />
+                      </RadialBar>
+                    </RadialBarChart>
+                  </ResponsiveContainer>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <span className="text-4xl font-bold">{capacityUsage}%</span>
                     <p className="mt-2 text-sm text-default-500">Utilizzato</p>
                   </div>
