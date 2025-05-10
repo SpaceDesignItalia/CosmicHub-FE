@@ -91,35 +91,23 @@ function App() {
       )}
 
       <Routes>
-        {!isAuth && (
+        {!isAuth ? (
           <>
+            <Route path="*" element={<Navigate to="/login" replace />} />
             <Route path="/" element={<Authentication />} />
             <Route path="/login" element={<Authentication />} />
           </>
+        ) : (
+          <>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route
+              path="/login"
+              element={<Navigate to="/dashboard" replace />}
+            />
+            <Route path="/*" element={<EmployeeProtectedRoutes />} />
+            <Route path="/settings" element={<Settings />} />
+          </>
         )}
-        <Route
-          path="/"
-          element={
-            isAuth ? <Navigate to="/dashboard" replace /> : <Authentication />
-          }
-        />
-        <Route
-          path="/login"
-          element={
-            isAuth ? <Navigate to="/dashboard" replace /> : <Authentication />
-          }
-        />
-        <Route
-          path="/*"
-          element={
-            isAuth ? (
-              <EmployeeProtectedRoutes />
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route path="/settings" element={<Settings />} />
       </Routes>
     </div>
   );

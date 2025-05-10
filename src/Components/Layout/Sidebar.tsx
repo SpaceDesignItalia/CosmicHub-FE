@@ -26,7 +26,7 @@ import {
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import axios from "axios";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 
 // Sostituisco l'import della chiave del localStorage con l'import del custom hook
 import { useCustomTheme } from "../../providers/ThemeProvider";
@@ -174,6 +174,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     },
     ref
   ) => {
+    const navigate = useNavigate();
     const [user, setUser] = useState<User | null>(null);
     const [selected, setSelected] =
       React.useState<React.Key>(defaultSelectedKey);
@@ -229,12 +230,16 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         startContent: (
           <Tooltip content="Aggiungi Magazzino" placement="right">
             <span className="rounded-full hover:bg-warning/20 transition-colors">
-              <Icon icon="solar:add-circle-bold" className="text-warning text-2xl" />
+              <Icon
+                icon="solar:add-circle-bold"
+                className="text-warning text-2xl"
+              />
             </span>
           </Tooltip>
         ),
         href: "/warehouses/new",
-        className: "mt-2 flex items-center justify-center !shadow-none !bg-transparent"
+        className:
+          "mt-2 flex items-center justify-center !shadow-none !bg-transparent",
       };
 
       // Creiamo elementi per ciascun magazzino se esistono
@@ -497,7 +502,12 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const SidebarContent = () => (
       <div className="h-screen w-auto bg-background text-foreground">
         <div className="relative flex h-full w-full flex-1 flex-col border-r-small border-divider bg-background p-6">
-          <div className="flex items-center justify-between gap-2 px-2">
+          <div
+            className="flex items-center justify-between gap-2 px-2 cursor-pointer hover:opacity-80"
+            onClick={() => {
+              navigate("/dashboard");
+            }}
+          >
             <div className="flex items-center gap-2">
               <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground">
                 <Icon
@@ -525,38 +535,24 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
           <Spacer y={8} />
 
-          <Dropdown placement="bottom-start">
-            <DropdownTrigger>
-              <div className="flex cursor-pointer items-center gap-3 px-2 transition-opacity hover:opacity-80">
-                <Avatar
-                  isBordered
-                  size="sm"
-                  src="https://i.pravatar.cc/150?u=a04258114e29026708c"
-                />
-                <div className="flex flex-col">
-                  <p className="text-small font-medium text-foreground">
-                    {user?.name} {user?.surname}
-                  </p>
-                  <p className="text-tiny text-default-500">{user?.company}</p>
-                </div>
-              </div>
-            </DropdownTrigger>
-            <DropdownMenu aria-label="User Actions">
-              <DropdownItem
-                key="settings"
-                startContent={
-                  <Icon
-                    className="text-default-700"
-                    icon="solar:settings-line-duotone"
-                    width={20}
-                  />
-                }
-                href="/settings"
-              >
-                Impostazioni
-              </DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
+          <div
+            className="flex cursor-pointer items-center gap-3 px-2 transition-opacity hover:opacity-80"
+            onClick={() => {
+              navigate("/settings");
+            }}
+          >
+            <Avatar
+              isBordered
+              size="sm"
+              src="https://i.pravatar.cc/150?u=a04258114e29026708c"
+            />
+            <div className="flex flex-col">
+              <p className="text-small font-medium text-foreground">
+                {user?.name} {user?.surname}
+              </p>
+              <p className="text-tiny text-default-500">{user?.company}</p>
+            </div>
+          </div>
 
           <ScrollShadow className="-mr-6 h-full max-h-full py-6 pr-6">
             <Listbox
