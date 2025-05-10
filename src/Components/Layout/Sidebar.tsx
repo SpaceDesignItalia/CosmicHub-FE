@@ -537,6 +537,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   <p className="text-small font-medium text-foreground">
                     {user?.name} {user?.surname}
                   </p>
+                  <p className="text-tiny text-default-500">{user?.company}</p>
                 </div>
               </div>
             </DropdownTrigger>
