@@ -16,6 +16,8 @@ import {
   ModalFooter,
   ModalHeader,
   useDisclosure,
+  Autocomplete,
+  AutocompleteItem,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { cn } from "@heroui/react";
@@ -37,6 +39,11 @@ interface PasswordData {
   currentPassword: string;
   newPassword: string;
   confirmPassword: string;
+}
+
+interface Role {
+  role_id: number;
+  name: string;
 }
 
 const Settings = () => {
@@ -101,7 +108,6 @@ const Settings = () => {
                 response.data.photo ||
                 "https://i.pravatar.cc/150?u=a04258114e29026708c",
             });
-            console.log(response.data);
           }
         })
         .catch((error) => {
@@ -118,7 +124,11 @@ const Settings = () => {
   }, []);
 
   // Gestisce l'aggiornamento dei campi del profilo
-  const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleProfileChange = (
+    e:
+      | React.ChangeEvent<HTMLInputElement>
+      | { target: { name: string; value: string } }
+  ) => {
     const { name, value } = e.target;
     setUserProfile((prev) => ({
       ...prev,
@@ -142,7 +152,7 @@ const Settings = () => {
 
     axios
       .put(
-        "/Employee/PUT/UpdateUserInfo",
+        "/Employee/UPDATE/UpdateEmployeeData",
         { userData: userProfile },
         { withCredentials: true }
       )
@@ -206,6 +216,21 @@ const Settings = () => {
         setIsSaving(false);
       });
   };
+
+  const [roles, setRoles] = useState<Role[]>([]);
+
+  console.log(userProfile);
+
+  useEffect(() => {
+    axios
+      .get("/Role/GET/GetAllRoles", { withCredentials: true })
+      .then((response) => {
+        setRoles(response.data);
+      })
+      .catch((error) => {
+        console.error("Errore nel recupero dei ruoli:", error);
+      });
+  }, []);
 
   // Icona occhio per i campi password
   const renderEyeIcon = (isVisible: boolean, toggleVisibility: () => void) => (
@@ -286,13 +311,29 @@ const Settings = () => {
                     type="email"
                     onChange={handleProfileChange}
                   />
-                  <Input
+                  <Autocomplete
+                    key={"role"}
                     name="role"
                     label="Ruolo"
+                    defaultItems={roles}
+                    defaultSelectedKey={userProfile.role}
                     placeholder="Ruolo aziendale"
                     value={userProfile.role}
-                    onChange={handleProfileChange}
-                  />
+                    onSelectionChange={(key) => {
+                      handleProfileChange({
+                        target: {
+                          name: "role",
+                          value: key?.toString() || "",
+                        },
+                      });
+                    }}
+                  >
+                    {roles.map((role) => (
+                      <AutocompleteItem key={role.role_id}>
+                        {role.name}
+                      </AutocompleteItem>
+                    ))}
+                  </Autocomplete>
                 </div>
               )}
             </CardBody>
