@@ -52,19 +52,19 @@ const Settings = () => {
     role: "",
     photo: "",
   });
-  
+
   // Stati per la gestione delle password
   const [passwordData, setPasswordData] = useState<PasswordData>({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
-  
+
   // Stati per mostrare/nascondere le password
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  
+
   // Stati per feedback all'utente
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -82,12 +82,13 @@ const Settings = () => {
     const newTheme = isDark ? "light" : "dark";
     setTheme(newTheme);
   };
-  
+
   // Recupera i dati dell'utente
   useEffect(() => {
     const fetchUserData = () => {
       setIsLoading(true);
-      axios.get("/Authentication/GET/GetSessionData", { withCredentials: true })
+      axios
+        .get("/Authentication/GET/GetSessionData", { withCredentials: true })
         .then((response) => {
           if (response.data) {
             setUserProfile({
@@ -96,7 +97,9 @@ const Settings = () => {
               surname: response.data.surname || "",
               email: response.data.email || "",
               role: response.data.role || "",
-              photo: response.data.photo || "https://i.pravatar.cc/150?u=a04258114e29026708c",
+              photo:
+                response.data.photo ||
+                "https://i.pravatar.cc/150?u=a04258114e29026708c",
             });
             console.log(response.data);
           }
@@ -113,7 +116,7 @@ const Settings = () => {
 
     fetchUserData();
   }, []);
-  
+
   // Gestisce l'aggiornamento dei campi del profilo
   const handleProfileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -122,7 +125,7 @@ const Settings = () => {
       [name]: value,
     }));
   };
-  
+
   // Gestisce l'aggiornamento dei campi della password
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
@@ -131,13 +134,18 @@ const Settings = () => {
       [name]: value,
     }));
   };
-  
+
   // Salva le modifiche al profilo
   const handleSaveProfile = () => {
     setIsSaving(true);
     setSaveSuccess(false);
-    
-    axios.put("/User/PUT/UpdateUserInfo", { userData: userProfile }, { withCredentials: true })
+
+    axios
+      .put(
+        "/Employee/PUT/UpdateUserInfo",
+        { userData: userProfile },
+        { withCredentials: true }
+      )
       .then((response) => {
         if (response.status === 200) {
           setSaveSuccess(true);
@@ -153,7 +161,7 @@ const Settings = () => {
         setIsSaving(false);
       });
   };
-  
+
   // Salva le nuove password
   const handleSavePassword = () => {
     // Valida che le password corrispondano
@@ -162,14 +170,19 @@ const Settings = () => {
       onOpen();
       return;
     }
-    
+
     setIsSaving(true);
     setSaveSuccess(false);
-    
-    axios.put("/User/PUT/UpdateUserPassword", { 
-      currentPassword: passwordData.currentPassword,
-      newPassword: passwordData.newPassword
-    }, { withCredentials: true })
+
+    axios
+      .put(
+        "/Employee/UPDATE/UpdateUserPassword",
+        {
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        },
+        { withCredentials: true }
+      )
       .then((response) => {
         if (response.status === 200) {
           setSaveSuccess(true);
@@ -178,13 +191,15 @@ const Settings = () => {
           setPasswordData({
             currentPassword: "",
             newPassword: "",
-            confirmPassword: ""
+            confirmPassword: "",
           });
         }
       })
       .catch((error) => {
         console.error("Errore nell'aggiornamento della password:", error);
-        setErrorMessage(error.response?.data || "Impossibile aggiornare la password");
+        setErrorMessage(
+          error.response?.data || "Impossibile aggiornare la password"
+        );
         onOpen();
       })
       .finally(() => {
@@ -224,7 +239,10 @@ const Settings = () => {
                 <div className="flex items-center gap-4">
                   <div className="h-24 w-24 overflow-hidden rounded-full bg-default-100">
                     <img
-                      src={userProfile.photo || "https://i.pravatar.cc/150?u=a04258114e29026708c"}
+                      src={
+                        userProfile.photo ||
+                        "https://i.pravatar.cc/150?u=a04258114e29026708c"
+                      }
                       alt="Immagine profilo"
                       className="h-full w-full object-cover"
                     />
@@ -246,10 +264,10 @@ const Settings = () => {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                  <Input 
+                  <Input
                     name="name"
-                    label="Nome" 
-                    placeholder="Nome" 
+                    label="Nome"
+                    placeholder="Nome"
                     value={userProfile.name}
                     onChange={handleProfileChange}
                   />
@@ -480,11 +498,16 @@ const Settings = () => {
   const renderSaveButton = () => {
     return (
       <div className="relative">
-        <Button 
-          color="primary" 
+        <Button
+          color="primary"
           isLoading={isSaving}
-          onClick={activeTab === "profile" ? handleSaveProfile : 
-                  activeTab === "account" ? handleSavePassword : undefined}
+          onClick={
+            activeTab === "profile"
+              ? handleSaveProfile
+              : activeTab === "account"
+              ? handleSavePassword
+              : undefined
+          }
           className="min-w-[140px]"
         >
           {isSaving ? "Salvataggio..." : "Salva Modifiche"}
@@ -534,11 +557,13 @@ const Settings = () => {
           </div>
         </div>
       </div>
-      
+
       {/* Modal di errore */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalContent>
-          <ModalHeader className="flex flex-col gap-1 text-danger">Errore</ModalHeader>
+          <ModalHeader className="flex flex-col gap-1 text-danger">
+            Errore
+          </ModalHeader>
           <ModalBody>
             <p>{errorMessage}</p>
           </ModalBody>
