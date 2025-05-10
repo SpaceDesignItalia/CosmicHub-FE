@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import {
   Card,
@@ -47,6 +47,31 @@ interface VehicleTableProps {
   vehicleTypes: string[];
 }
 
+// Coordinate del deposito
+const DEPOSITO_COORDINATES = {
+  lat: 43.8398623,
+  lng: 11.1925343
+};
+
+// Raggio di prossimità in metri
+const PROXIMITY_RADIUS = 100;
+
+// Funzione per calcolare la distanza tra due punti geografici in metri
+const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const R = 6371e3; // raggio della Terra in metri
+  const φ1 = lat1 * Math.PI/180; // φ, λ in radianti
+  const φ2 = lat2 * Math.PI/180;
+  const Δφ = (lat2-lat1) * Math.PI/180;
+  const Δλ = (lon2-lon1) * Math.PI/180;
+
+  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
+            Math.cos(φ1) * Math.cos(φ2) *
+            Math.sin(Δλ/2) * Math.sin(Δλ/2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+
+  return R * c; // in metri
+};
+
 export default function VehicleTable({
   vehicles,
   vehicleTypes,
@@ -60,11 +85,55 @@ export default function VehicleTable({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const [vehiclesWithStatus, setVehiclesWithStatus] = useState<Vehicle[]>(vehicles);
 
   const perPage = 5;
 
-  // Filter vehicles
-  const filteredVehicles = vehicles.filter((vehicle) => {
+  // Funzione per aggiornare lo stato dei veicoli
+  const updateVehiclesStatus = async () => {
+    try {
+      const response = await axios.get(`/Warehouse/GET/GetAllVehicles`);
+      if (response.data) {
+        const updatedVehicles = vehicles.map(vehicle => {
+          const currentVehicle = response.data.find((v: any) => v.warehouse_id === vehicle.id);
+          if (currentVehicle && currentVehicle.location && currentVehicle.location !== "N/A") {
+            const [lat, lng] = currentVehicle.location.split(' ').map(Number);
+            if (lat && lng) {
+              const distance = calculateDistance(
+                lat,
+                lng,
+                DEPOSITO_COORDINATES.lat,
+                DEPOSITO_COORDINATES.lng
+              );
+              
+              // Aggiorna lo stato in base alla distanza
+              if (distance <= PROXIMITY_RADIUS) {
+                return { ...vehicle, status: "Disponibile" as const };
+              } else {
+                return { ...vehicle, status: "In uso" as const };
+              }
+            }
+          }
+          // Se non ci sono coordinate valide, il veicolo è in manutenzione
+          return { ...vehicle, status: "In manutenzione" as const };
+        });
+        
+        setVehiclesWithStatus(updatedVehicles);
+      }
+    } catch (error) {
+      console.error("Errore nel recupero delle coordinate dei veicoli:", error);
+    }
+  };
+
+  // Aggiorna lo stato dei veicoli ogni 30 secondi
+  useEffect(() => {
+    updateVehiclesStatus();
+    const interval = setInterval(updateVehiclesStatus, 30000);
+    return () => clearInterval(interval);
+  }, [vehicles]);
+
+  // Filter vehicles usando vehiclesWithStatus invece di vehicles
+  const filteredVehicles = vehiclesWithStatus.filter((vehicle) => {
     const matchSearch =
       vehicle.model.toLowerCase().includes(vehicleSearch.toLowerCase()) ||
       vehicle.plate.toLowerCase().includes(vehicleSearch.toLowerCase());
