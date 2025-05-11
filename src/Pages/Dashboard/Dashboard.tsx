@@ -13,31 +13,40 @@ import {
   ModalFooter,
   ModalHeader,
   useDisclosure,
+  Autocomplete,
+  AutocompleteItem,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import axios from "axios";
-import { useEffect, useState } from "react";
+import { createContext, useContext, useEffect, useState } from "react";
 
 // Interface for Van type
 interface Van {
-  id: string;
-  licensePlate: string;
-  model: string;
+  warehouse_id: string;
+  license_plate: string;
+  name: string;
 }
 
 // Interface for Employee type
 interface Employee {
-  id: number;
+  user_id: number;
   name: string;
   role: string;
   photo: string;
   assignedVan?: Van;
 }
 
+// Create context for update state
+const UpdateContext = createContext<{
+  triggerUpdate: () => void;
+}>({
+  triggerUpdate: () => {},
+});
+
 // Component for the employee card
 function EmployeeCard({ employee }: { employee: Employee }) {
-  console.log(employee);
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const { triggerUpdate } = useContext(UpdateContext);
 
   // Background color based on role - simplified or could be removed if not strictly warehouse related
   const getBgGradient = (role: string) => {
@@ -63,6 +72,38 @@ function EmployeeCard({ employee }: { employee: Employee }) {
   const displayName = employee.name || "Nome non disponibile";
   const displayRole = employee.role || "Ruolo non specificato";
   const avatarPhoto = employee.photo; // Lasciamo che Avatar gestisca il fallback se photo è undefined
+
+  const [EmptyVans, setEmptyVans] = useState<Van[]>([]);
+  const [selectedVan, setSelectedVan] = useState<Van | null>(null);
+
+  useEffect(() => {
+    async function getEmptyVans() {
+      const response = await axios.get("/Warehouse/GET/GetEmptyVans");
+      setEmptyVans(response.data);
+    }
+    getEmptyVans();
+  }, [triggerUpdate]);
+
+  const handleUpdateVan = async () => {
+    const response = await axios.put("/Employee/UPDATE/UpdateEmployeeVan", {
+      employee_id: employee.user_id,
+      van_id: selectedVan?.warehouse_id,
+    });
+    if (response.status === 200) {
+      triggerUpdate();
+    }
+  };
+
+  const handleDeleteEmployeeVan = async () => {
+    const response = await axios.delete("/Employee/DELETE/DeleteEmployeeVan", {
+      params: {
+        employee_id: employee.user_id,
+      },
+    });
+    if (response.status === 200) {
+      triggerUpdate();
+    }
+  };
 
   return (
     <>
@@ -94,7 +135,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                 className="text-primary-600 dark:text-primary"
               />
               <span className="text-xs font-medium text-primary-600 dark:text-white">
-                {employee.assignedVan.licensePlate}
+                {employee.assignedVan.license_plate}
               </span>
             </div>
           )}
@@ -111,8 +152,8 @@ function EmployeeCard({ employee }: { employee: Employee }) {
               <div className="py-2 mt-2">
                 <p className="text-small text-default-900">Assigned Van:</p>
                 <p className="text-small font-medium">
-                  {employee.assignedVan.model} -{" "}
-                  {employee.assignedVan.licensePlate}
+                  {employee.assignedVan.name} -{" "}
+                  {employee.assignedVan.license_plate}
                 </p>
               </div>
             )}
@@ -147,22 +188,39 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                     </h4>
                     <Card className="bg-default-50">
                       <CardBody className="py-3">
-                        <div className="flex items-center gap-3">
-                          <div className="p-2 rounded-full bg-primary/10">
+                        <div className="flex items-center justify-between gap-3">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-full bg-primary/10">
+                              <Icon
+                                icon="mingcute:truck-line"
+                                width={24}
+                                height={24}
+                                className="text-primary"
+                              />
+                            </div>
+                            <div>
+                              <p className="font-medium">
+                                {employee.assignedVan.name}
+                              </p>
+                              <p className="text-small text-default-500">
+                                License Plate:{" "}
+                                {employee.assignedVan.license_plate}
+                              </p>
+                            </div>
+                          </div>
+                          <div
+                            className="p-2 rounded-full cursor-pointer"
+                            onClick={() => {
+                              handleDeleteEmployeeVan();
+                              onClose();
+                            }}
+                          >
                             <Icon
-                              icon="solar:truck-bold"
+                              icon="mingcute:close-line"
                               width={24}
                               height={24}
-                              className="text-primary"
+                              color="red"
                             />
-                          </div>
-                          <div>
-                            <p className="font-medium">
-                              {employee.assignedVan.model}
-                            </p>
-                            <p className="text-small text-default-500">
-                              License Plate: {employee.assignedVan.licensePlate}
-                            </p>
                           </div>
                         </div>
                       </CardBody>
@@ -170,9 +228,25 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                   </>
                 )}
                 {!employee.assignedVan && (
-                  <p className="text-default-700 mt-4">
-                    No van assigned to this employee.
-                  </p>
+                  <Autocomplete
+                    label="Select a van"
+                    placeholder="Select a van"
+                    defaultItems={EmptyVans}
+                    defaultSelectedKey={EmptyVans[0]?.warehouse_id}
+                    onSelectionChange={(key) => {
+                      const selected = EmptyVans.find(
+                        (van) => van.warehouse_id === key
+                      );
+                      setSelectedVan(selected || null);
+                    }}
+                    value={selectedVan?.name}
+                  >
+                    {EmptyVans.map((van) => (
+                      <AutocompleteItem key={van.warehouse_id}>
+                        {van.name} - {van.license_plate}
+                      </AutocompleteItem>
+                    ))}
+                  </Autocomplete>
                 )}
               </div>
             </div>
@@ -181,9 +255,22 @@ function EmployeeCard({ employee }: { employee: Employee }) {
             <Button color="danger" variant="light" onPress={onClose}>
               Close
             </Button>
-            <Button color="primary" onPress={onClose}>
-              OK
-            </Button>
+            {employee.assignedVan ? (
+              <Button color="primary" onPress={onClose}>
+                OK
+              </Button>
+            ) : (
+              <Button
+                color="primary"
+                onPress={() => {
+                  handleUpdateVan();
+                  onClose();
+                }}
+                isDisabled={selectedVan === null}
+              >
+                Save
+              </Button>
+            )}
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -194,12 +281,22 @@ function EmployeeCard({ employee }: { employee: Employee }) {
 export default function Dashboard() {
   const [currentEmployees, setCurrentEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
+  const [updateCounter, setUpdateCounter] = useState(0);
+
+  const triggerUpdate = () => {
+    setUpdateCounter((prev) => prev + 1);
+  };
 
   useEffect(() => {
     const fetchEmployees = () => {
       axios
         .get("/Employee/GET/GetAllEmployees", { withCredentials: true })
         .then((response) => {
+          response.data.forEach((employee: Employee) => {
+            GetVanByUserId(employee.user_id).then((van) => {
+              employee.assignedVan = van;
+            });
+          });
           setCurrentEmployees(response.data);
         })
         .catch((error) => {
@@ -216,7 +313,18 @@ export default function Dashboard() {
     };
 
     fetchEmployees();
-  }, []);
+  }, [updateCounter]);
+
+  console.log(currentEmployees);
+
+  async function GetVanByUserId(user_id: number) {
+    const response = await axios.get(`/Warehouse/GET/GetVanByUserId/`, {
+      params: {
+        user_id: user_id,
+      },
+    });
+    return response.data;
+  }
 
   // Funzione per filtrare i dipendenti in base alla query di ricerca
   const filteredEmployees = currentEmployees.filter((employee) => {
@@ -228,66 +336,71 @@ export default function Dashboard() {
       (employee.name && employee.name.toLowerCase().includes(searchLower)) ||
       (employee.role && employee.role.toLowerCase().includes(searchLower)) ||
       (employee.assignedVan &&
-        employee.assignedVan.licensePlate
+        employee.assignedVan.license_plate
           .toLowerCase()
           .includes(searchLower)) ||
       (employee.assignedVan &&
-        employee.assignedVan.model.toLowerCase().includes(searchLower))
+        employee.assignedVan.name.toLowerCase().includes(searchLower))
     );
   });
 
   return (
-    <div className="w-full flex-1 flex flex-col p-4 gap-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Icon
-              icon="solar:users-group-rounded-bold"
-              className="text-primary"
-              width={28}
+    <UpdateContext.Provider value={{ triggerUpdate }}>
+      <div className="w-full flex-1 flex flex-col p-4 gap-6">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Icon
+                icon="solar:users-group-rounded-bold"
+                className="text-primary"
+                width={28}
+              />
+            </div>
+            <h1 className="text-2xl font-bold">Team Tecnico</h1>
+          </div>
+
+          {/* Barra di ricerca */}
+          <div className="w-full">
+            <Input
+              placeholder="Cerca per nome, ruolo o veicolo..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              size="md"
+              startContent={
+                <Icon
+                  icon="solar:magnifer-linear"
+                  className="text-default-400"
+                />
+              }
+              isClearable
+              onClear={() => setSearchQuery("")}
+              className="max-w-md"
             />
           </div>
-          <h1 className="text-2xl font-bold">Team Tecnico</h1>
         </div>
 
-        {/* Barra di ricerca */}
-        <div className="w-full">
-          <Input
-            placeholder="Cerca per nome, ruolo o veicolo..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            size="md"
-            startContent={
-              <Icon icon="solar:magnifer-linear" className="text-default-400" />
-            }
-            isClearable
-            onClear={() => setSearchQuery("")}
-            className="max-w-md"
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {filteredEmployees.map((employee) => (
+            <EmployeeCard key={employee.user_id} employee={employee} />
+          ))}
+          {filteredEmployees.length === 0 && (
+            <div className="col-span-full flex flex-col items-center justify-center p-8 text-center">
+              <Icon
+                icon="solar:magnifer-failed-linear"
+                className="text-default-400 mb-4"
+                width={48}
+                height={48}
+              />
+              <p className="text-xl font-medium text-default-600">
+                Nessun dipendente trovato
+              </p>
+              <p className="text-sm text-default-400 mt-2">
+                Prova con termini di ricerca diversi
+              </p>
+            </div>
+          )}
         </div>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {filteredEmployees.map((employee) => (
-          <EmployeeCard key={employee.id} employee={employee} />
-        ))}
-        {filteredEmployees.length === 0 && (
-          <div className="col-span-full flex flex-col items-center justify-center p-8 text-center">
-            <Icon
-              icon="solar:magnifer-failed-linear"
-              className="text-default-400 mb-4"
-              width={48}
-              height={48}
-            />
-            <p className="text-xl font-medium text-default-600">
-              Nessun dipendente trovato
-            </p>
-            <p className="text-sm text-default-400 mt-2">
-              Prova con termini di ricerca diversi
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
+    </UpdateContext.Provider>
   );
 }
