@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from "react";
+import React, { useEffect, useState, useCallback, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
 import {
@@ -112,6 +112,7 @@ interface Warehouse {
   latitude?: number;
   longitude?: number;
   last_updated?: Date | string;
+  floorplan_url?: string;
 }
 
 interface Company {
@@ -168,6 +169,17 @@ const WarehouseDetail: React.FC = () => {
   } = useDisclosure();
   const [isDeleteLoading, setIsDeleteLoading] = useState<boolean>(false);
   
+  // Stati per la planimetria interattiva
+  const [floorplanScale, setFloorplanScale] = useState(1);
+  const [floorplanPosition, setFloorplanPosition] = useState({ x: 0, y: 0 });
+  const floorplanRef = useRef<HTMLImageElement>(null);
+  const floorplanContainerRef = useRef<HTMLDivElement>(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+  // URL della planimetria (DA SOSTITUIRE CON QUELLO REALE o prenderlo da warehouse.floorplan_url)
+  const ACTUAL_FLOORPLAN_URL = warehouse?.floorplan_url || "https://www.ilgigantecentricommerciali.it/media/corporate/proprieta/immobiliare/curtatone/magazzini-1_piano/gallery/magazzini_1_piano_curtatone-il-gigante-centri-commerciali_5.jpg";
+
   // Funzioni per la mappa
   const onLoad = useCallback(
     (map: google.maps.Map) => {
@@ -364,6 +376,51 @@ const WarehouseDetail: React.FC = () => {
     } finally {
       setIsDeleteLoading(false);
       onDeleteClose();
+    }
+  };
+
+  // Funzioni per lo zoom della planimetria
+  const handleFloorplanZoomIn = () => {
+    setFloorplanScale((prevScale) => Math.min(prevScale * 1.2, 3));
+  };
+
+  const handleFloorplanZoomOut = () => {
+    setFloorplanScale((prevScale) => Math.max(prevScale / 1.2, 0.5));
+  };
+  
+  const handleResetFloorplanView = () => {
+    setFloorplanScale(1);
+    setFloorplanPosition({ x: 0, y: 0 });
+  };
+
+  // Gestori eventi per il drag (pan) della planimetria
+  const handleMouseDown = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!floorplanRef.current) return;
+    setIsDragging(true);
+    // Posizione del mouse relativa al contenitore dell'immagine
+    setDragStart({
+      x: e.clientX - floorplanPosition.x,
+      y: e.clientY - floorplanPosition.y,
+    });
+    e.preventDefault(); // Previene il drag di default dell'immagine
+  };
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    if (!isDragging || !floorplanRef.current || !floorplanContainerRef.current) return;
+    
+    const newX = e.clientX - dragStart.x;
+    const newY = e.clientY - dragStart.y;
+    
+    setFloorplanPosition({ x: newX, y: newY });
+  };
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+  };
+  
+  const handleMouseLeave = () => {
+    if (isDragging) {
+      setIsDragging(false);
     }
   };
 
@@ -581,6 +638,7 @@ const WarehouseDetail: React.FC = () => {
         className="mb-6"
       >
         <Tab key="overview" title="Panoramica" />
+        <Tab key="floorplan" title="Planimetria" />
         <Tab key="inventory" title="Inventario" />
         <Tab key="operations" title="Operazioni" />
         <Tab key="history" title="Storico" />
@@ -785,6 +843,61 @@ const WarehouseDetail: React.FC = () => {
             </CardBody>
           </Card>
         </div>
+      )}
+
+      {/* Contenuto Tab Planimetria */}
+      {selectedTab === "floorplan" && (
+        <Card className="col-span-1 md:col-span-3">
+          <CardHeader className="flex flex-row items-center justify-between">
+            <div className="flex items-center">
+              <Icon icon="solar:map-arrow-square-bold" className="mr-2 text-primary" width={20} />
+              <h2 className="text-lg font-semibold">Planimetria Magazzino</h2>
+            </div>
+            <div className="flex items-center gap-2">
+              <Button isIconOnly size="sm" variant="flat" onPress={handleFloorplanZoomIn} title="Zoom In">
+                <Icon icon="solar:magnifer-zoom-in-linear" width={18} />
+              </Button>
+              <Button isIconOnly size="sm" variant="flat" onPress={handleFloorplanZoomOut} title="Zoom Out">
+                <Icon icon="solar:magnifer-zoom-out-linear" width={18} />
+              </Button>
+              <Button isIconOnly size="sm" variant="flat" onPress={handleResetFloorplanView} title="Reset View">
+                <Icon icon="solar:refresh-linear" width={18} />
+              </Button>
+            </div>
+          </CardHeader>
+          <Divider />
+          <CardBody>
+            <div 
+              ref={floorplanContainerRef}
+              className="relative h-[600px] w-full rounded-lg overflow-hidden bg-default-100 cursor-grab select-none"
+              onMouseDown={handleMouseDown}
+              onMouseMove={handleMouseMove}
+              onMouseUp={handleMouseUp}
+              onMouseLeave={handleMouseLeave}
+            >
+              {ACTUAL_FLOORPLAN_URL ? (
+                <img
+                  ref={floorplanRef}
+                  src={ACTUAL_FLOORPLAN_URL}
+                  alt={`Planimetria ${warehouse.name}`}
+                  className="absolute top-0 left-0 origin-top-left transition-transform duration-100 ease-out"
+                  style={{
+                    transform: `translate(${floorplanPosition.x}px, ${floorplanPosition.y}px) scale(${floorplanScale})`,
+                    cursor: isDragging ? 'grabbing' : 'grab',
+                    willChange: 'transform',
+                    maxWidth: 'none',
+                    maxHeight: 'none'
+                  }}
+                  draggable="false"
+                />
+              ) : (
+                <div className="flex h-full w-full items-center justify-center">
+                  <p className="text-default-500">URL planimetria non specificato.</p>
+                </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
       )}
 
       {selectedTab === "inventory" && (
