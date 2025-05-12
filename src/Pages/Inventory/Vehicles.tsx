@@ -22,24 +22,29 @@ import { Icon } from "@iconify/react";
 // Coordinate del deposito
 const DEPOSITO_COORDINATES = {
   lat: 43.8398623,
-  lng: 11.1925343
+  lng: 11.1925343,
 };
 
 // Raggio di prossimità in metri
 const PROXIMITY_RADIUS = 100;
 
 // Funzione per calcolare la distanza tra due punti geografici in metri
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+const calculateDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+) => {
   const R = 6371e3; // raggio della Terra in metri
-  const φ1 = lat1 * Math.PI/180; // φ, λ in radianti
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180;
-  const Δλ = (lon2-lon1) * Math.PI/180;
+  const φ1 = (lat1 * Math.PI) / 180; // φ, λ in radianti
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // in metri
 };
@@ -52,12 +57,12 @@ const getAddressFromCoordinates = async (lat: number, lng: number) => {
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
       {
         headers: {
-          'Accept': 'application/json'
+          Accept: "application/json",
         },
-        withCredentials: false
+        withCredentials: false,
       }
     );
-    
+
     if (response.data && response.data.display_name) {
       return response.data.display_name;
     }
@@ -83,6 +88,7 @@ interface Vehicle {
   eta?: string;
   coordinates?: { lat: number; lng: number };
   deliveryPoints?: { address: string; time: string }[];
+  assignedUser?: string; // Nome dell'utente assegnato al veicolo
 }
 
 axios.defaults.baseURL = import.meta.env.VITE_API_URL;
@@ -120,61 +126,107 @@ export default function Vehicles() {
         const response = await axios.get("/Warehouse/GET/GetAllVehicles");
 
         // Trasforma i dati dal formato db al formato UI
-        const formattedVehicles: Vehicle[] = await Promise.all(response.data.map(async (item: any) => {
-          // Determina lo stato in base alla posizione del veicolo
-          let status: "Available" | "In use" | "Maintenance" = "Maintenance";
-          let coordinates = undefined;
-          let position = "Posizione non disponibile";
-          
-          if (item.location && item.location !== "N/A") {
-            const [lat, lng] = item.location.split(' ').map(Number);
-            if (lat && lng) {
-              coordinates = { lat, lng };
-              
-              // Ottieni l'indirizzo dalle coordinate
-              position = await getAddressFromCoordinates(lat, lng);
-              
-              // Calcola la distanza dal deposito
-              const distance = calculateDistance(
-                lat,
-                lng,
-                DEPOSITO_COORDINATES.lat,
-                DEPOSITO_COORDINATES.lng
+        const formattedVehicles: Vehicle[] = await Promise.all(
+          response.data.map(async (item: any) => {
+            // Determina lo stato in base alla posizione del veicolo
+            let status: "Available" | "In use" | "Maintenance" = "Maintenance";
+            let coordinates = undefined;
+            let position = "Posizione non disponibile";
+            let assignedUser = undefined;
+
+            // Recupera l'utente assegnato al veicolo
+            try {
+              // Prima chiamata per ottenere l'ID dell'utente assegnato al veicolo
+              const userIdResponse = await axios.get(
+                `/Warehouse/GET/GetUserByVehicleId`,
+                {
+                  params: {
+                    vehicleId: item.warehouse_id,
+                  },
+                }
               );
-              
-              // Imposta lo stato in base alla distanza
-              if (distance <= PROXIMITY_RADIUS) {
-                status = "Available";
-                position = "In deposito";
-              } else {
-                status = "In use";
+
+              // Se c'è un utente assegnato
+              if (userIdResponse.data && userIdResponse.data.user_id) {
+                // Seconda chiamata per ottenere i dettagli dell'utente
+                const employeeResponse = await axios.get(
+                  `/Employee/GET/GetEmployeeById`,
+                  {
+                    params: {
+                      employeeId: userIdResponse.data.user_id,
+                    },
+                  }
+                );
+                if (employeeResponse.data && employeeResponse.data.name) {
+                  assignedUser = `${employeeResponse.data.name} ${
+                    employeeResponse.data.surname || ""
+                  }`;
+                }
               }
+            } catch (error) {
+              // Se non c'è un utente assegnato o si verifica un errore, continuiamo senza assegnare utente
+              console.log(
+                `Nessun utente assegnato al veicolo ${item.warehouse_id}`
+              );
             }
-          } else {
-            position = "In manutenzione";
-          }
-          
-          return {
-            id: item.warehouse_id,
-            plate: item.license_plate,
-            model: item.name,
-            type: item.type === "Furgone grande" ? "Large Van" : "Small Van",
-            capacity: item.capacity,
-            status: status,
-            lastCheck: item.last_inspection,
-            usedCapacity: Math.floor(Math.random() * 75), // Dato di esempio
-            position: position,
-            travelTime: "01:30:45", // Dato di esempio
-            eta: "15:45", // Dato di esempio
-            coordinates: coordinates,
-            deliveryPoints: status === "In use" ? [
-              { 
-                address: position, 
-                time: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+
+            if (item.location && item.location !== "N/A") {
+              const [lat, lng] = item.location.split(" ").map(Number);
+              if (lat && lng) {
+                coordinates = { lat, lng };
+
+                // Ottieni l'indirizzo dalle coordinate
+                position = await getAddressFromCoordinates(lat, lng);
+
+                // Calcola la distanza dal deposito
+                const distance = calculateDistance(
+                  lat,
+                  lng,
+                  DEPOSITO_COORDINATES.lat,
+                  DEPOSITO_COORDINATES.lng
+                );
+
+                // Imposta lo stato in base alla distanza
+                if (distance <= PROXIMITY_RADIUS) {
+                  status = "Available";
+                  position = "In deposito";
+                } else {
+                  status = "In use";
+                }
               }
-            ] : [],
-          };
-        }));
+            } else {
+              position = "In manutenzione";
+            }
+
+            return {
+              id: item.warehouse_id,
+              plate: item.license_plate,
+              model: item.name,
+              type: item.type === "Furgone grande" ? "Large Van" : "Small Van",
+              capacity: item.capacity,
+              status: status,
+              lastCheck: item.last_inspection,
+              usedCapacity: Math.floor(Math.random() * 75), // Dato di esempio
+              position: position,
+              travelTime: "01:30:45", // Dato di esempio
+              eta: "15:45", // Dato di esempio
+              coordinates: coordinates,
+              assignedUser: assignedUser,
+              deliveryPoints:
+                status === "In use"
+                  ? [
+                      {
+                        address: position,
+                        time: new Date().toLocaleTimeString("it-IT", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }),
+                      },
+                    ]
+                  : [],
+            };
+          })
+        );
 
         setVehicles(formattedVehicles);
         if (formattedVehicles.length > 0 && !selectedVehicle) {
@@ -194,72 +246,120 @@ export default function Vehicles() {
         const response = await axios.get("/Warehouse/GET/GetAllVehicles");
 
         // Trasforma i dati dal formato db al formato UI senza mostrare loading
-        const formattedVehicles: Vehicle[] = await Promise.all(response.data.map(async (item: any) => {
-          // Determina lo stato in base alla posizione del veicolo
-          let status: "Available" | "In use" | "Maintenance" = "Maintenance";
-          let coordinates = undefined;
-          let position = "Posizione non disponibile";
-          
-          if (item.location && item.location !== "N/A") {
-            const [lat, lng] = item.location.split(' ').map(Number);
-            if (lat && lng) {
-              coordinates = { lat, lng };
-              
-              // Ottieni l'indirizzo dalle coordinate, ma evita di attendere se non necessario
-              // per non rallentare l'aggiornamento
-              try {
-                position = await getAddressFromCoordinates(lat, lng);
-              } catch {
-                // Ignora errori di geocodifica durante l'aggiornamento silenzioso
-              }
-              
-              // Calcola la distanza dal deposito
-              const distance = calculateDistance(
-                lat,
-                lng,
-                DEPOSITO_COORDINATES.lat,
-                DEPOSITO_COORDINATES.lng
+        const formattedVehicles: Vehicle[] = await Promise.all(
+          response.data.map(async (item: any) => {
+            // Determina lo stato in base alla posizione del veicolo
+            let status: "Available" | "In use" | "Maintenance" = "Maintenance";
+            let coordinates = undefined;
+            let position = "Posizione non disponibile";
+            let assignedUser = undefined;
+
+            // Recupera l'utente assegnato al veicolo
+            try {
+              // Prima chiamata per ottenere l'ID dell'utente assegnato al veicolo
+              const userIdResponse = await axios.get(
+                `/Warehouse/GET/GetUserByVehicleId`,
+                {
+                  params: {
+                    vehicleId: item.warehouse_id,
+                  },
+                }
               );
-              
-              // Imposta lo stato in base alla distanza
-              if (distance <= PROXIMITY_RADIUS) {
-                status = "Available";
-                position = "In deposito";
-              } else {
-                status = "In use";
+
+              // Se c'è un utente assegnato
+              if (userIdResponse.data && userIdResponse.data.user_id) {
+                // Seconda chiamata per ottenere i dettagli dell'utente
+                const employeeResponse = await axios.get(
+                  `/Employee/GET/GetEmployeeById`,
+                  {
+                    params: {
+                      employeeId: userIdResponse.data.user_id,
+                    },
+                  }
+                );
+                if (employeeResponse.data && employeeResponse.data.name) {
+                  assignedUser = `${employeeResponse.data.name} ${
+                    employeeResponse.data.surname || ""
+                  }`;
+                }
               }
+            } catch (error) {
+              // Se non c'è un utente assegnato o si verifica un errore, continuiamo senza assegnare utente
+              console.log(
+                `Nessun utente assegnato al veicolo ${item.warehouse_id}`
+              );
             }
-          } else {
-            position = "In manutenzione";
-          }
-          
-          return {
-            id: item.warehouse_id,
-            plate: item.license_plate,
-            model: item.name,
-            type: item.type === "Furgone grande" ? "Large Van" : "Small Van",
-            capacity: item.capacity,
-            status: status,
-            lastCheck: item.last_inspection,
-            usedCapacity: Math.floor(Math.random() * 75), // Dato di esempio
-            position: position,
-            travelTime: "01:30:45", // Dato di esempio
-            eta: "15:45", // Dato di esempio
-            coordinates: coordinates,
-            deliveryPoints: status === "In use" ? [
-              { 
-                address: position, 
-                time: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
+
+            if (item.location && item.location !== "N/A") {
+              const [lat, lng] = item.location.split(" ").map(Number);
+              if (lat && lng) {
+                coordinates = { lat, lng };
+
+                // Ottieni l'indirizzo dalle coordinate, ma evita di attendere se non necessario
+                // per non rallentare l'aggiornamento
+                try {
+                  position = await getAddressFromCoordinates(lat, lng);
+                } catch {
+                  // Ignora errori di geocodifica durante l'aggiornamento silenzioso
+                }
+
+                // Calcola la distanza dal deposito
+                const distance = calculateDistance(
+                  lat,
+                  lng,
+                  DEPOSITO_COORDINATES.lat,
+                  DEPOSITO_COORDINATES.lng
+                );
+
+                // Imposta lo stato in base alla distanza
+                if (distance <= PROXIMITY_RADIUS) {
+                  status = "Available";
+                  position = "In deposito";
+                } else {
+                  status = "In use";
+                }
               }
-            ] : [],
-          };
-        }));
+            } else {
+              position = "In manutenzione";
+            }
+
+            return {
+              id: item.warehouse_id,
+              plate: item.license_plate,
+              model: item.name,
+              type: item.type === "Furgone grande" ? "Large Van" : "Small Van",
+              capacity: item.capacity,
+              status: status,
+              lastCheck: item.last_inspection,
+              usedCapacity: Math.floor(Math.random() * 75), // Dato di esempio
+              position: position,
+              travelTime: "01:30:45", // Dato di esempio
+              eta: "15:45", // Dato di esempio
+              coordinates: coordinates,
+              assignedUser: assignedUser,
+              deliveryPoints:
+                status === "In use"
+                  ? [
+                      {
+                        address: position,
+                        time: new Date().toLocaleTimeString("it-IT", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }),
+                      },
+                    ]
+                  : [],
+            };
+          })
+        );
 
         // Aggiorna i veicoli mantenendo il veicolo selezionato
-        setVehicles(prevVehicles => {
+        setVehicles((prevVehicles) => {
           // Se abbiamo un veicolo selezionato, manteniamolo aggiornato
           if (selectedVehicle) {
-            const updatedSelectedVehicle = formattedVehicles.find(v => v.id === selectedVehicle.id);
+            const updatedSelectedVehicle = formattedVehicles.find(
+              (v) => v.id === selectedVehicle.id
+            );
             if (updatedSelectedVehicle) {
               setSelectedVehicle(updatedSelectedVehicle);
             }
@@ -268,17 +368,20 @@ export default function Vehicles() {
         });
       } catch (error) {
         // Gestisci l'errore silenziosamente, senza mostrare messaggi all'utente
-        console.error("Errore nell'aggiornamento silenzioso dei veicoli:", error);
+        console.error(
+          "Errore nell'aggiornamento silenzioso dei veicoli:",
+          error
+        );
       }
     };
 
     fetchVehicles();
-    
+
     // Aggiorna i veicoli ogni 30 secondi senza mostrare loading
     const intervalId = setInterval(() => {
       silentlyUpdateVehicles();
     }, 30000);
-    
+
     return () => clearInterval(intervalId);
   }, []);
 

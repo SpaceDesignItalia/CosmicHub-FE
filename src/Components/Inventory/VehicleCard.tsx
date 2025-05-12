@@ -94,16 +94,14 @@ const VehicleCard: React.FC<VehicleCardProps> = ({
               <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
                 {veicolo.type}
               </div>
-              {veicolo.assignedUser && (
-                <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 flex items-center gap-1">
-                  <Icon
-                    icon="mdi:account"
-                    className="text-blue-600 dark:text-blue-300"
-                    width={14}
-                  />
-                  {veicolo.assignedUser}
-                </div>
-              )}
+              <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 flex items-center gap-1">
+                <Icon
+                  icon="mdi:account"
+                  className="text-blue-600 dark:text-blue-300"
+                  width={14}
+                />
+                {veicolo.assignedUser || "Non assegnato"}
+              </div>
             </div>
           </div>
 

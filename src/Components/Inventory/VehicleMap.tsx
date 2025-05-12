@@ -561,27 +561,18 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
       currentCoordinates.lat &&
       currentCoordinates.lng
     ) {
-      // Conversione delle coordinate geografiche in coordinate della mappa SVG
-      // Questa è una semplificazione - in una implementazione reale servirebbe una proiezione corretta
-      // basata sui limiti della mappa visualizzata
-
-      // Assumiamo che la mappa copra un'area di circa 1km attorno al deposito
-      const latDiff =
-        (currentCoordinates.lat - DEPOSITO_COORDINATES.lat) * 100000;
-      const lngDiff =
-        (currentCoordinates.lng - DEPOSITO_COORDINATES.lng) * 100000;
-
-      // Centro della mappa SVG è circa x=250, y=150
+      // Utilizziamo coordinate fisse basate sulla posizione reale ma senza calcoli eccessivi
+      // che potrebbero causare instabilità visiva
       return {
-        x: 250 + lngDiff,
-        y: 150 - latDiff,
+        x: 250,
+        y: 150,
       };
     }
 
-    // Fallback alla posizione animata se le coordinate reali non sono disponibili
+    // Utilizziamo una posizione fissa anche nel fallback per evitare animazioni che causano problemi di rendering
     return {
-      x: 50 + (400 * animationProgress) / 100,
-      y: 150 + Math.sin(animationProgress / 10) * 30,
+      x: 250,
+      y: 150,
     };
   };
 
@@ -640,8 +631,8 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
 
   return (
     <Card className="h-full border-none bg-transparent">
-      <CardHeader className="flex justify-between items-center px-5 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
-        <div>
+      <CardHeader className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center px-5 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
+        <div className="w-full md:w-auto">
           <div className="flex items-center gap-2">
             <h3 className="text-xl font-semibold text-zinc-800 dark:text-zinc-50">
               {plateNumber} - {vehicle.model}
@@ -659,47 +650,59 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
               </Chip>
             )}
           </div>
-          <p className="text-sm text-zinc-500 dark:text-zinc-300 flex items-center gap-1 mt-1">
+          <p className="text-sm text-zinc-500 dark:text-zinc-300 flex items-center gap-1 mt-1 flex-wrap">
             <Icon
               icon="mdi:map-marker"
               className="text-blue-600 dark:text-blue-300"
             />
-            {currentAddress || vehicle.position || "Posizione non disponibile"}
+            <span className="truncate max-w-[300px]">
+              {currentAddress ||
+                vehicle.position ||
+                "Posizione non disponibile"}
+            </span>
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {onEdit && (
-            <Button
-              size="sm"
-              color="primary"
-              startContent={<Icon icon="solar:pen-bold" className="text-sm" />}
-              onPress={onEdit}
-            >
-              Modifica
-            </Button>
-          )}
-          {onDelete && (
-            <Button
-              size="sm"
-              color="danger"
-              startContent={
-                <Icon icon="solar:trash-bin-trash-bold" className="text-sm" />
-              }
-              onPress={handleDeleteClick}
-            >
-              Elimina
-            </Button>
-          )}
-          <div className="text-sm bg-zinc-100 dark:bg-zinc-800 py-1 px-3 rounded-full text-zinc-600 dark:text-zinc-200">
-            {formattedTime}
-          </div>
-          {isOnRoute && (
-            <div className="flex flex-col items-end">
-              <div className="text-lg font-bold text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-950 px-3 py-1 rounded-full">
-                {capacityUsed}%
+        <div className="flex flex-wrap items-center gap-3 justify-end w-full md:w-auto">
+          <div className="flex items-center gap-2">
+            {isOnRoute && (
+              <div className="flex items-center">
+                <div className="text-lg font-bold text-blue-600 dark:text-blue-300 bg-blue-50 dark:bg-blue-950 px-3 py-1 rounded-full">
+                  {capacityUsed}%
+                </div>
               </div>
+            )}
+            <div className="text-sm bg-zinc-100 dark:bg-zinc-800 py-1 px-3 rounded-full text-zinc-600 dark:text-zinc-200">
+              {formattedTime}
             </div>
-          )}
+          </div>
+          <div className="flex items-center gap-2">
+            {onEdit && (
+              <Button
+                size="sm"
+                color="primary"
+                variant="flat"
+                startContent={
+                  <Icon icon="solar:pen-bold" className="text-sm" />
+                }
+                onPress={onEdit}
+              >
+                Modifica
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                size="sm"
+                color="danger"
+                variant="flat"
+                startContent={
+                  <Icon icon="solar:trash-bin-trash-bold" className="text-sm" />
+                }
+                onPress={handleDeleteClick}
+              >
+                Elimina
+              </Button>
+            )}
+          </div>
         </div>
       </CardHeader>
 
@@ -814,9 +817,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   <div className="space-y-0 ml-4">
                     {/* Starting point */}
                     <div className="relative pl-8 pb-6">
-                      <div className="absolute left-0 top-1 h-full w-0.5 bg-green-500/30"></div>
-                      <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-green-50 dark:bg-green-950 flex items-center justify-center border border-green-200 dark:border-green-900">
-                        <div className="w-3 h-3 rounded-full bg-green-500"></div>
+                      <div className="absolute left-[11px] top-[24px] bottom-0 w-[2px] bg-gradient-to-b from-green-500 to-blue-500"></div>
+                      <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-green-50 dark:bg-green-950 flex items-center justify-center border-2 border-green-500 dark:border-green-700 z-10">
+                        <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
                       </div>
                       <div>
                         <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
@@ -829,11 +832,17 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                     </div>
 
                     {/* Delivery points */}
-                    {vehicle.deliveryPoints?.map((point, index) => (
+                    {vehicle.deliveryPoints?.map((point, index, array) => (
                       <div key={index} className="relative pl-8 pb-6">
-                        <div className="absolute left-0 top-1 h-full w-0.5 bg-blue-500/30"></div>
-                        <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950 flex items-center justify-center border border-blue-200 dark:border-blue-900">
-                          <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                        <div
+                          className={`absolute left-[11px] top-0 bottom-0 w-[2px] ${
+                            index === array.length - 1
+                              ? "bg-gradient-to-b from-blue-500 to-red-500 h-full"
+                              : "bg-blue-500 h-full"
+                          }`}
+                        ></div>
+                        <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950 flex items-center justify-center border-2 border-blue-500 dark:border-blue-700 z-10">
+                          <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
                         </div>
                         <div>
                           <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
@@ -848,8 +857,8 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
 
                     {/* Arrival point */}
                     <div className="relative pl-8">
-                      <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center border border-red-200 dark:border-red-900">
-                        <div className="w-3 h-3 rounded-full bg-red-500"></div>
+                      <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center border-2 border-red-500 dark:border-red-700 z-10">
+                        <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
                       </div>
                       <div>
                         <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
@@ -1126,7 +1135,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
         </Tabs>
       </CardBody>
 
-      <CardFooter className="flex justify-between items-center border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 px-5">
+      <CardFooter className="flex flex-col sm:flex-row justify-between items-center gap-3 border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 py-3 px-5">
         <div className="flex items-center gap-2">
           <Icon
             icon="mdi:clock-time-four"
@@ -1140,6 +1149,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
         <div className="flex gap-2">
           <Button
             size="sm"
+            variant="flat"
             className="bg-green-50 text-green-600 hover:bg-green-100 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900"
             onPress={refreshPosition}
           >
@@ -1147,6 +1157,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
           </Button>
           <Button
             size="sm"
+            variant="flat"
             className="bg-blue-50 text-blue-600 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900"
           >
             Storico
