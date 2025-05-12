@@ -18,6 +18,7 @@ interface Vehicle {
   eta?: string;
   coordinates?: { lat: number; lng: number };
   deliveryPoints?: { address: string; time: string }[];
+  assignedUser?: string;
 }
 
 interface VehicleCardProps {
@@ -26,18 +27,22 @@ interface VehicleCardProps {
   onClick: (veicolo: Vehicle) => void;
 }
 
-const VehicleCard: React.FC<VehicleCardProps> = ({ veicolo, isSelected, onClick }) => {
+const VehicleCard: React.FC<VehicleCardProps> = ({
+  veicolo,
+  isSelected,
+  onClick,
+}) => {
   // Utilizziamo il hook per accedere al tema dei veicoli
   const { getStatusStyles, getCardClasses, colors } = useVehicleTheme();
-  
+
   // Determine vehicle status
   const isOnRoute = veicolo.status === "In use";
   const isWaiting = veicolo.status === "Maintenance";
   const isAvailable = veicolo.status === "Available";
-  
+
   // Otteniamo gli stili per questo veicolo
   const { bgColor, borderColor, textColor } = getStatusStyles(veicolo.status);
-  
+
   // Classi per la card
   const cardClasses = getCardClasses(isSelected);
 
@@ -51,21 +56,18 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ veicolo, isSelected, onClick 
   };
 
   return (
-    <Card 
-      className={cardClasses}
-      onClick={() => onClick(veicolo)}
-    >
+    <Card className={cardClasses} onClick={() => onClick(veicolo)}>
       <CardBody className="p-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div 
+            <div
               className="w-12 h-12 flex items-center justify-center rounded-lg border"
-              style={{ 
+              style={{
                 backgroundColor: bgColor,
-                borderColor: borderColor 
+                borderColor: borderColor,
               }}
             >
-              <img 
+              <img
                 src={getVehicleImage()}
                 alt={veicolo.type}
                 className="w-9 h-9 object-contain"
@@ -92,19 +94,29 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ veicolo, isSelected, onClick 
               <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5">
                 {veicolo.type}
               </div>
+              {veicolo.assignedUser && (
+                <div className="text-xs text-zinc-600 dark:text-zinc-400 mt-0.5 flex items-center gap-1">
+                  <Icon
+                    icon="mdi:account"
+                    className="text-blue-600 dark:text-blue-300"
+                    width={14}
+                  />
+                  {veicolo.assignedUser}
+                </div>
+              )}
             </div>
           </div>
-          
+
           <div className="flex flex-col items-end gap-1">
-            <Chip 
+            <Chip
               size="sm"
               style={{
                 backgroundColor: bgColor,
                 color: textColor,
-                borderColor: borderColor
+                borderColor: borderColor,
               }}
               classNames={{
-                base: "border"
+                base: "border",
               }}
               startContent={
                 isOnRoute ? (
@@ -117,11 +129,17 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ veicolo, isSelected, onClick 
             {isOnRoute && (
               <>
                 <div className="mt-1 text-xs flex items-center gap-1 text-zinc-700 dark:text-zinc-300">
-                  <Icon icon="mdi:clock-outline" className="text-xs text-zinc-500 dark:text-zinc-400" />
+                  <Icon
+                    icon="mdi:clock-outline"
+                    className="text-xs text-zinc-500 dark:text-zinc-400"
+                  />
                   {veicolo.travelTime}
                 </div>
                 <div className="flex items-center text-xs gap-1 text-zinc-700 dark:text-zinc-300">
-                  <Icon icon="mdi:flag-checkered" className="text-xs text-zinc-500 dark:text-zinc-400" />
+                  <Icon
+                    icon="mdi:flag-checkered"
+                    className="text-xs text-zinc-500 dark:text-zinc-400"
+                  />
                   ETA: {veicolo.eta || "N/A"}
                 </div>
                 <div className="text-xs text-blue-700 dark:text-blue-300 font-medium mt-1">
@@ -131,10 +149,13 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ veicolo, isSelected, onClick 
             )}
           </div>
         </div>
-        
+
         {isOnRoute && veicolo.position && (
           <div className="mt-2 pt-2 border-t border-zinc-200 dark:border-zinc-800 text-xs text-zinc-600 dark:text-zinc-300 flex items-center gap-1">
-            <Icon icon="mdi:map-marker" className="text-blue-600 dark:text-blue-300" />
+            <Icon
+              icon="mdi:map-marker"
+              className="text-blue-600 dark:text-blue-300"
+            />
             {veicolo.position}
           </div>
         )}
@@ -143,4 +164,4 @@ const VehicleCard: React.FC<VehicleCardProps> = ({ veicolo, isSelected, onClick 
   );
 };
 
-export default VehicleCard; 
+export default VehicleCard;

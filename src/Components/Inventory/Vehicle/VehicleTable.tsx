@@ -40,6 +40,7 @@ interface Vehicle {
   capacity: number;
   status: "Disponibile" | "In uso" | "In manutenzione";
   lastInspection: string;
+  assignedUser?: string; // Nome dell'utente a cui è assegnato il veicolo
 }
 
 interface VehicleTableProps {
@@ -50,24 +51,29 @@ interface VehicleTableProps {
 // Coordinate del deposito
 const DEPOSITO_COORDINATES = {
   lat: 43.8398623,
-  lng: 11.1925343
+  lng: 11.1925343,
 };
 
 // Raggio di prossimità in metri
 const PROXIMITY_RADIUS = 100;
 
 // Funzione per calcolare la distanza tra due punti geografici in metri
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+const calculateDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+) => {
   const R = 6371e3; // raggio della Terra in metri
-  const φ1 = lat1 * Math.PI/180; // φ, λ in radianti
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180;
-  const Δλ = (lon2-lon1) * Math.PI/180;
+  const φ1 = (lat1 * Math.PI) / 180; // φ, λ in radianti
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // in metri
 };
@@ -85,39 +91,93 @@ export default function VehicleTable({
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
-  const [vehiclesWithStatus, setVehiclesWithStatus] = useState<Vehicle[]>(vehicles);
+  const [vehiclesWithStatus, setVehiclesWithStatus] =
+    useState<Vehicle[]>(vehicles);
 
   const perPage = 5;
 
   // Funzione per aggiornare lo stato dei veicoli
   const updateVehiclesStatus = async () => {
     try {
-      const response = await axios.get(`/Warehouse/GET/GetAllVehicles`);
-      if (response.data) {
-        const updatedVehicles = vehicles.map(vehicle => {
-          const currentVehicle = response.data.find((v: any) => v.warehouse_id === vehicle.id);
-          if (currentVehicle && currentVehicle.location && currentVehicle.location !== "N/A") {
-            const [lat, lng] = currentVehicle.location.split(' ').map(Number);
-            if (lat && lng) {
-              const distance = calculateDistance(
-                lat,
-                lng,
-                DEPOSITO_COORDINATES.lat,
-                DEPOSITO_COORDINATES.lng
-              );
-              
-              // Aggiorna lo stato in base alla distanza
-              if (distance <= PROXIMITY_RADIUS) {
-                return { ...vehicle, status: "Disponibile" as const };
-              } else {
-                return { ...vehicle, status: "In uso" as const };
+      // Recupera i dati dei veicoli
+      const vehiclesResponse = await axios.get(`/Warehouse/GET/GetAllVehicles`);
+
+      if (vehiclesResponse.data) {
+        // Per ogni veicolo, recuperiamo anche l'utente assegnato
+        const updatedVehicles = await Promise.all(
+          vehicles.map(async (vehicle) => {
+            const currentVehicle = vehiclesResponse.data.find(
+              (v: any) => v.warehouse_id === vehicle.id
+            );
+
+            // Inizializza lo stato del veicolo in base alla posizione
+            let updatedVehicle = { ...vehicle };
+
+            if (
+              currentVehicle &&
+              currentVehicle.location &&
+              currentVehicle.location !== "N/A"
+            ) {
+              const [lat, lng] = currentVehicle.location.split(" ").map(Number);
+              if (lat && lng) {
+                const distance = calculateDistance(
+                  lat,
+                  lng,
+                  DEPOSITO_COORDINATES.lat,
+                  DEPOSITO_COORDINATES.lng
+                );
+
+                // Aggiorna lo stato in base alla distanza
+                if (distance <= PROXIMITY_RADIUS) {
+                  updatedVehicle.status = "Disponibile";
+                } else {
+                  updatedVehicle.status = "In uso";
+                }
               }
+            } else {
+              // Se non ci sono coordinate valide, il veicolo è in manutenzione
+              updatedVehicle.status = "In manutenzione";
             }
-          }
-          // Se non ci sono coordinate valide, il veicolo è in manutenzione
-          return { ...vehicle, status: "In manutenzione" as const };
-        });
-        
+
+            // Recupera l'utente assegnato al veicolo
+            try {
+              // Prima chiamata per ottenere l'ID dell'utente assegnato al veicolo
+              const userIdResponse = await axios.get(
+                `/Warehouse/GET/GetUserByVehicleId`,
+                {
+                  params: {
+                    vehicleId: vehicle.id,
+                  },
+                }
+              );
+
+              // Se c'è un utente assegnato
+              if (userIdResponse.data && userIdResponse.data.user_id) {
+                // Seconda chiamata per ottenere i dettagli dell'utente
+                const employeeResponse = await axios.get(
+                  `/Employee/GET/GetEmployeeById`,
+                  {
+                    params: {
+                      employeeId: userIdResponse.data.user_id,
+                    },
+                  }
+                );
+
+                if (employeeResponse.data && employeeResponse.data.name) {
+                  updatedVehicle.assignedUser = `${
+                    employeeResponse.data.name
+                  } ${employeeResponse.data.surname || ""}`;
+                }
+              }
+            } catch (error) {
+              // Se non c'è un utente assegnato o si verifica un errore, continuiamo senza assegnare utente
+              console.log(`Nessun utente assegnato al veicolo ${vehicle.id}`);
+            }
+
+            return updatedVehicle;
+          })
+        );
+
         setVehiclesWithStatus(updatedVehicles);
       }
     } catch (error) {
@@ -290,6 +350,7 @@ export default function VehicleTable({
       // Valori predefiniti per la visualizzazione sulla mappa
       usedCapacity: 0,
       position: "Deposito principale",
+      assignedUser: vehicle.assignedUser,
     };
   };
 

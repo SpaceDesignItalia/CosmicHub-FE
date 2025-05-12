@@ -20,54 +20,59 @@ import {
 import { Icon } from "@iconify/react";
 import { useVehicleTheme } from "./VehicleThemeWrapper";
 import type { VehicleStatus } from "./VehicleThemeWrapper";
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import {
+  GoogleMap,
+  useJsApiLoader,
+  Marker,
+  InfoWindow,
+} from "@react-google-maps/api";
 
 // Stili personalizzati per la mappa
 const mapStyles = [
   {
-    featureType: 'poi',
-    elementType: 'labels',
-    stylers: [{ visibility: 'off' }],
+    featureType: "poi",
+    elementType: "labels",
+    stylers: [{ visibility: "off" }],
   },
   {
-    featureType: 'transit',
-    elementType: 'labels',
-    stylers: [{ visibility: 'off' }],
+    featureType: "transit",
+    elementType: "labels",
+    stylers: [{ visibility: "off" }],
   },
   {
-    featureType: 'water',
-    elementType: 'geometry',
-    stylers: [{ color: '#c8d7d4' }],
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#c8d7d4" }],
   },
   {
-    featureType: 'landscape.natural',
-    elementType: 'geometry',
-    stylers: [{ color: '#f0f0f0' }],
+    featureType: "landscape.natural",
+    elementType: "geometry",
+    stylers: [{ color: "#f0f0f0" }],
   },
   {
-    featureType: 'road',
-    elementType: 'geometry',
-    stylers: [{ color: '#ffffff' }],
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
   },
   {
-    featureType: 'road',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#666666' }],
+    featureType: "road",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#666666" }],
   },
   {
-    featureType: 'road.arterial',
-    elementType: 'geometry',
-    stylers: [{ color: '#ffffff' }],
+    featureType: "road.arterial",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
   },
   {
-    featureType: 'road.highway',
-    elementType: 'geometry',
-    stylers: [{ color: '#ffffff' }],
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
   },
   {
-    featureType: 'road.local',
-    elementType: 'geometry',
-    stylers: [{ color: '#ffffff' }],
+    featureType: "road.local",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
   },
 ];
 
@@ -76,7 +81,7 @@ const libraries: ("places" | "geometry" | "drawing" | "visualization")[] = [];
 // Coordinate del deposito
 const DEPOSITO_COORDINATES = {
   lat: 43.8398623,
-  lng: 11.1925343
+  lng: 11.1925343,
 };
 
 // Raggio di prossimità in metri
@@ -100,6 +105,7 @@ interface Vehicle {
   eta?: string;
   coordinates?: { lat: number; lng: number };
   deliveryPoints?: { address: string; time: string }[];
+  assignedUser?: string; // Nome dell'utente a cui è assegnato il veicolo
 }
 
 interface VehicleMapProps {
@@ -109,17 +115,22 @@ interface VehicleMapProps {
 }
 
 // Funzione per calcolare la distanza tra due punti geografici in metri
-const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+const calculateDistance = (
+  lat1: number,
+  lon1: number,
+  lat2: number,
+  lon2: number
+) => {
   const R = 6371e3; // raggio della Terra in metri
-  const φ1 = lat1 * Math.PI/180; // φ, λ in radianti
-  const φ2 = lat2 * Math.PI/180;
-  const Δφ = (lat2-lat1) * Math.PI/180;
-  const Δλ = (lon2-lon1) * Math.PI/180;
+  const φ1 = (lat1 * Math.PI) / 180; // φ, λ in radianti
+  const φ2 = (lat2 * Math.PI) / 180;
+  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
+  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
 
-  const a = Math.sin(Δφ/2) * Math.sin(Δφ/2) +
-            Math.cos(φ1) * Math.cos(φ2) *
-            Math.sin(Δλ/2) * Math.sin(Δλ/2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+  const a =
+    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 
   return R * c; // in metri
 };
@@ -139,69 +150,71 @@ interface GoogleMapProps {
 }
 
 // Componente mappa con memo per evitare re-render non necessari
-const MemoizedGoogleMap = React.memo(({ 
-  center, 
-  zoom, 
-  onLoad, 
-  onUnmount, 
-  mapStyles, 
-  isInfoWindowOpen, 
-  currentCoordinates, 
-  currentAddress, 
-  plateNumber, 
-  setIsInfoWindowOpen 
-}: GoogleMapProps) => {
-  return (
-    <GoogleMap
-      mapContainerClassName="w-full h-full rounded-lg"
-      center={center}
-      zoom={zoom}
-      onLoad={onLoad}
-      onUnmount={onUnmount}
-      options={{
-        disableDefaultUI: true,
-        styles: mapStyles,
-        zoomControl: false,
-      }}
-    >
-      {/* Marker per il deposito */}
-      <Marker
-        position={DEPOSITO_COORDINATES}
-        icon={{
-          url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
-          scaledSize: new window.google.maps.Size(40, 40),
+const MemoizedGoogleMap = React.memo(
+  ({
+    center,
+    zoom,
+    onLoad,
+    onUnmount,
+    mapStyles,
+    isInfoWindowOpen,
+    currentCoordinates,
+    currentAddress,
+    plateNumber,
+    setIsInfoWindowOpen,
+  }: GoogleMapProps) => {
+    return (
+      <GoogleMap
+        mapContainerClassName="w-full h-full rounded-lg"
+        center={center}
+        zoom={zoom}
+        onLoad={onLoad}
+        onUnmount={onUnmount}
+        options={{
+          disableDefaultUI: true,
+          styles: mapStyles,
+          zoomControl: false,
         }}
-      />
-      
-      {/* Marker per il veicolo */}
-      {currentCoordinates && (
-        <>
-          <Marker
-            position={currentCoordinates}
-            icon={{
-              url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
-              scaledSize: new window.google.maps.Size(40, 40),
-            }}
-            onClick={() => setIsInfoWindowOpen(true)}
-            animation={window.google.maps.Animation.DROP}
-          />
-          
-          {isInfoWindowOpen && (
-            <InfoWindow
+      >
+        {/* Marker per il deposito */}
+        <Marker
+          position={DEPOSITO_COORDINATES}
+          icon={{
+            url: "https://maps.google.com/mapfiles/ms/icons/blue-dot.png",
+            scaledSize: new window.google.maps.Size(40, 40),
+          }}
+        />
+
+        {/* Marker per il veicolo */}
+        {currentCoordinates && (
+          <>
+            <Marker
               position={currentCoordinates}
-              onCloseClick={() => setIsInfoWindowOpen(false)}
-            >
-              <div className="p-2">
-                <p className="font-bold">{plateNumber}</p>
-                <p>{currentAddress || "Indirizzo non disponibile"}</p>
-              </div>
-            </InfoWindow>
-          )}
-        </>
-      )}
-    </GoogleMap>
-  );
-});
+              icon={{
+                url: "https://maps.google.com/mapfiles/ms/icons/green-dot.png",
+                scaledSize: new window.google.maps.Size(40, 40),
+              }}
+              onClick={() => setIsInfoWindowOpen(true)}
+              animation={window.google.maps.Animation.DROP}
+            />
+
+            {isInfoWindowOpen && (
+              <InfoWindow
+                position={currentCoordinates}
+                onCloseClick={() => setIsInfoWindowOpen(false)}
+              >
+                <div className="p-2">
+                  <p className="font-bold">{plateNumber}</p>
+                  <p>{currentAddress || "Indirizzo non disponibile"}</p>
+                </div>
+              </InfoWindow>
+            )}
+          </>
+        )}
+      </GoogleMap>
+    );
+  }
+);
 
 const VehicleMap: React.FC<VehicleMapProps> = ({
   vehicle,
@@ -211,24 +224,29 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
   const [activeTab, setActiveTab] = useState("map");
   const [currentTime, setCurrentTime] = useState(new Date());
   const [animationProgress, setAnimationProgress] = useState(50);
-  const [currentVehicleStatus, setCurrentVehicleStatus] = useState<VehicleStatus>(
-    (vehicle.status || 
-      (vehicle.stato === "Disponibile" ? "Available" : 
-       vehicle.stato === "In uso" ? "In use" : 
-       "Maintenance")) as VehicleStatus
+  const [currentVehicleStatus, setCurrentVehicleStatus] =
+    useState<VehicleStatus>(
+      (vehicle.status ||
+        (vehicle.stato === "Disponibile"
+          ? "Available"
+          : vehicle.stato === "In uso"
+          ? "In use"
+          : "Maintenance")) as VehicleStatus
+    );
+  const [currentCoordinates, setCurrentCoordinates] = useState(
+    vehicle.coordinates
   );
-  const [currentCoordinates, setCurrentCoordinates] = useState(vehicle.coordinates);
   const [currentAddress, setCurrentAddress] = useState<string>("");
   const { isOpen, onOpen, onClose } = useDisclosure();
-  
+
   // Stato per la mappa Google Maps
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [zoom, setZoom] = useState(14);
   const [isInfoWindowOpen, setIsInfoWindowOpen] = useState(false);
-  
+
   // Carica Google Maps
   const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
+    id: "google-map-script",
     googleMapsApiKey: "AIzaSyCiwX6kfGN0syLMPqy1JXLNxct0woowciA",
     libraries: libraries,
   });
@@ -238,7 +256,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
 
   // Normalizzazione dei dati del veicolo
   const plateNumber = vehicle.plate || vehicle.license_plate || "";
-  
+
   const lastInspectionDate =
     vehicle.lastCheck || vehicle.last_inspection_date || "";
 
@@ -279,7 +297,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
       const url = isMobile
         ? `https://maps.google.com/?q=${coord}`
         : `https://www.google.com/maps/dir/?api=1&destination=${coord}`;
-      window.open(url, '_blank');
+      window.open(url, "_blank");
     }
   };
 
@@ -291,12 +309,12 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
         `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&zoom=18&addressdetails=1`,
         {
           headers: {
-            'Accept': 'application/json'
+            Accept: "application/json",
           },
-          withCredentials: false
+          withCredentials: false,
         }
       );
-      
+
       if (response.data && response.data.display_name) {
         return response.data.display_name;
       }
@@ -313,39 +331,76 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
       const response = await axios.get(`/Warehouse/GET/GetAllVehicles`, {
         // Evita la cache per ottenere sempre i dati aggiornati
         headers: {
-          'Cache-Control': 'no-cache',
-          'Pragma': 'no-cache',
-          'Expires': '0'
-        }
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+          Expires: "0",
+        },
       });
-      
+
       if (response.data) {
         // Trova il veicolo con il warehouse_id corrispondente
-        const currentVehicle = response.data.find((v: any) => v.warehouse_id === vehicle.id);
-        
+        const currentVehicle = response.data.find(
+          (v: any) => v.warehouse_id === vehicle.id
+        );
+
         if (currentVehicle) {
+          // Recupera l'utente assegnato al veicolo
+          try {
+            // Prima chiamata per ottenere l'ID dell'utente assegnato al veicolo
+            const userIdResponse = await axios.get(
+              `/Warehouse/GET/GetUserByVehicleId`,
+              {
+                params: {
+                  vehicleId: vehicle.id,
+                },
+              }
+            );
+
+            // Se c'è un utente assegnato
+            if (userIdResponse.data && userIdResponse.data.user_id) {
+              // Seconda chiamata per ottenere i dettagli dell'utente
+              const employeeResponse = await axios.get(
+                `/Employee/GET/GetEmployeeById`,
+                {
+                  params: {
+                    employeeId: userIdResponse.data.user_id,
+                  },
+                }
+              );
+              if (employeeResponse.data && employeeResponse.data.name) {
+                vehicle.assignedUser = `${employeeResponse.data.name} ${
+                  employeeResponse.data.surname || ""
+                }`;
+              }
+            }
+          } catch (error) {
+            // Se non c'è un utente assegnato o si verifica un errore, continuiamo senza assegnare utente
+            console.log(`Nessun utente assegnato al veicolo ${vehicle.id}`);
+          }
+
           // Aggiorna i dati del veicolo
           if (currentVehicle.location && currentVehicle.location !== "N/A") {
             // Converti la stringa "lat lng" in oggetto coordinates
-            const [lat, lng] = currentVehicle.location.split(' ').map(Number);
-            
+            const [lat, lng] = currentVehicle.location.split(" ").map(Number);
+
             // Solo se sono numeri validi
             if (!isNaN(lat) && !isNaN(lng)) {
               const coordinates = { lat, lng };
-              
+
               // Controlla se le coordinate sono cambiate o se è richiesto un aggiornamento forzato
-              const hasChanged = forceUpdate || 
-                !currentCoordinates || 
-                Math.abs(lat - currentCoordinates.lat) > 0.0000001 || 
+              const hasChanged =
+                forceUpdate ||
+                !currentCoordinates ||
+                Math.abs(lat - currentCoordinates.lat) > 0.0000001 ||
                 Math.abs(lng - currentCoordinates.lng) > 0.0000001;
-                
+
               if (hasChanged) {
                 // Aggiorna le coordinate e l'indirizzo
                 setCurrentCoordinates(coordinates);
-                
+
                 // Ottieni l'indirizzo dalle coordinate
                 getAddressFromCoordinates(lat, lng)
-                  .then(address => {
+                  .then((address) => {
                     if (address !== currentAddress) {
                       setCurrentAddress(address);
                     }
@@ -353,7 +408,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   .catch(() => {
                     // Gestisci l'errore silenziosamente
                   });
-                  
+
                 // Calcola la distanza dal deposito
                 const distance = calculateDistance(
                   lat,
@@ -361,31 +416,42 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   DEPOSITO_COORDINATES.lat,
                   DEPOSITO_COORDINATES.lng
                 );
-                
+
                 // Imposta lo stato in base alla distanza
-                const newStatus = distance <= PROXIMITY_RADIUS ? "Available" : "In use";
+                const newStatus =
+                  distance <= PROXIMITY_RADIUS ? "Available" : "In use";
                 if (currentVehicleStatus !== newStatus) {
                   setCurrentVehicleStatus(newStatus as VehicleStatus);
-                  
+
                   // Aggiorna i punti di consegna in base allo stato
                   if (newStatus === "Available") {
                     vehicle.deliveryPoints = [];
                   } else {
-                    vehicle.deliveryPoints = [{
-                      address: currentAddress || "Posizione attuale",
-                      time: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-                    }];
+                    vehicle.deliveryPoints = [
+                      {
+                        address: currentAddress || "Posizione attuale",
+                        time: new Date().toLocaleTimeString("it-IT", {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        }),
+                      },
+                    ];
                   }
                 }
-                
+
                 // Se la posizione è cambiata, aggiorna i deliveryPoints anche se lo stato non è cambiato
                 if (newStatus === "In use") {
-                  vehicle.deliveryPoints = [{
-                    address: currentAddress || "Posizione attuale",
-                    time: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' })
-                  }];
+                  vehicle.deliveryPoints = [
+                    {
+                      address: currentAddress || "Posizione attuale",
+                      time: new Date().toLocaleTimeString("it-IT", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      }),
+                    },
+                  ];
                 }
-                
+
                 console.log("Posizione aggiornata:", coordinates);
                 return true; // Posizione aggiornata con successo
               }
@@ -397,10 +463,10 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
             vehicle.deliveryPoints = [];
             return true; // Stato aggiornato con successo
           }
-          
+
           // Aggiorna altri dati del veicolo solo se sono cambiati
           let dataChanged = false;
-          
+
           if (currentVehicle.capacity) {
             const newCapacity = parseInt(currentVehicle.capacity);
             if (vehicle.capacity !== newCapacity) {
@@ -408,17 +474,23 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
               dataChanged = true;
             }
           }
-          
-          if (currentVehicle.license_plate && vehicle.license_plate !== currentVehicle.license_plate) {
+
+          if (
+            currentVehicle.license_plate &&
+            vehicle.license_plate !== currentVehicle.license_plate
+          ) {
             vehicle.license_plate = currentVehicle.license_plate;
             dataChanged = true;
           }
-          
-          if (currentVehicle.last_inspection && vehicle.last_inspection_date !== currentVehicle.last_inspection) {
+
+          if (
+            currentVehicle.last_inspection &&
+            vehicle.last_inspection_date !== currentVehicle.last_inspection
+          ) {
             vehicle.last_inspection_date = currentVehicle.last_inspection;
             dataChanged = true;
           }
-          
+
           return dataChanged; // Ritorna true se sono stati aggiornati i dati
         }
       }
@@ -434,17 +506,19 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
     if (vehicle) {
       // Imposta lo stato iniziale
       setCurrentVehicleStatus(
-        (vehicle.status || 
-          (vehicle.stato === "Disponibile" ? "Available" : 
-          vehicle.stato === "In uso" ? "In use" : 
-          "Maintenance")) as VehicleStatus
+        (vehicle.status ||
+          (vehicle.stato === "Disponibile"
+            ? "Available"
+            : vehicle.stato === "In uso"
+            ? "In use"
+            : "Maintenance")) as VehicleStatus
       );
-      
+
       // Reset delle coordinate
       setCurrentCoordinates(undefined);
       setCurrentAddress("");
       setIsInfoWindowOpen(false);
-      
+
       // Fetch iniziale forzato delle coordinate
       updateCoordinates(true);
     }
@@ -455,14 +529,14 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
     const timeInterval = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
-    
+
     // Intervallo per aggiornare le coordinate dal database più frequentemente (ogni 5 secondi)
     const coordinatesInterval = setInterval(() => {
       if (vehicle && vehicle.id) {
         updateCoordinates();
       }
     }, 5000); // Ridotto a 5 secondi per rilevare rapidamente i cambiamenti
-    
+
     // Fetch iniziale delle coordinate
     if (vehicle && vehicle.id) {
       updateCoordinates(true); // Forza l'aggiornamento iniziale
@@ -482,22 +556,28 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
   // Calculate current position on map based on real coordinates
   const getCurrentPosition = () => {
     // Se abbiamo coordinate reali dal database, le utilizziamo per la posizione sulla mappa
-    if (currentCoordinates && currentCoordinates.lat && currentCoordinates.lng) {
+    if (
+      currentCoordinates &&
+      currentCoordinates.lat &&
+      currentCoordinates.lng
+    ) {
       // Conversione delle coordinate geografiche in coordinate della mappa SVG
       // Questa è una semplificazione - in una implementazione reale servirebbe una proiezione corretta
       // basata sui limiti della mappa visualizzata
-      
+
       // Assumiamo che la mappa copra un'area di circa 1km attorno al deposito
-      const latDiff = (currentCoordinates.lat - DEPOSITO_COORDINATES.lat) * 100000;
-      const lngDiff = (currentCoordinates.lng - DEPOSITO_COORDINATES.lng) * 100000;
-      
+      const latDiff =
+        (currentCoordinates.lat - DEPOSITO_COORDINATES.lat) * 100000;
+      const lngDiff =
+        (currentCoordinates.lng - DEPOSITO_COORDINATES.lng) * 100000;
+
       // Centro della mappa SVG è circa x=250, y=150
       return {
         x: 250 + lngDiff,
         y: 150 - latDiff,
       };
     }
-    
+
     // Fallback alla posizione animata se le coordinate reali non sono disponibili
     return {
       x: 50 + (400 * animationProgress) / 100,
@@ -584,7 +664,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
               icon="mdi:map-marker"
               className="text-blue-600 dark:text-blue-300"
             />
-            {currentAddress || (vehicle.position || "Posizione non disponibile")}
+            {currentAddress || vehicle.position || "Posizione non disponibile"}
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -662,19 +742,19 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                         plateNumber={plateNumber}
                         setIsInfoWindowOpen={setIsInfoWindowOpen}
                       />
-                      
+
                       {/* Controlli mappa */}
                       <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-10">
-                        <Button 
-                          isIconOnly 
+                        <Button
+                          isIconOnly
                           className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200"
                           size="md"
                           onClick={handleZoomIn}
                         >
                           <Icon icon="solar:add-bold" width={20} />
                         </Button>
-                        <Button 
-                          isIconOnly 
+                        <Button
+                          isIconOnly
                           className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200"
                           size="md"
                           onClick={handleZoomOut}
@@ -682,7 +762,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                           <Icon icon="solar:minus-bold" width={20} />
                         </Button>
                       </div>
-                      
+
                       {/* Pulsante navigazione */}
                       {currentCoordinates && (
                         <div className="absolute bottom-6 left-6 z-10">
@@ -690,7 +770,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                             className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200 flex items-center gap-2 px-4"
                             onClick={handleOpenNavigation}
                             size="md"
-                            startContent={<Icon icon="solar:map-point-bold" width={18} />}
+                            startContent={
+                              <Icon icon="solar:map-point-bold" width={18} />
+                            }
                           >
                             Apri navigazione
                           </Button>
@@ -699,7 +781,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                     </div>
                   ) : (
                     <div className="flex h-full w-full items-center justify-center">
-                      <span className="text-zinc-500">Caricamento mappa...</span>
+                      <span className="text-zinc-500">
+                        Caricamento mappa...
+                      </span>
                     </div>
                   )}
                 </div>
@@ -874,6 +958,23 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                       : "In manutenzione"}
                   </Chip>
                 </div>
+
+                {vehicle.assignedUser && (
+                  <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">
+                      Assegnato a:
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="mdi:account"
+                        className="text-blue-600 dark:text-blue-300 text-xl"
+                      />
+                      <p className="font-medium text-zinc-800 dark:text-zinc-50">
+                        {vehicle.assignedUser}
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Vehicle statistics */}
@@ -977,6 +1078,49 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </div>
                 </div>
               )}
+
+              {/* Dettagli tecnici del veicolo */}
+              <div className="w-full dark:bg-content1/50 bg-gray-50/80 p-4 rounded-lg mt-3">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <div className="flex items-center text-sm justify-between">
+                      <span className="text-default-500">Targa:</span>
+                      <span className="font-medium">{plateNumber}</span>
+                    </div>
+                    <div className="flex items-center text-sm justify-between">
+                      <span className="text-default-500">Modello:</span>
+                      <span className="font-medium">{vehicle.model}</span>
+                    </div>
+                    <div className="flex items-center text-sm justify-between">
+                      <span className="text-default-500">Tipo:</span>
+                      <span className="font-medium">{vehicle.type}</span>
+                    </div>
+                    <div className="flex items-center text-sm justify-between">
+                      <span className="text-default-500">Capacità:</span>
+                      <span className="font-medium">{vehicle.capacity} kg</span>
+                    </div>
+                    <div className="flex items-center text-sm justify-between">
+                      <span className="text-default-500">
+                        Ultima Revisione:
+                      </span>
+                      <span className="font-medium">
+                        {new Date(lastInspectionDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {vehicle.assignedUser && (
+                      <div className="flex items-center text-sm justify-between">
+                        <span className="text-default-500">Assegnato a:</span>
+                        <span className="font-medium">
+                          {vehicle.assignedUser}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Statistiche di utilizzo */}
+                  <div className="space-y-3">{/* ... existing code ... */}</div>
+                </div>
+              </div>
             </div>
           </Tab>
         </Tabs>
