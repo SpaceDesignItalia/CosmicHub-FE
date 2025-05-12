@@ -16,6 +16,8 @@ import {
   ModalBody,
   ModalFooter,
   useDisclosure,
+  Autocomplete,
+  AutocompleteItem,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useVehicleTheme } from "./VehicleThemeWrapper";
@@ -26,6 +28,7 @@ import {
   Marker,
   InfoWindow,
 } from "@react-google-maps/api";
+import type { Employee } from "../../types/Employee";
 
 // Stili personalizzati per la mappa
 const mapStyles = [
@@ -452,7 +455,6 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   ];
                 }
 
-                console.log("Posizione aggiornata:", coordinates);
                 return true; // Posizione aggiornata con successo
               }
             }
@@ -501,6 +503,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
     }
   };
 
+  const [userWithoutVehicle, setUserWithoutVehicle] = useState<Employee[]>([]);
+  const [update, setUpdate] = useState(false);
+
   // Aggiorna i dati quando cambia il veicolo
   useEffect(() => {
     if (vehicle) {
@@ -522,7 +527,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
       // Fetch iniziale forzato delle coordinate
       updateCoordinates(true);
     }
-  }, [vehicle.id]); // Dipendenza solo dall'ID del veicolo
+  }, [vehicle.id, update]); // Dipendenza solo dall'ID del veicolo
 
   // Update current time and coordinates more frequently
   useEffect(() => {
@@ -629,6 +634,27 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
   // Aggiungiamo un ref per la mappa per evitare re-render
   const mapRef = React.useRef(null);
 
+  useEffect(() => {
+    const fetchUsers = async () => {
+      const response = await axios.get(
+        "/Employee/GET/GetEmplyeesWithoutVehicle"
+      );
+      setUserWithoutVehicle(response.data);
+    };
+    fetchUsers();
+  }, []);
+
+  async function updateUserVehicle(e: any) {
+    console.log(e);
+    const response = await axios.put("/Employee/UPDATE/UpdateEmployeeVan", {
+      van_id: vehicle.id,
+      employee_id: e,
+    });
+    if (response.status === 200) {
+      setUpdate(true);
+    }
+  }
+
   return (
     <Card className="h-full border-none bg-transparent">
       <CardHeader className="flex flex-col md:flex-row justify-between gap-4 items-start md:items-center px-5 py-4 bg-white dark:bg-zinc-900 border-b border-zinc-200 dark:border-zinc-800">
@@ -676,6 +702,25 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
             </div>
           </div>
           <div className="flex items-center gap-2">
+            {vehicle.assignedUser === undefined && (
+              <Autocomplete
+                label="Assegna a"
+                defaultItems={userWithoutVehicle}
+                placeholder="Seleziona un utente"
+                classNames={{
+                  base: "w-full",
+                }}
+                onSelectionChange={(e) => {
+                  updateUserVehicle(e);
+                }}
+              >
+                {userWithoutVehicle.map((user) => (
+                  <AutocompleteItem key={user.id}>
+                    <p>{user.name}</p>
+                  </AutocompleteItem>
+                ))}
+              </Autocomplete>
+            )}
             {onEdit && (
               <Button
                 size="sm"
