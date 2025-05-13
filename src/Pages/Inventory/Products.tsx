@@ -1,5 +1,7 @@
 import { Icon } from "@iconify/react";
+import { useState } from "react";
 import ProductTable from "../../Components/Inventory/Product/ProductTable";
+import { ProductThemeProvider } from "../../Components/Inventory/Product/ProductThemeWrapper";
 
 // Data types
 interface Product {
@@ -9,11 +11,12 @@ interface Product {
   quantity: number;
   price: number;
   status: "Disponibile" | "Esaurito" | "Bassa giacenza";
+  image?: string;
 }
 
 export default function Products() {
   // Example data
-  const products: Product[] = [
+  const [products, setProducts] = useState<Product[]>([
     {
       id: "1",
       name: "Product A",
@@ -78,7 +81,7 @@ export default function Products() {
       price: 19.99,
       status: "Disponibile",
     },
-  ];
+  ]);
 
   const categories = [
     "Tutti",
@@ -87,6 +90,23 @@ export default function Products() {
     "Casa",
     "Alimentari",
   ];
+
+  // Funzione per eliminare un prodotto
+  const handleDeleteProduct = async (id: string): Promise<void> => {
+    // In un'applicazione reale, qui ci sarebbe una chiamata API
+    console.log("Eliminazione prodotto con ID:", id);
+
+    // Simuliamo una chiamata API con un ritardo
+    return new Promise<void>((resolve) => {
+      setTimeout(() => {
+        // Aggiorniamo lo stato locale rimuovendo il prodotto
+        setProducts((prevProducts) =>
+          prevProducts.filter((product) => product.id !== id)
+        );
+        resolve();
+      }, 800);
+    });
+  };
 
   return (
     <div className="w-full flex-1 flex flex-col p-4 gap-6">
@@ -101,7 +121,13 @@ export default function Products() {
           <h1 className="text-2xl font-bold">Product Inventory</h1>
         </div>
       </div>
-      <ProductTable products={products} categories={categories} />
+      <ProductThemeProvider>
+        <ProductTable
+          products={products}
+          categories={categories}
+          onDeleteProduct={handleDeleteProduct}
+        />
+      </ProductThemeProvider>
     </div>
   );
 }
