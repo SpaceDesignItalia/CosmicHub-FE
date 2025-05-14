@@ -1,36 +1,34 @@
-import { useState } from "react";
+import React, { useCallback, useMemo } from "react";
 import {
-  Card,
-  CardBody,
-  CardHeader,
   Table,
   TableHeader,
   TableColumn,
   TableBody,
   TableRow,
   TableCell,
-  Input,
-  Dropdown,
+  Button,
   DropdownTrigger,
+  Dropdown,
   DropdownMenu,
   DropdownItem,
-  Button,
   Chip,
+  User,
   Pagination,
-  Tooltip,
+  useDisclosure,
   Modal,
   ModalContent,
   ModalHeader,
   ModalBody,
   ModalFooter,
-  useDisclosure,
-  getKeyValue,
   Avatar,
+  Select,
+  SelectItem,
 } from "@heroui/react";
-import { Icon } from "@iconify/react";
-import { useProductTheme } from "./ProductThemeWrapper";
+import type { Selection, ChipProps } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
+import { useProductTheme } from "./ProductThemeWrapper";
 import DeleteProductModal from "./DeleteProductModal";
+import { Icon } from "@iconify/react/dist/iconify.js";
 
 // Data types
 interface Product {
@@ -47,160 +45,187 @@ interface ProductTableProps {
   products: Product[];
   categories: string[];
   onDeleteProduct?: (id: string) => Promise<void>;
+  sortBy?: {
+    field: keyof Product;
+    direction: "asc" | "desc";
+  };
+  onSort?: (sort: { field: keyof Product; direction: "asc" | "desc" }) => void;
 }
+
+const statusColorMap: Record<string, ChipProps["color"]> = {
+  Disponibile: "success",
+  "Bassa giacenza": "warning",
+  Esaurito: "danger",
+};
+
+const columns = [
+  { name: "PRODOTTO", uid: "name", sortable: true },
+  { name: "CATEGORIA", uid: "category", sortable: true },
+  { name: "QUANTITÀ", uid: "quantity", sortable: true },
+  { name: "PREZZO", uid: "price", sortable: true },
+  { name: "STATO", uid: "status", sortable: true },
+  { name: "AZIONI", uid: "actions" },
+];
+
+// Empty State Component
+const EmptyState = () => {
+  const navigate = useNavigate();
+  const { isDark } = useProductTheme();
+
+  return (
+    <div className="flex flex-col items-center justify-center py-12 px-4">
+      <div
+        className={`p-4 rounded-full mb-4 ${
+          isDark ? "bg-zinc-800" : "bg-zinc-100"
+        }`}
+      >
+        <svg
+          className={`w-12 h-12 ${isDark ? "text-zinc-400" : "text-zinc-500"}`}
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={1.5}
+            d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"
+          />
+        </svg>
+      </div>
+      <h3
+        className={`text-xl font-semibold mb-2 ${
+          isDark ? "text-zinc-200" : "text-zinc-800"
+        }`}
+      >
+        Nessun prodotto trovato
+      </h3>
+      <p
+        className={`text-sm mb-6 text-center ${
+          isDark ? "text-zinc-400" : "text-zinc-500"
+        }`}
+      >
+        Non ci sono prodotti che corrispondono ai criteri di ricerca.
+        <br />
+        Prova a modificare i filtri o aggiungi nuovi prodotti.
+      </p>
+      <Button
+        color="primary"
+        variant="shadow"
+        startContent={<Icon icon="solar:add-circle-bold" className="text-xl" />}
+        onPress={() => navigate("/inventory/products/add")}
+      >
+        Aggiungi Prodotto
+      </Button>
+    </div>
+  );
+};
 
 export default function ProductTable({
   products,
-  categories,
   onDeleteProduct,
+  sortBy,
+  onSort,
 }: ProductTableProps) {
   const navigate = useNavigate();
-  const [search, setSearch] = useState("");
-  const [selectedCategory, setSelectedCategory] = useState("Tutti");
-  const [currentPage, setCurrentPage] = useState(1);
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedKeys, setSelectedKeys] = React.useState<Selection>(
+    new Set([])
+  );
+  const [rowsPerPage, setRowsPerPage] = React.useState(20);
+  const [page, setPage] = React.useState(1);
+  const { isDark } = useProductTheme();
 
-  // Stato per il modale di conferma eliminazione
+  // Modals
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(
+    null
+  );
   const {
     isOpen: isDeleteModalOpen,
     onOpen: openDeleteModal,
     onClose: closeDeleteModal,
   } = useDisclosure();
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
-
-  // Utilizziamo il ProductThemeWrapper
-  const { isDark, getCardClasses } = useProductTheme();
-
-  // Otteniamo le classi dal theme wrapper
-  const classes = getCardClasses();
-
-  const perPage = 5;
-
-  // Filter products
-  const filteredProducts = products.filter((product) => {
-    const matchSearch = product.name
-      .toLowerCase()
-      .includes(search.toLowerCase());
-    const matchCategory =
-      selectedCategory === "Tutti" || product.category === selectedCategory;
-    return matchSearch && matchCategory;
-  });
-
-  // Paginate products
-  const startIndex = (currentPage - 1) * perPage;
-  const paginatedProducts = filteredProducts.slice(
-    startIndex,
-    startIndex + perPage
+  const [productToDelete, setProductToDelete] = React.useState<Product | null>(
+    null
   );
 
-  // Open product modal
-  const openProductModal = (product: Product) => {
-    setSelectedProduct(product);
-    onOpen();
-  };
+  const filteredItems = useMemo(() => {
+    let filteredProducts = [...products];
+    return filteredProducts;
+  }, [products]);
 
-  // Status color mapping
-  const statusColorMap = {
-    Disponibile: "success",
-    "Bassa giacenza": "warning",
-    Esaurito: "danger",
-  };
+  const pages = Math.ceil(filteredItems.length / rowsPerPage);
 
-  // Column definitions
-  const columns = [
-    { key: "name", label: "PRODOTTO", align: "start" },
-    { key: "category", label: "CATEGORIA", align: "start" },
-    { key: "quantity", label: "QUANTITÀ", align: "center" },
-    { key: "price", label: "PREZZO", align: "end" },
-    { key: "status", label: "STATO", align: "center" },
-    { key: "actions", label: "AZIONI", align: "end" },
-  ];
+  const items = useMemo(() => {
+    const start = (page - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    return filteredItems.slice(start, end);
+  }, [page, filteredItems, rowsPerPage]);
 
-  // Funzione per ottenere un colore casuale ma consistente per una categoria
-  const getRandomColor = (
-    category: string
-  ): "primary" | "secondary" | "success" | "warning" | "danger" => {
-    const colors: Array<
-      "primary" | "secondary" | "success" | "warning" | "danger"
-    > = ["primary", "secondary", "success", "warning", "danger"];
-    const sum = category
-      .split("")
-      .reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[sum % colors.length];
-  };
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a: Product, b: Product) => {
+      const first = a[sortBy?.field || "name"];
+      const second = b[sortBy?.field || "name"];
+      const direction = sortBy?.direction === "asc" ? 1 : -1;
 
-  // Funzioni per la navigazione
-  const goToAddProduct = () => {
-    navigate("/inventory/products/add");
-  };
+      if (typeof first === "string" && typeof second === "string") {
+        return direction * first.localeCompare(second);
+      }
+      return direction * ((first as number) - (second as number));
+    });
+  }, [items, sortBy]);
 
-  const goToEditProduct = (productId: string) => {
+  const goToEditProduct = (productId: string) =>
     navigate(`/inventory/products/edit/${productId}`);
-  };
 
-  // Funzione per confermare l'eliminazione
+  // Delete functions
   const confirmDeleteProduct = (product: Product) => {
     setProductToDelete(product);
     openDeleteModal();
   };
 
-  // Funzione per eliminare il prodotto
   const handleDeleteProduct = async (id: string) => {
     if (onDeleteProduct) {
       await onDeleteProduct(id);
-      // Ricarica i dati o aggiorna lo stato locale
     }
   };
 
-  // Render custom cells
-  const renderCell = (product: Product, columnKey: string) => {
+  const renderCell = useCallback((product: Product, columnKey: React.Key) => {
     switch (columnKey) {
       case "name":
         return (
-          <div className="flex items-center gap-3 mb-0.5">
-            <Avatar
-              src={product.image || "https://via.placeholder.com/40"}
-              size="sm"
-              radius="lg"
-              className="hidden md:flex object-cover border-0"
-            />
-            <div>
-              <p className="font-medium">{product.name}</p>
-              <p
-                className={`text-xs ${
-                  isDark ? "text-zinc-400" : "text-default-500"
-                }`}
-              >
-                ID: {product.id.substring(0, 8)}
-              </p>
-            </div>
-          </div>
+          <User
+            avatarProps={{
+              radius: "lg",
+              src: product.image || "https://via.placeholder.com/40",
+              className: "hidden md:flex object-cover border-0",
+            }}
+            description={`ID: ${product.id.substring(0, 8)}`}
+            name={product.name}
+          >
+            {product.name}
+          </User>
         );
       case "category":
         return (
-          <div className="text-left">
-            <div className="flex items-center gap-2">
-              <span
-                className={`w-2 h-2 rounded-full bg-${getRandomColor(
-                  product.category
-                )}`}
-              ></span>
-              {product.category}
-            </div>
+          <div className="flex items-center gap-2">
+            <span
+              className={`w-2 h-2 rounded-full bg-${product.category.toLowerCase()}`}
+            />
+            {product.category}
           </div>
         );
       case "quantity":
         return (
-          <div className="flex justify-center items-center">
+          <div className="flex justify-start w-full">
             <div
-              className={`${
+              className={`font-medium ${
                 product.quantity > 0
                   ? product.quantity <= 10
                     ? "text-warning"
                     : "text-success"
                   : "text-danger"
-              } font-medium`}
+              }`}
             >
               {product.quantity}
             </div>
@@ -208,256 +233,318 @@ export default function ProductTable({
         );
       case "price":
         return (
-          <div className="text-right font-medium">
-            €{product.price.toFixed(2)}
+          <div className="flex justify-start w-full">
+            <div className="font-medium">€{product.price.toFixed(2)}</div>
           </div>
         );
       case "status":
         return (
-          <div className="flex justify-center">
-            <Chip
-              color={statusColorMap[product.status] as any}
-              variant="flat"
-              startContent={
-                <Icon
-                  icon={
-                    product.status === "Disponibile"
-                      ? "solar:check-circle-bold"
-                      : product.status === "Bassa giacenza"
-                      ? "solar:clock-circle-bold"
-                      : "solar:close-circle-bold"
-                  }
-                  className="mr-1"
-                />
-              }
-            >
-              {product.status}
-            </Chip>
-          </div>
+          <Chip
+            className="capitalize"
+            color={statusColorMap[product.status]}
+            size="sm"
+            variant="flat"
+          >
+            {product.status}
+          </Chip>
         );
       case "actions":
         return (
-          <div className="flex justify-end gap-2">
-            <Tooltip content="Visualizza dettagli">
-              <Button
-                isIconOnly
-                size="sm"
-                variant={isDark ? "flat" : "light"}
-                className={`${
-                  isDark
-                    ? "bg-zinc-800 text-white hover:bg-zinc-700"
-                    : "hover:bg-zinc-100"
-                } rounded-full`}
-                onPress={() => openProductModal(product)}
+          <div className="flex justify-start items-center gap-2">
+            <Dropdown showArrow placement="bottom-end">
+              <DropdownTrigger>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  variant="light"
+                  className="hover:bg-default-100"
+                >
+                  <Icon icon="nimbus:ellipsis" />
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu
+                variant="bordered"
+                aria-label="Azioni prodotto"
+                className="min-w-[180px]"
               >
-                <Icon icon="solar:eye-bold" width={20} />
-              </Button>
-            </Tooltip>
-            <Tooltip content="Modifica">
-              <Button
-                isIconOnly
-                size="sm"
-                variant={isDark ? "flat" : "light"}
-                className={`${
-                  isDark
-                    ? "bg-zinc-800 text-white hover:bg-zinc-700"
-                    : "hover:bg-zinc-100"
-                } rounded-full`}
-                onPress={() => goToEditProduct(product.id)}
-              >
-                <Icon icon="solar:pen-bold" width={18} />
-              </Button>
-            </Tooltip>
-            <Tooltip content="Elimina">
-              <Button
-                isIconOnly
-                size="sm"
-                color="danger"
-                variant="light"
-                className="rounded-full"
-                onPress={() => confirmDeleteProduct(product)}
-              >
-                <Icon icon="solar:trash-bin-trash-bold" width={18} />
-              </Button>
-            </Tooltip>
+                <DropdownItem
+                  key="view"
+                  onClick={() => {
+                    setSelectedProduct(product);
+                    onOpen();
+                  }}
+                  className="text-default-700 data-[hover=true]:text-default-900 data-[hover=true]:bg-default-100"
+                  startContent={
+                    <Icon
+                      icon="solar:eye-bold"
+                      className="text-lg text-default-600"
+                    />
+                  }
+                >
+                  Visualizza
+                </DropdownItem>
+                <DropdownItem
+                  key="edit"
+                  onClick={() => goToEditProduct(product.id)}
+                  className="text-primary-600 data-[hover=true]:text-primary-700 data-[hover=true]:bg-primary-50"
+                  startContent={
+                    <Icon
+                      icon="solar:pen-line-duotone"
+                      className="text-lg text-primary-500"
+                    />
+                  }
+                >
+                  Modifica
+                </DropdownItem>
+                <DropdownItem
+                  key="delete"
+                  onClick={() => confirmDeleteProduct(product)}
+                  className="text-danger-600 data-[hover=true]:text-danger-700 data-[hover=true]:bg-danger-50"
+                  startContent={
+                    <Icon
+                      icon="solar:trash-bin-minimalistic-linear"
+                      className="text-lg text-danger-500"
+                    />
+                  }
+                >
+                  Elimina
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
           </div>
         );
       default:
-        return (
-          <div className="text-left">{getKeyValue(product, columnKey)}</div>
-        );
+        return product[columnKey as keyof Product];
     }
-  };
+  }, []);
+
+  const onNextPage = useCallback(() => {
+    if (page < pages) {
+      setPage(page + 1);
+    }
+  }, [page, pages]);
+
+  const onPreviousPage = useCallback(() => {
+    if (page > 1) {
+      setPage(page - 1);
+    }
+  }, [page]);
+
+  const onRowsPerPageChange = useCallback(
+    (e: React.ChangeEvent<HTMLSelectElement>) => {
+      setRowsPerPage(Number(e.target.value));
+      setPage(1);
+    },
+    []
+  );
+
+  const topContent = useMemo(() => {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-between gap-3 items-end">
+          <div className="flex gap-3">
+            {((typeof selectedKeys !== "string" && selectedKeys.size > 0) ||
+              selectedKeys === "all") && (
+              <div className="flex gap-2">
+                <Button
+                  color="danger"
+                  onPress={() => {
+                    if (onDeleteProduct) {
+                      if (selectedKeys === "all") {
+                        // Delete all products
+                        products.forEach((product) => {
+                          onDeleteProduct(product.id);
+                        });
+                      } else if (typeof selectedKeys !== "string") {
+                        // Delete selected products
+                        Array.from(selectedKeys).forEach((id) => {
+                          onDeleteProduct(id.toString());
+                        });
+                      }
+                      setSelectedKeys(new Set([]));
+                    }
+                  }}
+                >
+                  Elimina Selezionati{" "}
+                  {typeof selectedKeys !== "string"
+                    ? selectedKeys.size
+                    : products.length}
+                </Button>
+                <Button
+                  color="warning"
+                  variant="flat"
+                  onPress={() => {
+                    const selectedProducts =
+                      selectedKeys === "all"
+                        ? products
+                        : products.filter(
+                            (p) =>
+                              typeof selectedKeys !== "string" &&
+                              selectedKeys.has(p.id)
+                          );
+
+                    const allAvailable = selectedProducts.every(
+                      (p) => p.status === "Disponibile"
+                    );
+                    const allLow = selectedProducts.every(
+                      (p) => p.status === "Bassa giacenza"
+                    );
+
+                    let newStatus:
+                      | "Disponibile"
+                      | "Bassa giacenza"
+                      | "Esaurito";
+                    if (allAvailable) newStatus = "Bassa giacenza";
+                    else if (allLow) newStatus = "Esaurito";
+                    else newStatus = "Disponibile";
+
+                    // Here you would call an API to update the status
+                    console.log(
+                      `Update status to ${newStatus} for:`,
+                      selectedKeys === "all" ? "all products" : selectedKeys
+                    );
+                    setSelectedKeys(new Set([]));
+                  }}
+                >
+                  Cambia Stato
+                </Button>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }, [
+    selectedKeys,
+    products.length,
+    onRowsPerPageChange,
+    onDeleteProduct,
+    products,
+  ]);
+
+  const bottomContent = useMemo(() => {
+    return (
+      <div className="py-2 px-2 flex justify-between items-center">
+        <div className="flex gap-2"></div>
+        <Pagination
+          isCompact
+          showControls
+          showShadow
+          color="primary"
+          page={page}
+          total={pages}
+          onChange={setPage}
+        />
+        <div className="flex items-center gap-2">
+          <span className="text-small text-default-400">Righe per pagina:</span>
+          <Select
+            size="sm"
+            selectedKeys={[rowsPerPage.toString()]}
+            className="w-20"
+            onChange={onRowsPerPageChange}
+          >
+            <SelectItem key="10">10</SelectItem>
+            <SelectItem key="20">20</SelectItem>
+            <SelectItem key="50">50</SelectItem>
+          </Select>
+        </div>
+      </div>
+    );
+  }, [page, pages, onPreviousPage, onNextPage, rowsPerPage]);
+
+  // Add keyboard shortcuts handler near the top of the component
+  const handleKeyboardShortcuts = useCallback(
+    (e: KeyboardEvent) => {
+      if (e.altKey && selectedProduct) {
+        switch (e.key.toLowerCase()) {
+          case "v":
+            setSelectedProduct(selectedProduct);
+            onOpen();
+            break;
+          case "e":
+            goToEditProduct(selectedProduct.id);
+            break;
+          case "d":
+            confirmDeleteProduct(selectedProduct);
+            break;
+        }
+      }
+    },
+    [selectedProduct, onOpen, goToEditProduct, confirmDeleteProduct]
+  );
+
+  // Add effect to handle keyboard shortcuts
+  React.useEffect(() => {
+    window.addEventListener("keydown", handleKeyboardShortcuts);
+    return () => window.removeEventListener("keydown", handleKeyboardShortcuts);
+  }, [handleKeyboardShortcuts]);
 
   return (
     <>
-      <Card className={classes.card}>
-        <CardHeader className={classes.header}>
-          <div className="flex justify-between items-center w-full">
-            <div className="flex items-center gap-3">
-              <Input
-                placeholder="Cerca prodotto..."
-                startContent={
-                  <Icon
-                    icon="solar:magnifer-linear-duotone"
-                    className={isDark ? "text-zinc-400" : ""}
-                  />
-                }
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-60"
-                size="sm"
-                classNames={{
-                  inputWrapper: classes.input,
-                  input: isDark ? "text-white" : "",
-                }}
-              />
-              <Dropdown>
-                <DropdownTrigger>
-                  <Button
-                    variant={isDark ? "flat" : "light"}
-                    className={classes.dropdown.trigger}
-                    size="sm"
-                    endContent={
-                      <Icon
-                        icon="solar:alt-arrow-down-linear"
-                        className="text-default-500"
-                      />
+      <Table
+        aria-label="Tabella prodotti"
+        bottomContent={bottomContent}
+        bottomContentPlacement="inside"
+        selectedKeys={selectedKeys}
+        selectionMode="multiple"
+        sortDescriptor={{
+          column: sortBy?.field || "name",
+          direction: sortBy?.direction === "asc" ? "ascending" : "descending",
+        }}
+        topContent={topContent}
+        topContentPlacement="inside"
+        onSelectionChange={setSelectedKeys}
+        onSortChange={(descriptor) => {
+          if (onSort) {
+            onSort({
+              field: descriptor.column as keyof Product,
+              direction: descriptor.direction === "ascending" ? "asc" : "desc",
+            });
+          }
+        }}
+        isStriped
+        selectionBehavior="toggle"
+        classNames={{
+          th: [
+            "bg-default-100",
+            "text-default-800",
+            "border-b border-divider",
+            "py-3 px-4",
+          ],
+          td: ["py-3 px-4", "border-b border-divider"],
+          wrapper: "border border-divider rounded-lg",
+          tr: "cursor-pointer hover:bg-default-50",
+        }}
+      >
+        <TableHeader columns={columns}>
+          {(column) => (
+            <TableColumn
+              key={column.uid}
+              align="start"
+              allowsSorting={column.sortable}
+            >
+              {column.name}
+            </TableColumn>
+          )}
+        </TableHeader>
+        <TableBody emptyContent={<EmptyState />} items={sortedItems}>
+          {(item) => (
+            <TableRow key={item.id}>
+              {(columnKey) => (
+                <TableCell>
+                  <div
+                    className={
+                      columnKey === "actions" ? "flex justify-start" : ""
                     }
                   >
-                    {selectedCategory}
-                  </Button>
-                </DropdownTrigger>
-                <DropdownMenu
-                  aria-label="Product categories"
-                  onAction={(key) =>
-                    setSelectedCategory(categories[Number(key)])
-                  }
-                  classNames={{
-                    base: classes.dropdown.menu,
-                  }}
-                >
-                  {categories.map((cat, index) => (
-                    <DropdownItem
-                      key={index.toString()}
-                      className={classes.dropdown.item}
-                      startContent={
-                        <span
-                          className={`w-2 h-2 rounded-full bg-${getRandomColor(
-                            cat
-                          )} mr-2`}
-                        ></span>
-                      }
-                    >
-                      {cat}
-                    </DropdownItem>
-                  ))}
-                </DropdownMenu>
-              </Dropdown>
-            </div>
-            <Button
-              color="primary"
-              startContent={
-                <Icon icon="material-symbols:add" width={22} height={22} />
-              }
-              onPress={goToAddProduct}
-            >
-              Nuovo Prodotto
-            </Button>
-          </div>
-        </CardHeader>
-        <CardBody className="p-0">
-          <Table
-            aria-label="Products table"
-            hideHeader={false}
-            shadow="none"
-            className="rounded-md overflow-hidden"
-            classNames={{
-              base: classes.table.wrapper,
-              table: "min-w-full",
-              thead: isDark
-                ? "border-0 border-none border-transparent bg-zinc-800"
-                : classes.table.header,
-              tbody: "border-none",
-              tr: classes.table.row,
-              th: `${
-                isDark ? "text-zinc-300" : "text-zinc-700"
-              } font-medium text-xs uppercase tracking-wider p-4 border-none border-0 border-transparent`,
-              td: "p-4 border-none border-0 border-transparent",
-              tfoot: "border-none",
-              wrapper: "border-none",
-            }}
-          >
-            <TableHeader>
-              {columns.map((column) => (
-                <TableColumn
-                  key={column.key}
-                  align={column.align as any}
-                  className={`${
-                    column.align === "end"
-                      ? "text-right"
-                      : column.align === "center"
-                      ? "text-center"
-                      : "text-left"
-                  }`}
-                >
-                  {column.label}
-                </TableColumn>
-              ))}
-            </TableHeader>
-            <TableBody
-              emptyContent={
-                <div className="py-10 text-center">
-                  <Icon
-                    icon="solar:box-minimalistic-broken"
-                    className={`w-16 h-16 mx-auto mb-4 ${
-                      isDark ? "text-zinc-600" : "text-zinc-300"
-                    }`}
-                  />
-                  <p className={isDark ? "text-zinc-500" : "text-zinc-400"}>
-                    Nessun prodotto trovato
-                  </p>
-                </div>
-              }
-            >
-              {paginatedProducts.map((product) => (
-                <TableRow key={product.id}>
-                  {(columnKey) => (
-                    <TableCell>
-                      {renderCell(product, columnKey.toString())}
-                    </TableCell>
-                  )}
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-          <div className={classes.table.pagination}>
-            <Pagination
-              total={Math.ceil(filteredProducts.length / perPage)}
-              initialPage={1}
-              page={currentPage}
-              onChange={setCurrentPage}
-              showControls
-              size="lg"
-              radius="lg"
-              variant="bordered"
-              classNames={{
-                wrapper: "gap-2",
-                item: isDark
-                  ? "w-10 h-10 text-medium text-white border-zinc-700"
-                  : "w-10 h-10 text-medium",
-                cursor: "bg-primary text-white font-medium",
-                prev: isDark
-                  ? "bg-zinc-800 border border-zinc-700 text-white"
-                  : "bg-zinc-100 border border-zinc-300",
-                next: isDark
-                  ? "bg-zinc-800 border border-zinc-700 text-white"
-                  : "bg-zinc-100 border border-zinc-300",
-              }}
-            />
-          </div>
-        </CardBody>
-      </Card>
+                    {renderCell(item, columnKey)}
+                  </div>
+                </TableCell>
+              )}
+            </TableRow>
+          )}
+        </TableBody>
+      </Table>
 
       {/* Product details modal */}
       <Modal
@@ -524,10 +611,8 @@ export default function ProductTable({
                     </p>
                     <div className="flex items-center">
                       <span
-                        className={`w-2 h-2 rounded-full bg-${getRandomColor(
-                          selectedProduct.category
-                        )} mr-2`}
-                      ></span>
+                        className={`w-2 h-2 rounded-full bg-${selectedProduct.category.toLowerCase()} mr-2`}
+                      />
                       <p className="font-medium">{selectedProduct.category}</p>
                     </div>
                   </div>
@@ -572,20 +657,9 @@ export default function ProductTable({
                       Stato
                     </p>
                     <Chip
-                      color={statusColorMap[selectedProduct.status] as any}
+                      color={statusColorMap[selectedProduct.status]}
                       variant="flat"
-                      startContent={
-                        <Icon
-                          icon={
-                            selectedProduct.status === "Disponibile"
-                              ? "solar:check-circle-bold"
-                              : selectedProduct.status === "Bassa giacenza"
-                              ? "solar:clock-circle-bold"
-                              : "solar:close-circle-bold"
-                          }
-                          className="mr-1"
-                        />
-                      }
+                      size="sm"
                     >
                       {selectedProduct.status}
                     </Chip>
@@ -602,7 +676,6 @@ export default function ProductTable({
                 </Button>
                 <Button
                   color="primary"
-                  startContent={<Icon icon="solar:pen-bold" />}
                   onPress={() => {
                     onClose();
                     goToEditProduct(selectedProduct.id);
