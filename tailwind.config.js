@@ -95,7 +95,7 @@ export default {
               700: "#9e0c3e",
               800: "#73092e",
               900: "#49051d",
-              foreground: "#000",
+              foreground: "#ffffff",
               DEFAULT: "#f31260",
             },
             background: "#ffffff",
