@@ -26,55 +26,61 @@ import {
   Textarea,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import { ResponsiveContainer, RadialBarChart, RadialBar, Cell, PolarAngleAxis } from "recharts";
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import {
+  ResponsiveContainer,
+  RadialBarChart,
+  RadialBar,
+  Cell,
+  PolarAngleAxis,
+} from "recharts";
+import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
 
 // Stili personalizzati per la mappa
 const mapStyles = [
   {
-    featureType: 'poi',
-    elementType: 'labels',
-    stylers: [{ visibility: 'off' }],
+    featureType: "poi",
+    elementType: "labels",
+    stylers: [{ visibility: "off" }],
   },
   {
-    featureType: 'transit',
-    elementType: 'labels',
-    stylers: [{ visibility: 'off' }],
+    featureType: "transit",
+    elementType: "labels",
+    stylers: [{ visibility: "off" }],
   },
   {
-    featureType: 'water',
-    elementType: 'geometry',
-    stylers: [{ color: '#c8d7d4' }],
+    featureType: "water",
+    elementType: "geometry",
+    stylers: [{ color: "#c8d7d4" }],
   },
   {
-    featureType: 'landscape.natural',
-    elementType: 'geometry',
-    stylers: [{ color: '#f0f0f0' }],
+    featureType: "landscape.natural",
+    elementType: "geometry",
+    stylers: [{ color: "#f0f0f0" }],
   },
   {
-    featureType: 'road',
-    elementType: 'geometry',
-    stylers: [{ color: '#ffffff' }],
+    featureType: "road",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
   },
   {
-    featureType: 'road',
-    elementType: 'labels.text.fill',
-    stylers: [{ color: '#666666' }],
+    featureType: "road",
+    elementType: "labels.text.fill",
+    stylers: [{ color: "#666666" }],
   },
   {
-    featureType: 'road.arterial',
-    elementType: 'geometry',
-    stylers: [{ color: '#ffffff' }],
+    featureType: "road.arterial",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
   },
   {
-    featureType: 'road.highway',
-    elementType: 'geometry',
-    stylers: [{ color: '#ffffff' }],
+    featureType: "road.highway",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
   },
   {
-    featureType: 'road.local',
-    elementType: 'geometry',
-    stylers: [{ color: '#ffffff' }],
+    featureType: "road.local",
+    elementType: "geometry",
+    stylers: [{ color: "#ffffff" }],
   },
 ];
 
@@ -85,7 +91,7 @@ interface MapButtonProps {
   children: React.ReactNode;
 }
 
-const MapButton = ({ onClick, children, className = '' }: MapButtonProps) => (
+const MapButton = ({ onClick, children, className = "" }: MapButtonProps) => (
   <button
     onClick={onClick}
     className={`rounded-full border border-default-200 bg-background p-2 text-foreground transition-colors hover:bg-primary hover:text-white hover:border-primary ${className}`}
@@ -99,16 +105,26 @@ const libraries: ("places" | "geometry" | "drawing" | "visualization")[] = [];
 // Definizione dell'interfaccia Warehouse basata sui dati forniti
 interface Warehouse {
   warehouse_id: string;
+  WarehouseID?: string;
+  WarehouseUUID?: string;
   name: string;
+  WarehouseName?: string;
   location: string;
+  WarehouseAdress?: string;
+  WarehouseCode?: string;
+  WarehouseCountry?: string;
   company_id: string;
   created_at: Date | string;
   created_by: string;
+  CreatedAt?: Date;
+  CreatedBy?: string;
+  UpdatedAt?: Date;
   capacity: string;
   type: string;
   license_plate: string | null;
   last_inspection: string | null;
   type_name: string;
+  IsActive?: boolean;
   latitude?: number;
   longitude?: number;
   last_updated?: Date | string;
@@ -120,8 +136,16 @@ interface Company {
   name: string;
 }
 
+interface Employee {
+  user_id: string;
+  name: string;
+  surname: string;
+  email: string;
+  company_id: string;
+}
+
 const WarehouseDetail: React.FC = () => {
-  const { id } = useParams<{ id: string }>();
+  const { UUID } = useParams<{ UUID: string }>();
   const navigate = useNavigate();
 
   const [warehouse, setWarehouse] = useState<Warehouse | null>(null);
@@ -130,16 +154,17 @@ const WarehouseDetail: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<string>("overview");
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-  
+  const [createdByUser, setCreatedByUser] = useState<Employee | null>(null);
+
   // Stati per la mappa Google Maps
   const [map, setMap] = useState<google.maps.Map | null>(null);
   const [zoom, setZoom] = useState(15);
   const { isLoaded } = useJsApiLoader({
-    id: 'google-map-script',
+    id: "google-map-script",
     googleMapsApiKey: "AIzaSyCiwX6kfGN0syLMPqy1JXLNxct0woowciA",
     libraries: libraries,
   });
-  
+
   // Stato per la finestra info della mappa (per compatibilità)
   const [infoOpen, setInfoOpen] = useState(false);
 
@@ -168,7 +193,7 @@ const WarehouseDetail: React.FC = () => {
     onClose: onDeleteClose,
   } = useDisclosure();
   const [isDeleteLoading, setIsDeleteLoading] = useState<boolean>(false);
-  
+
   // Stati per la planimetria interattiva
   const [floorplanScale, setFloorplanScale] = useState(1);
   const [floorplanPosition, setFloorplanPosition] = useState({ x: 0, y: 0 });
@@ -178,7 +203,9 @@ const WarehouseDetail: React.FC = () => {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
 
   // URL della planimetria (DA SOSTITUIRE CON QUELLO REALE o prenderlo da warehouse.floorplan_url)
-  const ACTUAL_FLOORPLAN_URL = warehouse?.floorplan_url || "https://www.ilgigantecentricommerciali.it/media/corporate/proprieta/immobiliare/curtatone/magazzini-1_piano/gallery/magazzini_1_piano_curtatone-il-gigante-centri-commerciali_5.jpg";
+  const ACTUAL_FLOORPLAN_URL =
+    warehouse?.floorplan_url ||
+    "https://www.ilgigantecentricommerciali.it/media/corporate/proprieta/immobiliare/curtatone/magazzini-1_piano/gallery/magazzini_1_piano_curtatone-il-gigante-centri-commerciali_5.jpg";
 
   // Funzioni per la mappa
   const onLoad = useCallback(
@@ -217,7 +244,7 @@ const WarehouseDetail: React.FC = () => {
       const url = isMobile
         ? `https://maps.google.com/?q=${address}`
         : `https://www.google.com/maps/dir/?api=1&destination=${address}`;
-      window.open(url, '_blank');
+      window.open(url, "_blank");
     }
   };
 
@@ -225,45 +252,73 @@ const WarehouseDetail: React.FC = () => {
     const fetchWarehouseDetails = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`/Warehouse/GET/GetWarehouseById`, {
+        const response = await axios.get(`/Warehouse/GET/GetWarehouseByUUID`, {
           params: {
-            warehouse_id: id,
+            warehouse_uuid: UUID,
           },
         });
-        setWarehouse(response.data);
+
+        // Normalizziamo i nomi dei campi per compatibilità
+        const warehouseData = {
+          ...response.data,
+          name: response.data.name || response.data.WarehouseName,
+          location: response.data.location || response.data.WarehouseAdress,
+        };
+
+        setWarehouse(warehouseData);
 
         // Inizializza il form di modifica con i dati attuali
-        if (response.data) {
+        if (warehouseData) {
           setEditForm({
-            name: response.data.name || "",
-            location: response.data.location || "",
-            capacity: response.data.capacity || "",
+            name: warehouseData.name || warehouseData.WarehouseName || "",
+            location:
+              warehouseData.location || warehouseData.WarehouseAdress || "",
+            capacity: warehouseData.capacity || "",
           });
-        }
 
-        // Dopo aver caricato i dati del magazzino, recuperiamo le informazioni dell'azienda
-        if (response.data && response.data.company_id) {
-          await fetchCompanyDetails(response.data.company_id);
-        } else {
-          // Se non c'è company_id, impostiamo comunque loading a false
-          setLoading(false);
+          // Recupera i dettagli dell'utente che ha creato il magazzino
+          const creatorId = warehouseData.CreatedBy || warehouseData.created_by;
+          if (creatorId) {
+            const employeeData = await fetchEmployeeDetails(creatorId);
+            if (employeeData && employeeData.company_id) {
+              await fetchCompanyDetails(employeeData.company_id);
+            }
+          }
         }
 
         setError(null);
       } catch (err) {
-        console.error(
-          "Errore nel caricamento dei dettagli del magazzino:",
-          err
-        );
         setError("Impossibile caricare i dettagli del magazzino");
         setLoading(false);
+      }
+    };
+
+    const fetchEmployeeDetails = async (employeeId: string) => {
+      try {
+        const employeeResponse = await axios.get(
+          `/Employee/GET/GetEmployeeById`,
+          {
+            params: {
+              employeeId: employeeId,
+            },
+          }
+        );
+
+        if (employeeResponse.data) {
+          setCreatedByUser(employeeResponse.data);
+          return employeeResponse.data;
+        }
+        return null;
+      } catch (err) {
+        // Non interrompiamo il flusso principale in caso di errore
+        return null;
       }
     };
 
     const fetchCompanyDetails = async (companyId: string) => {
       try {
         const companyResponse = await axios.get(
-          `Company/GET/GetCompanyByCompanyId`,
+          `/Company/GET/GetCompanyByCompanyId`,
           {
             params: {
               company_id: companyId,
@@ -275,8 +330,7 @@ const WarehouseDetail: React.FC = () => {
           setCompanyName(companyResponse.data.name);
         }
       } catch (err) {
-        console.error("Errore nel caricamento dei dettagli dell'azienda:", err);
-        // Non interrupiamo il flusso principale in caso di errore nel caricamento dell'azienda
+        // Non interrompiamo il flusso principale in caso di errore nel caricamento dell'azienda
       } finally {
         setLoading(false);
       }
@@ -287,15 +341,15 @@ const WarehouseDetail: React.FC = () => {
         const response = await axios.get("/Warehouse/GET/GetAllWarehouses");
         setWarehouses(response.data || []);
       } catch (err) {
-        console.error("Errore nel caricamento dei magazzini:", err);
+        // Gestione errore
       }
     };
 
-    if (id) {
+    if (UUID) {
       fetchWarehouseDetails();
       fetchWarehouses();
     }
-  }, [id]);
+  }, [UUID]);
 
   const formatDate = (dateString: string | Date) => {
     const date = new Date(dateString);
@@ -316,17 +370,20 @@ const WarehouseDetail: React.FC = () => {
 
   // Salvataggio delle modifiche
   const handleSaveChanges = async () => {
-    if (!warehouse || !id) return;
+    if (!warehouse || !UUID) return;
 
     setIsEditLoading(true);
     try {
       // Endpoint per l'aggiornamento del magazzino
       await axios.put(`/Warehouse/UPDATE/UpdateWarehouse`, {
-        warehouse_id: id,
-        name: editForm.name,
-        location: editForm.location,
+        warehouse_uuid: UUID,
+        WarehouseID: warehouse.WarehouseID,
+        WarehouseUUID: warehouse.WarehouseUUID,
+        WarehouseName: editForm.name,
+        WarehouseAdress: editForm.location,
         capacity: editForm.capacity,
         company_id: warehouse.company_id,
+        IsActive: warehouse.IsActive !== false, // Manteniamo lo stato attivo
       });
 
       // Aggiorna i dati locali
@@ -335,7 +392,9 @@ const WarehouseDetail: React.FC = () => {
         return {
           ...prev,
           name: editForm.name,
+          WarehouseName: editForm.name,
           location: editForm.location,
+          WarehouseAdress: editForm.location,
           capacity: editForm.capacity,
         };
       });
@@ -357,23 +416,30 @@ const WarehouseDetail: React.FC = () => {
 
   // Eliminazione del magazzino
   const handleDeleteWarehouse = async () => {
-    if (!id) return;
+    if (!UUID) return;
 
     setIsDeleteLoading(true);
     try {
-      // Endpoint per l'eliminazione del magazzino
       await axios.delete(`/Warehouse/DELETE/DeleteWarehouse`, {
         params: {
-          warehouse_id: id,
+          warehouse_uuid: UUID,
         },
       });
 
-      // Redirect alla lista dei magazzini
-      navigate("/dashboard");
+      // Mostra il messaggio di successo
+      setSuccessMessage("Magazzino eliminato con successo!");
+
+      // Chiudi il modal di conferma
+      onDeleteClose();
+
+      // Attendi un breve momento per far vedere il messaggio
+      setTimeout(() => {
+        // Reindirizza alla home
+        navigate("/dashboard");
+      }, 1500);
     } catch (error) {
       console.error("Errore durante l'eliminazione del magazzino:", error);
       // Gestire l'errore qui (es. mostrare un messaggio all'utente)
-    } finally {
       setIsDeleteLoading(false);
       onDeleteClose();
     }
@@ -387,7 +453,7 @@ const WarehouseDetail: React.FC = () => {
   const handleFloorplanZoomOut = () => {
     setFloorplanScale((prevScale) => Math.max(prevScale / 1.2, 0.5));
   };
-  
+
   const handleResetFloorplanView = () => {
     setFloorplanScale(1);
     setFloorplanPosition({ x: 0, y: 0 });
@@ -406,18 +472,19 @@ const WarehouseDetail: React.FC = () => {
   };
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (!isDragging || !floorplanRef.current || !floorplanContainerRef.current) return;
-    
+    if (!isDragging || !floorplanRef.current || !floorplanContainerRef.current)
+      return;
+
     const newX = e.clientX - dragStart.x;
     const newY = e.clientY - dragStart.y;
-    
+
     setFloorplanPosition({ x: newX, y: newY });
   };
 
   const handleMouseUp = () => {
     setIsDragging(false);
   };
-  
+
   const handleMouseLeave = () => {
     if (isDragging) {
       setIsDragging(false);
@@ -520,7 +587,11 @@ const WarehouseDetail: React.FC = () => {
           </div>
           <div className="ml-4">
             <h1 className="text-2xl font-bold">{warehouse.name}</h1>
-            <p className="text-default-500">ID: {warehouse.warehouse_id}</p>
+            <div className="flex items-center">
+              <p className="text-default-500">
+                Codice: {warehouse.WarehouseCode || "#N/A"}
+              </p>
+            </div>
             {companyName && (
               <p className="text-default-500">Azienda: {companyName}</p>
             )}
@@ -531,7 +602,11 @@ const WarehouseDetail: React.FC = () => {
             color="primary"
             variant="flat"
             startContent={<Icon icon="solar:pen-bold" width={18} />}
-            onPress={onEditOpen}
+            onPress={() =>
+              navigate(
+                `/inventory/warehouses/edit/${warehouse.WarehouseUUID || UUID}`
+              )
+            }
           >
             Modifica
           </Button>
@@ -541,10 +616,24 @@ const WarehouseDetail: React.FC = () => {
             startContent={<Icon icon="solar:trash-bin-trash-bold" width={18} />}
             onPress={onDeleteOpen}
           >
-            Elimina
+            {warehouse.IsActive === false ? "Elimina" : "Disattiva"}
           </Button>
         </div>
       </div>
+
+      {/* Avviso magazzino disattivato */}
+      {warehouse.IsActive === false && (
+        <div className="mb-6 flex items-center rounded-lg bg-danger-50 p-4 text-danger-700">
+          <Icon icon="solar:info-circle-bold" className="mr-3" width={24} />
+          <div>
+            <p className="font-medium">Questo magazzino è disattivato</p>
+            <p className="text-sm">
+              Questo magazzino non è attualmente utilizzabile ma è possibile
+              riattivarlo dalla pagina di modifica.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Modal di modifica */}
       <Modal isOpen={isEditOpen} onClose={onEditClose} size="2xl">
@@ -651,7 +740,11 @@ const WarehouseDetail: React.FC = () => {
           <Card className="col-span-1 md:col-span-2">
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center">
-                <Icon icon="solar:info-circle-bold" className="mr-2 text-primary" width={20} />
+                <Icon
+                  icon="solar:info-circle-bold"
+                  className="mr-2 text-primary"
+                  width={20}
+                />
                 <h2 className="text-lg font-semibold">Informazioni Generali</h2>
               </div>
             </CardHeader>
@@ -661,48 +754,76 @@ const WarehouseDetail: React.FC = () => {
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm text-default-500">Nome</p>
-                    <p className="text-foreground font-medium">{warehouse.name}</p>
+                    <p className="text-foreground font-medium">
+                      {warehouse.name || warehouse.WarehouseName}
+                    </p>
                   </div>
                   <div>
-                    <p className="text-sm text-default-500">ID</p>
-                    <p className="text-foreground font-medium">{warehouse.warehouse_id}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-default-500">Tipo</p>
-                    <Chip color="primary" variant="flat">
-                      {warehouse.type_name}
-                    </Chip>
+                    <p className="text-sm text-default-500">Codice</p>
+                    <p className="text-foreground font-medium">
+                      {warehouse.WarehouseCode || "Non specificato"}
+                    </p>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div>
-                    <p className="text-sm text-default-500">Data di creazione</p>
-                    <p className="text-foreground font-medium">{formatDate(warehouse.created_at)}</p>
+                    <p className="text-sm text-default-500">
+                      Data di creazione
+                    </p>
+                    <p className="text-foreground font-medium">
+                      {warehouse.CreatedAt
+                        ? formatDate(warehouse.CreatedAt)
+                        : formatDate(warehouse.created_at)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-default-500">Creato da</p>
-                    <p className="text-foreground font-medium">ID: {warehouse.created_by}</p>
+                    <p className="text-foreground font-medium">
+                      {createdByUser
+                        ? `${createdByUser.name} ${createdByUser.surname}`
+                        : `ID: ${warehouse.CreatedBy || warehouse.created_by}`}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-default-500">Ultima modifica</p>
                     <p className="text-foreground font-medium">
-                      {warehouse.last_updated ? formatDate(warehouse.last_updated) : "Mai modificato"}
+                      {warehouse.UpdatedAt
+                        ? formatDate(warehouse.UpdatedAt)
+                        : warehouse.last_updated
+                        ? formatDate(warehouse.last_updated)
+                        : "Mai modificato"}
                     </p>
                   </div>
                 </div>
                 <div className="space-y-4">
                   <div>
                     <p className="text-sm text-default-500">Azienda</p>
-                    <p className="text-foreground font-medium">{companyName || warehouse.company_id}</p>
+                    <p className="text-foreground font-medium">
+                      {companyName || warehouse.company_id}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-default-500">Indirizzo</p>
-                    <p className="text-foreground font-medium">{warehouse.location || "Non specificato"}</p>
+                    <p className="text-foreground font-medium">
+                      {warehouse.WarehouseAdress ||
+                        warehouse.location ||
+                        "Non specificato"}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-default-500">Paese</p>
+                    <p className="text-foreground font-medium">
+                      {warehouse.WarehouseCountry || "Non specificato"}
+                    </p>
                   </div>
                   {warehouse.last_inspection && (
                     <div>
-                      <p className="text-sm text-default-500">Ultima ispezione</p>
-                      <p className="text-foreground font-medium">{formatDate(warehouse.last_inspection)}</p>
+                      <p className="text-sm text-default-500">
+                        Ultima ispezione
+                      </p>
+                      <p className="text-foreground font-medium">
+                        {formatDate(warehouse.last_inspection)}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -714,7 +835,11 @@ const WarehouseDetail: React.FC = () => {
           <Card className="col-span-1">
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center">
-                <Icon icon="solar:box-minimalistic-bold" className="mr-2 text-primary" width={20} />
+                <Icon
+                  icon="solar:box-minimalistic-bold"
+                  className="mr-2 text-primary"
+                  width={20}
+                />
                 <h2 className="text-lg font-semibold">Capacità</h2>
               </div>
             </CardHeader>
@@ -729,7 +854,13 @@ const WarehouseDetail: React.FC = () => {
                       innerRadius={70}
                       outerRadius={90}
                       barSize={12}
-                      data={[{ name: "Utilizzato", value: capacityUsage, fill: `hsl(var(--heroui-${capacityColor}))` }]}
+                      data={[
+                        {
+                          name: "Utilizzato",
+                          value: capacityUsage,
+                          fill: `hsl(var(--heroui-${capacityColor}))`,
+                        },
+                      ]}
                       startAngle={90}
                       endAngle={-270}
                     >
@@ -739,11 +870,7 @@ const WarehouseDetail: React.FC = () => {
                         angleAxisId={0}
                         tick={false}
                       />
-                      <RadialBar
-                        background
-                        dataKey="value"
-                        cornerRadius={12}
-                      >
+                      <RadialBar background dataKey="value" cornerRadius={12}>
                         <Cell fill={`hsl(var(--heroui-${capacityColor}))`} />
                       </RadialBar>
                     </RadialBarChart>
@@ -767,23 +894,60 @@ const WarehouseDetail: React.FC = () => {
           <Card className="col-span-1 md:col-span-3">
             <CardHeader className="flex flex-row items-center justify-between">
               <div className="flex items-center">
-                <Icon icon="solar:map-point-linear" className="mr-2 text-primary" width={20} />
+                <Icon
+                  icon="solar:map-point-linear"
+                  className="mr-2 text-primary"
+                  width={20}
+                />
                 <h2 className="text-lg font-semibold">Mappa Posizione</h2>
               </div>
             </CardHeader>
             <Divider />
             <CardBody>
               <div className="relative h-96 w-full rounded-lg overflow-hidden">
-                {/* Coordinate hardcoded, da sostituire con quelle reali dal DB */}
                 {(() => {
-                  const latitude = warehouse.latitude || 45.4642; // fallback Milano
+                  // Controllo se abbiamo informazioni sufficienti per la posizione
+                  const address =
+                    warehouse.WarehouseAdress || warehouse.location;
+                  const country = warehouse.WarehouseCountry;
+                  const fullAddress =
+                    address && country
+                      ? `${address}, ${country}`
+                      : address || country;
+
+                  // Coordinate di fallback per Milano
+                  const latitude = warehouse.latitude || 45.4642;
                   const longitude = warehouse.longitude || 9.19;
                   const center = { lat: latitude, lng: longitude };
-                  
+
+                  // Messaggio se non è possibile recuperare la posizione
+                  if (!fullAddress) {
+                    return (
+                      <div className="flex h-full w-full items-center justify-center rounded-lg bg-default-100">
+                        <div className="text-center p-6">
+                          <Icon
+                            icon="solar:map-linear"
+                            className="mx-auto mb-4 text-default-400"
+                            width={48}
+                          />
+                          <p className="text-default-600 font-medium">
+                            Impossibile visualizzare la mappa
+                          </p>
+                          <p className="text-default-500 mt-2">
+                            Non ci sono informazioni sufficienti sulla posizione
+                            del magazzino.
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  }
+
                   if (!isLoaded) {
                     return (
                       <div className="flex h-full w-full items-center justify-center rounded-lg bg-default-100">
-                        <span className="text-default-500">Caricamento mappa...</span>
+                        <span className="text-default-500">
+                          Caricamento mappa...
+                        </span>
                       </div>
                     );
                   }
@@ -793,7 +957,7 @@ const WarehouseDetail: React.FC = () => {
                     styles: mapStyles,
                     zoomControl: false,
                   };
-                  
+
                   return (
                     <div className="relative h-full w-full">
                       <GoogleMap
@@ -806,18 +970,18 @@ const WarehouseDetail: React.FC = () => {
                       >
                         <Marker position={center} />
                       </GoogleMap>
-                      
+
                       <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-10">
-                        <Button 
-                          isIconOnly 
+                        <Button
+                          isIconOnly
                           className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200"
                           size="md"
                           onClick={handleZoomIn}
                         >
                           <Icon icon="solar:add-bold" width={20} />
                         </Button>
-                        <Button 
-                          isIconOnly 
+                        <Button
+                          isIconOnly
                           className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200"
                           size="md"
                           onClick={handleZoomOut}
@@ -825,17 +989,36 @@ const WarehouseDetail: React.FC = () => {
                           <Icon icon="solar:minus-bold" width={20} />
                         </Button>
                       </div>
-                      
+
                       <div className="absolute bottom-6 left-6 z-10">
                         <Button
                           className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200 flex items-center gap-2 px-4"
                           onClick={handleOpenNavigation}
                           size="md"
-                          startContent={<Icon icon="solar:map-point-bold" width={18} />}
+                          startContent={
+                            <Icon icon="solar:map-point-bold" width={18} />
+                          }
                         >
                           Apri navigazione
                         </Button>
                       </div>
+
+                      {fullAddress && (
+                        <div className="absolute top-4 left-4 right-4 z-10">
+                          <div className="bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-md border border-default-200">
+                            <div className="flex items-center">
+                              <Icon
+                                icon="solar:map-point-bold"
+                                className="text-primary mr-2"
+                                width={18}
+                              />
+                              <p className="text-sm font-medium">
+                                {fullAddress}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })()}
@@ -850,24 +1033,46 @@ const WarehouseDetail: React.FC = () => {
         <Card className="col-span-1 md:col-span-3">
           <CardHeader className="flex flex-row items-center justify-between">
             <div className="flex items-center">
-              <Icon icon="solar:map-arrow-square-bold" className="mr-2 text-primary" width={20} />
+              <Icon
+                icon="solar:map-arrow-square-bold"
+                className="mr-2 text-primary"
+                width={20}
+              />
               <h2 className="text-lg font-semibold">Planimetria Magazzino</h2>
             </div>
             <div className="flex items-center gap-2">
-              <Button isIconOnly size="sm" variant="flat" onPress={handleFloorplanZoomIn} title="Zoom In">
+              <Button
+                isIconOnly
+                size="sm"
+                variant="flat"
+                onPress={handleFloorplanZoomIn}
+                title="Zoom In"
+              >
                 <Icon icon="solar:magnifer-zoom-in-linear" width={18} />
               </Button>
-              <Button isIconOnly size="sm" variant="flat" onPress={handleFloorplanZoomOut} title="Zoom Out">
+              <Button
+                isIconOnly
+                size="sm"
+                variant="flat"
+                onPress={handleFloorplanZoomOut}
+                title="Zoom Out"
+              >
                 <Icon icon="solar:magnifer-zoom-out-linear" width={18} />
               </Button>
-              <Button isIconOnly size="sm" variant="flat" onPress={handleResetFloorplanView} title="Reset View">
+              <Button
+                isIconOnly
+                size="sm"
+                variant="flat"
+                onPress={handleResetFloorplanView}
+                title="Reset View"
+              >
                 <Icon icon="solar:refresh-linear" width={18} />
               </Button>
             </div>
           </CardHeader>
           <Divider />
           <CardBody>
-            <div 
+            <div
               ref={floorplanContainerRef}
               className="relative h-[600px] w-full rounded-lg overflow-hidden bg-default-100 cursor-grab select-none"
               onMouseDown={handleMouseDown}
@@ -883,16 +1088,18 @@ const WarehouseDetail: React.FC = () => {
                   className="absolute top-0 left-0 origin-top-left transition-transform duration-100 ease-out"
                   style={{
                     transform: `translate(${floorplanPosition.x}px, ${floorplanPosition.y}px) scale(${floorplanScale})`,
-                    cursor: isDragging ? 'grabbing' : 'grab',
-                    willChange: 'transform',
-                    maxWidth: 'none',
-                    maxHeight: 'none'
+                    cursor: isDragging ? "grabbing" : "grab",
+                    willChange: "transform",
+                    maxWidth: "none",
+                    maxHeight: "none",
                   }}
                   draggable="false"
                 />
               ) : (
                 <div className="flex h-full w-full items-center justify-center">
-                  <p className="text-default-500">URL planimetria non specificato.</p>
+                  <p className="text-default-500">
+                    URL planimetria non specificato.
+                  </p>
                 </div>
               )}
             </div>

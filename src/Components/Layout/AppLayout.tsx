@@ -21,17 +21,17 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background overflow-y-auto">
       {/* Sidebar solo per desktop */}
-      <div className="hidden md:block h-screen sticky top-0">
+      <div className="hidden md:block h-screen sticky top-0 w-64 min-w-64 max-w-64 flex-shrink-0">
         <Sidebar defaultSelectedKey="home" items={sectionNestedItems} />
       </div>
-      
+
       {/* Contenuto principale */}
       <main className="flex-1">
         {children}
-        
+
         {/* Barra di navigazione mobile */}
         <MobileNavBar />
       </main>
     </div>
   );
-} 
+}

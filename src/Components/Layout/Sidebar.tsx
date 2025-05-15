@@ -90,12 +90,6 @@ export const sectionNestedItems = [
         href: "/inventory/categories",
       },
       {
-        key: "vehicles",
-        title: "Veicoli",
-        icon: "mingcute:truck-line",
-        href: "/inventory/vehicles",
-      },
-      {
         key: "warehouses",
         title: "Magazzini",
         icon: "mdi:warehouse",
@@ -145,16 +139,26 @@ interface User {
 // Interfaccia per il tipo di magazzino
 interface Warehouse {
   warehouse_id: string;
+  WarehouseID?: string;
+  WarehouseUUID?: string;
+  WarehouseName?: string;
   name: string;
   location: string;
+  WarehouseCode?: string;
+  WarehouseCountry?: string;
+  WarehouseAdress?: string;
   company_id: string;
   created_at: Date;
   created_by: string;
+  CreatedAt?: Date;
+  CreatedBy?: string;
+  UpdatedAt?: Date;
   capacity: string;
   type: string;
   license_plate: string | null;
   last_inspection: string | null;
   type_name: string;
+  IsActive?: boolean; // Stato di attività del magazzino conforme al modello
 }
 
 const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
@@ -185,6 +189,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
     // Stato per gli elementi della sidebar con magazzini
     const [sidebarItems, setSidebarItems] = useState<SidebarItem[]>(items);
+    // Flag per forzare il refresh dei magazzini
+    const [refreshWarehouses, setRefreshWarehouses] = useState(false);
 
     // Usiamo la nuova API del tema
     const { isDark, toggleTheme } = useCustomTheme();
@@ -219,39 +225,78 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       fetchUser();
     }, []);
 
+    // Effetto per intercettare i cambiamenti di percorso e forzare l'aggiornamento dei magazzini
+    React.useEffect(() => {
+      // Se siamo appena tornati da una pagina di creazione magazzino, forziamo l'aggiornamento
+      if (
+        location.pathname === "/dashboard" &&
+        location.state?.warehouseCreated
+      ) {
+        setRefreshWarehouses((prev) => !prev);
+      }
+    }, [location]);
+
     // Funzione per creare l'array di elementi sidebar con i magazzini integrati
     const getSidebarItemsWithWarehouses = (
       warehouseList: Warehouse[]
     ): SidebarItem[] => {
-      // Creo un elemento per aggiungere un nuovo magazzino SOLO come icona gialla con tooltip
+      // Elemento per mostrare "Nessun Magazzino disponibile"
+      const noWarehouseElement: SidebarItem = {
+        key: "no-warehouse",
+        title: "Nessun magazzino",
+        icon: "solar:warehouse-linear",
+        className:
+          "text-default-500 py-1 whitespace-nowrap overflow-hidden text-ellipsis",
+      };
+
+      // Creo un elemento per aggiungere un nuovo magazzino
       const addWarehouseElement: SidebarItem = {
         key: "add-warehouse",
-        title: "",
-        startContent: (
-          <Tooltip content="Aggiungi Magazzino" placement="right">
-            <span className="rounded-full hover:bg-warning/20 transition-colors">
-              <Icon
-                icon="solar:add-circle-bold"
-                className="text-warning text-2xl"
-              />
-            </span>
-          </Tooltip>
-        ),
-        href: "/warehouses/new",
-        className:
-          "mt-2 flex items-center justify-center !shadow-none !bg-transparent",
+        title: "Aggiungi magazzino",
+        icon: "solar:add-circle-bold",
+        href: "/inventory/warehouses/add",
+        className: "text-warning font-medium",
       };
 
       // Creiamo elementi per ciascun magazzino se esistono
       const warehouseElements = warehouseList.map((warehouse) => ({
-        key: `warehouse-${warehouse.warehouse_id}`,
-        title: warehouse.name,
-        icon: "solar:warehouse-bold",
-        href: `/warehouses/${warehouse.warehouse_id}`,
+        key: `warehouse-${
+          warehouse.warehouse_id || warehouse.WarehouseID || ""
+        }`,
+        title: `${
+          warehouse.name || warehouse.WarehouseName || "Magazzino senza nome"
+        } ${warehouse.WarehouseCode ? `(${warehouse.WarehouseCode})` : ""}`,
+        icon:
+          warehouse.IsActive === false
+            ? "solar:warehouse-minimalistic-broken"
+            : "solar:warehouse-bold",
+        href: `/warehouses/${
+          warehouse.WarehouseUUID || warehouse.warehouse_id || ""
+        }`,
+        className:
+          warehouse.IsActive !== false
+            ? "transition-all duration-150 hover:bg-default-200 hover:scale-[1.02]"
+            : "text-default-400 opacity-80 transition-all duration-150 hover:bg-default-200 hover:opacity-100",
+        startContent:
+          warehouse.IsActive === false ? (
+            <div className="flex items-center">
+              <div className="mr-2 h-2 w-2 rounded-full bg-danger"></div>
+              <Tooltip content="Magazzino inattivo" placement="right">
+                <Icon
+                  icon="solar:danger-triangle-bold"
+                  className="text-danger mr-1"
+                  width={16}
+                />
+              </Tooltip>
+            </div>
+          ) : null,
       }));
 
       // Aggiungiamo l'elemento per l'aggiunta magazzino alla fine dell'array
-      const allWarehouseItems = [...warehouseElements, addWarehouseElement];
+      const allWarehouseItems =
+        warehouseList.length > 0
+          ? [...warehouseElements, addWarehouseElement]
+          : [noWarehouseElement, addWarehouseElement];
 
       // Creiamo una nuova struttura degli elementi sidebar
       return sectionNestedItems.map((item) => {
@@ -261,17 +306,11 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           const updatedInventoryItems = item.items.map((subItem) => {
             // Se il sottoelemento è "warehouses", controlliamo se ci sono magazzini
             if (subItem.key === "warehouses") {
-              if (warehouseList.length > 0) {
-                // Se ci sono magazzini, conserviamo il tipo Nest e aggiorniamo gli items
-                return {
-                  ...subItem,
-                  items: allWarehouseItems,
-                  type: SidebarItemType.Nest, // Assicuriamoci che sia di tipo Nest
-                };
-              } else {
-                // Se non ci sono magazzini, mostriamo solo l'icona
-                return addWarehouseElement;
-              }
+              return {
+                ...subItem,
+                items: allWarehouseItems,
+                type: SidebarItemType.Nest, // Assicuriamoci che sia di tipo Nest
+              };
             }
             return subItem;
           });
@@ -291,11 +330,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       const fetchWarehouses = async () => {
         try {
           const response = await axios.get("/Warehouse/GET/GetAllWarehouses");
-
-          // Filtriamo solo i magazzini di tipo "warehouse"
-          const warehouseItems = response.data.filter(
-            (warehouse: Warehouse) => warehouse.type_name === "warehouse"
-          );
+          // Rimuovo il filtro sul tipo di magazzino per mostrare tutti i magazzini
+          const warehouseItems = response.data;
 
           setWarehouses(warehouseItems);
 
@@ -308,7 +344,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       };
 
       fetchWarehouses();
-    }, []); // Rimuovo la dipendenza da items per eseguire solo all'avvio
+    }, [refreshWarehouses]); // Aggiungiamo refreshWarehouses come dipendenza per forzare il refresh
 
     React.useEffect(() => {
       const checkMobile = () => {
@@ -376,12 +412,16 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
             : item.href === currentPath ||
               (currentPath.startsWith("/warehouses/") &&
                 item.href?.startsWith("/warehouses/") &&
-                item.href === `/warehouses/${currentPath.split("/")[2]}`);
+                // Confrontiamo solo il percorso base per i magazzini, dato che potrebbe essere WarehouseUUID o warehouse_id
+                currentPath.split("/")[2] === item.href?.split("/")[2]);
 
         const isNestType =
           item.items &&
           item.items?.length > 0 &&
           item?.type === SidebarItemType.Nest;
+
+        // Verifica se l'elemento è disabilitato (magazzino inattivo)
+        const isDisabled = item.className?.includes("pointer-events-none");
 
         if (isNestType) {
           // Is a nest type item , so we need to remove the href
@@ -392,6 +432,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           <ListboxItem
             {...item}
             key={item.key}
+            textValue={item.title}
+            aria-label={item.title}
             classNames={{
               base: cn(
                 {
@@ -402,7 +444,13 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 },
                 {
                   "bg-default-100": isSelected,
-                }
+                },
+                "transition-colors",
+                isDisabled ? "" : "data-[hover=true]:bg-default-100"
+              ),
+              title: cn(
+                "whitespace-nowrap overflow-hidden text-ellipsis max-w-full transition-colors",
+                isDisabled ? "" : "data-[hover=true]:text-foreground-900"
               ),
             }}
             endContent={
@@ -414,8 +462,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               isCompact || isNestType ? null : item.icon ? (
                 <Icon
                   className={cn(
-                    "text-default-700 group-data-[selected=true]:text-foreground-900",
-                    iconClassName
+                    "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0",
+                    iconClassName,
+                    isDisabled && "opacity-60"
                   )}
                   icon={item.icon}
                   width={24}
@@ -451,23 +500,27 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   aria-label={item.title}
                   classNames={{
                     heading: "pr-3",
-                    trigger: cn("p-0", { "bg-default-100": isSelected }),
-                    content: "py-0 pl-4",
+                    trigger: cn("p-0 data-[hover=true]:bg-default-100", {
+                      "bg-default-100": isSelected,
+                    }),
+                    content: "py-0 pl-3",
                   }}
                   title={
                     item.icon ? (
                       <div
-                        className={"flex h-11 items-center gap-2 px-2 py-1.5"}
+                        className={
+                          "flex h-11 items-center gap-2 px-2 py-1.5 overflow-hidden data-[hover=true]:text-foreground-900 transition-colors"
+                        }
                       >
                         <Icon
                           className={cn(
-                            "text-default-700 group-data-[selected=true]:text-foreground-900",
+                            "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0",
                             iconClassName
                           )}
                           icon={item.icon}
                           width={24}
                         />
-                        <span className="text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900">
+                        <span className="text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 whitespace-nowrap overflow-hidden text-ellipsis">
                           {item.title}
                         </span>
                       </div>
@@ -479,13 +532,23 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   {item.items && item.items?.length > 0 ? (
                     <Listbox
                       className={"mt-0.5"}
+                      aria-label={`Sottomenu ${item.title}`}
                       classNames={{
-                        list: cn("border-l border-default-200 pl-4"),
+                        list: cn("border-l border-default-200 pl-3"),
+                      }}
+                      itemClasses={{
+                        base: "pr-1 data-[hover=true]:bg-default-100 data-[hover=true]:text-foreground-900 transition-colors",
+                        title:
+                          "whitespace-nowrap overflow-hidden text-ellipsis",
                       }}
                       items={item.items}
                       variant="flat"
                     >
-                      {item.items.map(renderItem)}
+                      {item.items.map((subItem, index) =>
+                        React.cloneElement(renderItem(subItem), {
+                          key: `${subItem.key}-${index}`,
+                        })
+                      )}
                     </Listbox>
                   ) : (
                     renderItem(item)
@@ -500,8 +563,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     );
 
     const SidebarContent = () => (
-      <div className="h-screen w-auto bg-background text-foreground">
-        <div className="relative flex h-full w-full flex-1 flex-col border-r-small border-divider bg-background p-6">
+      <div className="h-screen w-64 max-w-64 bg-background text-foreground">
+        <div className="relative flex h-full w-full flex-1 flex-col border-r-small border-divider bg-background p-4 overflow-hidden">
           <div
             className="flex items-center justify-between gap-2 px-2 cursor-pointer hover:opacity-80"
             onClick={() => {
@@ -560,6 +623,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               ref={ref}
               hideSelectedIcon
               as="nav"
+              aria-label="Menu principale di navigazione"
               className={cn("list-none", className)}
               classNames={{
                 ...classNames,
@@ -569,11 +633,11 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               itemClasses={{
                 ...itemClasses,
                 base: cn(
-                  "px-3 min-h-11 rounded-large h-[44px] data-[selected=true]:bg-default-100 data-[selected=true]:text-foreground-900",
+                  "px-3 min-h-11 rounded-large h-[44px] data-[selected=true]:bg-default-100 data-[selected=true]:text-foreground-900 data-[hover=true]:bg-default-100 transition-colors",
                   itemClasses?.base
                 ),
                 title: cn(
-                  "text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900",
+                  "text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 data-[hover=true]:text-foreground-900 transition-colors whitespace-nowrap overflow-hidden text-ellipsis",
                   itemClasses?.title
                 ),
               }}
@@ -602,6 +666,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                     classNames={sectionClasses}
                     showDivider={isCompact}
                     title={item.title}
+                    aria-label={`Sezione ${item.title}`}
                   >
                     {item.items.map(renderItem)}
                   </ListboxSection>

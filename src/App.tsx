@@ -6,12 +6,10 @@ import Analytics from "./Pages/Analytics/Analytics";
 import Authentication from "./Pages/Authentication/Authentication";
 import Dashboard from "./Pages/Dashboard/Dashboard";
 import Products from "./Pages/Inventory/Products";
-import Vehicles from "./Pages/Inventory/Vehicles";
 import Settings from "./Pages/Settings/Settings";
-import AddVehicle from "./Pages/Inventory/AddVehicle";
-import EditVehicle from "./Pages/Inventory/EditVehicle";
+import AddWarehouse from "./Pages/Inventory/AddWarehouse";
+import EditWarehouse from "./Pages/Inventory/EditWarehouse";
 import WarehouseDetail from "./Pages/Warehouses/WarehouseDetail";
-import WarehouseNew from "./Pages/Warehouses/WarehouseNew";
 import ProductAdd from "./Pages/Inventory/ProductAdd";
 import ProductEdit from "./Pages/Inventory/ProductEdit";
 
@@ -74,15 +72,13 @@ function App() {
             path="/inventory/products/edit/:id"
             element={<ProductEdit />}
           />
-          <Route path="/inventory/vehicles" element={<Vehicles />} />
-          <Route path="/inventory/vehicles/add" element={<AddVehicle />} />
+          <Route path="/inventory/warehouses/add" element={<AddWarehouse />} />
           <Route
-            path="/inventory/vehicles/edit/:id"
-            element={<EditVehicle />}
+            path="/inventory/warehouses/edit/:UUID"
+            element={<EditWarehouse />}
           />
           <Route path="/analytics" element={<Analytics />} />
-          <Route path="/warehouses/new" element={<WarehouseNew />} />
-          <Route path="/warehouses/:id" element={<WarehouseDetail />} />
+          <Route path="/warehouses/:UUID" element={<WarehouseDetail />} />
         </Route>
       </Routes>
     );

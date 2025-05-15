@@ -10,22 +10,24 @@ import {
   Input,
   Breadcrumbs,
   BreadcrumbItem,
-  Textarea,
   Modal,
   ModalContent,
   ModalBody,
   useDisclosure,
+  Switch,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 
-const WarehouseNew: React.FC = () => {
+const AddWarehouse: React.FC = () => {
   const navigate = useNavigate();
 
   // Stato per il form
   const [formData, setFormData] = useState({
-    name: "",
-    location: "",
-    capacity: "",
+    warehouseName: "",
+    warehouseCode: "",
+    warehouseCountry: "Italia",
+    warehouseAdress: "",
+    isActive: true,
   });
 
   // Stato per il loading durante il salvataggio
@@ -38,13 +40,13 @@ const WarehouseNew: React.FC = () => {
     onOpen: onSuccessOpen,
     onClose: onSuccessClose,
   } = useDisclosure();
-  // Stato per memorizzare l'ID del magazzino creato
-  const [createdWarehouseId, setCreatedWarehouseId] = useState<string | null>(
-    null
-  );
+  // Stato per memorizzare l'UUID del magazzino creato
+  const [createdWarehouseUUID, setCreatedWarehouseUUID] = useState<
+    string | null
+  >(null);
 
   // Gestione del cambiamento dei campi del form
-  const handleChange = (field: string, value: string) => {
+  const handleChange = (field: string, value: string | boolean) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -64,21 +66,16 @@ const WarehouseNew: React.FC = () => {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.name.trim()) {
-      newErrors.name = "Il nome è obbligatorio";
+    if (!formData.warehouseName.trim()) {
+      newErrors.warehouseName = "Il nome è obbligatorio";
     }
 
-    if (!formData.location.trim()) {
-      newErrors.location = "La posizione è obbligatoria";
+    if (!formData.warehouseCode.trim()) {
+      newErrors.warehouseCode = "Il codice è obbligatorio";
     }
 
-    if (!formData.capacity.trim()) {
-      newErrors.capacity = "La capacità è obbligatoria";
-    } else if (
-      isNaN(Number(formData.capacity)) ||
-      Number(formData.capacity) <= 0
-    ) {
-      newErrors.capacity = "La capacità deve essere un numero positivo";
+    if (!formData.warehouseAdress.trim()) {
+      newErrors.warehouseAdress = "L'indirizzo è obbligatorio";
     }
 
     setErrors(newErrors);
@@ -96,24 +93,35 @@ const WarehouseNew: React.FC = () => {
         "/Authentication/GET/GetSessionData"
       );
       const companyId = sessionResponse.data.company_id;
+      const userId = sessionResponse.data.user_id;
 
-      // Crea il magazzino
+      // Crea il magazzino con i nomi dei campi corretti
+      const warehouseUUID = crypto.randomUUID();
+
       const response = await axios.post("/Warehouse/POST/CreateWarehouse", {
-        name: formData.name,
-        location: formData.location,
-        capacity: formData.capacity,
+        WarehouseUUID: warehouseUUID,
+        WarehouseName: formData.warehouseName,
+        WarehouseCode: formData.warehouseCode,
+        WarehouseCountry: formData.warehouseCountry,
+        WarehouseAdress: formData.warehouseAdress,
+        IsActive: formData.isActive,
+        CreatedBy: userId,
         company_id: companyId,
       });
 
-      if (response.data && response.data.warehouse_id) {
-        // Memorizza l'ID del magazzino creato
-        setCreatedWarehouseId(response.data.warehouse_id);
+      if (
+        response.data &&
+        (response.data.WarehouseUUID || response.data.warehouse_id)
+      ) {
+        // Memorizza l'UUID del magazzino creato
+        const uuid = response.data.WarehouseUUID || response.data.warehouse_id;
+        setCreatedWarehouseUUID(uuid);
         // Mostra il modal di successo
         onSuccessOpen();
         // Attendi 3 secondi e poi reindirizza
         setTimeout(() => {
           onSuccessClose();
-          navigate(`/warehouses/${response.data.warehouse_id}`);
+          navigate(`/warehouses/${uuid}`);
         }, 3000);
       } else {
         throw new Error("Errore nella creazione del magazzino");
@@ -134,7 +142,7 @@ const WarehouseNew: React.FC = () => {
       {/* Breadcrumbs */}
       <Breadcrumbs className="mb-4">
         <BreadcrumbItem href="/dashboard">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/dashboard">Magazzini</BreadcrumbItem>
+        <BreadcrumbItem href="/inventory/products">Inventario</BreadcrumbItem>
         <BreadcrumbItem>Nuovo Magazzino</BreadcrumbItem>
       </Breadcrumbs>
 
@@ -193,6 +201,14 @@ const WarehouseNew: React.FC = () => {
             </p>
           </div>
         </div>
+        <Button
+          variant="light"
+          color="default"
+          startContent={<Icon icon="solar:arrow-left-linear" />}
+          onPress={() => navigate("/inventory/products")}
+        >
+          Torna all'Inventario
+        </Button>
       </div>
 
       {/* Form per la creazione di un nuovo magazzino */}
@@ -215,36 +231,75 @@ const WarehouseNew: React.FC = () => {
               </p>
               <Input
                 placeholder="Nome del magazzino"
-                value={formData.name}
-                onChange={(e) => handleChange("name", e.target.value)}
-                isInvalid={!!errors.name}
-                errorMessage={errors.name}
+                value={formData.warehouseName}
+                onChange={(e) => handleChange("warehouseName", e.target.value)}
+                isInvalid={!!errors.warehouseName}
+                errorMessage={errors.warehouseName}
               />
             </div>
             <div>
               <p className="mb-2 text-sm">
-                Posizione <span className="text-danger">*</span>
+                Codice <span className="text-danger">*</span>
               </p>
               <Input
-                placeholder="Posizione del magazzino"
-                value={formData.location}
-                onChange={(e) => handleChange("location", e.target.value)}
-                isInvalid={!!errors.location}
-                errorMessage={errors.location}
+                placeholder="Codice del magazzino"
+                value={formData.warehouseCode}
+                onChange={(e) => handleChange("warehouseCode", e.target.value)}
+                isInvalid={!!errors.warehouseCode}
+                errorMessage={errors.warehouseCode}
+              />
+            </div>
+            <div>
+              <p className="mb-2 text-sm">
+                Paese <span className="text-danger">*</span>
+              </p>
+              <Input
+                placeholder="Paese"
+                value={formData.warehouseCountry}
+                onChange={(e) =>
+                  handleChange("warehouseCountry", e.target.value)
+                }
+                isInvalid={!!errors.warehouseCountry}
+                errorMessage={errors.warehouseCountry}
+              />
+            </div>
+            <div>
+              <p className="mb-2 text-sm">
+                Indirizzo <span className="text-danger">*</span>
+              </p>
+              <Input
+                placeholder="Indirizzo del magazzino"
+                value={formData.warehouseAdress}
+                onChange={(e) =>
+                  handleChange("warehouseAdress", e.target.value)
+                }
+                isInvalid={!!errors.warehouseAdress}
+                errorMessage={errors.warehouseAdress}
               />
             </div>
             <div className="md:col-span-2">
-              <p className="mb-2 text-sm">
-                Capacità (m³) <span className="text-danger">*</span>
+              <div className="flex items-center">
+                <p className="mr-4 text-sm">Stato del magazzino:</p>
+                <div className="flex items-center">
+                  <Switch
+                    isSelected={formData.isActive}
+                    onValueChange={(value) => handleChange("isActive", value)}
+                    color="success"
+                    size="sm"
+                  />
+                  <span
+                    className={`ml-2 text-sm ${
+                      formData.isActive ? "text-success-600" : "text-danger-600"
+                    }`}
+                  >
+                    {formData.isActive ? "Attivo" : "Disattivato"}
+                  </span>
+                </div>
+              </div>
+              <p className="mt-1 text-xs text-default-500">
+                I magazzini disattivati saranno visibili ma evidenziati come non
+                attivi nell'interfaccia.
               </p>
-              <Input
-                placeholder="Capacità del magazzino"
-                type="number"
-                value={formData.capacity}
-                onChange={(e) => handleChange("capacity", e.target.value)}
-                isInvalid={!!errors.capacity}
-                errorMessage={errors.capacity}
-              />
             </div>
           </div>
 
@@ -252,7 +307,7 @@ const WarehouseNew: React.FC = () => {
             <Button
               color="default"
               variant="light"
-              onClick={() => navigate("/dashboard")}
+              onClick={() => navigate("/inventory/products")}
             >
               Annulla
             </Button>
@@ -283,4 +338,4 @@ style.innerHTML = `
 `;
 document.head.appendChild(style);
 
-export default WarehouseNew;
+export default AddWarehouse;
