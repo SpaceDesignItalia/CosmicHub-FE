@@ -34,6 +34,7 @@ import {
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { BrowserMultiFormatReader, Result, Exception } from "@zxing/library";
+import axios from "axios";
 
 interface ProductFormData {
   name: string;
@@ -55,6 +56,7 @@ interface ProductFormData {
   documents: FileWithPreview[];
   barcodeType: "manual" | "auto" | "scan";
   qrCodeType: "manual" | "auto" | "scan";
+  attributes: ProductAttribute[];
   [key: string]:
     | string
     | number
@@ -62,7 +64,8 @@ interface ProductFormData {
     | FileWithPreview[]
     | "manual"
     | "auto"
-    | "scan";
+    | "scan"
+    | ProductAttribute[];
 }
 
 interface FileWithPreview extends File {
@@ -74,9 +77,24 @@ interface Brand {
   name: string;
 }
 
+interface ApiResponse {
+  attribute_id: string | null;
+  category_id: string;
+  category_name: string;
+  name: string | null;
+  type: string | null;
+}
+
+interface CategoryAttribute {
+  id: string;
+  name: string;
+  type: string;
+}
+
 interface Category {
   id: string;
   name: string;
+  attributes: CategoryAttribute[];
 }
 
 interface TabError {
@@ -90,6 +108,13 @@ interface ScannerOverlayProps {
   error: string | null;
   hasAttemptedScan: boolean;
   videoRef: React.RefObject<HTMLVideoElement | null>;
+}
+
+interface ProductAttribute {
+  id: string;
+  name: string;
+  type: string;
+  value: string;
 }
 
 function ScannerOverlay({
@@ -332,6 +357,12 @@ export default function AddProduct() {
   const [categoryQuery, setCategoryQuery] = useState("");
   const [formProgress, setFormProgress] = useState(0);
   const [tabErrors, setTabErrors] = useState<TabError[]>([]);
+  const [selectedCategoryAttributes, setSelectedCategoryAttributes] = useState<
+    CategoryAttribute[]
+  >([]);
+  const [customAttributes, setCustomAttributes] = useState<ProductAttribute[]>(
+    []
+  );
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
     sku: "",
@@ -352,6 +383,7 @@ export default function AddProduct() {
     documents: [],
     barcodeType: "manual",
     qrCodeType: "manual",
+    attributes: [],
   });
   const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
   const [isDraggingDocs, setIsDraggingDocs] = useState(false);
@@ -413,22 +445,37 @@ export default function AddProduct() {
   const loadInitialData = async () => {
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API calls
-      await Promise.all([
-        new Promise((resolve) => setTimeout(resolve, 1000)), // Simulate API delay
-      ]);
-      setBrands([
-        { id: "1", name: "Apple" },
-        { id: "2", name: "Samsung" },
-        { id: "3", name: "Sony" },
-      ]);
-      setCategories([
-        { id: "1", name: "Elettronica" },
-        { id: "2", name: "Abbigliamento" },
-        { id: "3", name: "Alimentari" },
-        { id: "4", name: "Casa e Giardino" },
-        { id: "5", name: "Sport" },
-      ]);
+      const response = await axios.get("/Product/GET/GetAllCategories");
+      const rawData: ApiResponse[] = response.data;
+
+      // Group by category_id and transform into desired format
+      const groupedCategories = rawData.reduce(
+        (acc: { [key: string]: Category }, curr) => {
+          if (!acc[curr.category_id]) {
+            // Initialize new category
+            acc[curr.category_id] = {
+              id: curr.category_id,
+              name: curr.category_name,
+              attributes: [],
+            };
+          }
+
+          // Add attribute only if it exists (not null)
+          if (curr.name && curr.type && curr.attribute_id) {
+            acc[curr.category_id].attributes.push({
+              id: curr.attribute_id,
+              name: curr.name,
+              type: curr.type,
+            });
+          }
+
+          return acc;
+        },
+        {}
+      );
+
+      // Convert to array and set state
+      setCategories(Object.values(groupedCategories));
     } catch (error) {
       console.error("Error loading initial data:", error);
     } finally {
@@ -448,8 +495,25 @@ export default function AddProduct() {
     handleChange("brand", brandName);
   };
 
-  const handleCategorySelection = (categoryName: string) => {
-    handleChange("category", categoryName);
+  const handleCategorySelection = (categoryId: string) => {
+    const selectedCategory = categories.find((cat) => cat.id === categoryId);
+    if (selectedCategory) {
+      handleChange("category", selectedCategory.name);
+      setSelectedCategoryAttributes(selectedCategory.attributes);
+
+      // Initialize attributes with empty values
+      const initialAttributes = selectedCategory.attributes.map((attr) => ({
+        id: attr.id,
+        name: attr.name,
+        type: attr.type,
+        value: "",
+      }));
+
+      setFormData((prev) => ({
+        ...prev,
+        attributes: [...initialAttributes, ...customAttributes],
+      }));
+    }
   };
 
   const handleChange = (field: string, value: any) => {
@@ -901,6 +965,43 @@ export default function AddProduct() {
     }
   };
 
+  const addCustomAttribute = () => {
+    const newAttribute: ProductAttribute = {
+      id: Date.now().toString(),
+      name: "",
+      type: "text",
+      value: "",
+    };
+    setCustomAttributes((prev) => [...prev, newAttribute]);
+    setFormData((prev) => ({
+      ...prev,
+      attributes: [...prev.attributes, newAttribute],
+    }));
+  };
+
+  const updateAttribute = (
+    attributeId: string,
+    field: keyof ProductAttribute,
+    value: string
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      attributes: prev.attributes.map((attr) =>
+        attr.id === attributeId ? { ...attr, [field]: value } : attr
+      ),
+    }));
+  };
+
+  const removeAttribute = (attributeId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      attributes: prev.attributes.filter((attr) => attr.id !== attributeId),
+    }));
+    setCustomAttributes((prev) =>
+      prev.filter((attr) => attr.id !== attributeId)
+    );
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -1030,7 +1131,10 @@ export default function AddProduct() {
                       }
                     >
                       {(category: Category) => (
-                        <AutocompleteItem textValue={category.name}>
+                        <AutocompleteItem
+                          key={category.id}
+                          textValue={category.name}
+                        >
                           {category.name}
                         </AutocompleteItem>
                       )}
@@ -1503,6 +1607,143 @@ export default function AddProduct() {
                     onChange={(e) => handleChange("notes", e.target.value)}
                     minRows={2}
                   />
+                </div>
+              </div>
+            </Tab>
+
+            <Tab
+              key="attributes"
+              title={
+                <div className="flex items-center gap-2">
+                  <Icon icon="solar:list-check-bold" />
+                  <span>Attributi Prodotto</span>
+                  {formData.attributes.length > 0 && (
+                    <Chip
+                      size="sm"
+                      variant="flat"
+                      color="primary"
+                      className="gap-1"
+                    >
+                      {formData.attributes.length}
+                    </Chip>
+                  )}
+                </div>
+              }
+            >
+              <div className="mt-4 space-y-6">
+                {/* Category Attributes */}
+                {selectedCategoryAttributes.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">
+                      Attributi della Categoria
+                    </h3>
+                    <div className="grid gap-4">
+                      {formData.attributes
+                        .filter((attr) =>
+                          selectedCategoryAttributes.some(
+                            (catAttr) => catAttr.id === attr.id
+                          )
+                        )
+                        .map((attr) => (
+                          <div key={attr.id} className="flex gap-4">
+                            <Input
+                              label={attr.name}
+                              type={attr.type === "number" ? "number" : "text"}
+                              value={attr.value}
+                              onChange={(e) =>
+                                updateAttribute(
+                                  attr.id,
+                                  "value",
+                                  e.target.value
+                                )
+                              }
+                              variant="bordered"
+                              className="flex-1"
+                            />
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom Attributes */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-medium">
+                      Attributi Personalizzati
+                    </h3>
+                    <Button
+                      color="primary"
+                      variant="flat"
+                      startContent={<Icon icon="solar:add-circle-bold" />}
+                      onClick={addCustomAttribute}
+                    >
+                      Aggiungi Attributo
+                    </Button>
+                  </div>
+
+                  <div className="grid gap-4">
+                    {formData.attributes
+                      .filter(
+                        (attr) =>
+                          !selectedCategoryAttributes.some(
+                            (catAttr) => catAttr.id === attr.id
+                          )
+                      )
+                      .map((attr) => (
+                        <div key={attr.id} className="flex gap-4">
+                          <Input
+                            placeholder="Nome attributo"
+                            value={attr.name}
+                            onChange={(e) =>
+                              updateAttribute(attr.id, "name", e.target.value)
+                            }
+                            variant="bordered"
+                            className="flex-1"
+                          />
+                          <Select
+                            selectedKeys={[attr.type]}
+                            onSelectionChange={(keys) => {
+                              const selectedKey = Array.from(keys)[0] as string;
+                              updateAttribute(attr.id, "type", selectedKey);
+                            }}
+                            variant="bordered"
+                            className="w-40"
+                          >
+                            <SelectItem key="text" textValue="Testo">
+                              Testo
+                            </SelectItem>
+                            <SelectItem key="number" textValue="Numero">
+                              Numero
+                            </SelectItem>
+                            <SelectItem key="date" textValue="Data">
+                              Data
+                            </SelectItem>
+                            <SelectItem key="boolean" textValue="Si/No">
+                              Si/No
+                            </SelectItem>
+                          </Select>
+                          <Input
+                            placeholder="Valore"
+                            type={attr.type === "number" ? "number" : "text"}
+                            value={attr.value}
+                            onChange={(e) =>
+                              updateAttribute(attr.id, "value", e.target.value)
+                            }
+                            variant="bordered"
+                            className="flex-1"
+                          />
+                          <Button
+                            isIconOnly
+                            color="danger"
+                            variant="flat"
+                            onClick={() => removeAttribute(attr.id)}
+                          >
+                            <Icon icon="solar:trash-bin-trash-bold" />
+                          </Button>
+                        </div>
+                      ))}
+                  </div>
                 </div>
               </div>
             </Tab>
