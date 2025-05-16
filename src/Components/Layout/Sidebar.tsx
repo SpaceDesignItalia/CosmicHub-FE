@@ -72,6 +72,12 @@ export const sectionNestedItems = [
     href: "/analytics",
   },
   {
+    key: "suppliers",
+    title: "Fornitori",
+    icon: "solar:users-group-rounded-bold",
+    href: "/suppliers",
+  },
+  {
     key: "inventory",
     title: "Inventory",
     icon: "solar:box-line-duotone",
