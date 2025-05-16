@@ -55,6 +55,7 @@ interface ProductFormData {
   barcodeType: "manual" | "auto" | "scan";
   qrCodeType: "manual" | "auto" | "scan";
   attributes: ProductAttribute[];
+  variants: ProductVariant[];
   [key: string]:
     | string
     | number
@@ -63,7 +64,8 @@ interface ProductFormData {
     | "manual"
     | "auto"
     | "scan"
-    | ProductAttribute[];
+    | ProductAttribute[]
+    | ProductVariant[];
 }
 
 interface FileWithPreview extends File {
@@ -121,6 +123,12 @@ interface ProductAttribute {
   type: string;
   value: string;
   isRequired: boolean;
+}
+
+interface ProductVariant {
+  id: string;
+  name: string;
+  attributes: ProductAttribute[];
 }
 
 function ScannerOverlay({
@@ -392,6 +400,7 @@ export default function AddProduct() {
     barcodeType: "manual",
     qrCodeType: "manual",
     attributes: [],
+    variants: [],
   });
   const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
   const [isDraggingDocs, setIsDraggingDocs] = useState(false);
@@ -1038,6 +1047,106 @@ export default function AddProduct() {
     );
   };
 
+  const addVariant = () => {
+    const newVariant: ProductVariant = {
+      id: Date.now().toString(),
+      name: "",
+      attributes: [],
+    };
+    setFormData((prev) => ({
+      ...prev,
+      variants: [...prev.variants, newVariant],
+    }));
+  };
+
+  const updateVariant = (
+    variantId: string,
+    field: keyof ProductVariant,
+    value: string | ProductAttribute[]
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      variants: prev.variants.map((variant) =>
+        variant.id === variantId
+          ? {
+              ...variant,
+              [field]: value,
+            }
+          : variant
+      ),
+    }));
+  };
+
+  const removeVariant = (variantId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      variants: prev.variants.filter((variant) => variant.id !== variantId),
+    }));
+  };
+
+  const addVariantAttribute = (variantId: string) => {
+    const newAttribute: ProductAttribute = {
+      id: Date.now().toString(),
+      name: "",
+      type: "text",
+      value: "",
+      isRequired: false,
+    };
+    setFormData((prev) => ({
+      ...prev,
+      variants: prev.variants.map((variant) =>
+        variant.id === variantId
+          ? {
+              ...variant,
+              attributes: [...variant.attributes, newAttribute],
+            }
+          : variant
+      ),
+    }));
+  };
+
+  const updateVariantAttribute = (
+    variantId: string,
+    attributeId: string,
+    field: keyof ProductAttribute,
+    value: string | boolean
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      variants: prev.variants.map((variant) =>
+        variant.id === variantId
+          ? {
+              ...variant,
+              attributes: variant.attributes.map((attr) =>
+                attr.id === attributeId
+                  ? {
+                      ...attr,
+                      [field]: field === "isRequired" ? Boolean(value) : value,
+                    }
+                  : attr
+              ),
+            }
+          : variant
+      ),
+    }));
+  };
+
+  const removeVariantAttribute = (variantId: string, attributeId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      variants: prev.variants.map((variant) =>
+        variant.id === variantId
+          ? {
+              ...variant,
+              attributes: variant.attributes.filter(
+                (attr) => attr.id !== attributeId
+              ),
+            }
+          : variant
+      ),
+    }));
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -1632,6 +1741,269 @@ export default function AddProduct() {
                     Il prodotto ha varianti
                   </label>
                 </div>
+
+                {formData.hasVariants && (
+                  <div className="mt-6 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">Varianti Prodotto</h3>
+                      <Button
+                        color="primary"
+                        variant="flat"
+                        startContent={<Icon icon="solar:add-circle-bold" />}
+                        onClick={addVariant}
+                      >
+                        Aggiungi Variante
+                      </Button>
+                    </div>
+
+                    {formData.variants.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl border-default-200">
+                        <div className="p-3 rounded-full bg-primary/10 mb-4">
+                          <Icon
+                            icon="solar:layers-bold"
+                            className="text-3xl text-primary"
+                          />
+                        </div>
+                        <h4 className="text-lg font-medium text-default-600 mb-2">
+                          Nessuna variante
+                        </h4>
+                        <p className="text-sm text-default-500 text-center max-w-md mb-4">
+                          Aggiungi varianti per gestire diverse versioni dello
+                          stesso prodotto, come taglie, colori o altre
+                          caratteristiche specifiche.
+                        </p>
+                        <Button
+                          color="primary"
+                          variant="flat"
+                          startContent={<Icon icon="solar:add-circle-bold" />}
+                          onClick={addVariant}
+                        >
+                          Aggiungi la prima variante
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-8">
+                        {formData.variants.map((variant) => (
+                          <div
+                            key={variant.id}
+                            className="p-6 border rounded-xl border-default-200 space-y-6"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <Input
+                                  label="Nome Variante"
+                                  placeholder="Es: Taglia L, Colore Rosso"
+                                  value={variant.name}
+                                  onChange={(e) =>
+                                    updateVariant(
+                                      variant.id,
+                                      "name",
+                                      e.target.value
+                                    )
+                                  }
+                                  variant="bordered"
+                                  color="primary"
+                                  className="max-w-md"
+                                />
+                              </div>
+                              <Button
+                                isIconOnly
+                                color="danger"
+                                variant="light"
+                                onClick={() => removeVariant(variant.id)}
+                              >
+                                <Icon
+                                  icon="solar:trash-bin-trash-bold"
+                                  className="text-lg"
+                                />
+                              </Button>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-medium">
+                                  Attributi della Variante
+                                </h4>
+                                <Button
+                                  size="sm"
+                                  color="primary"
+                                  variant="flat"
+                                  startContent={
+                                    <Icon icon="solar:add-circle-bold" />
+                                  }
+                                  onClick={() =>
+                                    addVariantAttribute(variant.id)
+                                  }
+                                >
+                                  Aggiungi Attributo
+                                </Button>
+                              </div>
+
+                              {variant.attributes.length === 0 ? (
+                                <div className="text-center p-4 border border-dashed rounded-lg border-default-200">
+                                  <p className="text-sm text-default-500">
+                                    Nessun attributo. Aggiungi attributi per
+                                    specificare le caratteristiche di questa
+                                    variante.
+                                  </p>
+                                </div>
+                              ) : (
+                                <div className="space-y-4">
+                                  {variant.attributes.map((attr) => (
+                                    <div
+                                      key={attr.id}
+                                      className="grid grid-cols-[1fr,auto,1fr,auto,auto] items-center gap-4"
+                                    >
+                                      <Input
+                                        placeholder="Nome attributo"
+                                        value={attr.name}
+                                        onChange={(e) =>
+                                          updateVariantAttribute(
+                                            variant.id,
+                                            attr.id,
+                                            "name",
+                                            e.target.value
+                                          )
+                                        }
+                                        variant="bordered"
+                                      />
+                                      <Select
+                                        selectedKeys={[attr.type]}
+                                        onSelectionChange={(keys) => {
+                                          const selectedKey = Array.from(
+                                            keys
+                                          )[0] as string;
+                                          updateVariantAttribute(
+                                            variant.id,
+                                            attr.id,
+                                            "type",
+                                            selectedKey
+                                          );
+                                        }}
+                                        variant="bordered"
+                                        className="w-40"
+                                      >
+                                        <SelectItem
+                                          key="text"
+                                          textValue="Testo"
+                                        >
+                                          Testo
+                                        </SelectItem>
+                                        <SelectItem
+                                          key="number"
+                                          textValue="Numero"
+                                        >
+                                          Numero
+                                        </SelectItem>
+                                        <SelectItem key="date" textValue="Data">
+                                          Data
+                                        </SelectItem>
+                                        <SelectItem
+                                          key="boolean"
+                                          textValue="Si/No"
+                                        >
+                                          Si/No
+                                        </SelectItem>
+                                      </Select>
+                                      {attr.type === "boolean" ? (
+                                        <div className="flex items-center">
+                                          <Switch
+                                            checked={attr.value === "true"}
+                                            onChange={(e) =>
+                                              updateVariantAttribute(
+                                                variant.id,
+                                                attr.id,
+                                                "value",
+                                                e.target.checked.toString()
+                                              )
+                                            }
+                                            color="primary"
+                                          />
+                                        </div>
+                                      ) : attr.type === "date" ? (
+                                        <DatePicker
+                                          id={`date-${attr.id}`}
+                                          value={
+                                            attr.value
+                                              ? parseDate(attr.value)
+                                              : null
+                                          }
+                                          onChange={(newDate) =>
+                                            updateVariantAttribute(
+                                              variant.id,
+                                              attr.id,
+                                              "value",
+                                              newDate ? newDate.toString() : ""
+                                            )
+                                          }
+                                          variant="bordered"
+                                          color="primary"
+                                        />
+                                      ) : (
+                                        <Input
+                                          type={
+                                            attr.type === "number"
+                                              ? "number"
+                                              : "text"
+                                          }
+                                          value={attr.value}
+                                          onChange={(e) =>
+                                            updateVariantAttribute(
+                                              variant.id,
+                                              attr.id,
+                                              "value",
+                                              e.target.value
+                                            )
+                                          }
+                                          variant="bordered"
+                                          color="primary"
+                                          placeholder="Valore"
+                                        />
+                                      )}
+                                      <div className="flex items-center">
+                                        <Checkbox
+                                          isSelected={Boolean(attr.isRequired)}
+                                          onValueChange={(checked) =>
+                                            updateVariantAttribute(
+                                              variant.id,
+                                              attr.id,
+                                              "isRequired",
+                                              checked
+                                            )
+                                          }
+                                          size="sm"
+                                          color="primary"
+                                        >
+                                          Obbligatorio
+                                        </Checkbox>
+                                      </div>
+                                      <Button
+                                        isIconOnly
+                                        color="danger"
+                                        variant="light"
+                                        onClick={() =>
+                                          removeVariantAttribute(
+                                            variant.id,
+                                            attr.id
+                                          )
+                                        }
+                                      >
+                                        <Icon
+                                          icon="solar:trash-bin-trash-bold"
+                                          className="text-lg"
+                                        />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Descrizione */}
                 <div>
