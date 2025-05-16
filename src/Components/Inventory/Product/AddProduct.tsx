@@ -55,6 +55,7 @@ interface ProductFormData {
   barcodeType: "manual" | "auto" | "scan";
   qrCodeType: "manual" | "auto" | "scan";
   attributes: ProductAttribute[];
+  variants: ProductVariant[];
   [key: string]:
     | string
     | number
@@ -63,7 +64,8 @@ interface ProductFormData {
     | "manual"
     | "auto"
     | "scan"
-    | ProductAttribute[];
+    | ProductAttribute[]
+    | ProductVariant[];
 }
 
 interface FileWithPreview extends File {
@@ -121,6 +123,12 @@ interface ProductAttribute {
   type: string;
   value: string;
   isRequired: boolean;
+}
+
+interface ProductVariant {
+  id: string;
+  name: string;
+  attributes: ProductAttribute[];
 }
 
 function ScannerOverlay({
@@ -392,6 +400,7 @@ export default function AddProduct() {
     barcodeType: "manual",
     qrCodeType: "manual",
     attributes: [],
+    variants: [],
   });
   const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
   const [isDraggingDocs, setIsDraggingDocs] = useState(false);
@@ -1036,6 +1045,106 @@ export default function AddProduct() {
     setCustomAttributes((prev) =>
       prev.filter((attr) => attr.id !== attributeId)
     );
+  };
+
+  const addVariant = () => {
+    const newVariant: ProductVariant = {
+      id: Date.now().toString(),
+      name: "",
+      attributes: [],
+    };
+    setFormData((prev) => ({
+      ...prev,
+      variants: [...prev.variants, newVariant],
+    }));
+  };
+
+  const updateVariant = (
+    variantId: string,
+    field: keyof ProductVariant,
+    value: string | ProductAttribute[]
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      variants: prev.variants.map((variant) =>
+        variant.id === variantId
+          ? {
+              ...variant,
+              [field]: value,
+            }
+          : variant
+      ),
+    }));
+  };
+
+  const removeVariant = (variantId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      variants: prev.variants.filter((variant) => variant.id !== variantId),
+    }));
+  };
+
+  const addVariantAttribute = (variantId: string) => {
+    const newAttribute: ProductAttribute = {
+      id: Date.now().toString(),
+      name: "",
+      type: "text",
+      value: "",
+      isRequired: false,
+    };
+    setFormData((prev) => ({
+      ...prev,
+      variants: prev.variants.map((variant) =>
+        variant.id === variantId
+          ? {
+              ...variant,
+              attributes: [...variant.attributes, newAttribute],
+            }
+          : variant
+      ),
+    }));
+  };
+
+  const updateVariantAttribute = (
+    variantId: string,
+    attributeId: string,
+    field: keyof ProductAttribute,
+    value: string | boolean
+  ) => {
+    setFormData((prev) => ({
+      ...prev,
+      variants: prev.variants.map((variant) =>
+        variant.id === variantId
+          ? {
+              ...variant,
+              attributes: variant.attributes.map((attr) =>
+                attr.id === attributeId
+                  ? {
+                      ...attr,
+                      [field]: field === "isRequired" ? Boolean(value) : value,
+                    }
+                  : attr
+              ),
+            }
+          : variant
+      ),
+    }));
+  };
+
+  const removeVariantAttribute = (variantId: string, attributeId: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      variants: prev.variants.map((variant) =>
+        variant.id === variantId
+          ? {
+              ...variant,
+              attributes: variant.attributes.filter(
+                (attr) => attr.id !== attributeId
+              ),
+            }
+          : variant
+      ),
+    }));
   };
 
   if (isLoading) {
