@@ -1057,683 +1057,886 @@ export default function AddProduct() {
   }
 
   return (
-    <Card className="h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
-      <CardHeader className="border-b border-default-200 shrink-0">
-        <h2 className="text-xl font-semibold">Informazioni Prodotto</h2>
-      </CardHeader>
-      <CardBody className="p-6 overflow-y-auto overflow-x-hidden">
-        <form onSubmit={handleSubmit} className="space-y-6 w-full max-w-full">
-          <Tabs
-            selectedKey={activeTab}
-            onSelectionChange={(key) => setActiveTab(key as string)}
-            color="primary"
-            variant="underlined"
-            classNames={{
-              cursor: "w-full",
-              panel: "w-full max-w-full overflow-x-hidden",
-            }}
-          >
-            <Tab key="basic" title={getTabIcon("basic")}>
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Nome Prodotto */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Nome Prodotto <span className="text-danger">*</span>
-                  </label>
-                  <Input
-                    placeholder="Nome del prodotto"
-                    variant="bordered"
-                    color={formData.name ? "success" : "primary"}
-                    value={formData.name}
-                    onChange={(e) => handleChange("name", e.target.value)}
-                    isRequired
-                    startContent={
-                      <Icon
-                        icon="solar:pen-bold"
-                        className={
-                          formData.name ? "text-success" : "text-default-400"
-                        }
-                      />
-                    }
-                  />
-                </div>
-
-                {/* SKU */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    SKU <span className="text-danger">*</span>
-                  </label>
-                  <Input
-                    placeholder="Stock Keeping Unit"
-                    variant="bordered"
-                    color={formData.sku ? "success" : "primary"}
-                    value={formData.sku}
-                    onChange={(e) => handleChange("sku", e.target.value)}
-                    isRequired
-                    startContent={
-                      <Icon
-                        icon="solar:barcode-bold"
-                        className={
-                          formData.sku ? "text-success" : "text-default-400"
-                        }
-                      />
-                    }
-                  />
-                </div>
-
-                {/* Categoria */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Categoria <span className="text-danger">*</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <Autocomplete
+    <>
+      <Card className="h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
+        <CardHeader className="border-b border-default-200 shrink-0">
+          <h2 className="text-xl font-semibold">Informazioni Prodotto</h2>
+        </CardHeader>
+        <CardBody className="p-6 overflow-y-auto overflow-x-hidden">
+          <form onSubmit={handleSubmit} className="space-y-6 w-full max-w-full">
+            <Tabs
+              selectedKey={activeTab}
+              onSelectionChange={(key) => setActiveTab(key as string)}
+              color="primary"
+              variant="underlined"
+              classNames={{
+                cursor: "w-full",
+                panel: "w-full max-w-full overflow-x-hidden",
+              }}
+            >
+              <Tab key="basic" title={getTabIcon("basic")}>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Nome Prodotto */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Nome Prodotto <span className="text-danger">*</span>
+                    </label>
+                    <Input
+                      placeholder="Nome del prodotto"
                       variant="bordered"
-                      color={formData.category ? "success" : "primary"}
-                      placeholder="Cerca categoria"
-                      defaultItems={categories}
-                      value={formData.category}
-                      onInputChange={setCategoryQuery}
-                      onSelectionChange={(value) =>
-                        handleCategorySelection(value as string)
-                      }
-                      className="flex-1"
+                      color={formData.name ? "success" : "primary"}
+                      value={formData.name}
+                      onChange={(e) => handleChange("name", e.target.value)}
                       isRequired
                       startContent={
                         <Icon
-                          icon="solar:folder-bold"
+                          icon="solar:pen-bold"
                           className={
-                            formData.category
-                              ? "text-success"
-                              : "text-default-400"
+                            formData.name ? "text-success" : "text-default-400"
                           }
                         />
                       }
-                    >
-                      {(category: Category) => (
-                        <AutocompleteItem
-                          key={category.id}
-                          textValue={category.name}
-                        >
-                          {category.name}
-                        </AutocompleteItem>
-                      )}
-                    </Autocomplete>
-                    <Tooltip content="Aggiungi nuova categoria">
-                      <Button
-                        color="primary"
-                        variant="flat"
-                        onClick={() => navigate("/inventory/categories/new")}
-                        isIconOnly
-                      >
-                        <Icon
-                          icon="solar:add-circle-bold"
-                          className="text-xl"
-                        />
-                      </Button>
-                    </Tooltip>
+                    />
                   </div>
-                  {categoryQuery && filteredCategories.length === 0 && (
-                    <p className="text-sm text-default-400 mt-2">
-                      Nessuna categoria trovata. Usa il pulsante + per
-                      aggiungerne una nuova.
-                    </p>
-                  )}
-                </div>
 
-                {/* Brand */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Brand
-                  </label>
-                  <div className="flex gap-2">
-                    <Autocomplete
+                  {/* SKU */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      SKU <span className="text-danger">*</span>
+                    </label>
+                    <Input
+                      placeholder="Stock Keeping Unit"
                       variant="bordered"
-                      color={formData.brand ? "success" : "primary"}
-                      placeholder="Cerca brand"
-                      defaultItems={brands}
-                      value={formData.brand}
-                      onInputChange={setBrandQuery}
-                      onSelectionChange={(value) =>
-                        handleBrandSelection(value as string)
-                      }
-                      className="flex-1"
-                      startContent={
-                        <Icon
-                          icon="solar:shop-bold"
-                          className={
-                            formData.brand ? "text-success" : "text-default-400"
-                          }
-                        />
-                      }
-                    >
-                      {(brand: Brand) => (
-                        <AutocompleteItem textValue={brand.name}>
-                          {brand.name}
-                        </AutocompleteItem>
-                      )}
-                    </Autocomplete>
-                    <Tooltip content="Aggiungi nuovo brand">
-                      <Button
-                        color="primary"
-                        variant="flat"
-                        onClick={() => navigate("/inventory/brands/new")}
-                        isIconOnly
-                      >
-                        <Icon
-                          icon="solar:add-circle-bold"
-                          className="text-xl"
-                        />
-                      </Button>
-                    </Tooltip>
-                  </div>
-                  {brandQuery && filteredBrands.length === 0 && (
-                    <p className="text-sm text-default-400 mt-2">
-                      Nessun brand trovato. Usa il pulsante + per aggiungerne
-                      uno nuovo.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </Tab>
-
-            <Tab key="commercial" title={getTabIcon("commercial")}>
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Prezzo */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Prezzo <span className="text-danger">*</span>
-                  </label>
-                  <Input
-                    type="number"
-                    variant="bordered"
-                    color={formData.price ? "success" : "primary"}
-                    placeholder="0.00"
-                    startContent={<span className="text-default-400">€</span>}
-                    value={formData.price}
-                    onChange={(e) => handleChange("price", e.target.value)}
-                    isRequired
-                  />
-                </div>
-
-                {/* Fornitore */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Fornitore <span className="text-danger">*</span>
-                  </label>
-                  <div className="flex gap-2">
-                    <Autocomplete
-                      variant="bordered"
-                      color={formData.supplier ? "success" : "primary"}
-                      placeholder="Cerca fornitore"
-                      defaultItems={suppliers}
-                      value={formData.supplier}
-                      onInputChange={setSupplierQuery}
-                      onSelectionChange={(value) =>
-                        handleChange("supplier", value)
-                      }
-                      className="flex-1"
+                      color={formData.sku ? "success" : "primary"}
+                      value={formData.sku}
+                      onChange={(e) => handleChange("sku", e.target.value)}
                       isRequired
                       startContent={
                         <Icon
-                          icon="solar:shop-bold-2"
+                          icon="solar:barcode-bold"
                           className={
-                            formData.supplier
-                              ? "text-success"
-                              : "text-default-400"
+                            formData.sku ? "text-success" : "text-default-400"
                           }
                         />
                       }
-                    >
-                      {(supplier: Supplier) => (
-                        <AutocompleteItem
-                          key={supplier.id}
-                          textValue={supplier.name}
-                        >
-                          {supplier.name}
-                        </AutocompleteItem>
-                      )}
-                    </Autocomplete>
-                    <Tooltip content="Aggiungi nuovo fornitore">
-                      <Button
-                        color="primary"
-                        variant="flat"
-                        onClick={() => navigate("/inventory/suppliers/new")}
-                        isIconOnly
-                      >
-                        <Icon
-                          icon="solar:add-circle-bold"
-                          className="text-xl"
-                        />
-                      </Button>
-                    </Tooltip>
+                    />
                   </div>
-                  {supplierQuery && filteredSuppliers.length === 0 && (
-                    <p className="text-sm text-default-400 mt-2">
-                      Nessun fornitore trovato. Usa il pulsante + per
-                      aggiungerne uno nuovo.
-                    </p>
-                  )}
-                </div>
-              </div>
-            </Tab>
 
-            <Tab key="warehouse" title={getTabIcon("warehouse")}>
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Soglia minima stock */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Soglia Minima Stock <span className="text-danger">*</span>
-                  </label>
-                  <Input
-                    type="number"
-                    variant="bordered"
-                    color={formData.minStockThreshold ? "success" : "primary"}
-                    placeholder="Quantità minima"
-                    value={formData.minStockThreshold}
-                    onChange={(e) =>
-                      handleChange("minStockThreshold", e.target.value)
-                    }
-                    isRequired
-                    startContent={
-                      <Icon
-                        icon="solar:chart-2-bold"
-                        className={
-                          formData.minStockThreshold
-                            ? "text-success"
-                            : "text-default-400"
-                        }
-                      />
-                    }
-                  />
-                </div>
-
-                {/* Posizione */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Posizione Magazzino
-                  </label>
-                  <Input
-                    variant="bordered"
-                    color={formData.location ? "success" : "primary"}
-                    placeholder="Es: Scaffale A-12"
-                    value={formData.location}
-                    onChange={(e) => handleChange("location", e.target.value)}
-                    startContent={
-                      <Icon
-                        icon="solar:map-point-bold"
-                        className={
-                          formData.location
-                            ? "text-success"
-                            : "text-default-400"
-                        }
-                      />
-                    }
-                  />
-                </div>
-
-                {/* Barcode */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Barcode
-                  </label>
-                  <div className="space-y-3">
-                    <RadioGroup
-                      orientation="horizontal"
-                      value={formData.barcodeType}
-                      onValueChange={(value) =>
-                        handleChange("barcodeType", value)
-                      }
-                    >
-                      <Radio value="manual">Manuale</Radio>
-                      <Radio value="auto">Genera</Radio>
-                      <Radio value="scan">Scansiona</Radio>
-                    </RadioGroup>
-
+                  {/* Categoria */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Categoria <span className="text-danger">*</span>
+                    </label>
                     <div className="flex gap-2">
-                      <Input
+                      <Autocomplete
                         variant="bordered"
-                        color={formData.barcode ? "success" : "primary"}
-                        placeholder="Codice a barre"
-                        value={formData.barcode}
-                        onChange={(e) =>
-                          handleChange("barcode", e.target.value)
+                        color={formData.category ? "success" : "primary"}
+                        placeholder="Cerca categoria"
+                        defaultItems={categories}
+                        value={formData.category}
+                        onInputChange={setCategoryQuery}
+                        onSelectionChange={(value) =>
+                          handleCategorySelection(value as string)
                         }
+                        className="flex-1"
+                        isRequired
                         startContent={
                           <Icon
-                            icon="solar:barcode-2-bold"
+                            icon="solar:folder-bold"
                             className={
-                              formData.barcode
+                              formData.category
                                 ? "text-success"
                                 : "text-default-400"
                             }
                           />
                         }
-                        isDisabled={formData.barcodeType === "auto"}
-                      />
-                      {formData.barcodeType === "auto" && (
+                      >
+                        {(category: Category) => (
+                          <AutocompleteItem
+                            key={category.id}
+                            textValue={category.name}
+                          >
+                            {category.name}
+                          </AutocompleteItem>
+                        )}
+                      </Autocomplete>
+                      <Tooltip content="Aggiungi nuova categoria">
                         <Button
                           color="primary"
                           variant="flat"
+                          onClick={() => navigate("/inventory/categories/new")}
                           isIconOnly
-                          onClick={generateBarcode}
                         >
-                          <Icon icon="solar:refresh-bold" />
+                          <Icon
+                            icon="solar:add-circle-bold"
+                            className="text-xl"
+                          />
                         </Button>
+                      </Tooltip>
+                    </div>
+                    {categoryQuery && filteredCategories.length === 0 && (
+                      <p className="text-sm text-default-400 mt-2">
+                        Nessuna categoria trovata. Usa il pulsante + per
+                        aggiungerne una nuova.
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Brand */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Brand
+                    </label>
+                    <div className="flex gap-2">
+                      <Autocomplete
+                        variant="bordered"
+                        color={formData.brand ? "success" : "primary"}
+                        placeholder="Cerca brand"
+                        defaultItems={brands}
+                        value={formData.brand}
+                        onInputChange={setBrandQuery}
+                        onSelectionChange={(value) =>
+                          handleBrandSelection(value as string)
+                        }
+                        className="flex-1"
+                        startContent={
+                          <Icon
+                            icon="solar:shop-bold"
+                            className={
+                              formData.brand ? "text-success" : "text-default-400"
+                            }
+                          />
+                        }
+                      >
+                        {(brand: Brand) => (
+                          <AutocompleteItem textValue={brand.name}>
+                            {brand.name}
+                          </AutocompleteItem>
+                        )}
+                      </Autocomplete>
+                      <Tooltip content="Aggiungi nuovo brand">
+                        <Button
+                          color="primary"
+                          variant="flat"
+                          onClick={() => navigate("/inventory/brands/new")}
+                          isIconOnly
+                        >
+                          <Icon
+                            icon="solar:add-circle-bold"
+                            className="text-xl"
+                          />
+                        </Button>
+                      </Tooltip>
+                    </div>
+                    {brandQuery && filteredBrands.length === 0 && (
+                      <p className="text-sm text-default-400 mt-2">
+                        Nessun brand trovato. Usa il pulsante + per aggiungerne
+                        uno nuovo.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Tab>
+
+              <Tab key="commercial" title={getTabIcon("commercial")}>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Prezzo */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Prezzo <span className="text-danger">*</span>
+                    </label>
+                    <Input
+                      type="number"
+                      variant="bordered"
+                      color={formData.price ? "success" : "primary"}
+                      placeholder="0.00"
+                      startContent={<span className="text-default-400">€</span>}
+                      value={formData.price}
+                      onChange={(e) => handleChange("price", e.target.value)}
+                      isRequired
+                    />
+                  </div>
+
+                  {/* Fornitore */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Fornitore <span className="text-danger">*</span>
+                    </label>
+                    <div className="flex gap-2">
+                      <Autocomplete
+                        variant="bordered"
+                        color={formData.supplier ? "success" : "primary"}
+                        placeholder="Cerca fornitore"
+                        defaultItems={suppliers}
+                        value={formData.supplier}
+                        onInputChange={setSupplierQuery}
+                        onSelectionChange={(value) =>
+                          handleChange("supplier", value)
+                        }
+                        className="flex-1"
+                        isRequired
+                        startContent={
+                          <Icon
+                            icon="solar:shop-bold-2"
+                            className={
+                              formData.supplier
+                                ? "text-success"
+                                : "text-default-400"
+                            }
+                          />
+                        }
+                      >
+                        {(supplier: Supplier) => (
+                          <AutocompleteItem
+                            key={supplier.id}
+                            textValue={supplier.name}
+                          >
+                            {supplier.name}
+                          </AutocompleteItem>
+                        )}
+                      </Autocomplete>
+                      <Tooltip content="Aggiungi nuovo fornitore">
+                        <Button
+                          color="primary"
+                          variant="flat"
+                          onClick={() => navigate("/inventory/suppliers/new")}
+                          isIconOnly
+                        >
+                          <Icon
+                            icon="solar:add-circle-bold"
+                            className="text-xl"
+                          />
+                        </Button>
+                      </Tooltip>
+                    </div>
+                    {supplierQuery && filteredSuppliers.length === 0 && (
+                      <p className="text-sm text-default-400 mt-2">
+                        Nessun fornitore trovato. Usa il pulsante + per
+                        aggiungerne uno nuovo.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </Tab>
+
+              <Tab key="warehouse" title={getTabIcon("warehouse")}>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Soglia minima stock */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Soglia Minima Stock <span className="text-danger">*</span>
+                    </label>
+                    <Input
+                      type="number"
+                      variant="bordered"
+                      color={formData.minStockThreshold ? "success" : "primary"}
+                      placeholder="Quantità minima"
+                      value={formData.minStockThreshold}
+                      onChange={(e) =>
+                        handleChange("minStockThreshold", e.target.value)
+                      }
+                      isRequired
+                      startContent={
+                        <Icon
+                          icon="solar:chart-2-bold"
+                          className={
+                            formData.minStockThreshold
+                              ? "text-success"
+                              : "text-default-400"
+                          }
+                        />
+                      }
+                    />
+                  </div>
+
+                  {/* Posizione */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Posizione Magazzino
+                    </label>
+                    <Input
+                      variant="bordered"
+                      color={formData.location ? "success" : "primary"}
+                      placeholder="Es: Scaffale A-12"
+                      value={formData.location}
+                      onChange={(e) => handleChange("location", e.target.value)}
+                      startContent={
+                        <Icon
+                          icon="solar:map-point-bold"
+                          className={
+                            formData.location
+                              ? "text-success"
+                              : "text-default-400"
+                          }
+                        />
+                      }
+                    />
+                  </div>
+
+                  {/* Barcode */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Barcode
+                    </label>
+                    <div className="space-y-3">
+                      <RadioGroup
+                        orientation="horizontal"
+                        value={formData.barcodeType}
+                        onValueChange={(value) =>
+                          handleChange("barcodeType", value)
+                        }
+                      >
+                        <Radio value="manual">Manuale</Radio>
+                        <Radio value="auto">Genera</Radio>
+                        <Radio value="scan">Scansiona</Radio>
+                      </RadioGroup>
+
+                      <div className="flex gap-2">
+                        <Input
+                          variant="bordered"
+                          color={formData.barcode ? "success" : "primary"}
+                          placeholder="Codice a barre"
+                          value={formData.barcode}
+                          onChange={(e) =>
+                            handleChange("barcode", e.target.value)
+                          }
+                          startContent={
+                            <Icon
+                              icon="solar:barcode-2-bold"
+                              className={
+                                formData.barcode
+                                  ? "text-success"
+                                  : "text-default-400"
+                              }
+                            />
+                          }
+                          isDisabled={formData.barcodeType === "auto"}
+                        />
+                        {formData.barcodeType === "auto" && (
+                          <Button
+                            color="primary"
+                            variant="flat"
+                            isIconOnly
+                            onClick={generateBarcode}
+                          >
+                            <Icon icon="solar:refresh-bold" />
+                          </Button>
+                        )}
+                        {formData.barcodeType === "scan" && (
+                          <Button
+                            color="primary"
+                            variant="flat"
+                            isIconOnly
+                            onClick={() => {
+                              setScannerType("barcode");
+                              setIsScannerOpen(true);
+                            }}
+                          >
+                            <Icon icon="solar:camera-bold" />
+                          </Button>
+                        )}
+                        {formData.barcode && (
+                          <Popover placement="top">
+                            <PopoverTrigger>
+                              <Button color="primary" variant="flat" isIconOnly>
+                                <Icon icon="solar:eye-bold" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent>
+                              <div className="p-4">
+                                <div className="bg-white p-4 rounded-lg">
+                                  {/* TODO: Implementare visualizzazione barcode */}
+                                  <p className="text-center font-mono">
+                                    {formData.barcode}
+                                  </p>
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </div>
+                      {formData.barcodeType === "auto" && (
+                        <p className="text-xs text-default-400">
+                          Verrà generato un codice EAN-13 univoco
+                        </p>
                       )}
                       {formData.barcodeType === "scan" && (
-                        <Button
-                          color="primary"
-                          variant="flat"
-                          isIconOnly
-                          onClick={() => {
-                            setScannerType("barcode");
-                            setIsScannerOpen(true);
-                          }}
-                        >
-                          <Icon icon="solar:camera-bold" />
-                        </Button>
-                      )}
-                      {formData.barcode && (
-                        <Popover placement="top">
-                          <PopoverTrigger>
-                            <Button color="primary" variant="flat" isIconOnly>
-                              <Icon icon="solar:eye-bold" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent>
-                            <div className="p-4">
-                              <div className="bg-white p-4 rounded-lg">
-                                {/* TODO: Implementare visualizzazione barcode */}
-                                <p className="text-center font-mono">
-                                  {formData.barcode}
-                                </p>
-                              </div>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
+                        <p className="text-xs text-default-400">
+                          Usa la fotocamera per scansionare un codice a barre
+                          esistente
+                        </p>
                       )}
                     </div>
-                    {formData.barcodeType === "auto" && (
-                      <p className="text-xs text-default-400">
-                        Verrà generato un codice EAN-13 univoco
-                      </p>
-                    )}
-                    {formData.barcodeType === "scan" && (
-                      <p className="text-xs text-default-400">
-                        Usa la fotocamera per scansionare un codice a barre
-                        esistente
-                      </p>
-                    )}
                   </div>
-                </div>
 
-                {/* QR Code */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    QR Code
-                  </label>
-                  <div className="space-y-3">
-                    <RadioGroup
-                      orientation="horizontal"
-                      value={formData.qrCodeType}
-                      onValueChange={(value) =>
-                        handleChange("qrCodeType", value)
-                      }
-                    >
-                      <Radio value="manual">Manuale</Radio>
-                      <Radio value="auto">Genera</Radio>
-                      <Radio value="scan">Scansiona</Radio>
-                    </RadioGroup>
-
-                    <div className="flex gap-2">
-                      <Input
-                        variant="bordered"
-                        color={formData.qrCode ? "success" : "primary"}
-                        placeholder="QR Code"
-                        value={formData.qrCode}
-                        onChange={(e) => handleChange("qrCode", e.target.value)}
-                        startContent={
-                          <Icon
-                            icon="solar:qr-code-bold"
-                            className={
-                              formData.qrCode
-                                ? "text-success"
-                                : "text-default-400"
-                            }
-                          />
+                  {/* QR Code */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      QR Code
+                    </label>
+                    <div className="space-y-3">
+                      <RadioGroup
+                        orientation="horizontal"
+                        value={formData.qrCodeType}
+                        onValueChange={(value) =>
+                          handleChange("qrCodeType", value)
                         }
-                        isDisabled={formData.qrCodeType === "auto"}
-                      />
+                      >
+                        <Radio value="manual">Manuale</Radio>
+                        <Radio value="auto">Genera</Radio>
+                        <Radio value="scan">Scansiona</Radio>
+                      </RadioGroup>
+
+                      <div className="flex gap-2">
+                        <Input
+                          variant="bordered"
+                          color={formData.qrCode ? "success" : "primary"}
+                          placeholder="QR Code"
+                          value={formData.qrCode}
+                          onChange={(e) => handleChange("qrCode", e.target.value)}
+                          startContent={
+                            <Icon
+                              icon="solar:qr-code-bold"
+                              className={
+                                formData.qrCode
+                                  ? "text-success"
+                                  : "text-default-400"
+                              }
+                            />
+                          }
+                          isDisabled={formData.qrCodeType === "auto"}
+                        />
+                        {formData.qrCodeType === "auto" && (
+                          <Button
+                            color="primary"
+                            variant="flat"
+                            isIconOnly
+                            onClick={generateQRCode}
+                          >
+                            <Icon icon="solar:refresh-bold" />
+                          </Button>
+                        )}
+                        {formData.qrCodeType === "scan" && (
+                          <Button
+                            color="primary"
+                            variant="flat"
+                            isIconOnly
+                            onClick={() => {
+                              setScannerType("qrcode");
+                              setIsScannerOpen(true);
+                            }}
+                          >
+                            <Icon icon="solar:camera-bold" />
+                          </Button>
+                        )}
+                        {formData.qrCode && (
+                          <Popover placement="top">
+                            <PopoverTrigger>
+                              <Button color="primary" variant="flat" isIconOnly>
+                                <Icon icon="solar:eye-bold" />
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent>
+                              <div className="p-4">
+                                <div className="bg-white p-4 rounded-lg">
+                                  {/* TODO: Implementare visualizzazione QR code */}
+                                  <p className="text-center font-mono">
+                                    {formData.qrCode}
+                                  </p>
+                                </div>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
+                        )}
+                      </div>
                       {formData.qrCodeType === "auto" && (
-                        <Button
-                          color="primary"
-                          variant="flat"
-                          isIconOnly
-                          onClick={generateQRCode}
-                        >
-                          <Icon icon="solar:refresh-bold" />
-                        </Button>
+                        <p className="text-xs text-default-400">
+                          Verrà generato un QR code basato su SKU e timestamp
+                        </p>
                       )}
                       {formData.qrCodeType === "scan" && (
+                        <p className="text-xs text-default-400">
+                          Usa la fotocamera per scansionare un QR code esistente
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </Tab>
+
+              <Tab key="physical" title={getTabIcon("physical")}>
+                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Peso */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">Peso</label>
+                    <Input
+                      type="number"
+                      variant="bordered"
+                      color={formData.weight ? "success" : "primary"}
+                      placeholder="Peso in kg"
+                      value={formData.weight}
+                      onChange={(e) => handleChange("weight", e.target.value)}
+                      startContent={
+                        <Icon
+                          icon="solar:scales-bold"
+                          className={
+                            formData.weight ? "text-success" : "text-default-400"
+                          }
+                        />
+                      }
+                      endContent={
+                        <div className="pointer-events-none flex items-center">
+                          <span className="text-default-400">kg</span>
+                        </div>
+                      }
+                    />
+                  </div>
+
+                  {/* Dimensioni */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Dimensioni
+                    </label>
+                    <Input
+                      variant="bordered"
+                      color={formData.dimensions ? "success" : "primary"}
+                      placeholder="LxWxH in cm"
+                      value={formData.dimensions}
+                      onChange={(e) => handleChange("dimensions", e.target.value)}
+                      startContent={
+                        <Icon
+                          icon="solar:ruler-pen-bold"
+                          className={
+                            formData.dimensions
+                              ? "text-success"
+                              : "text-default-400"
+                          }
+                        />
+                      }
+                    />
+                  </div>
+                </div>
+              </Tab>
+
+              <Tab key="variants" title={getTabIcon("variants")}>
+                <div className="mt-4 space-y-6">
+                  {/* Varianti */}
+                  <div className="flex items-center gap-2">
+                    <Switch
+                      color={formData.hasVariants ? "success" : "primary"}
+                      checked={formData.hasVariants}
+                      onChange={(e) =>
+                        handleChange("hasVariants", e.target.checked)
+                      }
+                    />
+                    <label className="text-sm font-medium">
+                      Il prodotto ha varianti
+                    </label>
+                  </div>
+
+                  {/* Descrizione */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Descrizione
+                    </label>
+                    <Textarea
+                      variant="bordered"
+                      color={formData.description ? "success" : "primary"}
+                      placeholder="Descrizione dettagliata del prodotto"
+                      value={formData.description}
+                      onChange={(e) =>
+                        handleChange("description", e.target.value)
+                      }
+                      minRows={3}
+                    />
+                  </div>
+
+                  {/* Note */}
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Note Aggiuntive
+                    </label>
+                    <Textarea
+                      variant="bordered"
+                      color={formData.notes ? "success" : "primary"}
+                      placeholder="Note aggiuntive sul prodotto"
+                      value={formData.notes}
+                      onChange={(e) => handleChange("notes", e.target.value)}
+                      minRows={2}
+                    />
+                  </div>
+                </div>
+              </Tab>
+
+              <Tab
+                key="attributes"
+                title={
+                  <div className="flex items-center gap-2">
+                    <Icon icon="solar:list-check-bold" />
+                    <span>Attributi Prodotto</span>
+                    {formData.attributes.length > 0 && (
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        color="primary"
+                        className="gap-1"
+                      >
+                        {formData.attributes.length}
+                      </Chip>
+                    )}
+                  </div>
+                }
+              >
+                <div className="mt-4 space-y-6">
+                  {/* Category Attributes */}
+                  {selectedCategoryAttributes.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-lg font-medium">
+                        Attributi della Categoria
+                      </h3>
+                      <div className="grid grid-cols-2 gap-4">
+                        {formData.attributes
+                          .filter((attr) =>
+                            selectedCategoryAttributes.some(
+                              (catAttr) => catAttr.id === attr.id
+                            )
+                          )
+                          .map((attr) => (
+                            <div key={attr.id} className="flex gap-4">
+                              {attr.type === "boolean" ? (
+                                <div className="flex flex-col gap-2">
+                                  <label className="text-sm font-medium">
+                                    {attr.name}{" "}
+                                    {attr.isRequired ? (
+                                      <span className="text-danger">*</span>
+                                    ) : (
+                                      ""
+                                    )}
+                                  </label>
+                                  <Switch
+                                    checked={attr.value === "true"}
+                                    onChange={(e) =>
+                                      updateAttribute(
+                                        attr.id,
+                                        "value",
+                                        e.target.checked.toString()
+                                      )
+                                    }
+                                    color="primary"
+                                  />
+                                </div>
+                              ) : attr.type === "date" ? (
+                                <div className="flex-1">
+                                  <label className="block text-sm font-medium mb-2">
+                                    {attr.name}{" "}
+                                    {attr.isRequired ? (
+                                      <span className="text-danger">*</span>
+                                    ) : (
+                                      ""
+                                    )}
+                                  </label>
+                                  <DatePicker
+                                    id={`date-${attr.id}`}
+                                    value={
+                                      attr.value ? parseDate(attr.value) : null
+                                    }
+                                    onChange={(newDate) =>
+                                      updateAttribute(
+                                        attr.id,
+                                        "value",
+                                        newDate ? newDate.toString() : ""
+                                      )
+                                    }
+                                    className="w-full"
+                                    variant="bordered"
+                                    color="primary"
+                                    isRequired={attr.isRequired}
+                                  />
+                                </div>
+                              ) : (
+                                <div className="flex-1">
+                                  <label className="block text-sm font-medium mb-2">
+                                    {attr.name}{" "}
+                                    {attr.isRequired ? (
+                                      <span className="text-danger">*</span>
+                                    ) : (
+                                      ""
+                                    )}
+                                  </label>
+                                  <Input
+                                    type={
+                                      attr.type === "number" ? "number" : "text"
+                                    }
+                                    value={attr.value}
+                                    onChange={(e) =>
+                                      updateAttribute(
+                                        attr.id,
+                                        "value",
+                                        e.target.value
+                                      )
+                                    }
+                                    variant="bordered"
+                                    color="primary"
+                                    className="flex-1"
+                                    isRequired={attr.isRequired}
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Custom Attributes */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-lg font-medium">
+                          Attributi Personalizzati
+                        </h3>
+                        <Tooltip
+                          content={
+                            <div className="px-1 py-2 max-w-xs">
+                              <div className="text-small font-bold mb-2">
+                                Cosa sono gli attributi personalizzati?
+                              </div>
+                              <div className="text-tiny">
+                                <p className="mb-2">
+                                  Gli attributi personalizzati ti permettono di
+                                  aggiungere informazioni specifiche al prodotto
+                                  oltre a quelle standard.
+                                </p>
+                                <p className="font-bold mb-1">Puoi usarli per:</p>
+                                <ul className="list-disc list-inside space-y-1">
+                                  <li>Specificare materiali e dimensioni</li>
+                                  <li>Aggiungere certificazioni</li>
+                                  <li>Indicare caratteristiche tecniche</li>
+                                  <li>Definire proprietà uniche</li>
+                                </ul>
+                              </div>
+                            </div>
+                          }
+                          delay={0}
+                          closeDelay={0}
+                          placement="bottom"
+                          showArrow
+                        >
+                          <Icon
+                            icon="solar:info-circle-bold"
+                            className="text-xl text-default-400 cursor-help"
+                          />
+                        </Tooltip>
+                      </div>
+                      {formData.attributes.filter(
+                        (attr) =>
+                          !selectedCategoryAttributes.some(
+                            (catAttr) => catAttr.id === attr.id
+                          )
+                      ).length > 0 && (
                         <Button
                           color="primary"
                           variant="flat"
-                          isIconOnly
-                          onClick={() => {
-                            setScannerType("qrcode");
-                            setIsScannerOpen(true);
-                          }}
+                          startContent={<Icon icon="solar:add-circle-bold" />}
+                          onClick={addCustomAttribute}
                         >
-                          <Icon icon="solar:camera-bold" />
+                          Aggiungi Attributo
                         </Button>
                       )}
-                      {formData.qrCode && (
-                        <Popover placement="top">
-                          <PopoverTrigger>
-                            <Button color="primary" variant="flat" isIconOnly>
-                              <Icon icon="solar:eye-bold" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent>
-                            <div className="p-4">
-                              <div className="bg-white p-4 rounded-lg">
-                                {/* TODO: Implementare visualizzazione QR code */}
-                                <p className="text-center font-mono">
-                                  {formData.qrCode}
-                                </p>
-                              </div>
-                            </div>
-                          </PopoverContent>
-                        </Popover>
-                      )}
                     </div>
-                    {formData.qrCodeType === "auto" && (
-                      <p className="text-xs text-default-400">
-                        Verrà generato un QR code basato su SKU e timestamp
-                      </p>
-                    )}
-                    {formData.qrCodeType === "scan" && (
-                      <p className="text-xs text-default-400">
-                        Usa la fotocamera per scansionare un QR code esistente
-                      </p>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </Tab>
 
-            <Tab key="physical" title={getTabIcon("physical")}>
-              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Peso */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">Peso</label>
-                  <Input
-                    type="number"
-                    variant="bordered"
-                    color={formData.weight ? "success" : "primary"}
-                    placeholder="Peso in kg"
-                    value={formData.weight}
-                    onChange={(e) => handleChange("weight", e.target.value)}
-                    startContent={
-                      <Icon
-                        icon="solar:scales-bold"
-                        className={
-                          formData.weight ? "text-success" : "text-default-400"
-                        }
-                      />
-                    }
-                    endContent={
-                      <div className="pointer-events-none flex items-center">
-                        <span className="text-default-400">kg</span>
-                      </div>
-                    }
-                  />
-                </div>
-
-                {/* Dimensioni */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Dimensioni
-                  </label>
-                  <Input
-                    variant="bordered"
-                    color={formData.dimensions ? "success" : "primary"}
-                    placeholder="LxWxH in cm"
-                    value={formData.dimensions}
-                    onChange={(e) => handleChange("dimensions", e.target.value)}
-                    startContent={
-                      <Icon
-                        icon="solar:ruler-pen-bold"
-                        className={
-                          formData.dimensions
-                            ? "text-success"
-                            : "text-default-400"
-                        }
-                      />
-                    }
-                  />
-                </div>
-              </div>
-            </Tab>
-
-            <Tab key="variants" title={getTabIcon("variants")}>
-              <div className="mt-4 space-y-6">
-                {/* Varianti */}
-                <div className="flex items-center gap-2">
-                  <Switch
-                    color={formData.hasVariants ? "success" : "primary"}
-                    checked={formData.hasVariants}
-                    onChange={(e) =>
-                      handleChange("hasVariants", e.target.checked)
-                    }
-                  />
-                  <label className="text-sm font-medium">
-                    Il prodotto ha varianti
-                  </label>
-                </div>
-
-                {/* Descrizione */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Descrizione
-                  </label>
-                  <Textarea
-                    variant="bordered"
-                    color={formData.description ? "success" : "primary"}
-                    placeholder="Descrizione dettagliata del prodotto"
-                    value={formData.description}
-                    onChange={(e) =>
-                      handleChange("description", e.target.value)
-                    }
-                    minRows={3}
-                  />
-                </div>
-
-                {/* Note */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Note Aggiuntive
-                  </label>
-                  <Textarea
-                    variant="bordered"
-                    color={formData.notes ? "success" : "primary"}
-                    placeholder="Note aggiuntive sul prodotto"
-                    value={formData.notes}
-                    onChange={(e) => handleChange("notes", e.target.value)}
-                    minRows={2}
-                  />
-                </div>
-              </div>
-            </Tab>
-
-            <Tab
-              key="attributes"
-              title={
-                <div className="flex items-center gap-2">
-                  <Icon icon="solar:list-check-bold" />
-                  <span>Attributi Prodotto</span>
-                  {formData.attributes.length > 0 && (
-                    <Chip
-                      size="sm"
-                      variant="flat"
-                      color="primary"
-                      className="gap-1"
-                    >
-                      {formData.attributes.length}
-                    </Chip>
-                  )}
-                </div>
-              }
-            >
-              <div className="mt-4 space-y-6">
-                {/* Category Attributes */}
-                {selectedCategoryAttributes.length > 0 && (
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-medium">
-                      Attributi della Categoria
-                    </h3>
-                    <div className="grid grid-cols-2 gap-4">
-                      {formData.attributes
-                        .filter((attr) =>
-                          selectedCategoryAttributes.some(
-                            (catAttr) => catAttr.id === attr.id
-                          )
+                    {formData.attributes.filter(
+                      (attr) =>
+                        !selectedCategoryAttributes.some(
+                          (catAttr) => catAttr.id === attr.id
                         )
-                        .map((attr) => (
-                          <div key={attr.id} className="flex gap-4">
-                            {attr.type === "boolean" ? (
-                              <div className="flex flex-col gap-2">
-                                <label className="text-sm font-medium">
-                                  {attr.name}{" "}
-                                  {attr.isRequired ? (
-                                    <span className="text-danger">*</span>
-                                  ) : (
-                                    ""
-                                  )}
-                                </label>
-                                <Switch
-                                  checked={attr.value === "true"}
-                                  onChange={(e) =>
-                                    updateAttribute(
-                                      attr.id,
-                                      "value",
-                                      e.target.checked.toString()
-                                    )
-                                  }
-                                  color="primary"
-                                />
-                              </div>
-                            ) : attr.type === "date" ? (
-                              <div className="flex-1">
-                                <label className="block text-sm font-medium mb-2">
-                                  {attr.name}{" "}
-                                  {attr.isRequired ? (
-                                    <span className="text-danger">*</span>
-                                  ) : (
-                                    ""
-                                  )}
-                                </label>
+                    ).length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl border-default-200">
+                        <div className="p-3 rounded-full bg-primary/10 mb-4">
+                          <Icon
+                            icon="solar:list-check-bold"
+                            className="text-3xl text-primary"
+                          />
+                        </div>
+                        <h4 className="text-lg font-medium text-default-600 mb-2">
+                          Nessun attributo personalizzato
+                        </h4>
+                        <p className="text-sm text-default-500 text-center max-w-md mb-4">
+                          Aggiungi attributi personalizzati per specificare
+                          caratteristiche uniche del prodotto come materiali,
+                          dimensioni specifiche, certificazioni o altre proprietà
+                          rilevanti.
+                        </p>
+                        <Button
+                          color="primary"
+                          variant="flat"
+                          startContent={<Icon icon="solar:add-circle-bold" />}
+                          onClick={addCustomAttribute}
+                        >
+                          Aggiungi il primo attributo
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-4">
+                        {formData.attributes
+                          .filter(
+                            (attr) =>
+                              !selectedCategoryAttributes.some(
+                                (catAttr) => catAttr.id === attr.id
+                              )
+                          )
+                          .map((attr) => (
+                            <div
+                              key={attr.id}
+                              className="grid grid-cols-[1fr,auto,1fr,auto,auto] items-center gap-4"
+                            >
+                              <Input
+                                placeholder="Nome attributo"
+                                value={attr.name}
+                                onChange={(e) =>
+                                  updateAttribute(attr.id, "name", e.target.value)
+                                }
+                                variant="bordered"
+                              />
+                              <Select
+                                selectedKeys={[attr.type]}
+                                onSelectionChange={(keys) => {
+                                  const selectedKey = Array.from(
+                                    keys
+                                  )[0] as string;
+                                  updateAttribute(attr.id, "type", selectedKey);
+                                }}
+                                variant="bordered"
+                                className="w-40"
+                              >
+                                <SelectItem key="text" textValue="Testo">
+                                  Testo
+                                </SelectItem>
+                                <SelectItem key="number" textValue="Numero">
+                                  Numero
+                                </SelectItem>
+                                <SelectItem key="date" textValue="Data">
+                                  Data
+                                </SelectItem>
+                                <SelectItem key="boolean" textValue="Si/No">
+                                  Si/No
+                                </SelectItem>
+                              </Select>
+                              {attr.type === "boolean" ? (
+                                <div className="flex items-center">
+                                  <Switch
+                                    checked={attr.value === "true"}
+                                    onChange={(e) =>
+                                      updateAttribute(
+                                        attr.id,
+                                        "value",
+                                        e.target.checked.toString()
+                                      )
+                                    }
+                                    color="primary"
+                                  />
+                                </div>
+                              ) : attr.type === "date" ? (
                                 <DatePicker
                                   id={`date-${attr.id}`}
                                   value={
@@ -1746,22 +1949,10 @@ export default function AddProduct() {
                                       newDate ? newDate.toString() : ""
                                     )
                                   }
-                                  className="w-full"
                                   variant="bordered"
                                   color="primary"
-                                  isRequired={attr.isRequired}
                                 />
-                              </div>
-                            ) : (
-                              <div className="flex-1">
-                                <label className="block text-sm font-medium mb-2">
-                                  {attr.name}{" "}
-                                  {attr.isRequired ? (
-                                    <span className="text-danger">*</span>
-                                  ) : (
-                                    ""
-                                  )}
-                                </label>
+                              ) : (
                                 <Input
                                   type={
                                     attr.type === "number" ? "number" : "text"
@@ -1776,236 +1967,57 @@ export default function AddProduct() {
                                   }
                                   variant="bordered"
                                   color="primary"
-                                  className="flex-1"
-                                  isRequired={attr.isRequired}
+                                  placeholder="Valore"
                                 />
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Custom Attributes */}
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-lg font-medium">
-                        Attributi Personalizzati
-                      </h3>
-                      <Tooltip
-                        content={
-                          <div className="px-1 py-2 max-w-xs">
-                            <div className="text-small font-bold mb-2">
-                              Cosa sono gli attributi personalizzati?
-                            </div>
-                            <div className="text-tiny">
-                              <p className="mb-2">
-                                Gli attributi personalizzati ti permettono di
-                                aggiungere informazioni specifiche al prodotto
-                                oltre a quelle standard.
-                              </p>
-                              <p className="font-bold mb-1">Puoi usarli per:</p>
-                              <ul className="list-disc list-inside space-y-1">
-                                <li>Specificare materiali e dimensioni</li>
-                                <li>Aggiungere certificazioni</li>
-                                <li>Indicare caratteristiche tecniche</li>
-                                <li>Definire proprietà uniche</li>
-                              </ul>
-                            </div>
-                          </div>
-                        }
-                        delay={0}
-                        closeDelay={0}
-                        placement="bottom"
-                        showArrow
-                      >
-                        <Icon
-                          icon="solar:info-circle-bold"
-                          className="text-xl text-default-400 cursor-help"
-                        />
-                      </Tooltip>
-                    </div>
-                    {formData.attributes.filter(
-                      (attr) =>
-                        !selectedCategoryAttributes.some(
-                          (catAttr) => catAttr.id === attr.id
-                        )
-                    ).length > 0 && (
-                      <Button
-                        color="primary"
-                        variant="flat"
-                        startContent={<Icon icon="solar:add-circle-bold" />}
-                        onClick={addCustomAttribute}
-                      >
-                        Aggiungi Attributo
-                      </Button>
-                    )}
-                  </div>
-
-                  {formData.attributes.filter(
-                    (attr) =>
-                      !selectedCategoryAttributes.some(
-                        (catAttr) => catAttr.id === attr.id
-                      )
-                  ).length === 0 ? (
-                    <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl border-default-200">
-                      <div className="p-3 rounded-full bg-primary/10 mb-4">
-                        <Icon
-                          icon="solar:list-check-bold"
-                          className="text-3xl text-primary"
-                        />
-                      </div>
-                      <h4 className="text-lg font-medium text-default-600 mb-2">
-                        Nessun attributo personalizzato
-                      </h4>
-                      <p className="text-sm text-default-500 text-center max-w-md mb-4">
-                        Aggiungi attributi personalizzati per specificare
-                        caratteristiche uniche del prodotto come materiali,
-                        dimensioni specifiche, certificazioni o altre proprietà
-                        rilevanti.
-                      </p>
-                      <Button
-                        color="primary"
-                        variant="flat"
-                        startContent={<Icon icon="solar:add-circle-bold" />}
-                        onClick={addCustomAttribute}
-                      >
-                        Aggiungi il primo attributo
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-4">
-                      {formData.attributes
-                        .filter(
-                          (attr) =>
-                            !selectedCategoryAttributes.some(
-                              (catAttr) => catAttr.id === attr.id
-                            )
-                        )
-                        .map((attr) => (
-                          <div
-                            key={attr.id}
-                            className="grid grid-cols-[1fr,auto,1fr,auto,auto] items-center gap-4"
-                          >
-                            <Input
-                              placeholder="Nome attributo"
-                              value={attr.name}
-                              onChange={(e) =>
-                                updateAttribute(attr.id, "name", e.target.value)
-                              }
-                              variant="bordered"
-                            />
-                            <Select
-                              selectedKeys={[attr.type]}
-                              onSelectionChange={(keys) => {
-                                const selectedKey = Array.from(
-                                  keys
-                                )[0] as string;
-                                updateAttribute(attr.id, "type", selectedKey);
-                              }}
-                              variant="bordered"
-                              className="w-40"
-                            >
-                              <SelectItem key="text" textValue="Testo">
-                                Testo
-                              </SelectItem>
-                              <SelectItem key="number" textValue="Numero">
-                                Numero
-                              </SelectItem>
-                              <SelectItem key="date" textValue="Data">
-                                Data
-                              </SelectItem>
-                              <SelectItem key="boolean" textValue="Si/No">
-                                Si/No
-                              </SelectItem>
-                            </Select>
-                            {attr.type === "boolean" ? (
+                              )}
                               <div className="flex items-center">
-                                <Switch
-                                  checked={attr.value === "true"}
-                                  onChange={(e) =>
+                                <Checkbox
+                                  isSelected={Boolean(attr.isRequired)}
+                                  onValueChange={(checked) =>
                                     updateAttribute(
                                       attr.id,
-                                      "value",
-                                      e.target.checked.toString()
+                                      "isRequired",
+                                      checked
                                     )
                                   }
+                                  size="sm"
                                   color="primary"
-                                />
+                                >
+                                  Obbligatorio
+                                </Checkbox>
                               </div>
-                            ) : attr.type === "date" ? (
-                              <DatePicker
-                                id={`date-${attr.id}`}
-                                value={
-                                  attr.value ? parseDate(attr.value) : null
-                                }
-                                onChange={(newDate) =>
-                                  updateAttribute(
-                                    attr.id,
-                                    "value",
-                                    newDate ? newDate.toString() : ""
-                                  )
-                                }
-                                variant="bordered"
-                                color="primary"
-                              />
-                            ) : (
-                              <Input
-                                type={
-                                  attr.type === "number" ? "number" : "text"
-                                }
-                                value={attr.value}
-                                onChange={(e) =>
-                                  updateAttribute(
-                                    attr.id,
-                                    "value",
-                                    e.target.value
-                                  )
-                                }
-                                variant="bordered"
-                                color="primary"
-                                placeholder="Valore"
-                              />
-                            )}
-                            <div className="flex items-center">
-                              <Checkbox
-                                isSelected={Boolean(attr.isRequired)}
-                                onValueChange={(checked) =>
-                                  updateAttribute(
-                                    attr.id,
-                                    "isRequired",
-                                    checked
-                                  )
-                                }
-                                size="sm"
-                                color="primary"
+                              <Button
+                                isIconOnly
+                                color="danger"
+                                variant="light"
+                                onClick={() => removeAttribute(attr.id)}
                               >
-                                Obbligatorio
-                              </Checkbox>
+                                <Icon
+                                  icon="solar:trash-bin-trash-bold"
+                                  className="text-lg"
+                                />
+                              </Button>
                             </div>
-                            <Button
-                              isIconOnly
-                              color="danger"
-                              variant="light"
-                              onClick={() => removeAttribute(attr.id)}
-                            >
-                              <Icon
-                                icon="solar:trash-bin-trash-bold"
-                                className="text-lg"
-                              />
-                            </Button>
-                          </div>
-                        ))}
-                    </div>
-                  )}
+                          ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Tab>
-          </Tabs>
-        </form>
-      </CardBody>
-    </Card>
+              </Tab>
+            </Tabs>
+          </form>
+        </CardBody>
+      </Card>
+      
+      {isScannerOpen && (
+        <ScannerOverlay
+          type={scannerType}
+          onClose={stopScanner}
+          error={scannerError}
+          hasAttemptedScan={hasAttemptedScan}
+          videoRef={videoRef}
+        />
+      )}
+    </>
   );
 }
