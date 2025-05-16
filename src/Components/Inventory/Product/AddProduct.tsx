@@ -11,7 +11,6 @@ import {
   Select,
   SelectItem,
   Divider,
-  NumberInput,
   Tabs,
   Tab,
   Autocomplete,
@@ -26,21 +25,20 @@ import {
   PopoverContent,
   RadioGroup,
   Radio,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
+  CardFooter,
+  DatePicker,
+  Checkbox,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { BrowserMultiFormatReader, Result, Exception } from "@zxing/library";
 import axios from "axios";
+import { parseDate } from "@internationalized/date";
 
 interface ProductFormData {
   name: string;
   sku: string;
   description: string;
-  price: number;
+  price: string;
   minStockThreshold: string;
   hasVariants: boolean;
   barcode: string;
@@ -77,18 +75,25 @@ interface Brand {
   name: string;
 }
 
+interface Supplier {
+  id: string;
+  name: string;
+}
+
 interface ApiResponse {
   attribute_id: string | null;
   category_id: string;
   category_name: string;
   name: string | null;
   type: string | null;
+  isRequired: boolean;
 }
 
 interface CategoryAttribute {
   id: string;
   name: string;
   type: string;
+  isRequired: boolean;
 }
 
 interface Category {
@@ -115,6 +120,7 @@ interface ProductAttribute {
   name: string;
   type: string;
   value: string;
+  isRequired: boolean;
 }
 
 function ScannerOverlay({
@@ -353,8 +359,10 @@ export default function AddProduct() {
   const [activeTab, setActiveTab] = useState("basic");
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [suppliers, setSuppliers] = useState<Supplier[]>([]);
   const [brandQuery, setBrandQuery] = useState("");
   const [categoryQuery, setCategoryQuery] = useState("");
+  const [supplierQuery, setSupplierQuery] = useState("");
   const [formProgress, setFormProgress] = useState(0);
   const [tabErrors, setTabErrors] = useState<TabError[]>([]);
   const [selectedCategoryAttributes, setSelectedCategoryAttributes] = useState<
@@ -367,7 +375,7 @@ export default function AddProduct() {
     name: "",
     sku: "",
     description: "",
-    price: 0,
+    price: "",
     minStockThreshold: "",
     hasVariants: false,
     barcode: "",
@@ -405,6 +413,7 @@ export default function AddProduct() {
 
   useEffect(() => {
     loadInitialData();
+    loadSuppliers();
   }, []);
 
   useEffect(() => {
@@ -449,6 +458,7 @@ export default function AddProduct() {
       const rawData: ApiResponse[] = response.data;
 
       // Group by category_id and transform into desired format
+      console.log("rawData", rawData);
       const groupedCategories = rawData.reduce(
         (acc: { [key: string]: Category }, curr) => {
           if (!acc[curr.category_id]) {
@@ -466,6 +476,7 @@ export default function AddProduct() {
               id: curr.attribute_id,
               name: curr.name,
               type: curr.type,
+              isRequired: curr.isRequired,
             });
           }
 
@@ -483,12 +494,30 @@ export default function AddProduct() {
     }
   };
 
+  const loadSuppliers = async () => {
+    try {
+      // TODO: Sostituire con la chiamata API reale
+      const mockSuppliers: Supplier[] = [
+        { id: "1", name: "Fornitore 1" },
+        { id: "2", name: "Fornitore 2" },
+        { id: "3", name: "Fornitore 3" },
+      ];
+      setSuppliers(mockSuppliers);
+    } catch (error) {
+      console.error("Error loading suppliers:", error);
+    }
+  };
+
   const filteredBrands = brands.filter((brand) =>
     brand.name.toLowerCase().includes(brandQuery.toLowerCase())
   );
 
   const filteredCategories = categories.filter((category) =>
     category.name.toLowerCase().includes(categoryQuery.toLowerCase())
+  );
+
+  const filteredSuppliers = suppliers.filter((supplier) =>
+    supplier.name.toLowerCase().includes(supplierQuery.toLowerCase())
   );
 
   const handleBrandSelection = (brandName: string) => {
@@ -507,6 +536,7 @@ export default function AddProduct() {
         name: attr.name,
         type: attr.type,
         value: "",
+        isRequired: attr.isRequired,
       }));
 
       setFormData((prev) => ({
@@ -971,6 +1001,7 @@ export default function AddProduct() {
       name: "",
       type: "text",
       value: "",
+      isRequired: false,
     };
     setCustomAttributes((prev) => [...prev, newAttribute]);
     setFormData((prev) => ({
@@ -982,12 +1013,17 @@ export default function AddProduct() {
   const updateAttribute = (
     attributeId: string,
     field: keyof ProductAttribute,
-    value: string
+    value: string | boolean
   ) => {
     setFormData((prev) => ({
       ...prev,
       attributes: prev.attributes.map((attr) =>
-        attr.id === attributeId ? { ...attr, [field]: value } : attr
+        attr.id === attributeId
+          ? {
+              ...attr,
+              [field]: field === "isRequired" ? Boolean(value) : value,
+            }
+          : attr
       ),
     }));
   };
@@ -1021,36 +1057,20 @@ export default function AddProduct() {
   }
 
   return (
-    <Card>
-      <CardHeader className="border-b border-default-200">
-        <div className="flex flex-col gap-4 w-full">
-          <div className="flex justify-between items-center">
-            <h2 className="text-xl font-semibold">Informazioni Prodotto</h2>
-            <Chip
-              color={formProgress === 100 ? "success" : "primary"}
-              variant="flat"
-            >
-              Completato: {formProgress.toFixed(0)}%
-            </Chip>
-          </div>
-          <Progress
-            value={formProgress}
-            color={formProgress === 100 ? "success" : "primary"}
-            size="sm"
-            className="max-w-full"
-          />
-        </div>
+    <Card className="h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
+      <CardHeader className="border-b border-default-200 shrink-0">
+        <h2 className="text-xl font-semibold">Informazioni Prodotto</h2>
       </CardHeader>
-      <CardBody className="p-6">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <CardBody className="p-6 overflow-y-auto overflow-x-hidden">
+        <form onSubmit={handleSubmit} className="space-y-6 w-full max-w-full">
           <Tabs
             selectedKey={activeTab}
             onSelectionChange={(key) => setActiveTab(key as string)}
             color="primary"
             variant="underlined"
             classNames={{
-              tabList: "gap-6",
               cursor: "w-full",
+              panel: "w-full max-w-full overflow-x-hidden",
             }}
           >
             <Tab key="basic" title={getTabIcon("basic")}>
@@ -1224,13 +1244,14 @@ export default function AddProduct() {
                   <label className="block text-sm font-medium mb-2">
                     Prezzo <span className="text-danger">*</span>
                   </label>
-                  <NumberInput
+                  <Input
+                    type="number"
                     variant="bordered"
                     color={formData.price ? "success" : "primary"}
                     placeholder="0.00"
                     startContent={<span className="text-default-400">€</span>}
                     value={formData.price}
-                    onChange={(e) => handleChange("price", e)}
+                    onChange={(e) => handleChange("price", e.target.value)}
                     isRequired
                   />
                 </div>
@@ -1240,24 +1261,59 @@ export default function AddProduct() {
                   <label className="block text-sm font-medium mb-2">
                     Fornitore <span className="text-danger">*</span>
                   </label>
-                  <Input
-                    variant="bordered"
-                    color={formData.supplier ? "success" : "primary"}
-                    placeholder="Nome fornitore"
-                    value={formData.supplier}
-                    onChange={(e) => handleChange("supplier", e.target.value)}
-                    isRequired
-                    startContent={
-                      <Icon
-                        icon="solar:shop-bold-2"
-                        className={
-                          formData.supplier
-                            ? "text-success"
-                            : "text-default-400"
-                        }
-                      />
-                    }
-                  />
+                  <div className="flex gap-2">
+                    <Autocomplete
+                      variant="bordered"
+                      color={formData.supplier ? "success" : "primary"}
+                      placeholder="Cerca fornitore"
+                      defaultItems={suppliers}
+                      value={formData.supplier}
+                      onInputChange={setSupplierQuery}
+                      onSelectionChange={(value) =>
+                        handleChange("supplier", value)
+                      }
+                      className="flex-1"
+                      isRequired
+                      startContent={
+                        <Icon
+                          icon="solar:shop-bold-2"
+                          className={
+                            formData.supplier
+                              ? "text-success"
+                              : "text-default-400"
+                          }
+                        />
+                      }
+                    >
+                      {(supplier: Supplier) => (
+                        <AutocompleteItem
+                          key={supplier.id}
+                          textValue={supplier.name}
+                        >
+                          {supplier.name}
+                        </AutocompleteItem>
+                      )}
+                    </Autocomplete>
+                    <Tooltip content="Aggiungi nuovo fornitore">
+                      <Button
+                        color="primary"
+                        variant="flat"
+                        onClick={() => navigate("/inventory/suppliers/new")}
+                        isIconOnly
+                      >
+                        <Icon
+                          icon="solar:add-circle-bold"
+                          className="text-xl"
+                        />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                  {supplierQuery && filteredSuppliers.length === 0 && (
+                    <p className="text-sm text-default-400 mt-2">
+                      Nessun fornitore trovato. Usa il pulsante + per
+                      aggiungerne uno nuovo.
+                    </p>
+                  )}
                 </div>
               </div>
             </Tab>
@@ -1637,7 +1693,7 @@ export default function AddProduct() {
                     <h3 className="text-lg font-medium">
                       Attributi della Categoria
                     </h3>
-                    <div className="grid gap-4">
+                    <div className="grid grid-cols-2 gap-4">
                       {formData.attributes
                         .filter((attr) =>
                           selectedCategoryAttributes.some(
@@ -1646,20 +1702,85 @@ export default function AddProduct() {
                         )
                         .map((attr) => (
                           <div key={attr.id} className="flex gap-4">
-                            <Input
-                              label={attr.name}
-                              type={attr.type === "number" ? "number" : "text"}
-                              value={attr.value}
-                              onChange={(e) =>
-                                updateAttribute(
-                                  attr.id,
-                                  "value",
-                                  e.target.value
-                                )
-                              }
-                              variant="bordered"
-                              className="flex-1"
-                            />
+                            {attr.type === "boolean" ? (
+                              <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium">
+                                  {attr.name}{" "}
+                                  {attr.isRequired ? (
+                                    <span className="text-danger">*</span>
+                                  ) : (
+                                    ""
+                                  )}
+                                </label>
+                                <Switch
+                                  checked={attr.value === "true"}
+                                  onChange={(e) =>
+                                    updateAttribute(
+                                      attr.id,
+                                      "value",
+                                      e.target.checked.toString()
+                                    )
+                                  }
+                                  color="primary"
+                                />
+                              </div>
+                            ) : attr.type === "date" ? (
+                              <div className="flex-1">
+                                <label className="block text-sm font-medium mb-2">
+                                  {attr.name}{" "}
+                                  {attr.isRequired ? (
+                                    <span className="text-danger">*</span>
+                                  ) : (
+                                    ""
+                                  )}
+                                </label>
+                                <DatePicker
+                                  id={`date-${attr.id}`}
+                                  value={
+                                    attr.value ? parseDate(attr.value) : null
+                                  }
+                                  onChange={(newDate) =>
+                                    updateAttribute(
+                                      attr.id,
+                                      "value",
+                                      newDate ? newDate.toString() : ""
+                                    )
+                                  }
+                                  className="w-full"
+                                  variant="bordered"
+                                  color="primary"
+                                  isRequired={attr.isRequired}
+                                />
+                              </div>
+                            ) : (
+                              <div className="flex-1">
+                                <label className="block text-sm font-medium mb-2">
+                                  {attr.name}{" "}
+                                  {attr.isRequired ? (
+                                    <span className="text-danger">*</span>
+                                  ) : (
+                                    ""
+                                  )}
+                                </label>
+                                <Input
+                                  type={
+                                    attr.type === "number" ? "number" : "text"
+                                  }
+                                  value={attr.value}
+                                  onChange={(e) =>
+                                    updateAttribute(
+                                      attr.id,
+                                      "value",
+                                      e.target.value
+                                    )
+                                  }
+                                  variant="bordered"
+                                  color="primary"
+                                  className="flex-1"
+                                  isRequired={attr.isRequired}
+                                />
+                              </div>
+                            )}
                           </div>
                         ))}
                     </div>
@@ -1669,436 +1790,222 @@ export default function AddProduct() {
                 {/* Custom Attributes */}
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="text-lg font-medium">
-                      Attributi Personalizzati
-                    </h3>
-                    <Button
-                      color="primary"
-                      variant="flat"
-                      startContent={<Icon icon="solar:add-circle-bold" />}
-                      onClick={addCustomAttribute}
-                    >
-                      Aggiungi Attributo
-                    </Button>
-                  </div>
-
-                  <div className="grid gap-4">
-                    {formData.attributes
-                      .filter(
-                        (attr) =>
-                          !selectedCategoryAttributes.some(
-                            (catAttr) => catAttr.id === attr.id
-                          )
-                      )
-                      .map((attr) => (
-                        <div key={attr.id} className="flex gap-4">
-                          <Input
-                            placeholder="Nome attributo"
-                            value={attr.name}
-                            onChange={(e) =>
-                              updateAttribute(attr.id, "name", e.target.value)
-                            }
-                            variant="bordered"
-                            className="flex-1"
-                          />
-                          <Select
-                            selectedKeys={[attr.type]}
-                            onSelectionChange={(keys) => {
-                              const selectedKey = Array.from(keys)[0] as string;
-                              updateAttribute(attr.id, "type", selectedKey);
-                            }}
-                            variant="bordered"
-                            className="w-40"
-                          >
-                            <SelectItem key="text" textValue="Testo">
-                              Testo
-                            </SelectItem>
-                            <SelectItem key="number" textValue="Numero">
-                              Numero
-                            </SelectItem>
-                            <SelectItem key="date" textValue="Data">
-                              Data
-                            </SelectItem>
-                            <SelectItem key="boolean" textValue="Si/No">
-                              Si/No
-                            </SelectItem>
-                          </Select>
-                          <Input
-                            placeholder="Valore"
-                            type={attr.type === "number" ? "number" : "text"}
-                            value={attr.value}
-                            onChange={(e) =>
-                              updateAttribute(attr.id, "value", e.target.value)
-                            }
-                            variant="bordered"
-                            className="flex-1"
-                          />
-                          <Button
-                            isIconOnly
-                            color="danger"
-                            variant="flat"
-                            onClick={() => removeAttribute(attr.id)}
-                          >
-                            <Icon icon="solar:trash-bin-trash-bold" />
-                          </Button>
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              </div>
-            </Tab>
-
-            <Tab
-              key="photos"
-              title={
-                <div className="flex items-center gap-2">
-                  <Icon icon="solar:gallery-bold" />
-                  <span>Foto</span>
-                  {formData.photos.length > 0 && (
-                    <Chip
-                      size="sm"
-                      variant="flat"
-                      color="primary"
-                      className="gap-1"
-                      startContent={
-                        <Icon
-                          icon="solar:gallery-add-bold"
-                          className="text-xs"
-                        />
-                      }
-                    >
-                      {formData.photos.length}
-                    </Chip>
-                  )}
-                </div>
-              }
-            >
-              <div className="mt-4 space-y-6">
-                <div
-                  className={`relative border-2 border-dashed rounded-lg transition-all duration-200 cursor-pointer
-                    ${
-                      isDraggingPhotos
-                        ? "border-primary bg-primary/10 scale-102"
-                        : "border-default-300 hover:border-primary hover:bg-default-100"
-                    }
-                  `}
-                  onDragOver={(e) => handleDragOver(e, "photos")}
-                  onDragLeave={(e) => handleDragLeave(e, "photos")}
-                  onDrop={(e) => handleDrop(e, "photos")}
-                  onClick={() => photoInputRef.current?.click()}
-                >
-                  <input
-                    ref={photoInputRef}
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    onChange={(e) => handleFileSelect(e.target.files, "photos")}
-                  />
-                  <div className="flex flex-col items-center justify-center p-8">
-                    <div
-                      className={`p-4 rounded-full bg-primary/10 mb-4 transition-transform duration-200 ${
-                        isDraggingPhotos ? "scale-110" : ""
-                      }`}
-                    >
-                      <Icon
-                        icon={
-                          isDraggingPhotos
-                            ? "solar:gallery-add-bold"
-                            : "solar:upload-bold"
-                        }
-                        className={`text-4xl ${
-                          isDraggingPhotos ? "text-primary" : "text-default-400"
-                        }`}
-                      />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-default-600 font-medium">
-                        {isDraggingPhotos
-                          ? "Rilascia qui le foto"
-                          : "Trascina qui le foto o clicca per selezionarle"}
-                      </p>
-                      <p className="text-sm text-default-400 mt-2">
-                        Formati supportati: JPG, PNG, GIF (max 5MB)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {formData.photos.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">Foto caricate</h3>
-                      <Button
-                        color="danger"
-                        variant="light"
-                        startContent={
-                          <Icon icon="solar:trash-bin-trash-bold" />
-                        }
-                        onClick={() =>
-                          setFormData((prev) => ({ ...prev, photos: [] }))
-                        }
-                      >
-                        Rimuovi tutte
-                      </Button>
-                    </div>
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {formData.photos.map((file, index) => (
-                        <div key={index} className="group relative">
-                          <div className="aspect-square rounded-xl overflow-hidden border-2 border-default-200 bg-default-100">
-                            <Image
-                              src={file.preview}
-                              alt={file.name}
-                              className="w-full h-full object-cover transition-transform duration-200 group-hover:scale-105"
-                            />
-                          </div>
-                          <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40 rounded-xl">
-                            <div className="flex gap-2">
-                              <Tooltip content="Visualizza foto">
-                                <Button
-                                  isIconOnly
-                                  color="default"
-                                  variant="flat"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    // TODO: Implement photo preview modal
-                                  }}
-                                >
-                                  <Icon icon="solar:eye-bold" />
-                                </Button>
-                              </Tooltip>
-                              <Tooltip content="Rimuovi foto">
-                                <Button
-                                  isIconOnly
-                                  color="danger"
-                                  variant="flat"
-                                  size="sm"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    removeFile("photos", index);
-                                  }}
-                                >
-                                  <Icon icon="solar:trash-bin-trash-bold" />
-                                </Button>
-                              </Tooltip>
-                            </div>
-                          </div>
-                          <div className="absolute bottom-2 left-2 right-2">
-                            <Tooltip content={file.name}>
-                              <p className="text-xs truncate bg-white/80 text-default-700 rounded-lg px-2 py-1">
-                                {file.name}
-                              </p>
-                            </Tooltip>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </Tab>
-
-            <Tab
-              key="documents"
-              title={
-                <div className="flex items-center gap-2">
-                  <Icon icon="solar:document-bold" />
-                  <span>Documenti</span>
-                  {formData.documents.length > 0 && (
-                    <Chip
-                      size="sm"
-                      variant="flat"
-                      color="primary"
-                      className="gap-1"
-                      startContent={
-                        <Icon
-                          icon="solar:document-add-bold"
-                          className="text-xs"
-                        />
-                      }
-                    >
-                      {formData.documents.length}
-                    </Chip>
-                  )}
-                </div>
-              }
-            >
-              <div className="mt-4 space-y-6">
-                <div
-                  className={`relative border-2 border-dashed rounded-lg transition-all duration-200 cursor-pointer
-                    ${
-                      isDraggingDocs
-                        ? "border-primary bg-primary/10 scale-102"
-                        : "border-default-300 hover:border-primary hover:bg-default-100"
-                    }
-                  `}
-                  onDragOver={(e) => handleDragOver(e, "documents")}
-                  onDragLeave={(e) => handleDragLeave(e, "documents")}
-                  onDrop={(e) => handleDrop(e, "documents")}
-                  onClick={() => docInputRef.current?.click()}
-                >
-                  <input
-                    ref={docInputRef}
-                    type="file"
-                    accept=".pdf,.doc,.docx,.xls,.xlsx"
-                    multiple
-                    className="hidden"
-                    onChange={(e) =>
-                      handleFileSelect(e.target.files, "documents")
-                    }
-                  />
-                  <div className="flex flex-col items-center justify-center p-8">
-                    <div
-                      className={`p-4 rounded-full bg-primary/10 mb-4 transition-transform duration-200 ${
-                        isDraggingDocs ? "scale-110" : ""
-                      }`}
-                    >
-                      <Icon
-                        icon={
-                          isDraggingDocs
-                            ? "solar:document-add-bold"
-                            : "solar:upload-bold"
-                        }
-                        className={`text-4xl ${
-                          isDraggingDocs ? "text-primary" : "text-default-400"
-                        }`}
-                      />
-                    </div>
-                    <div className="text-center">
-                      <p className="text-default-600 font-medium">
-                        {isDraggingDocs
-                          ? "Rilascia qui i documenti"
-                          : "Trascina qui i documenti o clicca per selezionarli"}
-                      </p>
-                      <p className="text-sm text-default-400 mt-2">
-                        Formati supportati: PDF, DOC, DOCX, XLS, XLSX (max 10MB)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {formData.documents.length > 0 && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
                       <h3 className="text-lg font-medium">
-                        Documenti caricati
+                        Attributi Personalizzati
                       </h3>
-                      <Button
-                        color="danger"
-                        variant="light"
-                        startContent={
-                          <Icon icon="solar:trash-bin-trash-bold" />
+                      <Tooltip
+                        content={
+                          <div className="px-1 py-2 max-w-xs">
+                            <div className="text-small font-bold mb-2">
+                              Cosa sono gli attributi personalizzati?
+                            </div>
+                            <div className="text-tiny">
+                              <p className="mb-2">
+                                Gli attributi personalizzati ti permettono di
+                                aggiungere informazioni specifiche al prodotto
+                                oltre a quelle standard.
+                              </p>
+                              <p className="font-bold mb-1">Puoi usarli per:</p>
+                              <ul className="list-disc list-inside space-y-1">
+                                <li>Specificare materiali e dimensioni</li>
+                                <li>Aggiungere certificazioni</li>
+                                <li>Indicare caratteristiche tecniche</li>
+                                <li>Definire proprietà uniche</li>
+                              </ul>
+                            </div>
+                          </div>
                         }
-                        onClick={() =>
-                          setFormData((prev) => ({ ...prev, documents: [] }))
-                        }
+                        delay={0}
+                        closeDelay={0}
+                        placement="bottom"
+                        showArrow
                       >
-                        Rimuovi tutti
+                        <Icon
+                          icon="solar:info-circle-bold"
+                          className="text-xl text-default-400 cursor-help"
+                        />
+                      </Tooltip>
+                    </div>
+                    {formData.attributes.filter(
+                      (attr) =>
+                        !selectedCategoryAttributes.some(
+                          (catAttr) => catAttr.id === attr.id
+                        )
+                    ).length > 0 && (
+                      <Button
+                        color="primary"
+                        variant="flat"
+                        startContent={<Icon icon="solar:add-circle-bold" />}
+                        onClick={addCustomAttribute}
+                      >
+                        Aggiungi Attributo
+                      </Button>
+                    )}
+                  </div>
+
+                  {formData.attributes.filter(
+                    (attr) =>
+                      !selectedCategoryAttributes.some(
+                        (catAttr) => catAttr.id === attr.id
+                      )
+                  ).length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl border-default-200">
+                      <div className="p-3 rounded-full bg-primary/10 mb-4">
+                        <Icon
+                          icon="solar:list-check-bold"
+                          className="text-3xl text-primary"
+                        />
+                      </div>
+                      <h4 className="text-lg font-medium text-default-600 mb-2">
+                        Nessun attributo personalizzato
+                      </h4>
+                      <p className="text-sm text-default-500 text-center max-w-md mb-4">
+                        Aggiungi attributi personalizzati per specificare
+                        caratteristiche uniche del prodotto come materiali,
+                        dimensioni specifiche, certificazioni o altre proprietà
+                        rilevanti.
+                      </p>
+                      <Button
+                        color="primary"
+                        variant="flat"
+                        startContent={<Icon icon="solar:add-circle-bold" />}
+                        onClick={addCustomAttribute}
+                      >
+                        Aggiungi il primo attributo
                       </Button>
                     </div>
-                    <div className="grid gap-3">
-                      {formData.documents.map((file, index) => (
-                        <div
-                          key={index}
-                          className="flex items-center justify-between p-4 border-2 border-default-200 rounded-xl bg-default-50 group hover:bg-default-100 transition-colors"
-                        >
-                          <div className="flex items-center gap-4">
-                            <div className="p-2 rounded-lg bg-default-100 group-hover:bg-default-200 transition-colors">
-                              <Icon
-                                icon={getFileIcon(file.name)}
-                                className="text-2xl text-default-600"
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      {formData.attributes
+                        .filter(
+                          (attr) =>
+                            !selectedCategoryAttributes.some(
+                              (catAttr) => catAttr.id === attr.id
+                            )
+                        )
+                        .map((attr) => (
+                          <div
+                            key={attr.id}
+                            className="grid grid-cols-[1fr,auto,1fr,auto,auto] items-center gap-4"
+                          >
+                            <Input
+                              placeholder="Nome attributo"
+                              value={attr.name}
+                              onChange={(e) =>
+                                updateAttribute(attr.id, "name", e.target.value)
+                              }
+                              variant="bordered"
+                            />
+                            <Select
+                              selectedKeys={[attr.type]}
+                              onSelectionChange={(keys) => {
+                                const selectedKey = Array.from(
+                                  keys
+                                )[0] as string;
+                                updateAttribute(attr.id, "type", selectedKey);
+                              }}
+                              variant="bordered"
+                              className="w-40"
+                            >
+                              <SelectItem key="text" textValue="Testo">
+                                Testo
+                              </SelectItem>
+                              <SelectItem key="number" textValue="Numero">
+                                Numero
+                              </SelectItem>
+                              <SelectItem key="date" textValue="Data">
+                                Data
+                              </SelectItem>
+                              <SelectItem key="boolean" textValue="Si/No">
+                                Si/No
+                              </SelectItem>
+                            </Select>
+                            {attr.type === "boolean" ? (
+                              <div className="flex items-center">
+                                <Switch
+                                  checked={attr.value === "true"}
+                                  onChange={(e) =>
+                                    updateAttribute(
+                                      attr.id,
+                                      "value",
+                                      e.target.checked.toString()
+                                    )
+                                  }
+                                  color="primary"
+                                />
+                              </div>
+                            ) : attr.type === "date" ? (
+                              <DatePicker
+                                id={`date-${attr.id}`}
+                                value={
+                                  attr.value ? parseDate(attr.value) : null
+                                }
+                                onChange={(newDate) =>
+                                  updateAttribute(
+                                    attr.id,
+                                    "value",
+                                    newDate ? newDate.toString() : ""
+                                  )
+                                }
+                                variant="bordered"
+                                color="primary"
                               />
-                            </div>
-                            <div>
-                              <Tooltip content={file.name}>
-                                <p className="font-medium truncate max-w-[200px]">
-                                  {file.name}
-                                </p>
-                              </Tooltip>
-                              <p className="text-sm text-default-400">
-                                {(file.size / 1024 / 1024).toFixed(2)} MB
-                              </p>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <Tooltip content="Visualizza documento">
-                              <Button
-                                isIconOnly
-                                color="default"
-                                variant="flat"
+                            ) : (
+                              <Input
+                                type={
+                                  attr.type === "number" ? "number" : "text"
+                                }
+                                value={attr.value}
+                                onChange={(e) =>
+                                  updateAttribute(
+                                    attr.id,
+                                    "value",
+                                    e.target.value
+                                  )
+                                }
+                                variant="bordered"
+                                color="primary"
+                                placeholder="Valore"
+                              />
+                            )}
+                            <div className="flex items-center">
+                              <Checkbox
+                                isSelected={Boolean(attr.isRequired)}
+                                onValueChange={(checked) =>
+                                  updateAttribute(
+                                    attr.id,
+                                    "isRequired",
+                                    checked
+                                  )
+                                }
                                 size="sm"
-                                onClick={() => {
-                                  // TODO: Implement document preview/download
-                                }}
+                                color="primary"
                               >
-                                <Icon icon="solar:eye-bold" />
-                              </Button>
-                            </Tooltip>
-                            <Tooltip content="Rimuovi documento">
-                              <Button
-                                isIconOnly
-                                color="danger"
-                                variant="flat"
-                                size="sm"
-                                onClick={() => removeFile("documents", index)}
-                              >
-                                <Icon icon="solar:trash-bin-trash-bold" />
-                              </Button>
-                            </Tooltip>
+                                Obbligatorio
+                              </Checkbox>
+                            </div>
+                            <Button
+                              isIconOnly
+                              color="danger"
+                              variant="light"
+                              onClick={() => removeAttribute(attr.id)}
+                            >
+                              <Icon
+                                icon="solar:trash-bin-trash-bold"
+                                className="text-lg"
+                              />
+                            </Button>
                           </div>
-                        </div>
-                      ))}
+                        ))}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </Tab>
           </Tabs>
-
-          <Divider className="my-6" />
-
-          {/* Pulsanti */}
-          <div className="flex justify-between items-center">
-            <Button
-              variant="flat"
-              color="default"
-              onClick={() => navigate("/inventory/products")}
-              startContent={<Icon icon="solar:arrow-left-bold" />}
-            >
-              Annulla
-            </Button>
-            <div className="flex gap-3">
-              <Tooltip
-                content={
-                  formProgress < 100
-                    ? "Completa tutti i campi obbligatori"
-                    : "Salva prodotto"
-                }
-              >
-                <Button
-                  color="primary"
-                  type="submit"
-                  isLoading={isSaving}
-                  isDisabled={formProgress < 100}
-                  startContent={!isSaving && <Icon icon="solar:disk-bold" />}
-                >
-                  {isSaving ? "Salvataggio..." : "Salva Prodotto"}
-                </Button>
-              </Tooltip>
-            </div>
-          </div>
         </form>
       </CardBody>
-      {isScannerOpen && (
-        <ScannerOverlay
-          type={scannerType}
-          onClose={stopScanner}
-          error={scannerError || cameraError}
-          hasAttemptedScan={hasAttemptedScan}
-          videoRef={videoRef}
-        />
-      )}
     </Card>
   );
 }

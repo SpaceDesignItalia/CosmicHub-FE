@@ -14,6 +14,8 @@ import ProductAdd from "./Pages/Inventory/ProductAdd";
 import ProductEdit from "./Pages/Inventory/ProductEdit";
 import Categories from "./Pages/Inventory/Categories";
 import CategoryAdd from "./Pages/Inventory/CategoryAdd";
+import AddVehicle from "./Pages/Inventory/AddVehicle";
+import Vehicles from "./Pages/Inventory/Vehicles";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_API_URL;
