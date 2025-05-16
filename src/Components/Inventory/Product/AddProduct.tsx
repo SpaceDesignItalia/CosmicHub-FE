@@ -33,13 +33,26 @@ import { Icon } from "@iconify/react";
 import { BrowserMultiFormatReader, Result, Exception } from "@zxing/library";
 import axios from "axios";
 import { parseDate } from "@internationalized/date";
+import QRCode from "react-qr-code";
+import Barcode from "react-barcode";
 
 interface ProductFormData {
   name: string;
   sku: string;
   description: string;
   price: string;
+  costPrice: string;
+  retailPrice: string;
+  wholesalePrice: string;
+  minWholesaleQty: string;
+  taxRate: string;
+  currency: string;
   minStockThreshold: string;
+  maxStockThreshold: string;
+  reorderPoint: string;
+  reorderQuantity: string;
+  currentStock: string;
+  stockUnit: string;
   hasVariants: boolean;
   barcode: string;
   qrCode: string;
@@ -56,9 +69,12 @@ interface ProductFormData {
   qrCodeType: "manual" | "auto" | "scan";
   attributes: ProductAttribute[];
   variants: ProductVariant[];
+  packagingType: string;
+  packagingWeight: string;
+  packagingVolume: string;
+  shippingNotes: string;
   [key: string]:
     | string
-    | number
     | boolean
     | FileWithPreview[]
     | "manual"
@@ -115,6 +131,11 @@ interface ScannerOverlayProps {
   error: string | null;
   hasAttemptedScan: boolean;
   videoRef: React.RefObject<HTMLVideoElement | null>;
+  scanSuccess: boolean;
+  lastScannedCode: string | null;
+  onCameraSelect: (deviceId: string) => void;
+  availableCameras: MediaDeviceInfo[];
+  selectedCamera: string;
 }
 
 interface ProductAttribute {
@@ -137,167 +158,238 @@ function ScannerOverlay({
   error,
   hasAttemptedScan,
   videoRef,
+  scanSuccess,
+  lastScannedCode,
+  onCameraSelect,
+  availableCameras,
+  selectedCamera,
 }: ScannerOverlayProps) {
+  const [isCameraPermissionRequested, setIsCameraPermissionRequested] =
+    useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
+  const [isCameraSettingsOpen, setIsCameraSettingsOpen] = useState(false);
+
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm">
-      <div className="absolute top-4 right-4 z-50">
-        <Button
-          isIconOnly
-          color="default"
-          variant="flat"
-          onClick={onClose}
-          className="bg-white/10 hover:bg-white/20"
-        >
-          <Icon icon="solar:close-circle-bold" className="text-white" />
-        </Button>
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col max-h-screen overflow-hidden">
+      {/* Header */}
+      <div className="sticky top-0 left-0 right-0 bg-gradient-to-b from-black/80 via-black/50 to-transparent p-3 z-50">
+        <div className="flex items-center justify-between max-w-2xl mx-auto">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-primary/20 backdrop-blur-sm border border-primary/20">
+              <Icon
+                icon={
+                  type === "barcode"
+                    ? "solar:barcode-2-bold"
+                    : "solar:qr-code-bold"
+                }
+                className="text-xl text-primary"
+              />
+            </div>
+            <div>
+              <h2 className="text-white text-base font-medium">
+                {type === "barcode"
+                  ? "Scansione Codice a Barre"
+                  : "Scansione QR Code"}
+              </h2>
+              <p className="text-white/70 text-xs">
+                {type === "barcode"
+                  ? "Posiziona il codice a barre nell'area evidenziata"
+                  : "Centra il QR code all'interno del riquadro"}
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button
+              isIconOnly
+              color="default"
+              variant="flat"
+              onClick={() => setIsCameraSettingsOpen(!isCameraSettingsOpen)}
+              className="bg-white/10 hover:bg-white/20"
+            >
+              <Icon icon="solar:settings-bold" className="text-white" />
+            </Button>
+            <Button
+              isIconOnly
+              color="default"
+              variant="flat"
+              onClick={onClose}
+              className="bg-white/10 hover:bg-white/20"
+            >
+              <Icon icon="solar:close-circle-bold" className="text-white" />
+            </Button>
+          </div>
+        </div>
       </div>
 
-      <div className="flex flex-col items-center justify-center h-full max-w-2xl mx-auto px-4">
-        <div className="relative w-full aspect-[4/3] rounded-2xl overflow-hidden bg-black">
+      <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto px-4 py-4 space-y-4">
+        {/* Camera Settings Panel */}
+        {isCameraSettingsOpen && (
+          <Card className="w-full mb-4">
+            <div className="p-3 border-b border-white/10">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="p-1.5 rounded-lg bg-primary/20">
+                    <Icon
+                      icon="solar:camera-bold"
+                      className="text-lg text-primary"
+                    />
+                  </div>
+                  <h3 className="text-sm font-medium">
+                    Impostazioni Fotocamera
+                  </h3>
+                </div>
+                <Button
+                  isIconOnly
+                  size="sm"
+                  color="default"
+                  variant="light"
+                  onClick={() => setIsCameraSettingsOpen(false)}
+                >
+                  <Icon icon="solar:close-circle-bold" className="text-lg" />
+                </Button>
+              </div>
+            </div>
+            <div className="p-3">
+              {availableCameras.length > 0 ? (
+                <Select
+                  variant="bordered"
+                  selectedKeys={[selectedCamera]}
+                  onChange={(e) => onCameraSelect(e.target.value)}
+                  size="sm"
+                  startContent={
+                    <Icon
+                      icon="solar:video-frame-bold"
+                      className="text-primary"
+                    />
+                  }
+                  label="Fotocamera attiva"
+                >
+                  {availableCameras.map((camera, index) => (
+                    <SelectItem
+                      key={camera.deviceId}
+                      textValue={camera.label || `Camera ${index + 1}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        {camera.deviceId === selectedCamera && (
+                          <Badge
+                            color="success"
+                            variant="flat"
+                            size="sm"
+                            className="bg-success/20 text-success"
+                          >
+                            Attiva
+                          </Badge>
+                        )}
+                        <span className="text-sm">
+                          {camera.label || `Camera ${index + 1}`}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
+                </Select>
+              ) : (
+                <div className="p-3 bg-warning-900/20 border border-warning-700/30 rounded-lg">
+                  <div className="flex items-center gap-2 text-warning-300">
+                    <Icon
+                      icon="solar:danger-triangle-bold"
+                      className="text-lg"
+                    />
+                    <p className="text-sm">
+                      Nessuna fotocamera trovata sul tuo dispositivo
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </Card>
+        )}
+
+        {/* Scanner View */}
+        <div
+          className={`relative w-full aspect-[4/3] rounded-xl overflow-hidden backdrop-blur-sm border border-white/10 ${
+            scanSuccess ? "ring-4 ring-success" : ""
+          }`}
+        >
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
             playsInline
             autoPlay
+            muted
           />
 
-          {/* Area di scansione */}
-          <div className="absolute inset-0 flex items-center justify-center">
-            <div
-              className={`relative ${
-                type === "barcode" ? "w-96 h-48" : "w-72 h-72"
-              }`}
-            >
-              {/* Mascheratura esterna */}
-              <div className="absolute -inset-[1000px] bg-black/70">
-                <div
-                  className={`absolute left-[1000px] top-[1000px] ${
-                    type === "barcode" ? "w-96 h-48" : "w-72 h-72"
-                  } bg-transparent`}
-                />
-              </div>
-
-              {/* Bordo area di scansione */}
-              <div className="absolute inset-0 border border-white/20" />
-
-              {/* Guide specifiche per tipo */}
+          {/* Scanning Area */}
+          {availableCameras.length > 0 && !scanSuccess && (
+            <div className="absolute inset-0 flex items-center justify-center">
               {type === "barcode" ? (
-                <>
-                  {/* Guide per codice a barre */}
-                  <div className="absolute inset-0">
-                    {/* Linee verticali guida */}
-                    <div className="absolute left-0 top-0 bottom-0 w-px bg-primary/30" />
-                    <div className="absolute right-0 top-0 bottom-0 w-px bg-primary/30" />
-
-                    {/* Area centrale evidenziata */}
-                    <div className="absolute inset-y-0 left-1/4 right-1/4 border-l border-r border-primary/30" />
-
-                    {/* Linea di scansione verticale */}
-                    <div className="absolute top-0 bottom-0 w-0.5 bg-primary/50 animate-scan-vertical left-1/2 -translate-x-1/2" />
+                <div className="relative w-[90%] h-24 max-w-lg">
+                  <div className="absolute inset-0 border-2 border-primary/50 rounded-lg">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent animate-pulse" />
                   </div>
-
-                  {/* Angoli per barcode */}
-                  <div className="absolute inset-0">
-                    <div className="absolute left-0 top-0 w-8 h-full border-l-2 border-primary" />
-                    <div className="absolute right-0 top-0 w-8 h-full border-r-2 border-primary" />
-                  </div>
-                </>
+                </div>
               ) : (
-                <>
-                  {/* Guide per QR code */}
-                  <div className="absolute inset-0">
-                    {/* Griglia guida */}
-                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3">
-                      {[...Array(4)].map((_, i) => (
-                        <div
-                          key={i}
-                          className="border-primary/20 border-r last:border-r-0"
-                        />
-                      ))}
-                      {[...Array(4)].map((_, i) => (
-                        <div
-                          key={i}
-                          className="border-primary/20 border-b last:border-b-0"
-                        />
-                      ))}
-                    </div>
-
-                    {/* Angoli QR */}
-                    {[
-                      "top-0 left-0",
-                      "top-0 right-0",
-                      "bottom-0 left-0",
-                      "bottom-0 right-0",
-                    ].map((position) => (
-                      <div key={position} className={`absolute ${position}`}>
-                        <div className="relative w-12 h-12">
-                          <div className="absolute inset-0 border-2 border-primary rounded-lg" />
-                          <div className="absolute inset-2 border border-primary/50 rounded-md" />
-                          <div className="absolute inset-4 bg-primary/30 rounded" />
-                        </div>
-                      </div>
-                    ))}
-
-                    {/* Linea di scansione diagonale per QR */}
-                    <div
-                      className="absolute top-0 left-0 w-[141%] h-0.5 bg-primary/50 animate-scan-diagonal origin-top-left"
-                      style={{ transform: "rotate(45deg)" }}
-                    />
+                <div className="relative w-56 h-56">
+                  <div className="absolute inset-0 border-2 border-primary/50 rounded-lg">
+                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent animate-pulse" />
                   </div>
-                </>
+                </div>
               )}
             </div>
-          </div>
-        </div>
+          )}
 
-        {/* Testo guida e stato */}
-        <div className="mt-6 text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Icon
-              icon={
-                type === "barcode"
-                  ? "solar:barcode-2-bold"
-                  : "solar:qr-code-bold"
-              }
-              className="text-2xl text-primary"
-            />
-            <h3 className="text-white text-lg font-medium">
-              Scansiona {type === "barcode" ? "Codice a Barre" : "QR Code"}
-            </h3>
-          </div>
-          <p className="text-white/70 text-sm">
-            {type === "barcode"
-              ? "Posiziona il codice a barre orizzontalmente nell'area evidenziata"
-              : "Centra il QR code all'interno del riquadro"}
-          </p>
-          <div className="flex items-center justify-center gap-2 mt-2">
-            <Icon icon="solar:lightbulb-bold" className="text-yellow-500" />
-            <p className="text-yellow-200/70 text-xs">
-              {type === "barcode"
-                ? "Suggerimento: Mantieni il codice parallelo alle linee verticali"
-                : "Suggerimento: Assicurati che tutti e 4 gli angoli siano visibili"}
-            </p>
-          </div>
-        </div>
-
-        {/* Errore (mostrato solo dopo un tentativo fallito) */}
-        {error && hasAttemptedScan && (
-          <div className="mt-4 w-full max-w-md">
-            <div className="bg-danger/10 border border-danger/20 rounded-lg p-4">
-              <div className="flex items-start gap-3">
-                <Icon
-                  icon="solar:danger-triangle-bold"
-                  className="text-danger text-xl mt-0.5"
-                />
-                <div>
-                  <p className="text-danger font-medium">
-                    {error.split("\n\n")[0]}
-                  </p>
-                  {error.split("\n\n")[1] && (
-                    <p className="text-danger/80 text-sm mt-1">
-                      {error.split("\n\n")[1]}
+          {/* Success Overlay */}
+          {scanSuccess && (
+            <div className="absolute inset-0 bg-success/20 backdrop-blur-sm flex items-center justify-center">
+              <div className="bg-success/90 text-white p-4 rounded-lg shadow-lg max-w-sm w-full mx-4">
+                <div className="flex items-start gap-3">
+                  <div className="shrink-0">
+                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                      <Icon
+                        icon="solar:check-circle-bold"
+                        className="text-2xl"
+                      />
+                    </div>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="text-base font-medium mb-1">
+                      Codice Rilevato!
+                    </h3>
+                    <p className="text-success-100 text-xs break-all font-mono bg-white/10 p-2 rounded">
+                      {lastScannedCode}
                     </p>
-                  )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Status Messages */}
+        <div className="text-center">
+          {!scanSuccess && availableCameras.length > 0 && (
+            <div className="space-y-1">
+              <p className="text-white/70 text-sm">
+                {type === "barcode"
+                  ? "Posiziona il codice a barre orizzontalmente nell'area evidenziata"
+                  : "Centra il QR code all'interno del riquadro"}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Error Display */}
+        {error && hasAttemptedScan && !scanSuccess && (
+          <div className="w-full max-w-md">
+            <div className="bg-danger-900/20 border border-danger-700/30 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <div className="p-1.5 rounded-lg bg-danger-500/20">
+                  <Icon
+                    icon="solar:danger-triangle-bold"
+                    className="text-danger-300 text-lg"
+                  />
+                </div>
+                <div>
+                  <p className="text-danger-200 text-sm font-medium">{error}</p>
                 </div>
               </div>
             </div>
@@ -307,58 +399,6 @@ function ScannerOverlay({
     </div>
   );
 }
-
-// Aggiungi le nuove animazioni agli stili
-const styles = {
-  "@keyframes scan": {
-    "0%": {
-      top: "0%",
-    },
-    "50%": {
-      top: "97%",
-    },
-    "100%": {
-      top: "0%",
-    },
-  },
-  "@keyframes scanVertical": {
-    "0%": {
-      left: "25%",
-    },
-    "50%": {
-      left: "75%",
-    },
-    "100%": {
-      left: "25%",
-    },
-  },
-  "@keyframes scanDiagonal": {
-    "0%": {
-      top: "0%",
-      left: "0%",
-    },
-    "50%": {
-      top: "100%",
-      left: "100%",
-    },
-    "100%": {
-      top: "0%",
-      left: "0%",
-    },
-  },
-};
-
-const customStyles = {
-  ".animate-scan": {
-    animation: "scan 2s linear infinite",
-  },
-  ".animate-scan-vertical": {
-    animation: "scanVertical 2s linear infinite",
-  },
-  ".animate-scan-diagonal": {
-    animation: "scanDiagonal 2s linear infinite",
-  },
-};
 
 export default function AddProduct() {
   const navigate = useNavigate();
@@ -384,7 +424,18 @@ export default function AddProduct() {
     sku: "",
     description: "",
     price: "",
+    costPrice: "",
+    retailPrice: "",
+    wholesalePrice: "",
+    minWholesaleQty: "",
+    taxRate: "",
+    currency: "EUR",
     minStockThreshold: "",
+    maxStockThreshold: "",
+    reorderPoint: "",
+    reorderQuantity: "",
+    currentStock: "0",
+    stockUnit: "PZ",
     hasVariants: false,
     barcode: "",
     qrCode: "",
@@ -401,11 +452,11 @@ export default function AddProduct() {
     qrCodeType: "manual",
     attributes: [],
     variants: [],
+    packagingType: "",
+    packagingWeight: "",
+    packagingVolume: "",
+    shippingNotes: "",
   });
-  const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
-  const [isDraggingDocs, setIsDraggingDocs] = useState(false);
-  const photoInputRef = useRef<HTMLInputElement>(null);
-  const docInputRef = useRef<HTMLInputElement>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannerType, setScannerType] = useState<"barcode" | "qrcode">(
     "barcode"
@@ -419,6 +470,12 @@ export default function AddProduct() {
   const [isInitializingCamera, setIsInitializingCamera] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [hasAttemptedScan, setHasAttemptedScan] = useState(false);
+  const [scanSuccess, setScanSuccess] = useState(false);
+  const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
+  const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>(
+    []
+  );
+  const [selectedCamera, setSelectedCamera] = useState<string>("");
 
   useEffect(() => {
     loadInitialData();
@@ -631,144 +688,6 @@ export default function AddProduct() {
     }
   };
 
-  const handleFileSelect = (
-    files: FileList | null,
-    type: "photos" | "documents"
-  ) => {
-    if (!files) return;
-
-    const acceptedFiles: File[] = [];
-    const maxSize = type === "photos" ? 5 * 1024 * 1024 : 10 * 1024 * 1024; // 5MB for photos, 10MB for docs
-
-    Array.from(files).forEach((file) => {
-      if (type === "photos") {
-        if (file.type.startsWith("image/") && file.size <= maxSize) {
-          acceptedFiles.push(file);
-        }
-      } else {
-        const allowedTypes = [
-          "application/pdf",
-          "application/msword",
-          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-          "application/vnd.ms-excel",
-          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        ];
-        if (allowedTypes.includes(file.type) && file.size <= maxSize) {
-          acceptedFiles.push(file);
-        }
-      }
-    });
-
-    const filesWithPreview = acceptedFiles.map((file) => {
-      const preview =
-        type === "photos" || file.type.startsWith("image/")
-          ? URL.createObjectURL(file)
-          : "";
-      return Object.assign(file, { preview });
-    }) as FileWithPreview[];
-
-    setFormData((prev) => ({
-      ...prev,
-      [type]: [...prev[type], ...filesWithPreview],
-    }));
-  };
-
-  const handleDragOver = (e: React.DragEvent, type: "photos" | "documents") => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (type === "photos") {
-      setIsDraggingPhotos(true);
-    } else {
-      setIsDraggingDocs(true);
-    }
-  };
-
-  const handleDragLeave = (
-    e: React.DragEvent,
-    type: "photos" | "documents"
-  ) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (type === "photos") {
-      setIsDraggingPhotos(false);
-    } else {
-      setIsDraggingDocs(false);
-    }
-  };
-
-  const handleDrop = (e: React.DragEvent, type: "photos" | "documents") => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (type === "photos") {
-      setIsDraggingPhotos(false);
-    } else {
-      setIsDraggingDocs(false);
-    }
-
-    const droppedFiles = e.dataTransfer.files;
-    handleFileSelect(droppedFiles, type);
-  };
-
-  // Cleanup function for file previews
-  useEffect(() => {
-    return () => {
-      formData.photos.forEach((file) => {
-        if (file.preview) URL.revokeObjectURL(file.preview);
-      });
-      formData.documents.forEach((file) => {
-        if (file.preview) URL.revokeObjectURL(file.preview);
-      });
-    };
-  }, [formData.photos, formData.documents]);
-
-  const removeFile = (type: "photos" | "documents", index: number) => {
-    setFormData((prev) => ({
-      ...prev,
-      [type]: prev[type].filter((_, i) => i !== index),
-    }));
-  };
-
-  const getFileIcon = (fileName: string) => {
-    const extension = fileName.split(".").pop()?.toLowerCase();
-    switch (extension) {
-      case "pdf":
-        return "solar:file-pdf-bold";
-      case "doc":
-      case "docx":
-        return "solar:file-text-bold";
-      case "xls":
-      case "xlsx":
-        return "solar:file-spreadsheet-bold";
-      default:
-        return "solar:file-bold";
-    }
-  };
-
-  const generateBarcode = () => {
-    // Genera un codice EAN-13 casuale
-    const prefix = "200"; // Prefisso per prodotti interni
-    const randomDigits = Array.from({ length: 9 }, () =>
-      Math.floor(Math.random() * 10)
-    ).join("");
-    const code = prefix + randomDigits;
-    // Calcola il check digit
-    let sum = 0;
-    for (let i = 0; i < 12; i++) {
-      sum += parseInt(code[i]) * (i % 2 === 0 ? 1 : 3);
-    }
-    const checkDigit = (10 - (sum % 10)) % 10;
-    const barcode = code + checkDigit;
-
-    handleChange("barcode", barcode);
-  };
-
-  const generateQRCode = () => {
-    // Genera un QR code basato su SKU e timestamp
-    const timestamp = Date.now();
-    const qrCode = `${formData.sku || "PROD"}-${timestamp}`;
-    handleChange("qrCode", qrCode);
-  };
-
   // Modify the initialization effect
   useEffect(() => {
     // Initialize ZXing reader only once when component mounts
@@ -837,78 +756,76 @@ export default function AddProduct() {
     setHasAttemptedScan(false);
 
     try {
-      console.log("Checking camera prerequisites...");
-      if (!codeReader.current) {
-        // Reinitialize if needed
-        codeReader.current = new BrowserMultiFormatReader();
-      }
-      if (!videoRef.current) {
-        throw new Error("Scanner non inizializzato correttamente");
-      }
-
-      // Check if the browser supports getUserMedia
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error(
-          "Il tuo browser non supporta l'accesso alla fotocamera"
-        );
-      }
-
-      console.log("Current camera permission state:", cameraPermissionState);
-
-      // First try to get camera permissions if not already granted
-      if (cameraPermissionState !== "granted") {
-        try {
-          console.log("Requesting camera access...");
-          await navigator.mediaDevices.getUserMedia({ video: true });
-          setCameraPermissionState("granted");
-          console.log("Camera access granted");
-        } catch (permissionError: any) {
-          console.error("Camera permission error:", permissionError);
-          if (permissionError.name === "NotAllowedError") {
-            setCameraPermissionState("denied");
-            throw new Error("Permesso fotocamera negato");
-          } else if (permissionError.name === "NotFoundError") {
-            throw new Error("Nessuna fotocamera trovata sul dispositivo");
-          } else {
-            throw new Error(
-              "Errore di accesso alla fotocamera: " + permissionError.message
-            );
-          }
-        }
-      }
-
-      // Reset any existing streams before starting new one
+      // Reset any existing reader
       if (codeReader.current) {
         codeReader.current.reset();
       }
 
-      console.log("Listing video devices...");
-      const videoInputDevices =
-        await codeReader.current.listVideoInputDevices();
-      console.log("Available video devices:", videoInputDevices);
+      // Create a new reader instance
+      codeReader.current = new BrowserMultiFormatReader();
 
-      if (videoInputDevices.length === 0) {
-        throw new Error("Nessuna fotocamera trovata");
+      if (!videoRef.current) {
+        throw new Error("Scanner non inizializzato correttamente");
       }
 
-      const selectedDeviceId = videoInputDevices[0].deviceId;
-      console.log("Selected device ID:", selectedDeviceId);
+      // Get cameras if we don't have any yet, but preserve camera selection
+      if (availableCameras.length === 0) {
+        console.log("Nessuna fotocamera disponibile, recupero elenco...");
+        await getAvailableCameras();
+      }
 
-      console.log("Starting video stream...");
+      if (!selectedCamera) {
+        throw new Error("Nessuna fotocamera selezionata");
+      }
+
+      console.log("Starting video stream with camera:", selectedCamera);
+
+      // Configure video constraints
+      const constraints = {
+        video: {
+          deviceId: { exact: selectedCamera },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      };
+
+      // Test camera access
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia(constraints);
+        stream.getTracks().forEach((track) => track.stop());
+      } catch (error) {
+        console.error("Camera test failed:", error);
+        throw new Error("Impossibile accedere alla fotocamera selezionata");
+      }
+
+      // Start decoding from video device
       await codeReader.current.decodeFromVideoDevice(
-        selectedDeviceId,
+        selectedCamera,
         videoRef.current,
         (result: Result | null, err: Exception | undefined) => {
           if (result) {
             console.log("Code detected:", result.getText());
             const scannedCode = result.getText();
-            handleChange(
-              type === "barcode" ? "barcode" : "qrCode",
-              scannedCode
-            );
-            setIsScannerOpen(false);
+            setLastScannedCode(scannedCode);
+            setScanSuccess(true);
+
+            // Stop the camera immediately
+            if (codeReader.current) {
+              console.log("Stopping camera after successful scan...");
+              codeReader.current.reset();
+            }
+
+            // Update form data after a delay
+            setTimeout(() => {
+              handleChange(
+                type === "barcode" ? "barcode" : "qrCode",
+                scannedCode
+              );
+              setIsScannerOpen(false);
+              setScanSuccess(false);
+              setLastScannedCode(null);
+            }, 2000);
           }
-          // Imposta il flag solo se c'è un errore reale (non NotFoundException)
           if (err && err?.message !== "NotFoundException") {
             setHasAttemptedScan(true);
             console.error("Scanning error:", err);
@@ -918,39 +835,29 @@ export default function AddProduct() {
           }
         }
       );
-      console.log("Video stream started successfully");
     } catch (error: any) {
       setHasAttemptedScan(true);
       console.error("Scanner error:", error);
       let errorMessage = "Impossibile accedere alla fotocamera.";
       let helpMessage = "";
 
-      switch (error.message) {
-        case "Permesso fotocamera negato":
-          errorMessage = "Accesso alla fotocamera negato";
-          helpMessage =
-            cameraPermissionState === "denied"
-              ? "Per risolvere:\n1. Apri le impostazioni del browser\n2. Cerca le impostazioni dei permessi del sito\n3. Riattiva l'accesso alla fotocamera\n\nOppure clicca il pulsante sotto per richiedere nuovamente l'accesso"
-              : "Per risolvere:\n1. Controlla la barra degli indirizzi del browser\n2. Clicca sull'icona della fotocamera\n3. Seleziona 'Consenti'";
-          break;
-        case "Scanner non inizializzato correttamente":
-          errorMessage = "Errore di inizializzazione";
-          helpMessage =
-            "Ricarica la pagina e riprova. Se il problema persiste, verifica che il browser sia aggiornato all'ultima versione.";
-          break;
-        case "Nessuna fotocamera trovata sul dispositivo":
-          errorMessage = "Nessuna fotocamera trovata";
-          helpMessage =
-            "Verifica che il tuo dispositivo abbia una fotocamera funzionante e che non sia in uso da altre applicazioni.";
-          break;
-        case "Il tuo browser non supporta l'accesso alla fotocamera":
-          errorMessage = "Browser non supportato";
-          helpMessage =
-            "Prova a utilizzare un browser più recente come Chrome, Firefox o Safari.";
-          break;
-        default:
-          helpMessage =
-            "Verifica che:\n1. La fotocamera sia collegata e funzionante\n2. Nessun'altra app stia usando la fotocamera\n3. I permessi del browser siano corretti";
+      if (
+        error.name === "NotAllowedError" ||
+        error.message.includes("Permission denied")
+      ) {
+        errorMessage = "Accesso alla fotocamera negato";
+        helpMessage =
+          cameraPermissionState === "denied"
+            ? "Per risolvere:\n1. Apri le impostazioni del browser\n2. Cerca le impostazioni dei permessi del sito\n3. Riattiva l'accesso alla fotocamera"
+            : "Per risolvere:\n1. Controlla la barra degli indirizzi del browser\n2. Clicca sull'icona della fotocamera\n3. Seleziona 'Consenti'";
+      } else if (error.message.includes("Scanner non inizializzato")) {
+        errorMessage = "Errore di inizializzazione";
+        helpMessage =
+          "Ricarica la pagina e riprova. Se il problema persiste, verifica che il browser sia aggiornato all'ultima versione.";
+      } else if (error.message.includes("Nessuna fotocamera")) {
+        errorMessage = "Nessuna fotocamera trovata";
+        helpMessage =
+          "Verifica che il tuo dispositivo abbia una fotocamera funzionante e che non sia in uso da altre applicazioni.";
       }
 
       setScannerError(`${errorMessage}\n\n${helpMessage}`);
@@ -959,51 +866,290 @@ export default function AddProduct() {
     }
   };
 
-  const checkCameraPermissions = async () => {
+  // Modify getAvailableCameras to better handle camera selection
+  const getAvailableCameras = async () => {
     try {
-      // Check if permissions API is supported
-      if (navigator.permissions && navigator.permissions.query) {
-        const result = await navigator.permissions.query({
-          name: "camera" as PermissionName,
-        });
-        setCameraPermissionState(result.state);
+      setIsInitializingCamera(true);
+      setCameraError(null);
 
-        // Listen for permission changes
-        result.addEventListener("change", () => {
-          setCameraPermissionState(result.state);
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error(
+          "Il tuo browser non supporta l'accesso alla fotocamera"
+        );
+      }
+
+      console.log("Richiedendo l'accesso alla fotocamera...");
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: true,
+          audio: false,
         });
-      } else {
-        // Fallback for browsers that don't support permissions API
-        try {
-          await navigator.mediaDevices.getUserMedia({ video: true });
-          setCameraPermissionState("granted");
-        } catch (error: any) {
-          if (error.name === "NotAllowedError") {
-            setCameraPermissionState("denied");
-          }
+
+        stream.getTracks().forEach((track) => {
+          track.stop();
+          console.log("Stream di test fermato");
+        });
+
+        setCameraPermissionState("granted");
+      } catch (permError: any) {
+        console.error("Errore permessi fotocamera:", permError);
+
+        if (
+          permError.name === "NotAllowedError" ||
+          permError.name === "PermissionDeniedError"
+        ) {
+          setCameraPermissionState("denied");
+          throw new Error("Permesso fotocamera negato");
         }
       }
-    } catch (error) {
-      console.error("Error checking camera permissions:", error);
+
+      // Se siamo ancora qui, possiamo enumerare i dispositivi
+      console.log("Enumerando dispositivi...");
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(
+        (device) => device.kind === "videoinput"
+      );
+
+      console.log("Fotocamere trovate:", videoDevices.length, videoDevices);
+
+      if (videoDevices.length === 0) {
+        throw new Error("Nessuna fotocamera trovata sul dispositivo");
+      }
+
+      setAvailableCameras(videoDevices);
+
+      // Selezione della fotocamera solo se non è già stata selezionata una
+      if (videoDevices.length > 0 && !selectedCamera) {
+        let preferredCamera;
+
+        // Per la scansione di codici a barre, preferiamo la fotocamera posteriore
+        if (scannerType === "barcode") {
+          preferredCamera = videoDevices.find(
+            (device) =>
+              device.label.toLowerCase().includes("back") ||
+              device.label.toLowerCase().includes("rear") ||
+              device.label.toLowerCase().includes("posteriore") ||
+              device.label.toLowerCase().includes("retro")
+          );
+        }
+
+        // Se non troviamo una fotocamera preferita o stiamo scansionando QR, usiamo la prima disponibile
+        if (!preferredCamera) {
+          preferredCamera = videoDevices[0];
+        }
+
+        console.log("Fotocamera selezionata automaticamente:", preferredCamera);
+        setSelectedCamera(preferredCamera.deviceId);
+      } else {
+        console.log("Mantenuta la fotocamera selezionata:", selectedCamera);
+      }
+
+      return true;
+    } catch (error: any) {
+      console.error("Errore nell'ottenere le fotocamere:", error);
+      let errorMessage = "Impossibile accedere alle fotocamere";
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+
+      setCameraError(errorMessage);
+      setAvailableCameras([]);
+      return false;
+    } finally {
+      setIsInitializingCamera(false);
     }
   };
 
+  // Modify handleCameraSelect for better error handling and feedback
+  const handleCameraSelect = async (deviceId: string) => {
+    try {
+      console.log("Switching to camera:", deviceId);
+      setIsInitializingCamera(true);
+
+      // Set the selected camera immediately
+      setSelectedCamera(deviceId);
+
+      // Stop current scanner and stream
+      if (codeReader.current) {
+        console.log("Stopping current scanner...");
+        codeReader.current.reset();
+      }
+
+      // Stop any existing stream
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => {
+          track.stop();
+          console.log("Stopped track:", track.label);
+        });
+        videoRef.current.srcObject = null;
+      }
+
+      // Clear any existing errors
+      setScannerError(null);
+      setCameraError(null);
+
+      // Create a new reader instance to ensure clean state
+      codeReader.current = new BrowserMultiFormatReader();
+
+      // Restart scanner directly without going through other checks
+      if (!videoRef.current) {
+        throw new Error("Scanner non inizializzato correttamente");
+      }
+
+      console.log(
+        "Starting video stream with newly selected camera:",
+        deviceId
+      );
+
+      // Configure video constraints
+      const constraints = {
+        video: {
+          deviceId: { exact: deviceId },
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+        },
+      };
+
+      // Start decoding directly with the new camera
+      await codeReader.current.decodeFromVideoDevice(
+        deviceId,
+        videoRef.current,
+        (result: Result | null, err: Exception | undefined) => {
+          if (result) {
+            console.log("Code detected:", result.getText());
+            const scannedCode = result.getText();
+            setLastScannedCode(scannedCode);
+            setScanSuccess(true);
+
+            // Stop the camera immediately
+            if (codeReader.current) {
+              console.log("Stopping camera after successful scan...");
+              codeReader.current.reset();
+            }
+
+            // Update form data after a delay
+            setTimeout(() => {
+              handleChange(
+                scannerType === "barcode" ? "barcode" : "qrCode",
+                scannedCode
+              );
+              setIsScannerOpen(false);
+              setScanSuccess(false);
+              setLastScannedCode(null);
+            }, 2000);
+          }
+          if (err && err?.message !== "NotFoundException") {
+            setHasAttemptedScan(true);
+            console.error("Scanning error:", err);
+            setScannerError(
+              "Errore durante la scansione. Assicurati che il codice sia ben visibile e riprova."
+            );
+          }
+        }
+      );
+    } catch (error) {
+      console.error("Error in camera switch:", error);
+      setCameraError("Errore nel cambio della fotocamera. Riprova.");
+      setIsInitializingCamera(false);
+    }
+  };
+
+  // Modifica la gestione dell'apertura dello scanner
+  const openScanner = async (type: "barcode" | "qrcode") => {
+    setScannerType(type);
+    setIsScannerOpen(true);
+    setScanSuccess(false);
+    setLastScannedCode(null);
+    setHasAttemptedScan(false);
+    setCameraError(null);
+    setScannerError(null);
+
+    // Resetta il riferimento alla fotocamera
+    if (videoRef.current && videoRef.current.srcObject) {
+      const stream = videoRef.current.srcObject as MediaStream;
+      stream.getTracks().forEach((track) => track.stop());
+      videoRef.current.srcObject = null;
+    }
+
+    // Inizializza l'elenco delle fotocamere se non è già stato fatto
+    if (availableCameras.length === 0) {
+      console.log("Inizializzazione fotocamere...");
+      const success = await getAvailableCameras();
+      if (success && selectedCamera) {
+        // Se abbiamo trovato delle fotocamere, avvia la scansione
+        console.log("Fotocamere trovate, avvio scanner...");
+        await startScanner(type);
+      }
+    } else if (!selectedCamera && availableCameras.length > 0) {
+      // Se abbiamo fotocamere ma nessuna selezionata, seleziona la prima
+      console.log(
+        "Nessuna fotocamera selezionata, selezione la prima disponibile"
+      );
+      setSelectedCamera(availableCameras[0].deviceId);
+      await startScanner(type);
+    } else {
+      // Se abbiamo già un elenco di fotocamere e una selezionata, avvia la scansione
+      console.log("Avvio scanner con fotocamera selezionata:", selectedCamera);
+      await startScanner(type);
+    }
+  };
+
+  // Funzione per chiudere correttamente lo scanner
+  const closeScanner = () => {
+    console.log("Chiusura scanner...");
+
+    // Fermiamo lo stream della fotocamera se attivo
+    if (videoRef.current && videoRef.current.srcObject) {
+      try {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => {
+          track.stop();
+          console.log("Stream video fermato");
+        });
+        videoRef.current.srcObject = null;
+      } catch (e) {
+        console.error("Errore nel fermare lo stream video:", e);
+      }
+    }
+
+    // Reset dello scanner ZXing
+    if (codeReader.current) {
+      try {
+        codeReader.current.reset();
+        console.log("ZXing reader resettato");
+      } catch (e) {
+        console.error("Errore nel resettare ZXing reader:", e);
+      }
+    }
+
+    // Reset degli stati
+    setIsScannerOpen(false);
+    setScanSuccess(false);
+    setLastScannedCode(null);
+    setScannerError(null);
+    setIsInitializingCamera(false);
+  };
+
+  // Effetto di cleanup per gli stream video quando il componente viene smontato
   useEffect(() => {
-    checkCameraPermissions();
+    return () => {
+      // Chiudiamo eventuali stream video attivi
+      if (videoRef.current && videoRef.current.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach((track) => track.stop());
+      }
+
+      // Reset dello scanner
+      if (codeReader.current) {
+        codeReader.current.reset();
+      }
+    };
   }, []);
 
-  const requestCameraPermission = async () => {
-    try {
-      await navigator.mediaDevices.getUserMedia({ video: true });
-      setCameraPermissionState("granted");
-      // Restart scanner after getting permission
-      startScanner(scannerType);
-    } catch (error) {
-      console.error("Error requesting camera permission:", error);
-      setCameraPermissionState("denied");
-    }
-  };
-
+  // Restore necessary attribute handling functions
   const addCustomAttribute = () => {
     const newAttribute: ProductAttribute = {
       id: Date.now().toString(),
@@ -1047,6 +1193,7 @@ export default function AddProduct() {
     );
   };
 
+  // Restore necessary variant handling functions
   const addVariant = () => {
     const newVariant: ProductVariant = {
       id: Date.now().toString(),
@@ -1220,13 +1367,32 @@ export default function AddProduct() {
                       value={formData.sku}
                       onChange={(e) => handleChange("sku", e.target.value)}
                       isRequired
-                      startContent={
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="block text-sm font-medium">
+                        Prezzo di Vendita <span className="text-danger">*</span>
+                      </label>
+                      <Tooltip content="Prezzo al quale il prodotto viene venduto ai clienti">
                         <Icon
                           icon="solar:barcode-bold"
                           className={
                             formData.sku ? "text-success" : "text-default-400"
                           }
                         />
+                      </Tooltip>
+                    </div>
+                    <Input
+                      type="number"
+                      variant="bordered"
+                      color={formData.retailPrice ? "success" : "primary"}
+                      placeholder="0.00"
+                      startContent={
+                        <span className="text-default-400">
+                          {formData.currency}
+                        </span>
                       }
                     />
                   </div>
@@ -1424,6 +1590,38 @@ export default function AddProduct() {
                         aggiungerne uno nuovo.
                       </p>
                     )}
+                  </div>
+
+                  {/* Posizione Magazzino */}
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="block text-sm font-medium">
+                        Posizione Magazzino
+                      </label>
+                      <Tooltip content="Posizione fisica del prodotto nel magazzino">
+                        <Icon
+                          icon="solar:info-circle-bold"
+                          className="text-default-400 cursor-help"
+                        />
+                      </Tooltip>
+                    </div>
+                    <Input
+                      variant="bordered"
+                      color={formData.location ? "success" : "primary"}
+                      placeholder="Es: Scaffale A-12"
+                      value={formData.location}
+                      onChange={(e) => handleChange("location", e.target.value)}
+                      startContent={
+                        <Icon
+                          icon="solar:map-point-bold"
+                          className={
+                            formData.location
+                              ? "text-success"
+                              : "text-default-400"
+                          }
+                        />
+                      }
+                    />
                   </div>
                 </div>
               </Tab>

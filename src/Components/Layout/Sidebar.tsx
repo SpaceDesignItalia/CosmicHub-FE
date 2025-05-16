@@ -104,6 +104,12 @@ export const sectionNestedItems = [
       },
     ],
   },
+  {
+    key: "automations",
+    title: "Automazioni",
+    icon: "majesticons:puzzle-line",
+    href: "/automations",
+  },
 ];
 
 interface ThemeSwitchProps {
