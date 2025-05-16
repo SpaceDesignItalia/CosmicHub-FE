@@ -1294,6 +1294,19 @@ export default function AddProduct() {
     }));
   };
 
+  const generateBarcode = () => {
+    const timestamp = Date.now();
+    const random = Math.floor(Math.random() * 1000);
+    const barcode = `EAN${timestamp}${random}`.slice(0, 13);
+    handleChange("barcode", barcode);
+  };
+
+  const generateQRCode = () => {
+    const timestamp = Date.now();
+    const qrCode = `${formData.sku}-${timestamp}`;
+    handleChange("qrCode", qrCode);
+  };
+
   if (isLoading) {
     return (
       <Card>
@@ -1478,7 +1491,9 @@ export default function AddProduct() {
                           <Icon
                             icon="solar:shop-bold"
                             className={
-                              formData.brand ? "text-success" : "text-default-400"
+                              formData.brand
+                                ? "text-success"
+                                : "text-default-400"
                             }
                           />
                         }
@@ -1724,7 +1739,7 @@ export default function AddProduct() {
                             color="primary"
                             variant="flat"
                             isIconOnly
-                            onClick={generateBarcode}
+                            onPress={generateBarcode}
                           >
                             <Icon icon="solar:refresh-bold" />
                           </Button>
@@ -1800,7 +1815,9 @@ export default function AddProduct() {
                           color={formData.qrCode ? "success" : "primary"}
                           placeholder="QR Code"
                           value={formData.qrCode}
-                          onChange={(e) => handleChange("qrCode", e.target.value)}
+                          onChange={(e) =>
+                            handleChange("qrCode", e.target.value)
+                          }
                           startContent={
                             <Icon
                               icon="solar:qr-code-bold"
@@ -1875,7 +1892,9 @@ export default function AddProduct() {
                 <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
                   {/* Peso */}
                   <div>
-                    <label className="block text-sm font-medium mb-2">Peso</label>
+                    <label className="block text-sm font-medium mb-2">
+                      Peso
+                    </label>
                     <Input
                       type="number"
                       variant="bordered"
@@ -1887,7 +1906,9 @@ export default function AddProduct() {
                         <Icon
                           icon="solar:scales-bold"
                           className={
-                            formData.weight ? "text-success" : "text-default-400"
+                            formData.weight
+                              ? "text-success"
+                              : "text-default-400"
                           }
                         />
                       }
@@ -1909,7 +1930,9 @@ export default function AddProduct() {
                       color={formData.dimensions ? "success" : "primary"}
                       placeholder="LxWxH in cm"
                       value={formData.dimensions}
-                      onChange={(e) => handleChange("dimensions", e.target.value)}
+                      onChange={(e) =>
+                        handleChange("dimensions", e.target.value)
+                      }
                       startContent={
                         <Icon
                           icon="solar:ruler-pen-bold"
@@ -2114,7 +2137,9 @@ export default function AddProduct() {
                                   aggiungere informazioni specifiche al prodotto
                                   oltre a quelle standard.
                                 </p>
-                                <p className="font-bold mb-1">Puoi usarli per:</p>
+                                <p className="font-bold mb-1">
+                                  Puoi usarli per:
+                                </p>
                                 <ul className="list-disc list-inside space-y-1">
                                   <li>Specificare materiali e dimensioni</li>
                                   <li>Aggiungere certificazioni</li>
@@ -2171,8 +2196,8 @@ export default function AddProduct() {
                         <p className="text-sm text-default-500 text-center max-w-md mb-4">
                           Aggiungi attributi personalizzati per specificare
                           caratteristiche uniche del prodotto come materiali,
-                          dimensioni specifiche, certificazioni o altre proprietà
-                          rilevanti.
+                          dimensioni specifiche, certificazioni o altre
+                          proprietà rilevanti.
                         </p>
                         <Button
                           color="primary"
@@ -2201,7 +2226,11 @@ export default function AddProduct() {
                                 placeholder="Nome attributo"
                                 value={attr.name}
                                 onChange={(e) =>
-                                  updateAttribute(attr.id, "name", e.target.value)
+                                  updateAttribute(
+                                    attr.id,
+                                    "name",
+                                    e.target.value
+                                  )
                                 }
                                 variant="bordered"
                               />
@@ -2315,7 +2344,7 @@ export default function AddProduct() {
           </form>
         </CardBody>
       </Card>
-      
+
       {isScannerOpen && (
         <ScannerOverlay
           type={scannerType}
@@ -2323,6 +2352,11 @@ export default function AddProduct() {
           error={scannerError}
           hasAttemptedScan={hasAttemptedScan}
           videoRef={videoRef}
+          scanSuccess={scanSuccess}
+          lastScannedCode={lastScannedCode}
+          onCameraSelect={handleCameraSelect}
+          availableCameras={availableCameras}
+          selectedCamera={selectedCamera}
         />
       )}
     </>
