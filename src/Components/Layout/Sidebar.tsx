@@ -72,6 +72,12 @@ export const sectionNestedItems = [
     href: "/analytics",
   },
   {
+    key: "suppliers",
+    title: "Fornitori",
+    icon: "solar:users-group-rounded-bold",
+    href: "/suppliers",
+  },
+  {
     key: "inventory",
     title: "Inventory",
     icon: "solar:box-line-duotone",
@@ -97,6 +103,12 @@ export const sectionNestedItems = [
         items: [], // Questo array sarà popolato dinamicamente con i magazzini dal backend
       },
     ],
+  },
+  {
+    key: "automations",
+    title: "Automazioni",
+    icon: "majesticons:puzzle-line",
+    href: "/automations",
   },
 ];
 
