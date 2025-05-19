@@ -33,7 +33,12 @@ import {
   Cell,
   PolarAngleAxis,
 } from "recharts";
-import { GoogleMap, useJsApiLoader, Marker } from "@react-google-maps/api";
+import {
+  GoogleMap,
+  useJsApiLoader,
+  Marker,
+  InfoWindow,
+} from "@react-google-maps/api";
 
 // Stili personalizzati per la mappa
 const mapStyles = [
@@ -166,7 +171,7 @@ const WarehouseDetail: React.FC = () => {
   });
 
   // Stato per la finestra info della mappa (per compatibilità)
-  const [infoOpen, setInfoOpen] = useState(false);
+  const [infoOpen, setInfoOpen] = useState<boolean>(true);
 
   // Stati per il modal di modifica
   const {
@@ -212,6 +217,8 @@ const WarehouseDetail: React.FC = () => {
     (map: google.maps.Map) => {
       map.setZoom(zoom);
       setMap(map);
+      // Assicuriamo che l'InfoWindow sia aperta
+      setInfoOpen(true);
     },
     [zoom]
   );
@@ -246,6 +253,11 @@ const WarehouseDetail: React.FC = () => {
         : `https://www.google.com/maps/dir/?api=1&destination=${address}`;
       window.open(url, "_blank");
     }
+  };
+
+  const handleMarkerClick = () => {
+    // Toggle dell'infoWindow
+    setInfoOpen((prev) => !prev);
   };
 
   useEffect(() => {
@@ -968,7 +980,43 @@ const WarehouseDetail: React.FC = () => {
                         onUnmount={onUnmount}
                         options={mapOptions}
                       >
-                        <Marker position={center} />
+                        <Marker position={center} onClick={handleMarkerClick} />
+                        {infoOpen && (
+                          <InfoWindow
+                            position={center}
+                            onCloseClick={() => setInfoOpen(false)}
+                          >
+                            <div
+                              style={{
+                                padding: "12px",
+                                backgroundColor: "#ffffff",
+                                borderRadius: "4px",
+                                width: "250px",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  marginBottom: "6px",
+                                  fontSize: "14px",
+                                  fontWeight: 600,
+                                  color: "#333333",
+                                  textAlign: "left",
+                                }}
+                              >
+                                {warehouse.name || warehouse.WarehouseName}
+                              </div>
+                              <div
+                                style={{
+                                  fontSize: "13px",
+                                  color: "#555555",
+                                  textAlign: "left",
+                                }}
+                              >
+                                {fullAddress}
+                              </div>
+                            </div>
+                          </InfoWindow>
+                        )}
                       </GoogleMap>
 
                       <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-10">
@@ -1002,23 +1050,6 @@ const WarehouseDetail: React.FC = () => {
                           Apri navigazione
                         </Button>
                       </div>
-
-                      {fullAddress && (
-                        <div className="absolute top-4 left-4 right-4 z-10">
-                          <div className="bg-white/90 backdrop-blur-sm p-3 rounded-lg shadow-md border border-default-200">
-                            <div className="flex items-center">
-                              <Icon
-                                icon="solar:map-point-bold"
-                                className="text-primary mr-2"
-                                width={18}
-                              />
-                              <p className="text-sm font-medium">
-                                {fullAddress}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   );
                 })()}
