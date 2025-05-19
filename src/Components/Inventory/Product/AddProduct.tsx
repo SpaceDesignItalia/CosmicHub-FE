@@ -33,26 +33,13 @@ import { Icon } from "@iconify/react";
 import { BrowserMultiFormatReader, Result, Exception } from "@zxing/library";
 import axios from "axios";
 import { parseDate } from "@internationalized/date";
-import QRCode from "react-qr-code";
-import Barcode from "react-barcode";
 
 interface ProductFormData {
   name: string;
   sku: string;
   description: string;
   price: string;
-  costPrice: string;
-  retailPrice: string;
-  wholesalePrice: string;
-  minWholesaleQty: string;
-  taxRate: string;
-  currency: string;
   minStockThreshold: string;
-  maxStockThreshold: string;
-  reorderPoint: string;
-  reorderQuantity: string;
-  currentStock: string;
-  stockUnit: string;
   hasVariants: boolean;
   barcode: string;
   qrCode: string;
@@ -69,12 +56,9 @@ interface ProductFormData {
   qrCodeType: "manual" | "auto" | "scan";
   attributes: ProductAttribute[];
   variants: ProductVariant[];
-  packagingType: string;
-  packagingWeight: string;
-  packagingVolume: string;
-  shippingNotes: string;
   [key: string]:
     | string
+    | number
     | boolean
     | FileWithPreview[]
     | "manual"
@@ -131,11 +115,10 @@ interface ScannerOverlayProps {
   error: string | null;
   hasAttemptedScan: boolean;
   videoRef: React.RefObject<HTMLVideoElement | null>;
-  scanSuccess: boolean;
-  lastScannedCode: string | null;
-  onCameraSelect: (deviceId: string) => void;
+  onCameraChange: (deviceId: string) => void;
   availableCameras: MediaDeviceInfo[];
   selectedCamera: string;
+  onScanSuccess: (code: string) => void;
 }
 
 interface ProductAttribute {
@@ -158,238 +141,260 @@ function ScannerOverlay({
   error,
   hasAttemptedScan,
   videoRef,
-  scanSuccess,
-  lastScannedCode,
-  onCameraSelect,
+  onCameraChange,
   availableCameras,
   selectedCamera,
+  onScanSuccess,
 }: ScannerOverlayProps) {
-  const [isCameraPermissionRequested, setIsCameraPermissionRequested] =
-    useState(false);
-  const [isInitializing, setIsInitializing] = useState(true);
-  const [isCameraSettingsOpen, setIsCameraSettingsOpen] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const successSound = useRef<HTMLAudioElement | null>(null);
+
+  useEffect(() => {
+    // Inizializza il suono di successo
+    successSound.current = new Audio("/sounds/success.mp3");
+  }, []);
+
+  const handleScanSuccess = (code: string) => {
+    setShowSuccess(true);
+    // Riproduci il suono di successo
+    successSound.current?.play();
+    setTimeout(() => {
+      setShowSuccess(false);
+      onScanSuccess(code);
+    }, 1000);
+  };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex flex-col max-h-screen overflow-hidden">
-      {/* Header */}
-      <div className="sticky top-0 left-0 right-0 bg-gradient-to-b from-black/80 via-black/50 to-transparent p-3 z-50">
-        <div className="flex items-center justify-between max-w-2xl mx-auto">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary/20 backdrop-blur-sm border border-primary/20">
-              <Icon
-                icon={
-                  type === "barcode"
-                    ? "solar:barcode-2-bold"
-                    : "solar:qr-code-bold"
-                }
-                className="text-xl text-primary"
-              />
-            </div>
-            <div>
-              <h2 className="text-white text-base font-medium">
-                {type === "barcode"
-                  ? "Scansione Codice a Barre"
-                  : "Scansione QR Code"}
-              </h2>
-              <p className="text-white/70 text-xs">
-                {type === "barcode"
-                  ? "Posiziona il codice a barre nell'area evidenziata"
-                  : "Centra il QR code all'interno del riquadro"}
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <Button
-              isIconOnly
-              color="default"
-              variant="flat"
-              onClick={() => setIsCameraSettingsOpen(!isCameraSettingsOpen)}
-              className="bg-white/10 hover:bg-white/20"
-            >
-              <Icon icon="solar:settings-bold" className="text-white" />
-            </Button>
-            <Button
-              isIconOnly
-              color="default"
-              variant="flat"
-              onClick={onClose}
-              className="bg-white/10 hover:bg-white/20"
-            >
-              <Icon icon="solar:close-circle-bold" className="text-white" />
-            </Button>
-          </div>
-        </div>
-      </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      <div
+        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
 
-      <div className="flex-1 flex flex-col items-center justify-center max-w-2xl mx-auto px-4 py-4 space-y-4">
-        {/* Camera Settings Panel */}
-        {isCameraSettingsOpen && (
-          <Card className="w-full mb-4">
-            <div className="p-3 border-b border-white/10">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="p-1.5 rounded-lg bg-primary/20">
-                    <Icon
-                      icon="solar:camera-bold"
-                      className="text-lg text-primary"
-                    />
-                  </div>
-                  <h3 className="text-sm font-medium">
-                    Impostazioni Fotocamera
-                  </h3>
-                </div>
-                <Button
-                  isIconOnly
-                  size="sm"
-                  color="default"
-                  variant="light"
-                  onClick={() => setIsCameraSettingsOpen(false)}
-                >
-                  <Icon icon="solar:close-circle-bold" className="text-lg" />
-                </Button>
+      <div className="relative w-full max-w-2xl mx-4 bg-black rounded-2xl overflow-hidden">
+        {/* Header con controlli */}
+        <Card radius="none" className="bg-black">
+          <div className="flex items-center justify-between p-4">
+            <div className="flex items-center gap-4">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Icon
+                  icon={
+                    type === "barcode"
+                      ? "solar:barcode-2-bold"
+                      : "solar:qr-code-bold"
+                  }
+                />
+              </div>
+              <div>
+                <h3 className="text-lg font-medium">
+                  Scansiona {type === "barcode" ? "Codice a Barre" : "QR Code"}
+                </h3>
+                <p className="text-sm">
+                  {type === "barcode"
+                    ? "Posiziona il codice a barre nell'area di scansione"
+                    : "Centra il QR code nel riquadro"}
+                </p>
               </div>
             </div>
-            <div className="p-3">
-              {availableCameras.length > 0 ? (
-                <Select
-                  variant="bordered"
-                  selectedKeys={[selectedCamera]}
-                  onChange={(e) => onCameraSelect(e.target.value)}
-                  size="sm"
-                  startContent={
-                    <Icon
-                      icon="solar:video-frame-bold"
-                      className="text-primary"
-                    />
-                  }
-                  label="Fotocamera attiva"
-                >
-                  {availableCameras.map((camera, index) => (
-                    <SelectItem
-                      key={camera.deviceId}
-                      textValue={camera.label || `Camera ${index + 1}`}
-                    >
-                      <div className="flex items-center gap-2">
-                        {camera.deviceId === selectedCamera && (
-                          <Badge
-                            color="success"
-                            variant="flat"
-                            size="sm"
-                            className="bg-success/20 text-success"
-                          >
-                            Attiva
-                          </Badge>
-                        )}
-                        <span className="text-sm">
-                          {camera.label || `Camera ${index + 1}`}
-                        </span>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </Select>
-              ) : (
-                <div className="p-3 bg-warning-900/20 border border-warning-700/30 rounded-lg">
-                  <div className="flex items-center gap-2 text-warning-300">
-                    <Icon
-                      icon="solar:danger-triangle-bold"
-                      className="text-lg"
-                    />
-                    <p className="text-sm">
-                      Nessuna fotocamera trovata sul tuo dispositivo
-                    </p>
-                  </div>
-                </div>
-              )}
+            <div className="flex items-center gap-3">
+              <Select
+                selectedKeys={[selectedCamera]}
+                onChange={(e) => onCameraChange(e.target.value)}
+                variant="bordered"
+                color="primary"
+                size="sm"
+                startContent={<Icon icon="solar:camera-bold" />}
+              >
+                {availableCameras.map((camera) => (
+                  <SelectItem key={camera.deviceId} textValue={camera.label}>
+                    {camera.label || `Camera ${camera.deviceId.slice(0, 4)}`}
+                  </SelectItem>
+                ))}
+              </Select>
+              <Button
+                isIconOnly
+                color="default"
+                variant="flat"
+                onClick={onClose}
+              >
+                <Icon icon="solar:close-circle-bold" />
+              </Button>
             </div>
-          </Card>
-        )}
+          </div>
+        </Card>
 
-        {/* Scanner View */}
-        <div
-          className={`relative w-full aspect-[4/3] rounded-xl overflow-hidden backdrop-blur-sm border border-white/10 ${
-            scanSuccess ? "ring-4 ring-success" : ""
-          }`}
-        >
+        {/* Area di scansione principale */}
+        <div className="relative w-full aspect-[4/3] rounded-b-2xl overflow-hidden">
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
             playsInline
             autoPlay
-            muted
           />
 
-          {/* Scanning Area */}
-          {availableCameras.length > 0 && !scanSuccess && (
-            <div className="absolute inset-0 flex items-center justify-center">
+          {/* Overlay di scansione */}
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div
+              className={`relative ${
+                type === "barcode" ? "w-96 h-48" : "w-72 h-72"
+              }`}
+            >
+              {/* Mascheratura esterna con effetto vignette */}
+              <div className="absolute -inset-[1000px] bg-gradient-to-b from-black/70 via-transparent to-black/70">
+                <div
+                  className={`absolute left-[1000px] top-[1000px] ${
+                    type === "barcode" ? "w-96 h-48" : "w-72 h-72"
+                  } bg-transparent`}
+                />
+              </div>
+
+              {/* Bordo area di scansione con effetto glow */}
+              <div
+                className={`absolute inset-0 border-2 ${
+                  showSuccess ? "border-success" : "border-primary/50"
+                } rounded-lg shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] transition-colors duration-300`}
+              />
+
+              {/* Guide specifiche per tipo */}
               {type === "barcode" ? (
-                <div className="relative w-[90%] h-24 max-w-lg">
-                  <div className="absolute inset-0 border-2 border-primary/50 rounded-lg">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent animate-pulse" />
+                <>
+                  {/* Guide per codice a barre */}
+                  <div className="absolute inset-0">
+                    {/* Linee verticali guida con effetto pulse */}
+                    <div className="absolute left-0 top-0 bottom-0 w-px bg-primary/30 animate-pulse" />
+                    <div className="absolute right-0 top-0 bottom-0 w-px bg-primary/30 animate-pulse" />
+
+                    {/* Area centrale evidenziata */}
+                    <div className="absolute inset-y-0 left-1/4 right-1/4 border-l border-r border-primary/30" />
+
+                    {/* Linea di scansione verticale con effetto glow */}
+                    <div className="absolute top-0 bottom-0 w-0.5 bg-primary/50 animate-scan-vertical left-1/2 -translate-x-1/2 shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]" />
                   </div>
-                </div>
+
+                  {/* Angoli per barcode con effetto glow */}
+                  <div className="absolute inset-0">
+                    <div className="absolute left-0 top-0 w-8 h-full border-l-2 border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]" />
+                    <div className="absolute right-0 top-0 w-8 h-full border-r-2 border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]" />
+                  </div>
+                </>
               ) : (
-                <div className="relative w-56 h-56">
-                  <div className="absolute inset-0 border-2 border-primary/50 rounded-lg">
-                    <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/20 to-transparent animate-pulse" />
+                <>
+                  {/* Guide per QR code */}
+                  <div className="absolute inset-0">
+                    {/* Griglia guida con effetto fade */}
+                    <div className="absolute inset-0 grid grid-cols-3 grid-rows-3 opacity-50">
+                      {[...Array(4)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="border-primary/20 border-r last:border-r-0"
+                        />
+                      ))}
+                      {[...Array(4)].map((_, i) => (
+                        <div
+                          key={i}
+                          className="border-primary/20 border-b last:border-b-0"
+                        />
+                      ))}
+                    </div>
+
+                    {/* Angoli QR con effetto glow */}
+                    {[
+                      "top-0 left-0",
+                      "top-0 right-0",
+                      "bottom-0 left-0",
+                      "bottom-0 right-0",
+                    ].map((position) => (
+                      <div key={position} className={`absolute ${position}`}>
+                        <div className="relative w-12 h-12">
+                          <div
+                            className={`absolute inset-0 border-2 ${
+                              showSuccess ? "border-success" : "border-primary"
+                            } rounded-lg shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)] transition-colors duration-300`}
+                          />
+                          <div
+                            className={`absolute inset-2 border ${
+                              showSuccess
+                                ? "border-success/50"
+                                : "border-primary/50"
+                            } rounded-md transition-colors duration-300`}
+                          />
+                          <div
+                            className={`absolute inset-4 ${
+                              showSuccess ? "bg-success/30" : "bg-primary/30"
+                            } rounded animate-pulse transition-colors duration-300`}
+                          />
+                        </div>
+                      </div>
+                    ))}
+
+                    {/* Linea di scansione diagonale per QR con effetto glow */}
+                    <div
+                      className={`absolute top-0 left-0 w-[141%] h-0.5 ${
+                        showSuccess ? "bg-success/50" : "bg-primary/50"
+                      } animate-scan-diagonal origin-top-left shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)] transition-colors duration-300`}
+                      style={{ transform: "rotate(45deg)" }}
+                    />
+                  </div>
+                </>
+              )}
+
+              {/* Success indicator */}
+              {showSuccess && (
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center animate-success-pop">
+                    <Icon
+                      icon="solar:check-circle-bold"
+                      className="text-3xl text-success"
+                    />
                   </div>
                 </div>
               )}
             </div>
-          )}
+          </div>
 
-          {/* Success Overlay */}
-          {scanSuccess && (
-            <div className="absolute inset-0 bg-success/20 backdrop-blur-sm flex items-center justify-center">
-              <div className="bg-success/90 text-white p-4 rounded-lg shadow-lg max-w-sm w-full mx-4">
-                <div className="flex items-start gap-3">
-                  <div className="shrink-0">
-                    <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                      <Icon
-                        icon="solar:check-circle-bold"
-                        className="text-2xl"
-                      />
-                    </div>
-                  </div>
-                  <div className="flex-1">
-                    <h3 className="text-base font-medium mb-1">
-                      Codice Rilevato!
-                    </h3>
-                    <p className="text-success-100 text-xs break-all font-mono bg-white/10 p-2 rounded">
-                      {lastScannedCode}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Indicatore di stato */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
+            <div
+              className={`w-2 h-2 rounded-full ${
+                showSuccess ? "bg-success" : "bg-primary"
+              } animate-pulse`}
+            />
+            <span className="text-white/80 text-sm">
+              {showSuccess ? "Codice rilevato!" : "In attesa di scansione..."}
+            </span>
+          </div>
         </div>
 
-        {/* Status Messages */}
-        <div className="text-center">
-          {!scanSuccess && availableCameras.length > 0 && (
-            <div className="space-y-1">
-              <p className="text-white/70 text-sm">
-                {type === "barcode"
-                  ? "Posiziona il codice a barre orizzontalmente nell'area evidenziata"
-                  : "Centra il QR code all'interno del riquadro"}
-              </p>
-            </div>
-          )}
+        {/* Suggerimenti e feedback */}
+        <div className="p-4 text-center bg-black/50">
+          <div className="flex items-center justify-center gap-2">
+            <Icon icon="solar:lightbulb-bold" className="text-yellow-500" />
+            <p className="text-yellow-200/70 text-xs">
+              {type === "barcode"
+                ? "Suggerimento: Mantieni il codice parallelo alle linee verticali e assicurati che sia ben illuminato"
+                : "Suggerimento: Assicurati che tutti e 4 gli angoli siano visibili e che il QR code sia ben illuminato"}
+            </p>
+          </div>
         </div>
 
-        {/* Error Display */}
-        {error && hasAttemptedScan && !scanSuccess && (
-          <div className="w-full max-w-md">
-            <div className="bg-danger-900/20 border border-danger-700/30 rounded-lg p-3">
-              <div className="flex items-start gap-2">
-                <div className="p-1.5 rounded-lg bg-danger-500/20">
-                  <Icon
-                    icon="solar:danger-triangle-bold"
-                    className="text-danger-300 text-lg"
-                  />
-                </div>
+        {/* Errore (mostrato solo dopo un tentativo fallito) */}
+        {error && hasAttemptedScan && (
+          <div className="p-4">
+            <div className="bg-danger/10 border border-danger/20 rounded-lg p-4">
+              <div className="flex items-start gap-3">
+                <Icon
+                  icon="solar:danger-triangle-bold"
+                  className="text-danger text-xl mt-0.5"
+                />
                 <div>
-                  <p className="text-danger-200 text-sm font-medium">{error}</p>
+                  <p className="text-danger font-medium">
+                    {error.split("\n\n")[0]}
+                  </p>
+                  {error.split("\n\n")[1] && (
+                    <p className="text-danger/80 text-sm mt-1">
+                      {error.split("\n\n")[1]}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -399,6 +404,85 @@ function ScannerOverlay({
     </div>
   );
 }
+
+// Aggiorna le animazioni
+const styles = {
+  "@keyframes scan": {
+    "0%": {
+      top: "0%",
+    },
+    "50%": {
+      top: "97%",
+    },
+    "100%": {
+      top: "0%",
+    },
+  },
+  "@keyframes scanVertical": {
+    "0%": {
+      left: "25%",
+    },
+    "50%": {
+      left: "75%",
+    },
+    "100%": {
+      left: "25%",
+    },
+  },
+  "@keyframes scanDiagonal": {
+    "0%": {
+      top: "0%",
+      left: "0%",
+    },
+    "50%": {
+      top: "100%",
+      left: "100%",
+    },
+    "100%": {
+      top: "0%",
+      left: "0%",
+    },
+  },
+  "@keyframes success-pop": {
+    "0%": {
+      transform: "scale(0.8)",
+      opacity: "0",
+    },
+    "50%": {
+      transform: "scale(1.05)",
+    },
+    "100%": {
+      transform: "scale(1)",
+      opacity: "1",
+    },
+  },
+  "@keyframes fade-in": {
+    "0%": {
+      opacity: "0",
+    },
+    "100%": {
+      opacity: "1",
+    },
+  },
+};
+
+const customStyles = {
+  ".animate-scan": {
+    animation: "scan 2s linear infinite",
+  },
+  ".animate-scan-vertical": {
+    animation: "scanVertical 2s linear infinite",
+  },
+  ".animate-scan-diagonal": {
+    animation: "scanDiagonal 2s linear infinite",
+  },
+  ".animate-success-pop": {
+    animation: "success-pop 0.3s ease-out forwards",
+  },
+  ".animate-fade-in": {
+    animation: "fade-in 0.3s ease-out forwards",
+  },
+};
 
 export default function AddProduct() {
   const navigate = useNavigate();
@@ -424,18 +508,7 @@ export default function AddProduct() {
     sku: "",
     description: "",
     price: "",
-    costPrice: "",
-    retailPrice: "",
-    wholesalePrice: "",
-    minWholesaleQty: "",
-    taxRate: "",
-    currency: "EUR",
     minStockThreshold: "",
-    maxStockThreshold: "",
-    reorderPoint: "",
-    reorderQuantity: "",
-    currentStock: "0",
-    stockUnit: "PZ",
     hasVariants: false,
     barcode: "",
     qrCode: "",
@@ -452,11 +525,11 @@ export default function AddProduct() {
     qrCodeType: "manual",
     attributes: [],
     variants: [],
-    packagingType: "",
-    packagingWeight: "",
-    packagingVolume: "",
-    shippingNotes: "",
   });
+  const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
+  const [isDraggingDocs, setIsDraggingDocs] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
   const [isScannerOpen, setIsScannerOpen] = useState(false);
   const [scannerType, setScannerType] = useState<"barcode" | "qrcode">(
     "barcode"
@@ -470,12 +543,12 @@ export default function AddProduct() {
   const [isInitializingCamera, setIsInitializingCamera] = useState(false);
   const [cameraError, setCameraError] = useState<string | null>(null);
   const [hasAttemptedScan, setHasAttemptedScan] = useState(false);
-  const [scanSuccess, setScanSuccess] = useState(false);
-  const [lastScannedCode, setLastScannedCode] = useState<string | null>(null);
   const [availableCameras, setAvailableCameras] = useState<MediaDeviceInfo[]>(
     []
   );
   const [selectedCamera, setSelectedCamera] = useState<string>("");
+  const [showScanSuccess, setShowScanSuccess] = useState(false);
+  const [scannedCode, setScannedCode] = useState<string>("");
 
   useEffect(() => {
     loadInitialData();
@@ -688,6 +761,144 @@ export default function AddProduct() {
     }
   };
 
+  const handleFileSelect = (
+    files: FileList | null,
+    type: "photos" | "documents"
+  ) => {
+    if (!files) return;
+
+    const acceptedFiles: File[] = [];
+    const maxSize = type === "photos" ? 5 * 1024 * 1024 : 10 * 1024 * 1024; // 5MB for photos, 10MB for docs
+
+    Array.from(files).forEach((file) => {
+      if (type === "photos") {
+        if (file.type.startsWith("image/") && file.size <= maxSize) {
+          acceptedFiles.push(file);
+        }
+      } else {
+        const allowedTypes = [
+          "application/pdf",
+          "application/msword",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.ms-excel",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        ];
+        if (allowedTypes.includes(file.type) && file.size <= maxSize) {
+          acceptedFiles.push(file);
+        }
+      }
+    });
+
+    const filesWithPreview = acceptedFiles.map((file) => {
+      const preview =
+        type === "photos" || file.type.startsWith("image/")
+          ? URL.createObjectURL(file)
+          : "";
+      return Object.assign(file, { preview });
+    }) as FileWithPreview[];
+
+    setFormData((prev) => ({
+      ...prev,
+      [type]: [...prev[type], ...filesWithPreview],
+    }));
+  };
+
+  const handleDragOver = (e: React.DragEvent, type: "photos" | "documents") => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === "photos") {
+      setIsDraggingPhotos(true);
+    } else {
+      setIsDraggingDocs(true);
+    }
+  };
+
+  const handleDragLeave = (
+    e: React.DragEvent,
+    type: "photos" | "documents"
+  ) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === "photos") {
+      setIsDraggingPhotos(false);
+    } else {
+      setIsDraggingDocs(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent, type: "photos" | "documents") => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (type === "photos") {
+      setIsDraggingPhotos(false);
+    } else {
+      setIsDraggingDocs(false);
+    }
+
+    const droppedFiles = e.dataTransfer.files;
+    handleFileSelect(droppedFiles, type);
+  };
+
+  // Cleanup function for file previews
+  useEffect(() => {
+    return () => {
+      formData.photos.forEach((file) => {
+        if (file.preview) URL.revokeObjectURL(file.preview);
+      });
+      formData.documents.forEach((file) => {
+        if (file.preview) URL.revokeObjectURL(file.preview);
+      });
+    };
+  }, [formData.photos, formData.documents]);
+
+  const removeFile = (type: "photos" | "documents", index: number) => {
+    setFormData((prev) => ({
+      ...prev,
+      [type]: prev[type].filter((_, i) => i !== index),
+    }));
+  };
+
+  const getFileIcon = (fileName: string) => {
+    const extension = fileName.split(".").pop()?.toLowerCase();
+    switch (extension) {
+      case "pdf":
+        return "solar:file-pdf-bold";
+      case "doc":
+      case "docx":
+        return "solar:file-text-bold";
+      case "xls":
+      case "xlsx":
+        return "solar:file-spreadsheet-bold";
+      default:
+        return "solar:file-bold";
+    }
+  };
+
+  const generateBarcode = () => {
+    // Genera un codice EAN-13 casuale
+    const prefix = "200"; // Prefisso per prodotti interni
+    const randomDigits = Array.from({ length: 9 }, () =>
+      Math.floor(Math.random() * 10)
+    ).join("");
+    const code = prefix + randomDigits;
+    // Calcola il check digit
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      sum += parseInt(code[i]) * (i % 2 === 0 ? 1 : 3);
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+    const barcode = code + checkDigit;
+
+    handleChange("barcode", barcode);
+  };
+
+  const generateQRCode = () => {
+    // Genera un QR code basato su SKU e timestamp
+    const timestamp = Date.now();
+    const qrCode = `${formData.sku || "PROD"}-${timestamp}`;
+    handleChange("qrCode", qrCode);
+  };
+
   // Modify the initialization effect
   useEffect(() => {
     // Initialize ZXing reader only once when component mounts
@@ -735,7 +946,7 @@ export default function AddProduct() {
         codeReader.current.reset();
       }
     };
-  }, [isScannerOpen, scannerType]);
+  }, [isScannerOpen, scannerType, selectedCamera]); // Add selectedCamera to dependencies
 
   const stopScanner = () => {
     if (codeReader.current) {
@@ -754,77 +965,90 @@ export default function AddProduct() {
     setScannerError(null);
     setCameraError(null);
     setHasAttemptedScan(false);
+    setShowScanSuccess(false);
 
     try {
-      // Reset any existing reader
-      if (codeReader.current) {
-        codeReader.current.reset();
+      console.log("Checking camera prerequisites...");
+      if (!codeReader.current) {
+        codeReader.current = new BrowserMultiFormatReader();
       }
-
-      // Create a new reader instance
-      codeReader.current = new BrowserMultiFormatReader();
-
       if (!videoRef.current) {
         throw new Error("Scanner non inizializzato correttamente");
       }
 
-      // Get cameras if we don't have any yet, but preserve camera selection
-      if (availableCameras.length === 0) {
-        console.log("Nessuna fotocamera disponibile, recupero elenco...");
-        await getAvailableCameras();
+      // Check if the browser supports getUserMedia
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error(
+          "Il tuo browser non supporta l'accesso alla fotocamera"
+        );
       }
 
+      console.log("Current camera permission state:", cameraPermissionState);
+
+      // First try to get camera permissions if not already granted
+      if (cameraPermissionState !== "granted") {
+        try {
+          console.log("Requesting camera access...");
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          setCameraPermissionState("granted");
+          console.log("Camera access granted");
+        } catch (permissionError: any) {
+          console.error("Camera permission error:", permissionError);
+          if (permissionError.name === "NotAllowedError") {
+            setCameraPermissionState("denied");
+            throw new Error("Permesso fotocamera negato");
+          } else if (permissionError.name === "NotFoundError") {
+            throw new Error("Nessuna fotocamera trovata sul dispositivo");
+          } else {
+            throw new Error(
+              "Errore di accesso alla fotocamera: " + permissionError.message
+            );
+          }
+        }
+      }
+
+      // Reset any existing streams before starting new one
+      if (codeReader.current) {
+        codeReader.current.reset();
+      }
+
+      console.log("Listing video devices...");
+      const videoInputDevices =
+        await codeReader.current.listVideoInputDevices();
+      console.log("Available video devices:", videoInputDevices);
+
+      if (videoInputDevices.length === 0) {
+        throw new Error("Nessuna fotocamera trovata");
+      }
+
+      // Update available cameras
+      setAvailableCameras(videoInputDevices);
+
+      // Set default camera if not already selected
       if (!selectedCamera) {
-        throw new Error("Nessuna fotocamera selezionata");
+        setSelectedCamera(videoInputDevices[0].deviceId);
       }
 
-      console.log("Starting video stream with camera:", selectedCamera);
+      const deviceId = selectedCamera || videoInputDevices[0].deviceId;
+      console.log("Using device ID:", deviceId);
 
-      // Configure video constraints
-      const constraints = {
-        video: {
-          deviceId: { exact: selectedCamera },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      };
-
-      // Test camera access
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia(constraints);
-        stream.getTracks().forEach((track) => track.stop());
-      } catch (error) {
-        console.error("Camera test failed:", error);
-        throw new Error("Impossibile accedere alla fotocamera selezionata");
-      }
-
-      // Start decoding from video device
+      console.log("Starting video stream...");
       await codeReader.current.decodeFromVideoDevice(
-        selectedCamera,
+        deviceId,
         videoRef.current,
         (result: Result | null, err: Exception | undefined) => {
           if (result) {
             console.log("Code detected:", result.getText());
-            const scannedCode = result.getText();
-            setLastScannedCode(scannedCode);
-            setScanSuccess(true);
+            const code = result.getText();
+            setScannedCode(code);
+            setShowScanSuccess(true);
 
-            // Stop the camera immediately
-            if (codeReader.current) {
-              console.log("Stopping camera after successful scan...");
-              codeReader.current.reset();
-            }
-
-            // Update form data after a delay
+            // Dopo 1 secondo, aggiorna il form e chiudi lo scanner
             setTimeout(() => {
-              handleChange(
-                type === "barcode" ? "barcode" : "qrCode",
-                scannedCode
-              );
-              setIsScannerOpen(false);
-              setScanSuccess(false);
-              setLastScannedCode(null);
-            }, 2000);
+              setShowScanSuccess(false);
+              handleChange(type === "barcode" ? "barcode" : "qrCode", code);
+              stopScanner();
+            }, 1000);
           }
           if (err && err?.message !== "NotFoundException") {
             setHasAttemptedScan(true);
@@ -835,29 +1059,39 @@ export default function AddProduct() {
           }
         }
       );
+      console.log("Video stream started successfully");
     } catch (error: any) {
       setHasAttemptedScan(true);
       console.error("Scanner error:", error);
       let errorMessage = "Impossibile accedere alla fotocamera.";
       let helpMessage = "";
 
-      if (
-        error.name === "NotAllowedError" ||
-        error.message.includes("Permission denied")
-      ) {
-        errorMessage = "Accesso alla fotocamera negato";
-        helpMessage =
-          cameraPermissionState === "denied"
-            ? "Per risolvere:\n1. Apri le impostazioni del browser\n2. Cerca le impostazioni dei permessi del sito\n3. Riattiva l'accesso alla fotocamera"
-            : "Per risolvere:\n1. Controlla la barra degli indirizzi del browser\n2. Clicca sull'icona della fotocamera\n3. Seleziona 'Consenti'";
-      } else if (error.message.includes("Scanner non inizializzato")) {
-        errorMessage = "Errore di inizializzazione";
-        helpMessage =
-          "Ricarica la pagina e riprova. Se il problema persiste, verifica che il browser sia aggiornato all'ultima versione.";
-      } else if (error.message.includes("Nessuna fotocamera")) {
-        errorMessage = "Nessuna fotocamera trovata";
-        helpMessage =
-          "Verifica che il tuo dispositivo abbia una fotocamera funzionante e che non sia in uso da altre applicazioni.";
+      switch (error.message) {
+        case "Permesso fotocamera negato":
+          errorMessage = "Accesso alla fotocamera negato";
+          helpMessage =
+            cameraPermissionState === "denied"
+              ? "Per risolvere:\n1. Apri le impostazioni del browser\n2. Cerca le impostazioni dei permessi del sito\n3. Riattiva l'accesso alla fotocamera\n\nOppure clicca il pulsante sotto per richiedere nuovamente l'accesso"
+              : "Per risolvere:\n1. Controlla la barra degli indirizzi del browser\n2. Clicca sull'icona della fotocamera\n3. Seleziona 'Consenti'";
+          break;
+        case "Scanner non inizializzato correttamente":
+          errorMessage = "Errore di inizializzazione";
+          helpMessage =
+            "Ricarica la pagina e riprova. Se il problema persiste, verifica che il browser sia aggiornato all'ultima versione.";
+          break;
+        case "Nessuna fotocamera trovata sul dispositivo":
+          errorMessage = "Nessuna fotocamera trovata";
+          helpMessage =
+            "Verifica che il tuo dispositivo abbia una fotocamera funzionante e che non sia in uso da altre applicazioni.";
+          break;
+        case "Il tuo browser non supporta l'accesso alla fotocamera":
+          errorMessage = "Browser non supportato";
+          helpMessage =
+            "Prova a utilizzare un browser più recente come Chrome, Firefox o Safari.";
+          break;
+        default:
+          helpMessage =
+            "Verifica che:\n1. La fotocamera sia collegata e funzionante\n2. Nessun'altra app stia usando la fotocamera\n3. I permessi del browser siano corretti";
       }
 
       setScannerError(`${errorMessage}\n\n${helpMessage}`);
@@ -866,290 +1100,59 @@ export default function AddProduct() {
     }
   };
 
-  // Modify getAvailableCameras to better handle camera selection
-  const getAvailableCameras = async () => {
+  const handleCameraChange = async (deviceId: string) => {
+    setSelectedCamera(deviceId);
+    if (isScannerOpen) {
+      // Restart scanner with new camera
+      await startScanner(scannerType);
+    }
+  };
+
+  const checkCameraPermissions = async () => {
     try {
-      setIsInitializingCamera(true);
-      setCameraError(null);
-
-      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-        throw new Error(
-          "Il tuo browser non supporta l'accesso alla fotocamera"
-        );
-      }
-
-      console.log("Richiedendo l'accesso alla fotocamera...");
-
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: true,
-          audio: false,
+      // Check if permissions API is supported
+      if (navigator.permissions && navigator.permissions.query) {
+        const result = await navigator.permissions.query({
+          name: "camera" as PermissionName,
         });
+        setCameraPermissionState(result.state);
 
-        stream.getTracks().forEach((track) => {
-          track.stop();
-          console.log("Stream di test fermato");
+        // Listen for permission changes
+        result.addEventListener("change", () => {
+          setCameraPermissionState(result.state);
         });
-
-        setCameraPermissionState("granted");
-      } catch (permError: any) {
-        console.error("Errore permessi fotocamera:", permError);
-
-        if (
-          permError.name === "NotAllowedError" ||
-          permError.name === "PermissionDeniedError"
-        ) {
-          setCameraPermissionState("denied");
-          throw new Error("Permesso fotocamera negato");
-        }
-      }
-
-      // Se siamo ancora qui, possiamo enumerare i dispositivi
-      console.log("Enumerando dispositivi...");
-      const devices = await navigator.mediaDevices.enumerateDevices();
-      const videoDevices = devices.filter(
-        (device) => device.kind === "videoinput"
-      );
-
-      console.log("Fotocamere trovate:", videoDevices.length, videoDevices);
-
-      if (videoDevices.length === 0) {
-        throw new Error("Nessuna fotocamera trovata sul dispositivo");
-      }
-
-      setAvailableCameras(videoDevices);
-
-      // Selezione della fotocamera solo se non è già stata selezionata una
-      if (videoDevices.length > 0 && !selectedCamera) {
-        let preferredCamera;
-
-        // Per la scansione di codici a barre, preferiamo la fotocamera posteriore
-        if (scannerType === "barcode") {
-          preferredCamera = videoDevices.find(
-            (device) =>
-              device.label.toLowerCase().includes("back") ||
-              device.label.toLowerCase().includes("rear") ||
-              device.label.toLowerCase().includes("posteriore") ||
-              device.label.toLowerCase().includes("retro")
-          );
-        }
-
-        // Se non troviamo una fotocamera preferita o stiamo scansionando QR, usiamo la prima disponibile
-        if (!preferredCamera) {
-          preferredCamera = videoDevices[0];
-        }
-
-        console.log("Fotocamera selezionata automaticamente:", preferredCamera);
-        setSelectedCamera(preferredCamera.deviceId);
       } else {
-        console.log("Mantenuta la fotocamera selezionata:", selectedCamera);
-      }
-
-      return true;
-    } catch (error: any) {
-      console.error("Errore nell'ottenere le fotocamere:", error);
-      let errorMessage = "Impossibile accedere alle fotocamere";
-
-      if (error instanceof Error) {
-        errorMessage = error.message;
-      }
-
-      setCameraError(errorMessage);
-      setAvailableCameras([]);
-      return false;
-    } finally {
-      setIsInitializingCamera(false);
-    }
-  };
-
-  // Modify handleCameraSelect for better error handling and feedback
-  const handleCameraSelect = async (deviceId: string) => {
-    try {
-      console.log("Switching to camera:", deviceId);
-      setIsInitializingCamera(true);
-
-      // Set the selected camera immediately
-      setSelectedCamera(deviceId);
-
-      // Stop current scanner and stream
-      if (codeReader.current) {
-        console.log("Stopping current scanner...");
-        codeReader.current.reset();
-      }
-
-      // Stop any existing stream
-      if (videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => {
-          track.stop();
-          console.log("Stopped track:", track.label);
-        });
-        videoRef.current.srcObject = null;
-      }
-
-      // Clear any existing errors
-      setScannerError(null);
-      setCameraError(null);
-
-      // Create a new reader instance to ensure clean state
-      codeReader.current = new BrowserMultiFormatReader();
-
-      // Restart scanner directly without going through other checks
-      if (!videoRef.current) {
-        throw new Error("Scanner non inizializzato correttamente");
-      }
-
-      console.log(
-        "Starting video stream with newly selected camera:",
-        deviceId
-      );
-
-      // Configure video constraints
-      const constraints = {
-        video: {
-          deviceId: { exact: deviceId },
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-        },
-      };
-
-      // Start decoding directly with the new camera
-      await codeReader.current.decodeFromVideoDevice(
-        deviceId,
-        videoRef.current,
-        (result: Result | null, err: Exception | undefined) => {
-          if (result) {
-            console.log("Code detected:", result.getText());
-            const scannedCode = result.getText();
-            setLastScannedCode(scannedCode);
-            setScanSuccess(true);
-
-            // Stop the camera immediately
-            if (codeReader.current) {
-              console.log("Stopping camera after successful scan...");
-              codeReader.current.reset();
-            }
-
-            // Update form data after a delay
-            setTimeout(() => {
-              handleChange(
-                scannerType === "barcode" ? "barcode" : "qrCode",
-                scannedCode
-              );
-              setIsScannerOpen(false);
-              setScanSuccess(false);
-              setLastScannedCode(null);
-            }, 2000);
-          }
-          if (err && err?.message !== "NotFoundException") {
-            setHasAttemptedScan(true);
-            console.error("Scanning error:", err);
-            setScannerError(
-              "Errore durante la scansione. Assicurati che il codice sia ben visibile e riprova."
-            );
+        // Fallback for browsers that don't support permissions API
+        try {
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          setCameraPermissionState("granted");
+        } catch (error: any) {
+          if (error.name === "NotAllowedError") {
+            setCameraPermissionState("denied");
           }
         }
-      );
+      }
     } catch (error) {
-      console.error("Error in camera switch:", error);
-      setCameraError("Errore nel cambio della fotocamera. Riprova.");
-      setIsInitializingCamera(false);
+      console.error("Error checking camera permissions:", error);
     }
   };
 
-  // Modifica la gestione dell'apertura dello scanner
-  const openScanner = async (type: "barcode" | "qrcode") => {
-    setScannerType(type);
-    setIsScannerOpen(true);
-    setScanSuccess(false);
-    setLastScannedCode(null);
-    setHasAttemptedScan(false);
-    setCameraError(null);
-    setScannerError(null);
-
-    // Resetta il riferimento alla fotocamera
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach((track) => track.stop());
-      videoRef.current.srcObject = null;
-    }
-
-    // Inizializza l'elenco delle fotocamere se non è già stato fatto
-    if (availableCameras.length === 0) {
-      console.log("Inizializzazione fotocamere...");
-      const success = await getAvailableCameras();
-      if (success && selectedCamera) {
-        // Se abbiamo trovato delle fotocamere, avvia la scansione
-        console.log("Fotocamere trovate, avvio scanner...");
-        await startScanner(type);
-      }
-    } else if (!selectedCamera && availableCameras.length > 0) {
-      // Se abbiamo fotocamere ma nessuna selezionata, seleziona la prima
-      console.log(
-        "Nessuna fotocamera selezionata, selezione la prima disponibile"
-      );
-      setSelectedCamera(availableCameras[0].deviceId);
-      await startScanner(type);
-    } else {
-      // Se abbiamo già un elenco di fotocamere e una selezionata, avvia la scansione
-      console.log("Avvio scanner con fotocamera selezionata:", selectedCamera);
-      await startScanner(type);
-    }
-  };
-
-  // Funzione per chiudere correttamente lo scanner
-  const closeScanner = () => {
-    console.log("Chiusura scanner...");
-
-    // Fermiamo lo stream della fotocamera se attivo
-    if (videoRef.current && videoRef.current.srcObject) {
-      try {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => {
-          track.stop();
-          console.log("Stream video fermato");
-        });
-        videoRef.current.srcObject = null;
-      } catch (e) {
-        console.error("Errore nel fermare lo stream video:", e);
-      }
-    }
-
-    // Reset dello scanner ZXing
-    if (codeReader.current) {
-      try {
-        codeReader.current.reset();
-        console.log("ZXing reader resettato");
-      } catch (e) {
-        console.error("Errore nel resettare ZXing reader:", e);
-      }
-    }
-
-    // Reset degli stati
-    setIsScannerOpen(false);
-    setScanSuccess(false);
-    setLastScannedCode(null);
-    setScannerError(null);
-    setIsInitializingCamera(false);
-  };
-
-  // Effetto di cleanup per gli stream video quando il componente viene smontato
   useEffect(() => {
-    return () => {
-      // Chiudiamo eventuali stream video attivi
-      if (videoRef.current && videoRef.current.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach((track) => track.stop());
-      }
-
-      // Reset dello scanner
-      if (codeReader.current) {
-        codeReader.current.reset();
-      }
-    };
+    checkCameraPermissions();
   }, []);
 
-  // Restore necessary attribute handling functions
+  const requestCameraPermission = async () => {
+    try {
+      await navigator.mediaDevices.getUserMedia({ video: true });
+      setCameraPermissionState("granted");
+      // Restart scanner after getting permission
+      startScanner(scannerType);
+    } catch (error) {
+      console.error("Error requesting camera permission:", error);
+      setCameraPermissionState("denied");
+    }
+  };
+
   const addCustomAttribute = () => {
     const newAttribute: ProductAttribute = {
       id: Date.now().toString(),
@@ -1193,7 +1196,6 @@ export default function AddProduct() {
     );
   };
 
-  // Restore necessary variant handling functions
   const addVariant = () => {
     const newVariant: ProductVariant = {
       id: Date.now().toString(),
@@ -1294,17 +1296,9 @@ export default function AddProduct() {
     }));
   };
 
-  const generateBarcode = () => {
-    const timestamp = Date.now();
-    const random = Math.floor(Math.random() * 1000);
-    const barcode = `EAN${timestamp}${random}`.slice(0, 13);
-    handleChange("barcode", barcode);
-  };
-
-  const generateQRCode = () => {
-    const timestamp = Date.now();
-    const qrCode = `${formData.sku}-${timestamp}`;
-    handleChange("qrCode", qrCode);
+  const handleScanSuccess = (code: string) => {
+    handleChange(scannerType === "barcode" ? "barcode" : "qrCode", code);
+    setIsScannerOpen(false);
   };
 
   if (isLoading) {
@@ -1326,953 +1320,946 @@ export default function AddProduct() {
   }
 
   return (
-    <>
-      <Card className="h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
-        <CardHeader className="border-b border-default-200 shrink-0">
-          <h2 className="text-xl font-semibold">Informazioni Prodotto</h2>
-        </CardHeader>
-        <CardBody className="p-6 overflow-y-auto overflow-x-hidden">
-          <form onSubmit={handleSubmit} className="space-y-6 w-full max-w-full">
-            <Tabs
-              selectedKey={activeTab}
-              onSelectionChange={(key) => setActiveTab(key as string)}
-              color="primary"
-              variant="underlined"
-              classNames={{
-                cursor: "w-full",
-                panel: "w-full max-w-full overflow-x-hidden",
-              }}
-            >
-              <Tab key="basic" title={getTabIcon("basic")}>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Nome Prodotto */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Nome Prodotto <span className="text-danger">*</span>
-                    </label>
-                    <Input
-                      placeholder="Nome del prodotto"
-                      variant="bordered"
-                      color={formData.name ? "success" : "primary"}
-                      value={formData.name}
-                      onChange={(e) => handleChange("name", e.target.value)}
-                      isRequired
-                      startContent={
-                        <Icon
-                          icon="solar:pen-bold"
-                          className={
-                            formData.name ? "text-success" : "text-default-400"
-                          }
-                        />
-                      }
-                    />
-                  </div>
-
-                  {/* SKU */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      SKU <span className="text-danger">*</span>
-                    </label>
-                    <Input
-                      placeholder="Stock Keeping Unit"
-                      variant="bordered"
-                      color={formData.sku ? "success" : "primary"}
-                      value={formData.sku}
-                      onChange={(e) => handleChange("sku", e.target.value)}
-                      isRequired
-                    />
-                  </div>
-
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <label className="block text-sm font-medium">
-                        Prezzo di Vendita <span className="text-danger">*</span>
-                      </label>
-                      <Tooltip content="Prezzo al quale il prodotto viene venduto ai clienti">
-                        <Icon
-                          icon="solar:barcode-bold"
-                          className={
-                            formData.sku ? "text-success" : "text-default-400"
-                          }
-                        />
-                      </Tooltip>
-                    </div>
-                    <Input
-                      type="number"
-                      variant="bordered"
-                      color={formData.retailPrice ? "success" : "primary"}
-                      placeholder="0.00"
-                      startContent={
-                        <span className="text-default-400">
-                          {formData.currency}
-                        </span>
-                      }
-                    />
-                  </div>
-
-                  {/* Categoria */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Categoria <span className="text-danger">*</span>
-                    </label>
-                    <div className="flex gap-2">
-                      <Autocomplete
-                        variant="bordered"
-                        color={formData.category ? "success" : "primary"}
-                        placeholder="Cerca categoria"
-                        defaultItems={categories}
-                        value={formData.category}
-                        onInputChange={setCategoryQuery}
-                        onSelectionChange={(value) =>
-                          handleCategorySelection(value as string)
+    <Card className="h-[calc(100vh-2rem)] flex flex-col overflow-hidden">
+      <CardHeader className="border-b border-default-200 shrink-0">
+        <h2 className="text-xl font-semibold">Informazioni Prodotto</h2>
+      </CardHeader>
+      <CardBody className="p-6 overflow-y-auto overflow-x-hidden">
+        <form onSubmit={handleSubmit} className="space-y-6 w-full max-w-full">
+          <Tabs
+            selectedKey={activeTab}
+            onSelectionChange={(key) => setActiveTab(key as string)}
+            color="primary"
+            variant="underlined"
+            classNames={{
+              cursor: "w-full",
+              panel: "w-full max-w-full overflow-x-hidden",
+            }}
+          >
+            <Tab key="basic" title={getTabIcon("basic")}>
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Nome Prodotto */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Nome Prodotto <span className="text-danger">*</span>
+                  </label>
+                  <Input
+                    placeholder="Nome del prodotto"
+                    variant="bordered"
+                    color={formData.name ? "success" : "primary"}
+                    value={formData.name}
+                    onChange={(e) => handleChange("name", e.target.value)}
+                    isRequired
+                    startContent={
+                      <Icon
+                        icon="solar:pen-bold"
+                        className={
+                          formData.name ? "text-success" : "text-default-400"
                         }
-                        className="flex-1"
-                        isRequired
-                        startContent={
-                          <Icon
-                            icon="solar:folder-bold"
-                            className={
-                              formData.category
-                                ? "text-success"
-                                : "text-default-400"
-                            }
-                          />
-                        }
-                      >
-                        {(category: Category) => (
-                          <AutocompleteItem
-                            key={category.id}
-                            textValue={category.name}
-                          >
-                            {category.name}
-                          </AutocompleteItem>
-                        )}
-                      </Autocomplete>
-                      <Tooltip content="Aggiungi nuova categoria">
-                        <Button
-                          color="primary"
-                          variant="flat"
-                          onClick={() => navigate("/inventory/categories/new")}
-                          isIconOnly
-                        >
-                          <Icon
-                            icon="solar:add-circle-bold"
-                            className="text-xl"
-                          />
-                        </Button>
-                      </Tooltip>
-                    </div>
-                    {categoryQuery && filteredCategories.length === 0 && (
-                      <p className="text-sm text-default-400 mt-2">
-                        Nessuna categoria trovata. Usa il pulsante + per
-                        aggiungerne una nuova.
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Brand */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Brand
-                    </label>
-                    <div className="flex gap-2">
-                      <Autocomplete
-                        variant="bordered"
-                        color={formData.brand ? "success" : "primary"}
-                        placeholder="Cerca brand"
-                        defaultItems={brands}
-                        value={formData.brand}
-                        onInputChange={setBrandQuery}
-                        onSelectionChange={(value) =>
-                          handleBrandSelection(value as string)
-                        }
-                        className="flex-1"
-                        startContent={
-                          <Icon
-                            icon="solar:shop-bold"
-                            className={
-                              formData.brand
-                                ? "text-success"
-                                : "text-default-400"
-                            }
-                          />
-                        }
-                      >
-                        {(brand: Brand) => (
-                          <AutocompleteItem textValue={brand.name}>
-                            {brand.name}
-                          </AutocompleteItem>
-                        )}
-                      </Autocomplete>
-                      <Tooltip content="Aggiungi nuovo brand">
-                        <Button
-                          color="primary"
-                          variant="flat"
-                          onClick={() => navigate("/inventory/brands/new")}
-                          isIconOnly
-                        >
-                          <Icon
-                            icon="solar:add-circle-bold"
-                            className="text-xl"
-                          />
-                        </Button>
-                      </Tooltip>
-                    </div>
-                    {brandQuery && filteredBrands.length === 0 && (
-                      <p className="text-sm text-default-400 mt-2">
-                        Nessun brand trovato. Usa il pulsante + per aggiungerne
-                        uno nuovo.
-                      </p>
-                    )}
-                  </div>
+                      />
+                    }
+                  />
                 </div>
-              </Tab>
 
-              <Tab key="commercial" title={getTabIcon("commercial")}>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Prezzo */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Prezzo <span className="text-danger">*</span>
-                    </label>
-                    <Input
-                      type="number"
-                      variant="bordered"
-                      color={formData.price ? "success" : "primary"}
-                      placeholder="0.00"
-                      startContent={<span className="text-default-400">€</span>}
-                      value={formData.price}
-                      onChange={(e) => handleChange("price", e.target.value)}
-                      isRequired
-                    />
-                  </div>
-
-                  {/* Fornitore */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Fornitore <span className="text-danger">*</span>
-                    </label>
-                    <div className="flex gap-2">
-                      <Autocomplete
-                        variant="bordered"
-                        color={formData.supplier ? "success" : "primary"}
-                        placeholder="Cerca fornitore"
-                        defaultItems={suppliers}
-                        value={formData.supplier}
-                        onInputChange={setSupplierQuery}
-                        onSelectionChange={(value) =>
-                          handleChange("supplier", value)
+                {/* SKU */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    SKU <span className="text-danger">*</span>
+                  </label>
+                  <Input
+                    placeholder="Stock Keeping Unit"
+                    variant="bordered"
+                    color={formData.sku ? "success" : "primary"}
+                    value={formData.sku}
+                    onChange={(e) => handleChange("sku", e.target.value)}
+                    isRequired
+                    startContent={
+                      <Icon
+                        icon="solar:barcode-bold"
+                        className={
+                          formData.sku ? "text-success" : "text-default-400"
                         }
-                        className="flex-1"
-                        isRequired
+                      />
+                    }
+                  />
+                </div>
+
+                {/* Categoria */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Categoria <span className="text-danger">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <Autocomplete
+                      variant="bordered"
+                      color={formData.category ? "success" : "primary"}
+                      placeholder="Cerca categoria"
+                      defaultItems={categories}
+                      value={formData.category}
+                      onInputChange={setCategoryQuery}
+                      onSelectionChange={(value) =>
+                        handleCategorySelection(value as string)
+                      }
+                      className="flex-1"
+                      isRequired
+                      startContent={
+                        <Icon
+                          icon="solar:folder-bold"
+                          className={
+                            formData.category
+                              ? "text-success"
+                              : "text-default-400"
+                          }
+                        />
+                      }
+                    >
+                      {(category: Category) => (
+                        <AutocompleteItem
+                          key={category.id}
+                          textValue={category.name}
+                        >
+                          {category.name}
+                        </AutocompleteItem>
+                      )}
+                    </Autocomplete>
+                    <Tooltip content="Aggiungi nuova categoria">
+                      <Button
+                        color="primary"
+                        variant="flat"
+                        onClick={() => navigate("/inventory/categories/new")}
+                        isIconOnly
+                      >
+                        <Icon
+                          icon="solar:add-circle-bold"
+                          className="text-xl"
+                        />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                  {categoryQuery && filteredCategories.length === 0 && (
+                    <p className="text-sm text-default-400 mt-2">
+                      Nessuna categoria trovata. Usa il pulsante + per
+                      aggiungerne una nuova.
+                    </p>
+                  )}
+                </div>
+
+                {/* Brand */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Brand
+                  </label>
+                  <div className="flex gap-2">
+                    <Autocomplete
+                      variant="bordered"
+                      color={formData.brand ? "success" : "primary"}
+                      placeholder="Cerca brand"
+                      defaultItems={brands}
+                      value={formData.brand}
+                      onInputChange={setBrandQuery}
+                      onSelectionChange={(value) =>
+                        handleBrandSelection(value as string)
+                      }
+                      className="flex-1"
+                      startContent={
+                        <Icon
+                          icon="solar:shop-bold"
+                          className={
+                            formData.brand ? "text-success" : "text-default-400"
+                          }
+                        />
+                      }
+                    >
+                      {(brand: Brand) => (
+                        <AutocompleteItem textValue={brand.name}>
+                          {brand.name}
+                        </AutocompleteItem>
+                      )}
+                    </Autocomplete>
+                    <Tooltip content="Aggiungi nuovo brand">
+                      <Button
+                        color="primary"
+                        variant="flat"
+                        onClick={() => navigate("/inventory/brands/new")}
+                        isIconOnly
+                      >
+                        <Icon
+                          icon="solar:add-circle-bold"
+                          className="text-xl"
+                        />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                  {brandQuery && filteredBrands.length === 0 && (
+                    <p className="text-sm text-default-400 mt-2">
+                      Nessun brand trovato. Usa il pulsante + per aggiungerne
+                      uno nuovo.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Tab>
+
+            <Tab key="commercial" title={getTabIcon("commercial")}>
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Prezzo */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Prezzo <span className="text-danger">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    variant="bordered"
+                    color={formData.price ? "success" : "primary"}
+                    placeholder="0.00"
+                    startContent={<span className="text-default-400">€</span>}
+                    value={formData.price}
+                    onChange={(e) => handleChange("price", e.target.value)}
+                    isRequired
+                  />
+                </div>
+
+                {/* Fornitore */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Fornitore <span className="text-danger">*</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <Autocomplete
+                      variant="bordered"
+                      color={formData.supplier ? "success" : "primary"}
+                      placeholder="Cerca fornitore"
+                      defaultItems={suppliers}
+                      value={formData.supplier}
+                      onInputChange={setSupplierQuery}
+                      onSelectionChange={(value) =>
+                        handleChange("supplier", value)
+                      }
+                      className="flex-1"
+                      isRequired
+                      startContent={
+                        <Icon
+                          icon="solar:shop-bold-2"
+                          className={
+                            formData.supplier
+                              ? "text-success"
+                              : "text-default-400"
+                          }
+                        />
+                      }
+                    >
+                      {(supplier: Supplier) => (
+                        <AutocompleteItem
+                          key={supplier.id}
+                          textValue={supplier.name}
+                        >
+                          {supplier.name}
+                        </AutocompleteItem>
+                      )}
+                    </Autocomplete>
+                    <Tooltip content="Aggiungi nuovo fornitore">
+                      <Button
+                        color="primary"
+                        variant="flat"
+                        onClick={() => navigate("/inventory/suppliers/new")}
+                        isIconOnly
+                      >
+                        <Icon
+                          icon="solar:add-circle-bold"
+                          className="text-xl"
+                        />
+                      </Button>
+                    </Tooltip>
+                  </div>
+                  {supplierQuery && filteredSuppliers.length === 0 && (
+                    <p className="text-sm text-default-400 mt-2">
+                      Nessun fornitore trovato. Usa il pulsante + per
+                      aggiungerne uno nuovo.
+                    </p>
+                  )}
+                </div>
+              </div>
+            </Tab>
+
+            <Tab key="warehouse" title={getTabIcon("warehouse")}>
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Soglia minima stock */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Soglia Minima Stock <span className="text-danger">*</span>
+                  </label>
+                  <Input
+                    type="number"
+                    variant="bordered"
+                    color={formData.minStockThreshold ? "success" : "primary"}
+                    placeholder="Quantità minima"
+                    value={formData.minStockThreshold}
+                    onChange={(e) =>
+                      handleChange("minStockThreshold", e.target.value)
+                    }
+                    isRequired
+                    startContent={
+                      <Icon
+                        icon="solar:chart-2-bold"
+                        className={
+                          formData.minStockThreshold
+                            ? "text-success"
+                            : "text-default-400"
+                        }
+                      />
+                    }
+                  />
+                </div>
+
+                {/* Posizione */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Posizione Magazzino
+                  </label>
+                  <Input
+                    variant="bordered"
+                    color={formData.location ? "success" : "primary"}
+                    placeholder="Es: Scaffale A-12"
+                    value={formData.location}
+                    onChange={(e) => handleChange("location", e.target.value)}
+                    startContent={
+                      <Icon
+                        icon="solar:map-point-bold"
+                        className={
+                          formData.location
+                            ? "text-success"
+                            : "text-default-400"
+                        }
+                      />
+                    }
+                  />
+                </div>
+
+                {/* Barcode */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Barcode
+                  </label>
+                  <div className="space-y-3">
+                    <RadioGroup
+                      orientation="horizontal"
+                      value={formData.barcodeType}
+                      onValueChange={(value) =>
+                        handleChange("barcodeType", value)
+                      }
+                    >
+                      <Radio value="manual">Manuale</Radio>
+                      <Radio value="auto">Genera</Radio>
+                      <Radio value="scan">Scansiona</Radio>
+                    </RadioGroup>
+
+                    <div className="flex gap-2">
+                      <Input
+                        variant="bordered"
+                        color={formData.barcode ? "success" : "primary"}
+                        placeholder="Codice a barre"
+                        value={formData.barcode}
+                        onChange={(e) =>
+                          handleChange("barcode", e.target.value)
+                        }
                         startContent={
                           <Icon
-                            icon="solar:shop-bold-2"
+                            icon="solar:barcode-2-bold"
                             className={
-                              formData.supplier
+                              formData.barcode
                                 ? "text-success"
                                 : "text-default-400"
                             }
                           />
                         }
-                      >
-                        {(supplier: Supplier) => (
-                          <AutocompleteItem
-                            key={supplier.id}
-                            textValue={supplier.name}
-                          >
-                            {supplier.name}
-                          </AutocompleteItem>
-                        )}
-                      </Autocomplete>
-                      <Tooltip content="Aggiungi nuovo fornitore">
-                        <Button
-                          color="primary"
-                          variant="flat"
-                          onClick={() => navigate("/inventory/suppliers/new")}
-                          isIconOnly
-                        >
-                          <Icon
-                            icon="solar:add-circle-bold"
-                            className="text-xl"
-                          />
-                        </Button>
-                      </Tooltip>
-                    </div>
-                    {supplierQuery && filteredSuppliers.length === 0 && (
-                      <p className="text-sm text-default-400 mt-2">
-                        Nessun fornitore trovato. Usa il pulsante + per
-                        aggiungerne uno nuovo.
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Posizione Magazzino */}
-                  <div>
-                    <div className="flex items-center gap-2 mb-2">
-                      <label className="block text-sm font-medium">
-                        Posizione Magazzino
-                      </label>
-                      <Tooltip content="Posizione fisica del prodotto nel magazzino">
-                        <Icon
-                          icon="solar:info-circle-bold"
-                          className="text-default-400 cursor-help"
-                        />
-                      </Tooltip>
-                    </div>
-                    <Input
-                      variant="bordered"
-                      color={formData.location ? "success" : "primary"}
-                      placeholder="Es: Scaffale A-12"
-                      value={formData.location}
-                      onChange={(e) => handleChange("location", e.target.value)}
-                      startContent={
-                        <Icon
-                          icon="solar:map-point-bold"
-                          className={
-                            formData.location
-                              ? "text-success"
-                              : "text-default-400"
-                          }
-                        />
-                      }
-                    />
-                  </div>
-                </div>
-              </Tab>
-
-              <Tab key="warehouse" title={getTabIcon("warehouse")}>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Soglia minima stock */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Soglia Minima Stock <span className="text-danger">*</span>
-                    </label>
-                    <Input
-                      type="number"
-                      variant="bordered"
-                      color={formData.minStockThreshold ? "success" : "primary"}
-                      placeholder="Quantità minima"
-                      value={formData.minStockThreshold}
-                      onChange={(e) =>
-                        handleChange("minStockThreshold", e.target.value)
-                      }
-                      isRequired
-                      startContent={
-                        <Icon
-                          icon="solar:chart-2-bold"
-                          className={
-                            formData.minStockThreshold
-                              ? "text-success"
-                              : "text-default-400"
-                          }
-                        />
-                      }
-                    />
-                  </div>
-
-                  {/* Posizione */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Posizione Magazzino
-                    </label>
-                    <Input
-                      variant="bordered"
-                      color={formData.location ? "success" : "primary"}
-                      placeholder="Es: Scaffale A-12"
-                      value={formData.location}
-                      onChange={(e) => handleChange("location", e.target.value)}
-                      startContent={
-                        <Icon
-                          icon="solar:map-point-bold"
-                          className={
-                            formData.location
-                              ? "text-success"
-                              : "text-default-400"
-                          }
-                        />
-                      }
-                    />
-                  </div>
-
-                  {/* Barcode */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Barcode
-                    </label>
-                    <div className="space-y-3">
-                      <RadioGroup
-                        orientation="horizontal"
-                        value={formData.barcodeType}
-                        onValueChange={(value) =>
-                          handleChange("barcodeType", value)
-                        }
-                      >
-                        <Radio value="manual">Manuale</Radio>
-                        <Radio value="auto">Genera</Radio>
-                        <Radio value="scan">Scansiona</Radio>
-                      </RadioGroup>
-
-                      <div className="flex gap-2">
-                        <Input
-                          variant="bordered"
-                          color={formData.barcode ? "success" : "primary"}
-                          placeholder="Codice a barre"
-                          value={formData.barcode}
-                          onChange={(e) =>
-                            handleChange("barcode", e.target.value)
-                          }
-                          startContent={
-                            <Icon
-                              icon="solar:barcode-2-bold"
-                              className={
-                                formData.barcode
-                                  ? "text-success"
-                                  : "text-default-400"
-                              }
-                            />
-                          }
-                          isDisabled={formData.barcodeType === "auto"}
-                        />
-                        {formData.barcodeType === "auto" && (
-                          <Button
-                            color="primary"
-                            variant="flat"
-                            isIconOnly
-                            onPress={generateBarcode}
-                          >
-                            <Icon icon="solar:refresh-bold" />
-                          </Button>
-                        )}
-                        {formData.barcodeType === "scan" && (
-                          <Button
-                            color="primary"
-                            variant="flat"
-                            isIconOnly
-                            onClick={() => {
-                              setScannerType("barcode");
-                              setIsScannerOpen(true);
-                            }}
-                          >
-                            <Icon icon="solar:camera-bold" />
-                          </Button>
-                        )}
-                        {formData.barcode && (
-                          <Popover placement="top">
-                            <PopoverTrigger>
-                              <Button color="primary" variant="flat" isIconOnly>
-                                <Icon icon="solar:eye-bold" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent>
-                              <div className="p-4">
-                                <div className="bg-white p-4 rounded-lg">
-                                  {/* TODO: Implementare visualizzazione barcode */}
-                                  <p className="text-center font-mono">
-                                    {formData.barcode}
-                                  </p>
-                                </div>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                        )}
-                      </div>
+                        isDisabled={formData.barcodeType === "auto"}
+                      />
                       {formData.barcodeType === "auto" && (
-                        <p className="text-xs text-default-400">
-                          Verrà generato un codice EAN-13 univoco
-                        </p>
+                        <Button
+                          color="primary"
+                          variant="flat"
+                          isIconOnly
+                          onClick={generateBarcode}
+                        >
+                          <Icon icon="solar:refresh-bold" />
+                        </Button>
                       )}
                       {formData.barcodeType === "scan" && (
-                        <p className="text-xs text-default-400">
-                          Usa la fotocamera per scansionare un codice a barre
-                          esistente
-                        </p>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* QR Code */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      QR Code
-                    </label>
-                    <div className="space-y-3">
-                      <RadioGroup
-                        orientation="horizontal"
-                        value={formData.qrCodeType}
-                        onValueChange={(value) =>
-                          handleChange("qrCodeType", value)
-                        }
-                      >
-                        <Radio value="manual">Manuale</Radio>
-                        <Radio value="auto">Genera</Radio>
-                        <Radio value="scan">Scansiona</Radio>
-                      </RadioGroup>
-
-                      <div className="flex gap-2">
-                        <Input
-                          variant="bordered"
-                          color={formData.qrCode ? "success" : "primary"}
-                          placeholder="QR Code"
-                          value={formData.qrCode}
-                          onChange={(e) =>
-                            handleChange("qrCode", e.target.value)
-                          }
-                          startContent={
-                            <Icon
-                              icon="solar:qr-code-bold"
-                              className={
-                                formData.qrCode
-                                  ? "text-success"
-                                  : "text-default-400"
-                              }
-                            />
-                          }
-                          isDisabled={formData.qrCodeType === "auto"}
-                        />
-                        {formData.qrCodeType === "auto" && (
-                          <Button
-                            color="primary"
-                            variant="flat"
-                            isIconOnly
-                            onClick={generateQRCode}
-                          >
-                            <Icon icon="solar:refresh-bold" />
-                          </Button>
-                        )}
-                        {formData.qrCodeType === "scan" && (
-                          <Button
-                            color="primary"
-                            variant="flat"
-                            isIconOnly
-                            onClick={() => {
-                              setScannerType("qrcode");
-                              setIsScannerOpen(true);
-                            }}
-                          >
-                            <Icon icon="solar:camera-bold" />
-                          </Button>
-                        )}
-                        {formData.qrCode && (
-                          <Popover placement="top">
-                            <PopoverTrigger>
-                              <Button color="primary" variant="flat" isIconOnly>
-                                <Icon icon="solar:eye-bold" />
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent>
-                              <div className="p-4">
-                                <div className="bg-white p-4 rounded-lg">
-                                  {/* TODO: Implementare visualizzazione QR code */}
-                                  <p className="text-center font-mono">
-                                    {formData.qrCode}
-                                  </p>
-                                </div>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                        )}
-                      </div>
-                      {formData.qrCodeType === "auto" && (
-                        <p className="text-xs text-default-400">
-                          Verrà generato un QR code basato su SKU e timestamp
-                        </p>
-                      )}
-                      {formData.qrCodeType === "scan" && (
-                        <p className="text-xs text-default-400">
-                          Usa la fotocamera per scansionare un QR code esistente
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              </Tab>
-
-              <Tab key="physical" title={getTabIcon("physical")}>
-                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {/* Peso */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Peso
-                    </label>
-                    <Input
-                      type="number"
-                      variant="bordered"
-                      color={formData.weight ? "success" : "primary"}
-                      placeholder="Peso in kg"
-                      value={formData.weight}
-                      onChange={(e) => handleChange("weight", e.target.value)}
-                      startContent={
-                        <Icon
-                          icon="solar:scales-bold"
-                          className={
-                            formData.weight
-                              ? "text-success"
-                              : "text-default-400"
-                          }
-                        />
-                      }
-                      endContent={
-                        <div className="pointer-events-none flex items-center">
-                          <span className="text-default-400">kg</span>
-                        </div>
-                      }
-                    />
-                  </div>
-
-                  {/* Dimensioni */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Dimensioni
-                    </label>
-                    <Input
-                      variant="bordered"
-                      color={formData.dimensions ? "success" : "primary"}
-                      placeholder="LxWxH in cm"
-                      value={formData.dimensions}
-                      onChange={(e) =>
-                        handleChange("dimensions", e.target.value)
-                      }
-                      startContent={
-                        <Icon
-                          icon="solar:ruler-pen-bold"
-                          className={
-                            formData.dimensions
-                              ? "text-success"
-                              : "text-default-400"
-                          }
-                        />
-                      }
-                    />
-                  </div>
-                </div>
-              </Tab>
-
-              <Tab key="variants" title={getTabIcon("variants")}>
-                <div className="mt-4 space-y-6">
-                  {/* Varianti */}
-                  <div className="flex items-center gap-2">
-                    <Switch
-                      color={formData.hasVariants ? "success" : "primary"}
-                      checked={formData.hasVariants}
-                      onChange={(e) =>
-                        handleChange("hasVariants", e.target.checked)
-                      }
-                    />
-                    <label className="text-sm font-medium">
-                      Il prodotto ha varianti
-                    </label>
-                  </div>
-
-                  {/* Descrizione */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Descrizione
-                    </label>
-                    <Textarea
-                      variant="bordered"
-                      color={formData.description ? "success" : "primary"}
-                      placeholder="Descrizione dettagliata del prodotto"
-                      value={formData.description}
-                      onChange={(e) =>
-                        handleChange("description", e.target.value)
-                      }
-                      minRows={3}
-                    />
-                  </div>
-
-                  {/* Note */}
-                  <div>
-                    <label className="block text-sm font-medium mb-2">
-                      Note Aggiuntive
-                    </label>
-                    <Textarea
-                      variant="bordered"
-                      color={formData.notes ? "success" : "primary"}
-                      placeholder="Note aggiuntive sul prodotto"
-                      value={formData.notes}
-                      onChange={(e) => handleChange("notes", e.target.value)}
-                      minRows={2}
-                    />
-                  </div>
-                </div>
-              </Tab>
-
-              <Tab
-                key="attributes"
-                title={
-                  <div className="flex items-center gap-2">
-                    <Icon icon="solar:list-check-bold" />
-                    <span>Attributi Prodotto</span>
-                    {formData.attributes.length > 0 && (
-                      <Chip
-                        size="sm"
-                        variant="flat"
-                        color="primary"
-                        className="gap-1"
-                      >
-                        {formData.attributes.length}
-                      </Chip>
-                    )}
-                  </div>
-                }
-              >
-                <div className="mt-4 space-y-6">
-                  {/* Category Attributes */}
-                  {selectedCategoryAttributes.length > 0 && (
-                    <div className="space-y-4">
-                      <h3 className="text-lg font-medium">
-                        Attributi della Categoria
-                      </h3>
-                      <div className="grid grid-cols-2 gap-4">
-                        {formData.attributes
-                          .filter((attr) =>
-                            selectedCategoryAttributes.some(
-                              (catAttr) => catAttr.id === attr.id
-                            )
-                          )
-                          .map((attr) => (
-                            <div key={attr.id} className="flex gap-4">
-                              {attr.type === "boolean" ? (
-                                <div className="flex flex-col gap-2">
-                                  <label className="text-sm font-medium">
-                                    {attr.name}{" "}
-                                    {attr.isRequired ? (
-                                      <span className="text-danger">*</span>
-                                    ) : (
-                                      ""
-                                    )}
-                                  </label>
-                                  <Switch
-                                    checked={attr.value === "true"}
-                                    onChange={(e) =>
-                                      updateAttribute(
-                                        attr.id,
-                                        "value",
-                                        e.target.checked.toString()
-                                      )
-                                    }
-                                    color="primary"
-                                  />
-                                </div>
-                              ) : attr.type === "date" ? (
-                                <div className="flex-1">
-                                  <label className="block text-sm font-medium mb-2">
-                                    {attr.name}{" "}
-                                    {attr.isRequired ? (
-                                      <span className="text-danger">*</span>
-                                    ) : (
-                                      ""
-                                    )}
-                                  </label>
-                                  <DatePicker
-                                    id={`date-${attr.id}`}
-                                    value={
-                                      attr.value ? parseDate(attr.value) : null
-                                    }
-                                    onChange={(newDate) =>
-                                      updateAttribute(
-                                        attr.id,
-                                        "value",
-                                        newDate ? newDate.toString() : ""
-                                      )
-                                    }
-                                    className="w-full"
-                                    variant="bordered"
-                                    color="primary"
-                                    isRequired={attr.isRequired}
-                                  />
-                                </div>
-                              ) : (
-                                <div className="flex-1">
-                                  <label className="block text-sm font-medium mb-2">
-                                    {attr.name}{" "}
-                                    {attr.isRequired ? (
-                                      <span className="text-danger">*</span>
-                                    ) : (
-                                      ""
-                                    )}
-                                  </label>
-                                  <Input
-                                    type={
-                                      attr.type === "number" ? "number" : "text"
-                                    }
-                                    value={attr.value}
-                                    onChange={(e) =>
-                                      updateAttribute(
-                                        attr.id,
-                                        "value",
-                                        e.target.value
-                                      )
-                                    }
-                                    variant="bordered"
-                                    color="primary"
-                                    className="flex-1"
-                                    isRequired={attr.isRequired}
-                                  />
-                                </div>
-                              )}
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Custom Attributes */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-lg font-medium">
-                          Attributi Personalizzati
-                        </h3>
-                        <Tooltip
-                          content={
-                            <div className="px-1 py-2 max-w-xs">
-                              <div className="text-small font-bold mb-2">
-                                Cosa sono gli attributi personalizzati?
-                              </div>
-                              <div className="text-tiny">
-                                <p className="mb-2">
-                                  Gli attributi personalizzati ti permettono di
-                                  aggiungere informazioni specifiche al prodotto
-                                  oltre a quelle standard.
-                                </p>
-                                <p className="font-bold mb-1">
-                                  Puoi usarli per:
-                                </p>
-                                <ul className="list-disc list-inside space-y-1">
-                                  <li>Specificare materiali e dimensioni</li>
-                                  <li>Aggiungere certificazioni</li>
-                                  <li>Indicare caratteristiche tecniche</li>
-                                  <li>Definire proprietà uniche</li>
-                                </ul>
-                              </div>
-                            </div>
-                          }
-                          delay={0}
-                          closeDelay={0}
-                          placement="bottom"
-                          showArrow
-                        >
-                          <Icon
-                            icon="solar:info-circle-bold"
-                            className="text-xl text-default-400 cursor-help"
-                          />
-                        </Tooltip>
-                      </div>
-                      {formData.attributes.filter(
-                        (attr) =>
-                          !selectedCategoryAttributes.some(
-                            (catAttr) => catAttr.id === attr.id
-                          )
-                      ).length > 0 && (
                         <Button
                           color="primary"
                           variant="flat"
-                          startContent={<Icon icon="solar:add-circle-bold" />}
-                          onClick={addCustomAttribute}
+                          isIconOnly
+                          onClick={() => {
+                            setScannerType("barcode");
+                            setIsScannerOpen(true);
+                          }}
                         >
-                          Aggiungi Attributo
+                          <Icon icon="solar:camera-bold" />
                         </Button>
                       )}
+                      {formData.barcode && (
+                        <Popover placement="top">
+                          <PopoverTrigger>
+                            <Button color="primary" variant="flat" isIconOnly>
+                              <Icon icon="solar:eye-bold" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent>
+                            <div className="p-4">
+                              <div className="bg-white p-4 rounded-lg">
+                                {/* TODO: Implementare visualizzazione barcode */}
+                                <p className="text-center font-mono">
+                                  {formData.barcode}
+                                </p>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </div>
+                    {formData.barcodeType === "auto" && (
+                      <p className="text-xs text-default-400">
+                        Verrà generato un codice EAN-13 univoco
+                      </p>
+                    )}
+                    {formData.barcodeType === "scan" && (
+                      <p className="text-xs text-default-400">
+                        Usa la fotocamera per scansionare un codice a barre
+                        esistente
+                      </p>
+                    )}
+                  </div>
+                </div>
+
+                {/* QR Code */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    QR Code
+                  </label>
+                  <div className="space-y-3">
+                    <RadioGroup
+                      orientation="horizontal"
+                      value={formData.qrCodeType}
+                      onValueChange={(value) =>
+                        handleChange("qrCodeType", value)
+                      }
+                    >
+                      <Radio value="manual">Manuale</Radio>
+                      <Radio value="auto">Genera</Radio>
+                      <Radio value="scan">Scansiona</Radio>
+                    </RadioGroup>
+
+                    <div className="flex gap-2">
+                      <Input
+                        variant="bordered"
+                        color={formData.qrCode ? "success" : "primary"}
+                        placeholder="QR Code"
+                        value={formData.qrCode}
+                        onChange={(e) => handleChange("qrCode", e.target.value)}
+                        startContent={
+                          <Icon
+                            icon="solar:qr-code-bold"
+                            className={
+                              formData.qrCode
+                                ? "text-success"
+                                : "text-default-400"
+                            }
+                          />
+                        }
+                        isDisabled={formData.qrCodeType === "auto"}
+                      />
+                      {formData.qrCodeType === "auto" && (
+                        <Button
+                          color="primary"
+                          variant="flat"
+                          isIconOnly
+                          onClick={generateQRCode}
+                        >
+                          <Icon icon="solar:refresh-bold" />
+                        </Button>
+                      )}
+                      {formData.qrCodeType === "scan" && (
+                        <Button
+                          color="primary"
+                          variant="flat"
+                          isIconOnly
+                          onClick={() => {
+                            setScannerType("qrcode");
+                            setIsScannerOpen(true);
+                          }}
+                        >
+                          <Icon icon="solar:camera-bold" />
+                        </Button>
+                      )}
+                      {formData.qrCode && (
+                        <Popover placement="top">
+                          <PopoverTrigger>
+                            <Button color="primary" variant="flat" isIconOnly>
+                              <Icon icon="solar:eye-bold" />
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent>
+                            <div className="p-4">
+                              <div className="bg-white p-4 rounded-lg">
+                                {/* TODO: Implementare visualizzazione QR code */}
+                                <p className="text-center font-mono">
+                                  {formData.qrCode}
+                                </p>
+                              </div>
+                            </div>
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                    </div>
+                    {formData.qrCodeType === "auto" && (
+                      <p className="text-xs text-default-400">
+                        Verrà generato un QR code basato su SKU e timestamp
+                      </p>
+                    )}
+                    {formData.qrCodeType === "scan" && (
+                      <p className="text-xs text-default-400">
+                        Usa la fotocamera per scansionare un QR code esistente
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </Tab>
+
+            <Tab key="physical" title={getTabIcon("physical")}>
+              <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Peso */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">Peso</label>
+                  <Input
+                    type="number"
+                    variant="bordered"
+                    color={formData.weight ? "success" : "primary"}
+                    placeholder="Peso in kg"
+                    value={formData.weight}
+                    onChange={(e) => handleChange("weight", e.target.value)}
+                    startContent={
+                      <Icon
+                        icon="solar:scales-bold"
+                        className={
+                          formData.weight ? "text-success" : "text-default-400"
+                        }
+                      />
+                    }
+                    endContent={
+                      <div className="pointer-events-none flex items-center">
+                        <span className="text-default-400">kg</span>
+                      </div>
+                    }
+                  />
+                </div>
+
+                {/* Dimensioni */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Dimensioni
+                  </label>
+                  <Input
+                    variant="bordered"
+                    color={formData.dimensions ? "success" : "primary"}
+                    placeholder="LxWxH in cm"
+                    value={formData.dimensions}
+                    onChange={(e) => handleChange("dimensions", e.target.value)}
+                    startContent={
+                      <Icon
+                        icon="solar:ruler-pen-bold"
+                        className={
+                          formData.dimensions
+                            ? "text-success"
+                            : "text-default-400"
+                        }
+                      />
+                    }
+                  />
+                </div>
+              </div>
+            </Tab>
+
+            <Tab key="variants" title={getTabIcon("variants")}>
+              <div className="mt-4 space-y-6">
+                {/* Varianti */}
+                <div className="flex items-center gap-2">
+                  <Switch
+                    color={formData.hasVariants ? "success" : "primary"}
+                    checked={formData.hasVariants}
+                    onChange={(e) =>
+                      handleChange("hasVariants", e.target.checked)
+                    }
+                  />
+                  <label className="text-sm font-medium">
+                    Il prodotto ha varianti
+                  </label>
+                </div>
+
+                {formData.hasVariants && (
+                  <div className="mt-6 space-y-6">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">Varianti Prodotto</h3>
+                      <Button
+                        color="primary"
+                        variant="flat"
+                        startContent={<Icon icon="solar:add-circle-bold" />}
+                        onClick={addVariant}
+                      >
+                        Aggiungi Variante
+                      </Button>
                     </div>
 
-                    {formData.attributes.filter(
-                      (attr) =>
-                        !selectedCategoryAttributes.some(
-                          (catAttr) => catAttr.id === attr.id
-                        )
-                    ).length === 0 ? (
+                    {formData.variants.length === 0 ? (
                       <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl border-default-200">
                         <div className="p-3 rounded-full bg-primary/10 mb-4">
                           <Icon
-                            icon="solar:list-check-bold"
+                            icon="solar:layers-bold"
                             className="text-3xl text-primary"
                           />
                         </div>
                         <h4 className="text-lg font-medium text-default-600 mb-2">
-                          Nessun attributo personalizzato
+                          Nessuna variante
                         </h4>
                         <p className="text-sm text-default-500 text-center max-w-md mb-4">
-                          Aggiungi attributi personalizzati per specificare
-                          caratteristiche uniche del prodotto come materiali,
-                          dimensioni specifiche, certificazioni o altre
-                          proprietà rilevanti.
+                          Aggiungi varianti per gestire diverse versioni dello
+                          stesso prodotto, come taglie, colori o altre
+                          caratteristiche specifiche.
                         </p>
                         <Button
                           color="primary"
                           variant="flat"
                           startContent={<Icon icon="solar:add-circle-bold" />}
-                          onClick={addCustomAttribute}
+                          onClick={addVariant}
                         >
-                          Aggiungi il primo attributo
+                          Aggiungi la prima variante
                         </Button>
                       </div>
                     ) : (
-                      <div className="flex flex-col gap-4">
-                        {formData.attributes
-                          .filter(
-                            (attr) =>
-                              !selectedCategoryAttributes.some(
-                                (catAttr) => catAttr.id === attr.id
-                              )
-                          )
-                          .map((attr) => (
-                            <div
-                              key={attr.id}
-                              className="grid grid-cols-[1fr,auto,1fr,auto,auto] items-center gap-4"
-                            >
-                              <Input
-                                placeholder="Nome attributo"
-                                value={attr.name}
-                                onChange={(e) =>
-                                  updateAttribute(
-                                    attr.id,
-                                    "name",
-                                    e.target.value
-                                  )
-                                }
-                                variant="bordered"
-                              />
-                              <Select
-                                selectedKeys={[attr.type]}
-                                onSelectionChange={(keys) => {
-                                  const selectedKey = Array.from(
-                                    keys
-                                  )[0] as string;
-                                  updateAttribute(attr.id, "type", selectedKey);
-                                }}
-                                variant="bordered"
-                                className="w-40"
+                      <div className="space-y-8">
+                        {formData.variants.map((variant) => (
+                          <div
+                            key={variant.id}
+                            className="p-6 border rounded-xl border-default-200 space-y-6"
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <Input
+                                  label="Nome Variante"
+                                  placeholder="Es: Taglia L, Colore Rosso"
+                                  value={variant.name}
+                                  onChange={(e) =>
+                                    updateVariant(
+                                      variant.id,
+                                      "name",
+                                      e.target.value
+                                    )
+                                  }
+                                  variant="bordered"
+                                  color="primary"
+                                  className="max-w-md"
+                                />
+                              </div>
+                              <Button
+                                isIconOnly
+                                color="danger"
+                                variant="light"
+                                onClick={() => removeVariant(variant.id)}
                               >
-                                <SelectItem key="text" textValue="Testo">
-                                  Testo
-                                </SelectItem>
-                                <SelectItem key="number" textValue="Numero">
-                                  Numero
-                                </SelectItem>
-                                <SelectItem key="date" textValue="Data">
-                                  Data
-                                </SelectItem>
-                                <SelectItem key="boolean" textValue="Si/No">
-                                  Si/No
-                                </SelectItem>
-                              </Select>
-                              {attr.type === "boolean" ? (
-                                <div className="flex items-center">
-                                  <Switch
-                                    checked={attr.value === "true"}
-                                    onChange={(e) =>
-                                      updateAttribute(
-                                        attr.id,
-                                        "value",
-                                        e.target.checked.toString()
-                                      )
-                                    }
-                                    color="primary"
-                                  />
+                                <Icon
+                                  icon="solar:trash-bin-trash-bold"
+                                  className="text-lg"
+                                />
+                              </Button>
+                            </div>
+
+                            <div className="space-y-4">
+                              <div className="flex items-center justify-between">
+                                <h4 className="text-sm font-medium">
+                                  Attributi della Variante
+                                </h4>
+                                <Button
+                                  size="sm"
+                                  color="primary"
+                                  variant="flat"
+                                  startContent={
+                                    <Icon icon="solar:add-circle-bold" />
+                                  }
+                                  onClick={() =>
+                                    addVariantAttribute(variant.id)
+                                  }
+                                >
+                                  Aggiungi Attributo
+                                </Button>
+                              </div>
+
+                              {variant.attributes.length === 0 ? (
+                                <div className="text-center p-4 border border-dashed rounded-lg border-default-200">
+                                  <p className="text-sm text-default-500">
+                                    Nessun attributo. Aggiungi attributi per
+                                    specificare le caratteristiche di questa
+                                    variante.
+                                  </p>
                                 </div>
-                              ) : attr.type === "date" ? (
+                              ) : (
+                                <div className="space-y-4">
+                                  {variant.attributes.map((attr) => (
+                                    <div
+                                      key={attr.id}
+                                      className="grid grid-cols-[1fr,auto,1fr,auto,auto] items-center gap-4"
+                                    >
+                                      <Input
+                                        placeholder="Nome attributo"
+                                        value={attr.name}
+                                        onChange={(e) =>
+                                          updateVariantAttribute(
+                                            variant.id,
+                                            attr.id,
+                                            "name",
+                                            e.target.value
+                                          )
+                                        }
+                                        variant="bordered"
+                                      />
+                                      <Select
+                                        selectedKeys={[attr.type]}
+                                        onSelectionChange={(keys) => {
+                                          const selectedKey = Array.from(
+                                            keys
+                                          )[0] as string;
+                                          updateVariantAttribute(
+                                            variant.id,
+                                            attr.id,
+                                            "type",
+                                            selectedKey
+                                          );
+                                        }}
+                                        variant="bordered"
+                                        className="w-40"
+                                      >
+                                        <SelectItem
+                                          key="text"
+                                          textValue="Testo"
+                                        >
+                                          Testo
+                                        </SelectItem>
+                                        <SelectItem
+                                          key="number"
+                                          textValue="Numero"
+                                        >
+                                          Numero
+                                        </SelectItem>
+                                        <SelectItem key="date" textValue="Data">
+                                          Data
+                                        </SelectItem>
+                                        <SelectItem
+                                          key="boolean"
+                                          textValue="Si/No"
+                                        >
+                                          Si/No
+                                        </SelectItem>
+                                      </Select>
+                                      {attr.type === "boolean" ? (
+                                        <div className="flex items-center">
+                                          <Switch
+                                            checked={attr.value === "true"}
+                                            onChange={(e) =>
+                                              updateVariantAttribute(
+                                                variant.id,
+                                                attr.id,
+                                                "value",
+                                                e.target.checked.toString()
+                                              )
+                                            }
+                                            color="primary"
+                                          />
+                                        </div>
+                                      ) : attr.type === "date" ? (
+                                        <DatePicker
+                                          id={`date-${attr.id}`}
+                                          value={
+                                            attr.value
+                                              ? parseDate(attr.value)
+                                              : null
+                                          }
+                                          onChange={(newDate) =>
+                                            updateVariantAttribute(
+                                              variant.id,
+                                              attr.id,
+                                              "value",
+                                              newDate ? newDate.toString() : ""
+                                            )
+                                          }
+                                          variant="bordered"
+                                          color="primary"
+                                        />
+                                      ) : (
+                                        <Input
+                                          type={
+                                            attr.type === "number"
+                                              ? "number"
+                                              : "text"
+                                          }
+                                          value={attr.value}
+                                          onChange={(e) =>
+                                            updateVariantAttribute(
+                                              variant.id,
+                                              attr.id,
+                                              "value",
+                                              e.target.value
+                                            )
+                                          }
+                                          variant="bordered"
+                                          color="primary"
+                                          placeholder="Valore"
+                                        />
+                                      )}
+                                      <div className="flex items-center">
+                                        <Checkbox
+                                          isSelected={Boolean(attr.isRequired)}
+                                          onValueChange={(checked) =>
+                                            updateVariantAttribute(
+                                              variant.id,
+                                              attr.id,
+                                              "isRequired",
+                                              checked
+                                            )
+                                          }
+                                          size="sm"
+                                          color="primary"
+                                        >
+                                          Obbligatorio
+                                        </Checkbox>
+                                      </div>
+                                      <Button
+                                        isIconOnly
+                                        color="danger"
+                                        variant="light"
+                                        onClick={() =>
+                                          removeVariantAttribute(
+                                            variant.id,
+                                            attr.id
+                                          )
+                                        }
+                                      >
+                                        <Icon
+                                          icon="solar:trash-bin-trash-bold"
+                                          className="text-lg"
+                                        />
+                                      </Button>
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Descrizione */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Descrizione
+                  </label>
+                  <Textarea
+                    variant="bordered"
+                    color={formData.description ? "success" : "primary"}
+                    placeholder="Descrizione dettagliata del prodotto"
+                    value={formData.description}
+                    onChange={(e) =>
+                      handleChange("description", e.target.value)
+                    }
+                    minRows={3}
+                  />
+                </div>
+
+                {/* Note */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Note Aggiuntive
+                  </label>
+                  <Textarea
+                    variant="bordered"
+                    color={formData.notes ? "success" : "primary"}
+                    placeholder="Note aggiuntive sul prodotto"
+                    value={formData.notes}
+                    onChange={(e) => handleChange("notes", e.target.value)}
+                    minRows={2}
+                  />
+                </div>
+              </div>
+            </Tab>
+
+            <Tab
+              key="attributes"
+              title={
+                <div className="flex items-center gap-2">
+                  <Icon icon="solar:list-check-bold" />
+                  <span>Attributi Prodotto</span>
+                  {formData.attributes.length > 0 && (
+                    <Chip
+                      size="sm"
+                      variant="flat"
+                      color="primary"
+                      className="gap-1"
+                    >
+                      {formData.attributes.length}
+                    </Chip>
+                  )}
+                </div>
+              }
+            >
+              <div className="mt-4 space-y-6">
+                {/* Category Attributes */}
+                {selectedCategoryAttributes.length > 0 && (
+                  <div className="space-y-4">
+                    <h3 className="text-lg font-medium">
+                      Attributi della Categoria
+                    </h3>
+                    <div className="grid grid-cols-2 gap-4">
+                      {formData.attributes
+                        .filter((attr) =>
+                          selectedCategoryAttributes.some(
+                            (catAttr) => catAttr.id === attr.id
+                          )
+                        )
+                        .map((attr) => (
+                          <div key={attr.id} className="flex gap-4">
+                            {attr.type === "boolean" ? (
+                              <div className="flex flex-col gap-2">
+                                <label className="text-sm font-medium">
+                                  {attr.name}{" "}
+                                  {attr.isRequired ? (
+                                    <span className="text-danger">*</span>
+                                  ) : (
+                                    ""
+                                  )}
+                                </label>
+                                <Switch
+                                  checked={attr.value === "true"}
+                                  onChange={(e) =>
+                                    updateAttribute(
+                                      attr.id,
+                                      "value",
+                                      e.target.checked.toString()
+                                    )
+                                  }
+                                  color="primary"
+                                />
+                              </div>
+                            ) : attr.type === "date" ? (
+                              <div className="flex-1">
+                                <label className="block text-sm font-medium mb-2">
+                                  {attr.name}{" "}
+                                  {attr.isRequired ? (
+                                    <span className="text-danger">*</span>
+                                  ) : (
+                                    ""
+                                  )}
+                                </label>
                                 <DatePicker
                                   id={`date-${attr.id}`}
                                   value={
@@ -2288,7 +2275,17 @@ export default function AddProduct() {
                                   variant="bordered"
                                   color="primary"
                                 />
-                              ) : (
+                              </div>
+                            ) : (
+                              <div className="flex-1">
+                                <label className="block text-sm font-medium mb-2">
+                                  {attr.name}{" "}
+                                  {attr.isRequired ? (
+                                    <span className="text-danger">*</span>
+                                  ) : (
+                                    ""
+                                  )}
+                                </label>
                                 <Input
                                   type={
                                     attr.type === "number" ? "number" : "text"
@@ -2303,62 +2300,303 @@ export default function AddProduct() {
                                   }
                                   variant="bordered"
                                   color="primary"
-                                  placeholder="Valore"
+                                  className="flex-1"
+                                  isRequired={attr.isRequired}
                                 />
-                              )}
-                              <div className="flex items-center">
-                                <Checkbox
-                                  isSelected={Boolean(attr.isRequired)}
-                                  onValueChange={(checked) =>
-                                    updateAttribute(
-                                      attr.id,
-                                      "isRequired",
-                                      checked
-                                    )
-                                  }
-                                  size="sm"
-                                  color="primary"
-                                >
-                                  Obbligatorio
-                                </Checkbox>
                               </div>
-                              <Button
-                                isIconOnly
-                                color="danger"
-                                variant="light"
-                                onClick={() => removeAttribute(attr.id)}
-                              >
-                                <Icon
-                                  icon="solar:trash-bin-trash-bold"
-                                  className="text-lg"
-                                />
-                              </Button>
+                            )}
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Custom Attributes */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-lg font-medium">
+                        Attributi Personalizzati
+                      </h3>
+                      <Tooltip
+                        content={
+                          <div className="px-1 py-2 max-w-xs">
+                            <div className="text-small font-bold mb-2">
+                              Cosa sono gli attributi personalizzati?
                             </div>
-                          ))}
-                      </div>
+                            <div className="text-tiny">
+                              <p className="mb-2">
+                                Gli attributi personalizzati ti permettono di
+                                aggiungere informazioni specifiche al prodotto
+                                oltre a quelle standard.
+                              </p>
+                              <p className="font-bold mb-1">Puoi usarli per:</p>
+                              <ul className="list-disc list-inside space-y-1">
+                                <li>Specificare materiali e dimensioni</li>
+                                <li>Aggiungere certificazioni</li>
+                                <li>Indicare caratteristiche tecniche</li>
+                                <li>Definire proprietà uniche</li>
+                              </ul>
+                            </div>
+                          </div>
+                        }
+                        delay={0}
+                        closeDelay={0}
+                        placement="bottom"
+                        showArrow
+                      >
+                        <Icon
+                          icon="solar:info-circle-bold"
+                          className="text-xl text-default-400 cursor-help"
+                        />
+                      </Tooltip>
+                    </div>
+                    {formData.attributes.filter(
+                      (attr) =>
+                        !selectedCategoryAttributes.some(
+                          (catAttr) => catAttr.id === attr.id
+                        )
+                    ).length > 0 && (
+                      <Button
+                        color="primary"
+                        variant="flat"
+                        startContent={<Icon icon="solar:add-circle-bold" />}
+                        onClick={addCustomAttribute}
+                      >
+                        Aggiungi Attributo
+                      </Button>
                     )}
                   </div>
-                </div>
-              </Tab>
-            </Tabs>
-          </form>
-        </CardBody>
-      </Card>
 
+                  {formData.attributes.filter(
+                    (attr) =>
+                      !selectedCategoryAttributes.some(
+                        (catAttr) => catAttr.id === attr.id
+                      )
+                  ).length === 0 ? (
+                    <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl border-default-200">
+                      <div className="p-3 rounded-full bg-primary/10 mb-4">
+                        <Icon
+                          icon="solar:list-check-bold"
+                          className="text-3xl text-primary"
+                        />
+                      </div>
+                      <h4 className="text-lg font-medium text-default-600 mb-2">
+                        Nessun attributo personalizzato
+                      </h4>
+                      <p className="text-sm text-default-500 text-center max-w-md mb-4">
+                        Aggiungi attributi personalizzati per specificare
+                        caratteristiche uniche del prodotto come materiali,
+                        dimensioni specifiche, certificazioni o altre proprietà
+                        rilevanti.
+                      </p>
+                      <Button
+                        color="primary"
+                        variant="flat"
+                        startContent={<Icon icon="solar:add-circle-bold" />}
+                        onClick={addCustomAttribute}
+                      >
+                        Aggiungi il primo attributo
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-4">
+                      {formData.attributes
+                        .filter(
+                          (attr) =>
+                            !selectedCategoryAttributes.some(
+                              (catAttr) => catAttr.id === attr.id
+                            )
+                        )
+                        .map((attr) => (
+                          <div
+                            key={attr.id}
+                            className="grid grid-cols-[1fr,auto,1fr,auto,auto] items-center gap-4"
+                          >
+                            <Input
+                              placeholder="Nome attributo"
+                              value={attr.name}
+                              onChange={(e) =>
+                                updateAttribute(attr.id, "name", e.target.value)
+                              }
+                              variant="bordered"
+                            />
+                            <Select
+                              selectedKeys={[attr.type]}
+                              onSelectionChange={(keys) => {
+                                const selectedKey = Array.from(
+                                  keys
+                                )[0] as string;
+                                updateAttribute(attr.id, "type", selectedKey);
+                              }}
+                              variant="bordered"
+                              className="w-40"
+                            >
+                              <SelectItem key="text" textValue="Testo">
+                                Testo
+                              </SelectItem>
+                              <SelectItem key="number" textValue="Numero">
+                                Numero
+                              </SelectItem>
+                              <SelectItem key="date" textValue="Data">
+                                Data
+                              </SelectItem>
+                              <SelectItem key="boolean" textValue="Si/No">
+                                Si/No
+                              </SelectItem>
+                            </Select>
+                            {attr.type === "boolean" ? (
+                              <div className="flex items-center">
+                                <Switch
+                                  checked={attr.value === "true"}
+                                  onChange={(e) =>
+                                    updateAttribute(
+                                      attr.id,
+                                      "value",
+                                      e.target.checked.toString()
+                                    )
+                                  }
+                                  color="primary"
+                                />
+                              </div>
+                            ) : attr.type === "date" ? (
+                              <DatePicker
+                                id={`date-${attr.id}`}
+                                value={
+                                  attr.value ? parseDate(attr.value) : null
+                                }
+                                onChange={(newDate) =>
+                                  updateAttribute(
+                                    attr.id,
+                                    "value",
+                                    newDate ? newDate.toString() : ""
+                                  )
+                                }
+                                variant="bordered"
+                                color="primary"
+                              />
+                            ) : (
+                              <Input
+                                type={
+                                  attr.type === "number" ? "number" : "text"
+                                }
+                                value={attr.value}
+                                onChange={(e) =>
+                                  updateAttribute(
+                                    attr.id,
+                                    "value",
+                                    e.target.value
+                                  )
+                                }
+                                variant="bordered"
+                                color="primary"
+                                placeholder="Valore"
+                              />
+                            )}
+                            <div className="flex items-center">
+                              <Checkbox
+                                isSelected={Boolean(attr.isRequired)}
+                                onValueChange={(checked) =>
+                                  updateAttribute(
+                                    attr.id,
+                                    "isRequired",
+                                    checked
+                                  )
+                                }
+                                size="sm"
+                                color="primary"
+                              >
+                                Obbligatorio
+                              </Checkbox>
+                            </div>
+                            <Button
+                              isIconOnly
+                              color="danger"
+                              variant="light"
+                              onClick={() => removeAttribute(attr.id)}
+                            >
+                              <Icon
+                                icon="solar:trash-bin-trash-bold"
+                                className="text-lg"
+                              />
+                            </Button>
+                          </div>
+                        ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </Tab>
+          </Tabs>
+        </form>
+      </CardBody>
       {isScannerOpen && (
-        <ScannerOverlay
-          type={scannerType}
-          onClose={stopScanner}
-          error={scannerError}
-          hasAttemptedScan={hasAttemptedScan}
-          videoRef={videoRef}
-          scanSuccess={scanSuccess}
-          lastScannedCode={lastScannedCode}
-          onCameraSelect={handleCameraSelect}
-          availableCameras={availableCameras}
-          selectedCamera={selectedCamera}
-        />
+        <>
+          <ScannerOverlay
+            type={scannerType}
+            onClose={stopScanner}
+            error={scannerError}
+            hasAttemptedScan={hasAttemptedScan}
+            videoRef={videoRef}
+            onCameraChange={handleCameraChange}
+            availableCameras={availableCameras}
+            selectedCamera={selectedCamera}
+            onScanSuccess={handleScanSuccess}
+          />
+          {/* Success Overlay */}
+          {showScanSuccess && (
+            <div className="fixed inset-0 z-[60] flex items-center justify-center">
+              <div className="absolute inset-0 bg-success/95 backdrop-blur-md animate-fade-in" />
+              <div className="relative flex flex-col items-center text-center animate-success-pop">
+                {/* Icona di successo con animazione */}
+                <div className="relative mb-8">
+                  <div className="w-32 h-32 rounded-full bg-white/20 flex items-center justify-center">
+                    <Icon
+                      icon="solar:check-circle-bold"
+                      className="text-6xl text-white"
+                    />
+                  </div>
+                  {/* Cerchi animati */}
+                  <div className="absolute inset-0 rounded-full border-4 border-white/20 animate-ping" />
+                  <div
+                    className="absolute inset-0 rounded-full border-4 border-white/20 animate-ping"
+                    style={{ animationDelay: "0.5s" }}
+                  />
+                </div>
+
+                {/* Messaggio di successo */}
+                <div className="space-y-4">
+                  <h3 className="text-3xl font-bold text-white">
+                    Scansione Completata!
+                  </h3>
+                  <p className="text-xl text-white/80">
+                    {scannerType === "barcode" ? "Codice a barre" : "QR code"}{" "}
+                    rilevato con successo
+                  </p>
+                </div>
+
+                {/* Codice scansionato */}
+                <div className="mt-8 bg-white/10 rounded-xl p-6 w-full max-w-md mx-4 backdrop-blur-sm">
+                  <p className="text-white/80 mb-3 text-lg">Codice rilevato:</p>
+                  <div className="bg-white/5 rounded-lg p-4">
+                    <p className="font-mono text-xl text-white break-all">
+                      {scannedCode}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Indicatore di chiusura */}
+                <div className="mt-8 flex items-center gap-2 text-white/60">
+                  <Icon icon="solar:clock-circle-bold" className="text-xl" />
+                  <p className="text-sm">
+                    La schermata si chiuderà automaticamente...
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
       )}
-    </>
+    </Card>
   );
 }
