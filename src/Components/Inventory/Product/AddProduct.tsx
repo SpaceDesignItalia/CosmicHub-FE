@@ -1,38 +1,35 @@
-import { useState, useEffect, useCallback, useRef } from "react";
-import { useNavigate } from "react-router-dom";
 import {
-  Card,
-  CardHeader,
-  CardBody,
-  Input,
-  Textarea,
-  Button,
-  Switch,
-  Select,
-  SelectItem,
-  Divider,
-  Tabs,
-  Tab,
   Autocomplete,
   AutocompleteItem,
-  Progress,
-  Chip,
-  Tooltip,
   Badge,
-  Image,
-  Popover,
-  PopoverTrigger,
-  PopoverContent,
-  RadioGroup,
-  Radio,
-  CardFooter,
-  DatePicker,
+  Button,
+  Card,
+  CardBody,
+  CardHeader,
   Checkbox,
+  Chip,
+  DatePicker,
+  Input,
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+  Progress,
+  Radio,
+  RadioGroup,
+  Select,
+  SelectItem,
+  Switch,
+  Tab,
+  Tabs,
+  Textarea,
+  Tooltip,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import { BrowserMultiFormatReader, Result, Exception } from "@zxing/library";
-import axios from "axios";
 import { parseDate } from "@internationalized/date";
+import { BrowserMultiFormatReader, Exception, Result } from "@zxing/library";
+import axios from "axios";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 
 interface ProductFormData {
   name: string;
@@ -52,9 +49,11 @@ interface ProductFormData {
   notes: string;
   photos: FileWithPreview[];
   documents: FileWithPreview[];
+  certifications: FileWithPreview[];
   barcodeType: "manual" | "auto" | "scan";
   qrCodeType: "manual" | "auto" | "scan";
   attributes: ProductAttribute[];
+  variantAttributes: string[];
   variants: ProductVariant[];
   [key: string]:
     | string
@@ -65,6 +64,7 @@ interface ProductFormData {
     | "auto"
     | "scan"
     | ProductAttribute[]
+    | string[]
     | ProductVariant[];
 }
 
@@ -133,6 +133,18 @@ interface ProductVariant {
   id: string;
   name: string;
   attributes: ProductAttribute[];
+  price: string;
+  supplier: string;
+  minStockThreshold: string;
+  barcode: string;
+  qrCode: string;
+  weight: string;
+  dimensions: string;
+  location: string;
+  notes: string;
+  certifications: FileWithPreview[];
+  barcodeType: "manual" | "auto" | "scan";
+  qrCodeType: "manual" | "auto" | "scan";
 }
 
 function ScannerOverlay({
@@ -521,9 +533,11 @@ export default function AddProduct() {
     notes: "",
     photos: [],
     documents: [],
+    certifications: [],
     barcodeType: "manual",
     qrCodeType: "manual",
     attributes: [],
+    variantAttributes: [], // Initialize empty array for variant attributes
     variants: [],
   });
   const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
@@ -549,6 +563,7 @@ export default function AddProduct() {
   const [selectedCamera, setSelectedCamera] = useState<string>("");
   const [showScanSuccess, setShowScanSuccess] = useState(false);
   const [scannedCode, setScannedCode] = useState<string>("");
+  const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
 
   useEffect(() => {
     loadInitialData();
@@ -763,7 +778,7 @@ export default function AddProduct() {
 
   const handleFileSelect = (
     files: FileList | null,
-    type: "photos" | "documents"
+    type: "photos" | "documents" | "certifications"
   ) => {
     if (!files) return;
 
@@ -803,35 +818,41 @@ export default function AddProduct() {
     }));
   };
 
-  const handleDragOver = (e: React.DragEvent, type: "photos" | "documents") => {
+  const handleDragOver = (
+    e: React.DragEvent,
+    type: "photos" | "documents" | "certifications"
+  ) => {
     e.preventDefault();
     e.stopPropagation();
     if (type === "photos") {
       setIsDraggingPhotos(true);
-    } else {
+    } else if (type === "documents") {
       setIsDraggingDocs(true);
     }
   };
 
   const handleDragLeave = (
     e: React.DragEvent,
-    type: "photos" | "documents"
+    type: "photos" | "documents" | "certifications"
   ) => {
     e.preventDefault();
     e.stopPropagation();
     if (type === "photos") {
       setIsDraggingPhotos(false);
-    } else {
+    } else if (type === "documents") {
       setIsDraggingDocs(false);
     }
   };
 
-  const handleDrop = (e: React.DragEvent, type: "photos" | "documents") => {
+  const handleDrop = (
+    e: React.DragEvent,
+    type: "photos" | "documents" | "certifications"
+  ) => {
     e.preventDefault();
     e.stopPropagation();
     if (type === "photos") {
       setIsDraggingPhotos(false);
-    } else {
+    } else if (type === "documents") {
       setIsDraggingDocs(false);
     }
 
@@ -848,10 +869,16 @@ export default function AddProduct() {
       formData.documents.forEach((file) => {
         if (file.preview) URL.revokeObjectURL(file.preview);
       });
+      formData.certifications.forEach((file) => {
+        if (file.preview) URL.revokeObjectURL(file.preview);
+      });
     };
-  }, [formData.photos, formData.documents]);
+  }, [formData.photos, formData.documents, formData.certifications]);
 
-  const removeFile = (type: "photos" | "documents", index: number) => {
+  const removeFile = (
+    type: "photos" | "documents" | "certifications",
+    index: number
+  ) => {
     setFormData((prev) => ({
       ...prev,
       [type]: prev[type].filter((_, i) => i !== index),
@@ -1201,6 +1228,18 @@ export default function AddProduct() {
       id: Date.now().toString(),
       name: "",
       attributes: [],
+      price: formData.price,
+      supplier: formData.supplier,
+      minStockThreshold: formData.minStockThreshold,
+      barcode: "",
+      qrCode: "",
+      weight: formData.weight,
+      dimensions: formData.dimensions,
+      location: formData.location,
+      notes: formData.notes,
+      certifications: [],
+      barcodeType: "manual",
+      qrCodeType: "manual",
     };
     setFormData((prev) => ({
       ...prev,
@@ -1211,7 +1250,7 @@ export default function AddProduct() {
   const updateVariant = (
     variantId: string,
     field: keyof ProductVariant,
-    value: string | ProductAttribute[]
+    value: string | ProductAttribute[] | FileWithPreview[]
   ) => {
     setFormData((prev) => ({
       ...prev,
@@ -1297,8 +1336,43 @@ export default function AddProduct() {
   };
 
   const handleScanSuccess = (code: string) => {
-    handleChange(scannerType === "barcode" ? "barcode" : "qrCode", code);
+    if (activeVariantId) {
+      updateVariant(
+        activeVariantId,
+        scannerType === "barcode" ? "barcode" : "qrCode",
+        code
+      );
+    } else {
+      handleChange(scannerType === "barcode" ? "barcode" : "qrCode", code);
+    }
     setIsScannerOpen(false);
+  };
+
+  const generateBarcodeForVariant = (variantId: string) => {
+    const prefix = "200";
+    const randomDigits = Array.from({ length: 9 }, () =>
+      Math.floor(Math.random() * 10)
+    ).join("");
+    const code = prefix + randomDigits;
+    let sum = 0;
+    for (let i = 0; i < 12; i++) {
+      sum += parseInt(code[i]) * (i % 2 === 0 ? 1 : 3);
+    }
+    const checkDigit = (10 - (sum % 10)) % 10;
+    const barcode = code + checkDigit;
+
+    updateVariant(variantId, "barcode", barcode);
+  };
+
+  const generateQRCodeForVariant = (variantId: string) => {
+    const variant = formData.variants.find((v) => v.id === variantId);
+    if (!variant) return;
+
+    const timestamp = Date.now();
+    const qrCode = `${formData.sku || "PROD"}-${
+      variant.name || "VAR"
+    }-${timestamp}`;
+    updateVariant(variantId, "qrCode", qrCode);
   };
 
   if (isLoading) {
@@ -1496,6 +1570,38 @@ export default function AddProduct() {
                       uno nuovo.
                     </p>
                   )}
+                </div>
+
+                {/* Description - Full width */}
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-2">
+                    Descrizione
+                  </label>
+                  <Textarea
+                    variant="bordered"
+                    color={formData.description ? "success" : "primary"}
+                    placeholder="Descrizione dettagliata del prodotto"
+                    value={formData.description}
+                    onChange={(e) =>
+                      handleChange("description", e.target.value)
+                    }
+                    minRows={3}
+                  />
+                </div>
+
+                {/* Notes - Full width */}
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-2">
+                    Note Aggiuntive
+                  </label>
+                  <Textarea
+                    variant="bordered"
+                    color={formData.notes ? "success" : "primary"}
+                    placeholder="Note aggiuntive sul prodotto"
+                    value={formData.notes}
+                    onChange={(e) => handleChange("notes", e.target.value)}
+                    minRows={2}
+                  />
                 </div>
               </div>
             </Tab>
@@ -1880,319 +1986,6 @@ export default function AddProduct() {
               </div>
             </Tab>
 
-            <Tab key="variants" title={getTabIcon("variants")}>
-              <div className="mt-4 space-y-6">
-                {/* Varianti */}
-                <div className="flex items-center gap-2">
-                  <Switch
-                    color={formData.hasVariants ? "success" : "primary"}
-                    checked={formData.hasVariants}
-                    onChange={(e) =>
-                      handleChange("hasVariants", e.target.checked)
-                    }
-                  />
-                  <label className="text-sm font-medium">
-                    Il prodotto ha varianti
-                  </label>
-                </div>
-
-                {formData.hasVariants && (
-                  <div className="mt-6 space-y-6">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">Varianti Prodotto</h3>
-                      <Button
-                        color="primary"
-                        variant="flat"
-                        startContent={<Icon icon="solar:add-circle-bold" />}
-                        onClick={addVariant}
-                      >
-                        Aggiungi Variante
-                      </Button>
-                    </div>
-
-                    {formData.variants.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl border-default-200">
-                        <div className="p-3 rounded-full bg-primary/10 mb-4">
-                          <Icon
-                            icon="solar:layers-bold"
-                            className="text-3xl text-primary"
-                          />
-                        </div>
-                        <h4 className="text-lg font-medium text-default-600 mb-2">
-                          Nessuna variante
-                        </h4>
-                        <p className="text-sm text-default-500 text-center max-w-md mb-4">
-                          Aggiungi varianti per gestire diverse versioni dello
-                          stesso prodotto, come taglie, colori o altre
-                          caratteristiche specifiche.
-                        </p>
-                        <Button
-                          color="primary"
-                          variant="flat"
-                          startContent={<Icon icon="solar:add-circle-bold" />}
-                          onClick={addVariant}
-                        >
-                          Aggiungi la prima variante
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="space-y-8">
-                        {formData.variants.map((variant) => (
-                          <div
-                            key={variant.id}
-                            className="p-6 border rounded-xl border-default-200 space-y-6"
-                          >
-                            <div className="flex items-start justify-between">
-                              <div className="flex-1">
-                                <Input
-                                  label="Nome Variante"
-                                  placeholder="Es: Taglia L, Colore Rosso"
-                                  value={variant.name}
-                                  onChange={(e) =>
-                                    updateVariant(
-                                      variant.id,
-                                      "name",
-                                      e.target.value
-                                    )
-                                  }
-                                  variant="bordered"
-                                  color="primary"
-                                  className="max-w-md"
-                                />
-                              </div>
-                              <Button
-                                isIconOnly
-                                color="danger"
-                                variant="light"
-                                onClick={() => removeVariant(variant.id)}
-                              >
-                                <Icon
-                                  icon="solar:trash-bin-trash-bold"
-                                  className="text-lg"
-                                />
-                              </Button>
-                            </div>
-
-                            <div className="space-y-4">
-                              <div className="flex items-center justify-between">
-                                <h4 className="text-sm font-medium">
-                                  Attributi della Variante
-                                </h4>
-                                <Button
-                                  size="sm"
-                                  color="primary"
-                                  variant="flat"
-                                  startContent={
-                                    <Icon icon="solar:add-circle-bold" />
-                                  }
-                                  onClick={() =>
-                                    addVariantAttribute(variant.id)
-                                  }
-                                >
-                                  Aggiungi Attributo
-                                </Button>
-                              </div>
-
-                              {variant.attributes.length === 0 ? (
-                                <div className="text-center p-4 border border-dashed rounded-lg border-default-200">
-                                  <p className="text-sm text-default-500">
-                                    Nessun attributo. Aggiungi attributi per
-                                    specificare le caratteristiche di questa
-                                    variante.
-                                  </p>
-                                </div>
-                              ) : (
-                                <div className="space-y-4">
-                                  {variant.attributes.map((attr) => (
-                                    <div
-                                      key={attr.id}
-                                      className="grid grid-cols-[1fr,auto,1fr,auto,auto] items-center gap-4"
-                                    >
-                                      <Input
-                                        placeholder="Nome attributo"
-                                        value={attr.name}
-                                        onChange={(e) =>
-                                          updateVariantAttribute(
-                                            variant.id,
-                                            attr.id,
-                                            "name",
-                                            e.target.value
-                                          )
-                                        }
-                                        variant="bordered"
-                                      />
-                                      <Select
-                                        selectedKeys={[attr.type]}
-                                        onSelectionChange={(keys) => {
-                                          const selectedKey = Array.from(
-                                            keys
-                                          )[0] as string;
-                                          updateVariantAttribute(
-                                            variant.id,
-                                            attr.id,
-                                            "type",
-                                            selectedKey
-                                          );
-                                        }}
-                                        variant="bordered"
-                                        className="w-40"
-                                      >
-                                        <SelectItem
-                                          key="text"
-                                          textValue="Testo"
-                                        >
-                                          Testo
-                                        </SelectItem>
-                                        <SelectItem
-                                          key="number"
-                                          textValue="Numero"
-                                        >
-                                          Numero
-                                        </SelectItem>
-                                        <SelectItem key="date" textValue="Data">
-                                          Data
-                                        </SelectItem>
-                                        <SelectItem
-                                          key="boolean"
-                                          textValue="Si/No"
-                                        >
-                                          Si/No
-                                        </SelectItem>
-                                      </Select>
-                                      {attr.type === "boolean" ? (
-                                        <div className="flex items-center">
-                                          <Switch
-                                            checked={attr.value === "true"}
-                                            onChange={(e) =>
-                                              updateVariantAttribute(
-                                                variant.id,
-                                                attr.id,
-                                                "value",
-                                                e.target.checked.toString()
-                                              )
-                                            }
-                                            color="primary"
-                                          />
-                                        </div>
-                                      ) : attr.type === "date" ? (
-                                        <DatePicker
-                                          id={`date-${attr.id}`}
-                                          value={
-                                            attr.value
-                                              ? parseDate(attr.value)
-                                              : null
-                                          }
-                                          onChange={(newDate) =>
-                                            updateVariantAttribute(
-                                              variant.id,
-                                              attr.id,
-                                              "value",
-                                              newDate ? newDate.toString() : ""
-                                            )
-                                          }
-                                          variant="bordered"
-                                          color="primary"
-                                        />
-                                      ) : (
-                                        <Input
-                                          type={
-                                            attr.type === "number"
-                                              ? "number"
-                                              : "text"
-                                          }
-                                          value={attr.value}
-                                          onChange={(e) =>
-                                            updateVariantAttribute(
-                                              variant.id,
-                                              attr.id,
-                                              "value",
-                                              e.target.value
-                                            )
-                                          }
-                                          variant="bordered"
-                                          color="primary"
-                                          placeholder="Valore"
-                                        />
-                                      )}
-                                      <div className="flex items-center">
-                                        <Checkbox
-                                          isSelected={Boolean(attr.isRequired)}
-                                          onValueChange={(checked) =>
-                                            updateVariantAttribute(
-                                              variant.id,
-                                              attr.id,
-                                              "isRequired",
-                                              checked
-                                            )
-                                          }
-                                          size="sm"
-                                          color="primary"
-                                        >
-                                          Obbligatorio
-                                        </Checkbox>
-                                      </div>
-                                      <Button
-                                        isIconOnly
-                                        color="danger"
-                                        variant="light"
-                                        onClick={() =>
-                                          removeVariantAttribute(
-                                            variant.id,
-                                            attr.id
-                                          )
-                                        }
-                                      >
-                                        <Icon
-                                          icon="solar:trash-bin-trash-bold"
-                                          className="text-lg"
-                                        />
-                                      </Button>
-                                    </div>
-                                  ))}
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Descrizione */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Descrizione
-                  </label>
-                  <Textarea
-                    variant="bordered"
-                    color={formData.description ? "success" : "primary"}
-                    placeholder="Descrizione dettagliata del prodotto"
-                    value={formData.description}
-                    onChange={(e) =>
-                      handleChange("description", e.target.value)
-                    }
-                    minRows={3}
-                  />
-                </div>
-
-                {/* Note */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Note Aggiuntive
-                  </label>
-                  <Textarea
-                    variant="bordered"
-                    color={formData.notes ? "success" : "primary"}
-                    placeholder="Note aggiuntive sul prodotto"
-                    value={formData.notes}
-                    onChange={(e) => handleChange("notes", e.target.value)}
-                    minRows={2}
-                  />
-                </div>
-              </div>
-            </Tab>
-
             <Tab
               key="attributes"
               title={
@@ -2524,6 +2317,1040 @@ export default function AddProduct() {
                         ))}
                     </div>
                   )}
+                </div>
+              </div>
+            </Tab>
+
+            <Tab key="variants" title={getTabIcon("variants")}>
+              <div className="mt-4 space-y-6">
+                {/* Varianti Switch */}
+                <div className="flex items-center gap-2">
+                  <Switch
+                    color="primary"
+                    checked={formData.hasVariants}
+                    onChange={(e) =>
+                      handleChange("hasVariants", e.target.checked)
+                    }
+                  />
+                  <label className="text-sm font-medium">
+                    Il prodotto ha varianti
+                  </label>
+                </div>
+
+                {formData.hasVariants && (
+                  <div className="mt-6 space-y-6">
+                    {/* Attribute Selection */}
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between">
+                        <h3 className="text-lg font-medium">
+                          Attributi per Varianti
+                        </h3>
+                        <Select
+                          placeholder="Seleziona attributi per varianti"
+                          selectedKeys={formData.variantAttributes}
+                          onSelectionChange={(keys) => {
+                            const selectedKeys = Array.from(keys) as string[];
+                            handleChange("variantAttributes", selectedKeys);
+                          }}
+                          selectionMode="multiple"
+                          variant="bordered"
+                          color="primary"
+                          className="max-w-xs"
+                        >
+                          {formData.attributes.map((attr) => (
+                            <SelectItem key={attr.id} textValue={attr.name}>
+                              {attr.name}
+                            </SelectItem>
+                          ))}
+                        </Select>
+                      </div>
+
+                      {/* Selected Attributes Chips */}
+                      <div className="flex flex-wrap gap-2">
+                        {formData.variantAttributes.map((attrId) => {
+                          const attr = formData.attributes.find(
+                            (a) => a.id === attrId
+                          );
+                          if (!attr) return null;
+                          return (
+                            <Chip
+                              key={attrId}
+                              onClose={() => {
+                                handleChange(
+                                  "variantAttributes",
+                                  formData.variantAttributes.filter(
+                                    (id) => id !== attrId
+                                  )
+                                );
+                              }}
+                              variant="flat"
+                              color="primary"
+                            >
+                              {attr.name}
+                            </Chip>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* Variants List */}
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-medium">Varianti Prodotto</h3>
+                      <Button
+                        color="primary"
+                        variant="flat"
+                        startContent={<Icon icon="solar:add-circle-bold" />}
+                        onClick={addVariant}
+                        isDisabled={formData.variantAttributes.length === 0}
+                      >
+                        Aggiungi Variante
+                      </Button>
+                    </div>
+
+                    {formData.variants.length === 0 ? (
+                      <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl border-default-200">
+                        <div className="p-3 rounded-full bg-primary/10 mb-4">
+                          <Icon
+                            icon="solar:layers-bold"
+                            className="text-3xl text-primary"
+                          />
+                        </div>
+                        <h4 className="text-lg font-medium text-default-600 mb-2">
+                          Nessuna variante
+                        </h4>
+                        <p className="text-sm text-default-500 text-center max-w-md mb-4">
+                          {formData.variantAttributes.length === 0
+                            ? "Seleziona prima gli attributi che possono variare tra le varianti"
+                            : "Aggiungi varianti per gestire diverse versioni dello stesso prodotto"}
+                        </p>
+                        {formData.variantAttributes.length > 0 && (
+                          <Button
+                            color="primary"
+                            variant="flat"
+                            startContent={<Icon icon="solar:add-circle-bold" />}
+                            onClick={addVariant}
+                          >
+                            Aggiungi la prima variante
+                          </Button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="space-y-8">
+                        {formData.variants.map((variant) => (
+                          <div
+                            key={variant.id}
+                            className="border rounded-xl border-default-200 overflow-hidden"
+                          >
+                            <div className="p-4 bg-default-50 border-b border-default-200 flex items-center justify-between">
+                              <div className="flex-1">
+                                <Input
+                                  label="Nome Variante"
+                                  placeholder="Es: Taglia L, Colore Rosso"
+                                  value={variant.name}
+                                  onChange={(e) =>
+                                    updateVariant(
+                                      variant.id,
+                                      "name",
+                                      e.target.value
+                                    )
+                                  }
+                                  variant="bordered"
+                                  color="primary"
+                                  className="max-w-md"
+                                />
+                              </div>
+                              <Button
+                                isIconOnly
+                                color="danger"
+                                variant="light"
+                                onClick={() => removeVariant(variant.id)}
+                              >
+                                <Icon
+                                  icon="solar:trash-bin-trash-bold"
+                                  className="text-lg"
+                                />
+                              </Button>
+                            </div>
+
+                            <Tabs
+                              aria-label="Variant Options"
+                              color="primary"
+                              variant="underlined"
+                              classNames={{
+                                cursor: "w-full",
+                                tab: "max-w-fit px-4",
+                                tabContent:
+                                  "group-data-[selected=true]:text-primary",
+                              }}
+                            >
+                              {/* Variant Attributes Tab */}
+                              <Tab
+                                key="attributes"
+                                title={
+                                  <div className="flex items-center gap-2">
+                                    <Icon icon="solar:list-check-bold" />
+                                    <span>Attributi Variante</span>
+                                  </div>
+                                }
+                              >
+                                <div className="p-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    {formData.variantAttributes.map(
+                                      (attrId) => {
+                                        const attr = formData.attributes.find(
+                                          (a) => a.id === attrId
+                                        );
+                                        if (!attr) return null;
+
+                                        const variantAttr =
+                                          variant.attributes.find(
+                                            (a) => a.id === attrId
+                                          ) || {
+                                            id: attrId,
+                                            name: attr.name,
+                                            type: attr.type,
+                                            value: "",
+                                            isRequired: attr.isRequired,
+                                          };
+
+                                        return (
+                                          <div key={attrId} className="flex-1">
+                                            <label className="block text-sm font-medium mb-2">
+                                              {attr.name}
+                                              {attr.isRequired && (
+                                                <span className="text-danger">
+                                                  *
+                                                </span>
+                                              )}
+                                            </label>
+                                            {attr.type === "boolean" ? (
+                                              <Switch
+                                                checked={
+                                                  variantAttr.value === "true"
+                                                }
+                                                onChange={(e) =>
+                                                  updateVariantAttribute(
+                                                    variant.id,
+                                                    attrId,
+                                                    "value",
+                                                    e.target.checked.toString()
+                                                  )
+                                                }
+                                                color="primary"
+                                              />
+                                            ) : attr.type === "date" ? (
+                                              <DatePicker
+                                                id={`date-${attrId}`}
+                                                value={
+                                                  variantAttr.value
+                                                    ? parseDate(
+                                                        variantAttr.value
+                                                      )
+                                                    : null
+                                                }
+                                                onChange={(newDate) =>
+                                                  updateVariantAttribute(
+                                                    variant.id,
+                                                    attrId,
+                                                    "value",
+                                                    newDate
+                                                      ? newDate.toString()
+                                                      : ""
+                                                  )
+                                                }
+                                                variant="bordered"
+                                                color="primary"
+                                              />
+                                            ) : (
+                                              <Input
+                                                type={
+                                                  attr.type === "number"
+                                                    ? "number"
+                                                    : "text"
+                                                }
+                                                value={variantAttr.value}
+                                                onChange={(e) =>
+                                                  updateVariantAttribute(
+                                                    variant.id,
+                                                    attrId,
+                                                    "value",
+                                                    e.target.value
+                                                  )
+                                                }
+                                                variant="bordered"
+                                                color="primary"
+                                                placeholder={`Inserisci ${attr.name.toLowerCase()}`}
+                                                isRequired={attr.isRequired}
+                                              />
+                                            )}
+                                          </div>
+                                        );
+                                      }
+                                    )}
+                                  </div>
+                                </div>
+                              </Tab>
+
+                              {/* Commercial Info Tab */}
+                              <Tab
+                                key="commercial"
+                                title={
+                                  <div className="flex items-center gap-2">
+                                    <Icon icon="solar:dollar-minimalistic-bold" />
+                                    <span>Info Commerciali</span>
+                                  </div>
+                                }
+                              >
+                                <div className="p-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="block text-sm font-medium mb-2">
+                                        Prezzo{" "}
+                                        <span className="text-danger">*</span>
+                                      </label>
+                                      <Input
+                                        type="number"
+                                        variant="bordered"
+                                        color={
+                                          variant.price ? "success" : "primary"
+                                        }
+                                        placeholder="0.00"
+                                        startContent={
+                                          <span className="text-default-400">
+                                            €
+                                          </span>
+                                        }
+                                        value={variant.price}
+                                        onChange={(e) =>
+                                          updateVariant(
+                                            variant.id,
+                                            "price",
+                                            e.target.value
+                                          )
+                                        }
+                                        isRequired
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="block text-sm font-medium mb-2">
+                                        Fornitore{" "}
+                                        <span className="text-danger">*</span>
+                                      </label>
+                                      <div className="flex gap-2">
+                                        <Autocomplete
+                                          variant="bordered"
+                                          color={
+                                            variant.supplier
+                                              ? "success"
+                                              : "primary"
+                                          }
+                                          placeholder="Cerca fornitore"
+                                          defaultItems={suppliers}
+                                          value={variant.supplier}
+                                          onSelectionChange={(value) =>
+                                            updateVariant(
+                                              variant.id,
+                                              "supplier",
+                                              value as string
+                                            )
+                                          }
+                                          className="flex-1"
+                                          isRequired
+                                          startContent={
+                                            <Icon
+                                              icon="solar:shop-bold-2"
+                                              className={
+                                                variant.supplier
+                                                  ? "text-success"
+                                                  : "text-default-400"
+                                              }
+                                            />
+                                          }
+                                        >
+                                          {(supplier: Supplier) => (
+                                            <AutocompleteItem
+                                              key={supplier.id}
+                                              textValue={supplier.name}
+                                            >
+                                              {supplier.name}
+                                            </AutocompleteItem>
+                                          )}
+                                        </Autocomplete>
+                                        <Tooltip content="Aggiungi nuovo fornitore">
+                                          <Button
+                                            color="primary"
+                                            variant="flat"
+                                            onClick={() =>
+                                              navigate(
+                                                "/inventory/suppliers/new"
+                                              )
+                                            }
+                                            isIconOnly
+                                          >
+                                            <Icon
+                                              icon="solar:add-circle-bold"
+                                              className="text-xl"
+                                            />
+                                          </Button>
+                                        </Tooltip>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Tab>
+
+                              {/* Warehouse Tab */}
+                              <Tab
+                                key="warehouse"
+                                title={
+                                  <div className="flex items-center gap-2">
+                                    <Icon icon="solar:box-bold" />
+                                    <span>Magazzino</span>
+                                  </div>
+                                }
+                              >
+                                <div className="p-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="block text-sm font-medium mb-2">
+                                        Soglia Minima Stock{" "}
+                                        <span className="text-danger">*</span>
+                                      </label>
+                                      <Input
+                                        type="number"
+                                        variant="bordered"
+                                        color={
+                                          variant.minStockThreshold
+                                            ? "success"
+                                            : "primary"
+                                        }
+                                        placeholder="Quantità minima"
+                                        value={variant.minStockThreshold}
+                                        onChange={(e) =>
+                                          updateVariant(
+                                            variant.id,
+                                            "minStockThreshold",
+                                            e.target.value
+                                          )
+                                        }
+                                        isRequired
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="block text-sm font-medium mb-2">
+                                        Posizione Magazzino
+                                      </label>
+                                      <Input
+                                        variant="bordered"
+                                        color={
+                                          variant.location
+                                            ? "success"
+                                            : "primary"
+                                        }
+                                        placeholder="Es: Scaffale A-12"
+                                        value={variant.location}
+                                        onChange={(e) =>
+                                          updateVariant(
+                                            variant.id,
+                                            "location",
+                                            e.target.value
+                                          )
+                                        }
+                                      />
+                                    </div>
+
+                                    {/* Barcode */}
+                                    <div className="col-span-2">
+                                      <label className="block text-sm font-medium mb-2">
+                                        Barcode
+                                      </label>
+                                      <div className="space-y-3">
+                                        <RadioGroup
+                                          orientation="horizontal"
+                                          value={variant.barcodeType}
+                                          onValueChange={(value) =>
+                                            updateVariant(
+                                              variant.id,
+                                              "barcodeType",
+                                              value
+                                            )
+                                          }
+                                        >
+                                          <Radio value="manual">Manuale</Radio>
+                                          <Radio value="auto">Genera</Radio>
+                                          <Radio value="scan">Scansiona</Radio>
+                                        </RadioGroup>
+
+                                        <div className="flex gap-2">
+                                          <Input
+                                            variant="bordered"
+                                            color={
+                                              variant.barcode
+                                                ? "success"
+                                                : "primary"
+                                            }
+                                            placeholder="Codice a barre"
+                                            value={variant.barcode}
+                                            onChange={(e) =>
+                                              updateVariant(
+                                                variant.id,
+                                                "barcode",
+                                                e.target.value
+                                              )
+                                            }
+                                            isDisabled={
+                                              variant.barcodeType === "auto"
+                                            }
+                                          />
+                                          {variant.barcodeType === "auto" && (
+                                            <Button
+                                              color="primary"
+                                              variant="flat"
+                                              isIconOnly
+                                              onClick={() =>
+                                                generateBarcodeForVariant(
+                                                  variant.id
+                                                )
+                                              }
+                                            >
+                                              <Icon icon="solar:refresh-bold" />
+                                            </Button>
+                                          )}
+                                          {variant.barcodeType === "scan" && (
+                                            <Button
+                                              color="primary"
+                                              variant="flat"
+                                              isIconOnly
+                                              onClick={() => {
+                                                setScannerType("barcode");
+                                                setActiveVariantId(variant.id);
+                                                setIsScannerOpen(true);
+                                              }}
+                                            >
+                                              <Icon icon="solar:camera-bold" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+
+                                    {/* QR Code */}
+                                    <div className="col-span-2">
+                                      <label className="block text-sm font-medium mb-2">
+                                        QR Code
+                                      </label>
+                                      <div className="space-y-3">
+                                        <RadioGroup
+                                          orientation="horizontal"
+                                          value={variant.qrCodeType}
+                                          onValueChange={(value) =>
+                                            updateVariant(
+                                              variant.id,
+                                              "qrCodeType",
+                                              value
+                                            )
+                                          }
+                                        >
+                                          <Radio value="manual">Manuale</Radio>
+                                          <Radio value="auto">Genera</Radio>
+                                          <Radio value="scan">Scansiona</Radio>
+                                        </RadioGroup>
+
+                                        <div className="flex gap-2">
+                                          <Input
+                                            variant="bordered"
+                                            color={
+                                              variant.qrCode
+                                                ? "success"
+                                                : "primary"
+                                            }
+                                            placeholder="QR Code"
+                                            value={variant.qrCode}
+                                            onChange={(e) =>
+                                              updateVariant(
+                                                variant.id,
+                                                "qrCode",
+                                                e.target.value
+                                              )
+                                            }
+                                            isDisabled={
+                                              variant.qrCodeType === "auto"
+                                            }
+                                          />
+                                          {variant.qrCodeType === "auto" && (
+                                            <Button
+                                              color="primary"
+                                              variant="flat"
+                                              isIconOnly
+                                              onClick={() =>
+                                                generateQRCodeForVariant(
+                                                  variant.id
+                                                )
+                                              }
+                                            >
+                                              <Icon icon="solar:refresh-bold" />
+                                            </Button>
+                                          )}
+                                          {variant.qrCodeType === "scan" && (
+                                            <Button
+                                              color="primary"
+                                              variant="flat"
+                                              isIconOnly
+                                              onClick={() => {
+                                                setScannerType("qrcode");
+                                                setActiveVariantId(variant.id);
+                                                setIsScannerOpen(true);
+                                              }}
+                                            >
+                                              <Icon icon="solar:camera-bold" />
+                                            </Button>
+                                          )}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+                              </Tab>
+
+                              {/* Physical Specs Tab */}
+                              <Tab
+                                key="physical"
+                                title={
+                                  <div className="flex items-center gap-2">
+                                    <Icon icon="solar:ruler-bold" />
+                                    <span>Specifiche Fisiche</span>
+                                  </div>
+                                }
+                              >
+                                <div className="p-4">
+                                  <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                      <label className="block text-sm font-medium mb-2">
+                                        Peso
+                                      </label>
+                                      <Input
+                                        type="number"
+                                        variant="bordered"
+                                        color={
+                                          variant.weight ? "success" : "primary"
+                                        }
+                                        placeholder="Peso in kg"
+                                        value={variant.weight}
+                                        onChange={(e) =>
+                                          updateVariant(
+                                            variant.id,
+                                            "weight",
+                                            e.target.value
+                                          )
+                                        }
+                                        endContent={
+                                          <div className="pointer-events-none flex items-center">
+                                            <span className="text-default-400">
+                                              kg
+                                            </span>
+                                          </div>
+                                        }
+                                      />
+                                    </div>
+
+                                    <div>
+                                      <label className="block text-sm font-medium mb-2">
+                                        Dimensioni
+                                      </label>
+                                      <Input
+                                        variant="bordered"
+                                        color={
+                                          variant.dimensions
+                                            ? "success"
+                                            : "primary"
+                                        }
+                                        placeholder="LxWxH in cm"
+                                        value={variant.dimensions}
+                                        onChange={(e) =>
+                                          updateVariant(
+                                            variant.id,
+                                            "dimensions",
+                                            e.target.value
+                                          )
+                                        }
+                                      />
+                                    </div>
+                                  </div>
+                                </div>
+                              </Tab>
+
+                              {/* Notes Tab */}
+                              <Tab
+                                key="notes"
+                                title={
+                                  <div className="flex items-center gap-2">
+                                    <Icon icon="solar:notebook-bold" />
+                                    <span>Note</span>
+                                  </div>
+                                }
+                              >
+                                <div className="p-4">
+                                  <div>
+                                    <label className="block text-sm font-medium mb-2">
+                                      Note Aggiuntive
+                                    </label>
+                                    <Textarea
+                                      variant="bordered"
+                                      color={
+                                        variant.notes ? "success" : "primary"
+                                      }
+                                      placeholder="Note aggiuntive sulla variante"
+                                      value={variant.notes}
+                                      onChange={(e) =>
+                                        updateVariant(
+                                          variant.id,
+                                          "notes",
+                                          e.target.value
+                                        )
+                                      }
+                                      minRows={3}
+                                    />
+                                  </div>
+                                </div>
+                              </Tab>
+
+                              {/* Certifications Tab */}
+                              <Tab
+                                key="certifications"
+                                title={
+                                  <div className="flex items-center gap-2">
+                                    <Icon icon="solar:diploma-verified-bold" />
+                                    <span>Certificazioni e Documenti</span>
+                                  </div>
+                                }
+                              >
+                                <div className="p-4">
+                                  <div>
+                                    <label className="block text-sm font-medium mb-2">
+                                      Certificazioni e Documenti
+                                    </label>
+                                    <div
+                                      className="border-2 border-dashed rounded-lg p-4 transition-colors border-default-200 hover:border-primary hover:bg-primary/5"
+                                      onDragOver={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        e.currentTarget.classList.add(
+                                          "border-primary",
+                                          "bg-primary/10"
+                                        );
+                                      }}
+                                      onDragLeave={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        e.currentTarget.classList.remove(
+                                          "border-primary",
+                                          "bg-primary/10"
+                                        );
+                                      }}
+                                      onDrop={(e) => {
+                                        e.preventDefault();
+                                        e.stopPropagation();
+                                        e.currentTarget.classList.remove(
+                                          "border-primary",
+                                          "bg-primary/10"
+                                        );
+                                        const files = e.dataTransfer.files;
+                                        if (files) {
+                                          const acceptedFiles = Array.from(
+                                            files
+                                          ).filter((file) => {
+                                            const validTypes = [
+                                              "application/pdf",
+                                              "application/msword",
+                                              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                              "application/vnd.ms-excel",
+                                              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                            ];
+                                            return (
+                                              validTypes.includes(file.type) &&
+                                              file.size <= 10 * 1024 * 1024
+                                            );
+                                          });
+
+                                          const filesWithPreview =
+                                            acceptedFiles.map((file) => {
+                                              return Object.assign(file, {
+                                                preview:
+                                                  URL.createObjectURL(file),
+                                              });
+                                            }) as FileWithPreview[];
+
+                                          updateVariant(
+                                            variant.id,
+                                            "certifications",
+                                            [
+                                              ...(variant.certifications || []),
+                                              ...filesWithPreview,
+                                            ]
+                                          );
+                                        }
+                                      }}
+                                    >
+                                      <div className="flex flex-col items-center justify-center gap-2">
+                                        <div className="p-3 rounded-full bg-primary/10">
+                                          <Icon
+                                            icon="solar:upload-bold"
+                                            className="text-2xl text-primary"
+                                          />
+                                        </div>
+                                        <div className="text-center">
+                                          <p className="text-sm text-default-600">
+                                            Trascina qui i file o{" "}
+                                            <button
+                                              type="button"
+                                              className="text-primary hover:underline"
+                                              onClick={() => {
+                                                const input =
+                                                  document.createElement(
+                                                    "input"
+                                                  );
+                                                input.type = "file";
+                                                input.accept =
+                                                  ".pdf,.doc,.docx,.xls,.xlsx";
+                                                input.multiple = true;
+                                                input.onchange = (e) => {
+                                                  const files = (
+                                                    e.target as HTMLInputElement
+                                                  ).files;
+                                                  if (files) {
+                                                    const acceptedFiles =
+                                                      Array.from(files).filter(
+                                                        (file) => {
+                                                          const validTypes = [
+                                                            "application/pdf",
+                                                            "application/msword",
+                                                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                                                            "application/vnd.ms-excel",
+                                                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                                                          ];
+                                                          return (
+                                                            validTypes.includes(
+                                                              file.type
+                                                            ) &&
+                                                            file.size <=
+                                                              10 * 1024 * 1024
+                                                          );
+                                                        }
+                                                      );
+
+                                                    const filesWithPreview =
+                                                      acceptedFiles.map(
+                                                        (file) => {
+                                                          return Object.assign(
+                                                            file,
+                                                            {
+                                                              preview:
+                                                                URL.createObjectURL(
+                                                                  file
+                                                                ),
+                                                            }
+                                                          );
+                                                        }
+                                                      ) as FileWithPreview[];
+
+                                                    updateVariant(
+                                                      variant.id,
+                                                      "certifications",
+                                                      [
+                                                        ...(variant.certifications ||
+                                                          []),
+                                                        ...filesWithPreview,
+                                                      ]
+                                                    );
+                                                  }
+                                                };
+                                                input.click();
+                                              }}
+                                            >
+                                              sfoglia
+                                            </button>
+                                          </p>
+                                          <p className="text-xs text-default-400 mt-1">
+                                            PDF, DOC, DOCX, XLS, XLSX (max.
+                                            10MB)
+                                          </p>
+                                        </div>
+                                      </div>
+
+                                      {/* Preview dei file */}
+                                      {variant.certifications &&
+                                        variant.certifications.length > 0 && (
+                                          <div className="mt-4 grid grid-cols-1 gap-2">
+                                            {variant.certifications.map(
+                                              (file, index) => (
+                                                <div
+                                                  key={index}
+                                                  className="flex items-center justify-between p-2 border rounded-lg bg-default-50"
+                                                >
+                                                  <div className="flex items-center gap-2">
+                                                    <div className="p-2 rounded-lg bg-default-100">
+                                                      <Icon
+                                                        icon={getFileIcon(
+                                                          file.name
+                                                        )}
+                                                        className="text-xl text-default-600"
+                                                      />
+                                                    </div>
+                                                    <div>
+                                                      <p className="text-sm font-medium text-default-700">
+                                                        {file.name}
+                                                      </p>
+                                                      <p className="text-xs text-default-400">
+                                                        {(
+                                                          file.size /
+                                                          1024 /
+                                                          1024
+                                                        ).toFixed(2)}{" "}
+                                                        MB
+                                                      </p>
+                                                    </div>
+                                                  </div>
+                                                  <Button
+                                                    isIconOnly
+                                                    color="danger"
+                                                    variant="light"
+                                                    onClick={() => {
+                                                      updateVariant(
+                                                        variant.id,
+                                                        "certifications",
+                                                        variant.certifications.filter(
+                                                          (_, i) => i !== index
+                                                        )
+                                                      );
+                                                    }}
+                                                  >
+                                                    <Icon
+                                                      icon="solar:trash-bin-trash-bold"
+                                                      className="text-lg"
+                                                    />
+                                                  </Button>
+                                                </div>
+                                              )
+                                            )}
+                                          </div>
+                                        )}
+                                    </div>
+                                  </div>
+                                </div>
+                              </Tab>
+                            </Tabs>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            </Tab>
+
+            <Tab
+              key="certifications"
+              title={
+                <div className="flex items-center gap-2">
+                  <Icon icon="solar:diploma-verified-bold" />
+                  <span>Certificazioni e Documenti</span>
+                </div>
+              }
+            >
+              <div className="mt-4 space-y-6">
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Certificazioni e Documenti
+                  </label>
+                  <div
+                    className={`border-2 border-dashed rounded-lg p-4 transition-colors ${
+                      isDraggingDocs
+                        ? "border-primary bg-primary/10"
+                        : "border-default-200"
+                    }`}
+                    onDragOver={(e) => handleDragOver(e, "certifications")}
+                    onDragLeave={(e) => handleDragLeave(e, "certifications")}
+                    onDrop={(e) => handleDrop(e, "certifications")}
+                  >
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <div className="p-3 rounded-full bg-primary/10">
+                        <Icon
+                          icon="solar:upload-bold"
+                          className="text-2xl text-primary"
+                        />
+                      </div>
+                      <div className="text-center">
+                        <p className="text-sm text-default-600">
+                          Trascina qui i file o{" "}
+                          <button
+                            type="button"
+                            className="text-primary hover:underline"
+                            onClick={() => {
+                              const input = document.createElement("input");
+                              input.type = "file";
+                              input.accept = ".pdf,.doc,.docx,.xls,.xlsx";
+                              input.multiple = true;
+                              input.onchange = (e) => {
+                                const files = (e.target as HTMLInputElement)
+                                  .files;
+                                handleFileSelect(files, "certifications");
+                              };
+                              input.click();
+                            }}
+                          >
+                            sfoglia
+                          </button>
+                        </p>
+                        <p className="text-xs text-default-400 mt-1">
+                          PDF, DOC, DOCX, XLS, XLSX (max. 10MB)
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Preview dei file */}
+                    {formData.certifications.length > 0 && (
+                      <div className="mt-4 grid grid-cols-1 gap-2">
+                        {formData.certifications.map((file, index) => (
+                          <div
+                            key={index}
+                            className="flex items-center justify-between p-2 border rounded-lg bg-default-50"
+                          >
+                            <div className="flex items-center gap-2">
+                              <div className="p-2 rounded-lg bg-default-100">
+                                <Icon
+                                  icon={getFileIcon(file.name)}
+                                  className="text-xl text-default-600"
+                                />
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-default-700">
+                                  {file.name}
+                                </p>
+                                <p className="text-xs text-default-400">
+                                  {(file.size / 1024 / 1024).toFixed(2)} MB
+                                </p>
+                              </div>
+                            </div>
+                            <Button
+                              isIconOnly
+                              color="danger"
+                              variant="light"
+                              onClick={() =>
+                                removeFile("certifications", index)
+                              }
+                            >
+                              <Icon
+                                icon="solar:trash-bin-trash-bold"
+                                className="text-lg"
+                              />
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </Tab>
