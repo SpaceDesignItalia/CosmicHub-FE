@@ -1,3 +1,9 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Forza il padding verticale a 0 per il trigger dell'accordion HeroUI nella sidebar */
+[data-slot="trigger"] {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}

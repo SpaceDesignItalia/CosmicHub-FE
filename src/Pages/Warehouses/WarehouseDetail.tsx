@@ -10,9 +10,6 @@ import {
   Tabs,
   Tab,
   Input,
-  Spacer,
-  Chip,
-  Progress,
   Breadcrumbs,
   BreadcrumbItem,
   Modal,
@@ -21,9 +18,6 @@ import {
   ModalBody,
   ModalFooter,
   useDisclosure,
-  Select,
-  SelectItem,
-  Textarea,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import {
@@ -89,22 +83,6 @@ const mapStyles = [
   },
 ];
 
-// Componente bottone della mappa
-interface MapButtonProps {
-  onClick: React.MouseEventHandler<HTMLButtonElement>;
-  className?: string;
-  children: React.ReactNode;
-}
-
-const MapButton = ({ onClick, children, className = "" }: MapButtonProps) => (
-  <button
-    onClick={onClick}
-    className={`rounded-full border border-default-200 bg-background p-2 text-foreground transition-colors hover:bg-primary hover:text-white hover:border-primary ${className}`}
-  >
-    {children}
-  </button>
-);
-
 const libraries: ("places" | "geometry" | "drawing" | "visualization")[] = [];
 
 // Definizione dell'interfaccia Warehouse basata sui dati forniti
@@ -134,11 +112,6 @@ interface Warehouse {
   longitude?: number;
   last_updated?: Date | string;
   floorplan_url?: string;
-}
-
-interface Company {
-  company_id: string;
-  name: string;
 }
 
 interface Employee {
@@ -531,7 +504,7 @@ const WarehouseDetail: React.FC = () => {
           <Button
             className="mt-4"
             color="primary"
-            onPress={() => (window.location.href = "/dashboard")}
+            onPress={() => navigate("/dashboard")}
           >
             Torna alla Dashboard
           </Button>
@@ -553,7 +526,7 @@ const WarehouseDetail: React.FC = () => {
           <Button
             className="mt-4"
             color="primary"
-            onPress={() => (window.location.href = "/dashboard")}
+            onPress={() => navigate("/dashboard")}
           >
             Torna alla Dashboard
           </Button>
@@ -571,8 +544,12 @@ const WarehouseDetail: React.FC = () => {
     <div className="flex h-full w-full flex-col overflow-y-auto p-6">
       {/* Breadcrumbs */}
       <Breadcrumbs className="mb-4">
-        <BreadcrumbItem href="/dashboard">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/dashboard">Magazzini</BreadcrumbItem>
+        <BreadcrumbItem onPress={() => navigate("/dashboard")}>
+          Dashboard
+        </BreadcrumbItem>
+        <BreadcrumbItem onPress={() => navigate("/dashboard")}>
+          Magazzini
+        </BreadcrumbItem>
         <BreadcrumbItem>{warehouse.name}</BreadcrumbItem>
       </Breadcrumbs>
 
@@ -614,11 +591,7 @@ const WarehouseDetail: React.FC = () => {
             color="primary"
             variant="flat"
             startContent={<Icon icon="solar:pen-bold" width={18} />}
-            onPress={() =>
-              navigate(
-                `/inventory/warehouses/edit/${warehouse.WarehouseUUID || UUID}`
-              )
-            }
+            onPress={onEditOpen}
           >
             Modifica
           </Button>
@@ -895,7 +868,7 @@ const WarehouseDetail: React.FC = () => {
                 <div className="mt-4 text-center">
                   <p className="text-sm text-default-500">Capacità totale</p>
                   <p className="text-xl font-semibold">
-                    {parseInt(warehouse.capacity).toLocaleString()} m³
+                    {parseInt(warehouse.capacity, 10).toLocaleString()} m³
                   </p>
                 </div>
               </div>
@@ -1200,7 +1173,7 @@ const WarehouseDetail: React.FC = () => {
               className="mt-4"
               size="sm"
               startContent={<Icon icon="solar:add-circle-bold" width={18} />}
-              href="/warehouses/new"
+              onPress={() => navigate("/warehouses/new")}
             >
               Aggiungi Magazzino
             </Button>

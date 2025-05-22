@@ -95,13 +95,6 @@ export const sectionNestedItems = [
         icon: "solar:tag-linear",
         href: "/inventory/categories",
       },
-      {
-        key: "warehouses",
-        title: "Magazzini",
-        icon: "mdi:warehouse",
-        type: SidebarItemType.Nest,
-        items: [], // Questo array sarà popolato dinamicamente con i magazzini dal backend
-      },
     ],
   },
   {
@@ -199,8 +192,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const location = useLocation();
     // Stato per i magazzini
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-    // Stato per gli elementi della sidebar con magazzini
-    const [sidebarItems, setSidebarItems] = useState<SidebarItem[]>(items);
+
     // Flag per forzare il refresh dei magazzini
     const [refreshWarehouses, setRefreshWarehouses] = useState(false);
 
@@ -248,95 +240,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       }
     }, [location]);
 
-    // Funzione per creare l'array di elementi sidebar con i magazzini integrati
-    const getSidebarItemsWithWarehouses = (
-      warehouseList: Warehouse[]
-    ): SidebarItem[] => {
-      // Elemento per mostrare "Nessun Magazzino disponibile"
-      const noWarehouseElement: SidebarItem = {
-        key: "no-warehouse",
-        title: "Nessun magazzino",
-        icon: "solar:warehouse-linear",
-        className:
-          "text-default-500 py-1 whitespace-nowrap overflow-hidden text-ellipsis",
-      };
-
-      // Creo un elemento per aggiungere un nuovo magazzino
-      const addWarehouseElement: SidebarItem = {
-        key: "add-warehouse",
-        title: "Aggiungi magazzino",
-        icon: "solar:add-circle-bold",
-        href: "/inventory/warehouses/add",
-        className: "text-warning font-medium",
-      };
-
-      // Creiamo elementi per ciascun magazzino se esistono
-      const warehouseElements = warehouseList.map((warehouse) => ({
-        key: `warehouse-${
-          warehouse.warehouse_id || warehouse.WarehouseID || ""
-        }`,
-        title: `${
-          warehouse.name || warehouse.WarehouseName || "Magazzino senza nome"
-        } ${warehouse.WarehouseCode ? `(${warehouse.WarehouseCode})` : ""}`,
-        icon:
-          warehouse.IsActive === false
-            ? "solar:warehouse-minimalistic-broken"
-            : "solar:warehouse-bold",
-        href: `/warehouses/${
-          warehouse.WarehouseUUID || warehouse.warehouse_id || ""
-        }`,
-        className:
-          warehouse.IsActive !== false
-            ? "transition-all duration-150 hover:bg-default-200 hover:scale-[1.02]"
-            : "text-default-400 opacity-80 transition-all duration-150 hover:bg-default-200 hover:opacity-100",
-        startContent:
-          warehouse.IsActive === false ? (
-            <div className="flex items-center">
-              <div className="mr-2 h-2 w-2 rounded-full bg-danger"></div>
-              <Tooltip content="Magazzino inattivo" placement="right">
-                <Icon
-                  icon="solar:danger-triangle-bold"
-                  className="text-danger mr-1"
-                  width={16}
-                />
-              </Tooltip>
-            </div>
-          ) : null,
-      }));
-
-      // Aggiungiamo l'elemento per l'aggiunta magazzino alla fine dell'array
-      const allWarehouseItems =
-        warehouseList.length > 0
-          ? [...warehouseElements, addWarehouseElement]
-          : [noWarehouseElement, addWarehouseElement];
-
-      // Creiamo una nuova struttura degli elementi sidebar
-      return sectionNestedItems.map((item) => {
-        // Se l'elemento è "inventory", aggiorniamo i suoi sottoelementi
-        if (item.key === "inventory" && item.items) {
-          // Creiamo una copia degli items di inventory
-          const updatedInventoryItems = item.items.map((subItem) => {
-            // Se il sottoelemento è "warehouses", controlliamo se ci sono magazzini
-            if (subItem.key === "warehouses") {
-              return {
-                ...subItem,
-                items: allWarehouseItems,
-                type: SidebarItemType.Nest, // Assicuriamoci che sia di tipo Nest
-              };
-            }
-            return subItem;
-          });
-
-          // Restituiamo l'elemento inventory aggiornato
-          return {
-            ...item,
-            items: updatedInventoryItems,
-          };
-        }
-        return item;
-      });
-    };
-
     // Nuovo effetto per caricare i magazzini
     React.useEffect(() => {
       const fetchWarehouses = async () => {
@@ -346,10 +249,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           const warehouseItems = response.data;
 
           setWarehouses(warehouseItems);
-
-          // Aggiorniamo sempre la sidebar con il pulsante "Aggiungi magazzino"
-          const updatedItems = getSidebarItemsWithWarehouses(warehouseItems);
-          setSidebarItems(updatedItems);
         } catch (error) {
           console.error("Errore nel caricamento dei magazzini:", error);
         }
@@ -379,17 +278,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         document.body.style.overflow = "unset";
       };
     }, [isOpen]);
-
-    async function handleLogout() {
-      try {
-        const response = await axios.post("/Authentication/POST/Logout");
-        if (response.status === 200) {
-          window.location.href = "/login";
-        }
-      } catch (error) {
-        console.error(error);
-      }
-    }
 
     const sectionClasses = {
       ...sectionClassesProp,
@@ -449,16 +337,16 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
             classNames={{
               base: cn(
                 {
-                  "h-auto p-0": !isCompact && isNestType,
+                  "h-auto": !isCompact && isNestType,
                 },
                 {
                   "inline-block w-11": isCompact && isNestType,
                 },
-                {
-                  "bg-default-100": isSelected,
-                },
                 "transition-colors",
-                isDisabled ? "" : "data-[hover=true]:bg-default-100"
+                isDisabled ? "" : "data-[hover=true]:bg-default-100",
+                isNestType
+                  ? "!bg-transparent data-[selected=true]:!bg-transparent data-[hover=true]:!bg-transparent"
+                  : ""
               ),
               title: cn(
                 "whitespace-nowrap overflow-hidden text-ellipsis max-w-full transition-colors",
@@ -506,72 +394,59 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               </Tooltip>
             ) : null}
             {!isCompact && isNestType ? (
-              <Accordion className={"p-0"}>
+              <Accordion>
                 <AccordionItem
                   key={item.key}
                   aria-label={item.title}
                   classNames={{
-                    heading: "pr-3",
-                    trigger: cn("p-0 data-[hover=true]:bg-default-100", {
-                      "bg-default-100": isSelected,
-                    }),
-                    content: "py-0 pl-3",
+                    base: "px-0",
+                    trigger: "px-0",
+                    content: "px-0",
                   }}
                   title={
-                    item.icon ? (
-                      <div
-                        className={
-                          "flex h-11 items-center gap-2 px-2 py-1.5 overflow-hidden data-[hover=true]:text-foreground-900 transition-colors"
-                        }
-                      >
+                    <div className="flex items-center gap-2">
+                      {item.icon && (
                         <Icon
                           className={cn(
                             "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0",
                             iconClassName
                           )}
-                          icon={item.icon}
+                          icon={item.icon ?? ""}
                           width={24}
                         />
-                        <span className="text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 whitespace-nowrap overflow-hidden text-ellipsis">
-                          {item.title}
-                        </span>
-                      </div>
-                    ) : (
-                      item.startContent ?? null
-                    )
+                      )}
+                      <span className="text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 data-[hover=true]:text-foreground-900 transition-colors whitespace-nowrap overflow-hidden text-ellipsis">
+                        {item.title}
+                      </span>
+                    </div>
                   }
                 >
+                  {/* Per tutti gli accordion normali */}
                   {item.items && item.items?.length > 0 ? (
                     <Listbox
-                      className={"mt-0.5"}
                       aria-label={`Sottomenu ${item.title}`}
-                      classNames={{
-                        list: cn("border-l border-default-200 pl-3"),
-                      }}
-                      itemClasses={{
-                        base: "pr-1 data-[hover=true]:bg-default-100 data-[hover=true]:text-foreground-900 transition-colors",
-                        title:
-                          "whitespace-nowrap overflow-hidden text-ellipsis",
-                      }}
                       items={item.items}
                       variant="flat"
                     >
-                      {item.items.map((subItem, index) =>
-                        React.cloneElement(renderItem(subItem), {
-                          key: `${subItem.key}-${index}`,
-                        })
-                      )}
+                      {item.items.map(renderItem)}
                     </Listbox>
-                  ) : (
-                    renderItem(item)
-                  )}
+                  ) : null}
                 </AccordionItem>
               </Accordion>
             ) : null}
           </ListboxItem>
         );
       },
-      [isCompact, hideEndContent, iconClassName, location.pathname]
+      [
+        isCompact,
+        hideEndContent,
+        iconClassName,
+        location.pathname,
+        warehouses,
+        navigate,
+        isMobile,
+        onClose,
+      ]
     );
 
     const SidebarContent = () => (
@@ -645,7 +520,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               itemClasses={{
                 ...itemClasses,
                 base: cn(
-                  "px-3 min-h-11 rounded-large h-[44px] data-[selected=true]:bg-default-100 data-[selected=true]:text-foreground-900 data-[hover=true]:bg-default-100 transition-colors",
+                  "flex items-center px-3 min-h-11 rounded-large h-[44px] data-[selected=true]:bg-default-100 data-[selected=true]:text-foreground-900 data-[hover=true]:bg-default-100 transition-colors",
                   itemClasses?.base
                 ),
                 title: cn(
@@ -653,7 +528,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   itemClasses?.title
                 ),
               }}
-              items={sidebarItems}
+              items={sectionNestedItems}
               selectedKeys={[selected] as unknown as Selection}
               selectionMode="single"
               variant="flat"
@@ -713,28 +588,131 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
             >
               Aiuto & Informazioni
             </Button>
-            <Button
-              onPress={handleLogout}
-              className={cn(
-                "justify-start",
-                isDark
-                  ? "text-default-500 data-[hover=true]:text-foreground"
-                  : "text-default-700 data-[hover=true]:text-foreground-900"
-              )}
-              startContent={
-                <Icon
+
+            {/* Dropdown Magazzini */}
+            <Dropdown placement="top-start">
+              <DropdownTrigger>
+                <Button
+                  fullWidth
+                  variant="light"
                   className={cn(
-                    "rotate-180",
-                    isDark ? "text-default-500" : "text-default-700"
+                    "justify-between",
+                    isDark
+                      ? "text-default-500 data-[hover=true]:text-foreground"
+                      : "text-default-700 data-[hover=true]:text-foreground-900"
                   )}
-                  icon="solar:minus-circle-linear"
-                  width={24}
-                />
-              }
-              variant="light"
-            >
-              Log Out
-            </Button>
+                  endContent={
+                    <Icon
+                      className={
+                        isDark ? "text-default-500" : "text-default-700"
+                      }
+                      icon="solar:alt-arrow-down-linear"
+                      width={16}
+                    />
+                  }
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon
+                      className={
+                        isDark ? "text-default-500" : "text-default-700"
+                      }
+                      icon="mdi:warehouse"
+                      width={24}
+                    />
+                    <span>Magazzini</span>
+                  </div>
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu
+                aria-label="Lista Magazzini"
+                className="py-2 min-w-[250px]"
+                variant="flat"
+                items={[
+                  ...warehouses.map((warehouse) => ({
+                    key: String(
+                      warehouse.warehouse_id ||
+                        warehouse.WarehouseID ||
+                        warehouse.WarehouseUUID ||
+                        warehouse.name ||
+                        Math.random()
+                    ),
+                    warehouse,
+                    type: "warehouse",
+                  })),
+                  ...(warehouses.length === 0
+                    ? [{ key: "no-warehouses", type: "empty" }]
+                    : []),
+                  { key: "add-warehouse", type: "add" },
+                ]}
+              >
+                {(dropdownItem: any) => (
+                  <DropdownItem
+                    key={dropdownItem.key}
+                    className={
+                      dropdownItem.type === "add"
+                        ? "text-warning font-medium"
+                        : dropdownItem.type === "empty"
+                        ? "text-default-500"
+                        : dropdownItem.warehouse?.IsActive === false
+                        ? "text-default-400"
+                        : ""
+                    }
+                    isDisabled={dropdownItem.type === "empty"}
+                    startContent={
+                      dropdownItem.type === "add" ? (
+                        <Icon
+                          icon="solar:add-circle-bold"
+                          width={20}
+                          className="text-warning"
+                        />
+                      ) : dropdownItem.type === "empty" ? null : (
+                        <Icon
+                          icon={
+                            dropdownItem.warehouse?.IsActive === false
+                              ? "solar:warehouse-minimalistic-broken"
+                              : "solar:warehouse-bold"
+                          }
+                          width={20}
+                          className={
+                            dropdownItem.warehouse?.IsActive === false
+                              ? "text-default-400"
+                              : "text-default-700"
+                          }
+                        />
+                      )
+                    }
+                    onPress={() => {
+                      if (dropdownItem.type === "add") {
+                        navigate("/inventory/warehouses/add");
+                      } else if (dropdownItem.warehouse) {
+                        navigate(
+                          `/warehouses/${
+                            dropdownItem.warehouse.WarehouseUUID ||
+                            dropdownItem.warehouse.warehouse_id ||
+                            ""
+                          }`
+                        );
+                      }
+                      if (isMobile) onClose();
+                    }}
+                  >
+                    {dropdownItem.type === "add"
+                      ? "Aggiungi magazzino"
+                      : dropdownItem.type === "empty"
+                      ? "Nessun magazzino disponibile"
+                      : `${
+                          dropdownItem.warehouse?.name ||
+                          dropdownItem.warehouse?.WarehouseName ||
+                          "Magazzino senza nome"
+                        }${
+                          dropdownItem.warehouse?.WarehouseCode
+                            ? ` (${dropdownItem.warehouse.WarehouseCode})`
+                            : ""
+                        }`}
+                  </DropdownItem>
+                )}
+              </DropdownMenu>
+            </Dropdown>
           </div>
         </div>
       </div>
