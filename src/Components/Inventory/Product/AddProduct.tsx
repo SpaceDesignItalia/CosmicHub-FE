@@ -30,6 +30,7 @@ import { BrowserMultiFormatReader, Exception, Result } from "@zxing/library";
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useCustomTheme } from "../../../providers/ThemeProvider";
 
 interface ProductFormData {
   name: string;
@@ -37,7 +38,6 @@ interface ProductFormData {
   description: string;
   price: string;
   minStockThreshold: string;
-  hasVariants: boolean;
   barcode: string;
   qrCode: string;
   supplier: string;
@@ -53,8 +53,17 @@ interface ProductFormData {
   barcodeType: "manual" | "auto" | "scan";
   qrCodeType: "manual" | "auto" | "scan";
   attributes: ProductAttribute[];
-  variantAttributes: string[];
-  variants: ProductVariant[];
+  // Campi per il gestionale di magazzino
+  costPrice: string;
+  vatRate: string;
+  reorderQuantity: string; // Quantità di riordino consigliata
+  stockUnit: string; // Unità di misura (pz, kg, l, ecc.)
+  supplierCode: string;
+  supplierReference: string;
+  internalReference: string; // Riferimento interno aziendale
+  leadTime: string; // Tempo di approvvigionamento in giorni
+  warehouse: string; // Magazzino di appartenenza
+  shelfLife: string; // Durata di conservazione in giorni
   [key: string]:
     | string
     | number
@@ -63,9 +72,7 @@ interface ProductFormData {
     | "manual"
     | "auto"
     | "scan"
-    | ProductAttribute[]
-    | string[]
-    | ProductVariant[];
+    | ProductAttribute[];
 }
 
 interface FileWithPreview extends File {
@@ -129,24 +136,6 @@ interface ProductAttribute {
   isRequired: boolean;
 }
 
-interface ProductVariant {
-  id: string;
-  name: string;
-  attributes: ProductAttribute[];
-  price: string;
-  supplier: string;
-  minStockThreshold: string;
-  barcode: string;
-  qrCode: string;
-  weight: string;
-  dimensions: string;
-  location: string;
-  notes: string;
-  certifications: FileWithPreview[];
-  barcodeType: "manual" | "auto" | "scan";
-  qrCodeType: "manual" | "auto" | "scan";
-}
-
 function ScannerOverlay({
   type,
   onClose,
@@ -160,6 +149,7 @@ function ScannerOverlay({
 }: ScannerOverlayProps) {
   const [showSuccess, setShowSuccess] = useState(false);
   const successSound = useRef<HTMLAudioElement | null>(null);
+  const { isDark } = useCustomTheme();
 
   useEffect(() => {
     // Inizializza il suono di successo
@@ -179,29 +169,55 @@ function ScannerOverlay({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
       <div
-        className="absolute inset-0 bg-black/80 backdrop-blur-sm"
+        className="absolute inset-0 bg-black/80 dark:bg-black/90 backdrop-blur-sm"
         onClick={onClose}
       />
 
-      <div className="relative w-full max-w-2xl mx-4 bg-black rounded-2xl overflow-hidden">
+      <div
+        className={`relative w-full max-w-2xl mx-4 ${
+          isDark ? "bg-zinc-900" : "bg-white"
+        } rounded-2xl overflow-hidden shadow-xl`}
+      >
         {/* Header con controlli */}
-        <Card radius="none" className="bg-black">
+        <Card
+          radius="none"
+          className={`${
+            isDark
+              ? "bg-zinc-800 border-b border-zinc-700"
+              : "bg-zinc-50 border-b border-zinc-200"
+          }`}
+        >
           <div className="flex items-center justify-between p-4">
             <div className="flex items-center gap-4">
-              <div className="p-2 rounded-lg bg-primary/10">
+              <div
+                className={`p-2 rounded-lg ${
+                  isDark ? "bg-primary/20" : "bg-primary/10"
+                }`}
+              >
                 <Icon
                   icon={
                     type === "barcode"
                       ? "solar:barcode-2-bold"
                       : "solar:qr-code-bold"
                   }
+                  className={`text-xl ${
+                    isDark ? "text-primary-400" : "text-primary"
+                  }`}
                 />
               </div>
               <div>
-                <h3 className="text-lg font-medium">
+                <h3
+                  className={`text-lg font-medium ${
+                    isDark ? "text-zinc-100" : "text-zinc-800"
+                  }`}
+                >
                   Scansiona {type === "barcode" ? "Codice a Barre" : "QR Code"}
                 </h3>
-                <p className="text-sm">
+                <p
+                  className={`text-sm ${
+                    isDark ? "text-zinc-400" : "text-zinc-500"
+                  }`}
+                >
                   {type === "barcode"
                     ? "Posiziona il codice a barre nell'area di scansione"
                     : "Centra il QR code nel riquadro"}
@@ -216,6 +232,12 @@ function ScannerOverlay({
                 color="primary"
                 size="sm"
                 startContent={<Icon icon="solar:camera-bold" />}
+                classNames={{
+                  trigger: isDark
+                    ? "bg-zinc-700 border-zinc-600"
+                    : "bg-white border-zinc-200",
+                  base: "max-w-[180px]",
+                }}
               >
                 {availableCameras.map((camera) => (
                   <SelectItem key={camera.deviceId} textValue={camera.label}>
@@ -225,9 +247,14 @@ function ScannerOverlay({
               </Select>
               <Button
                 isIconOnly
-                color="default"
+                color={isDark ? "default" : "default"}
                 variant="flat"
                 onClick={onClose}
+                className={
+                  isDark
+                    ? "bg-zinc-700 text-zinc-300"
+                    : "bg-zinc-100 text-zinc-700"
+                }
               >
                 <Icon icon="solar:close-circle-bold" />
               </Button>
@@ -236,7 +263,7 @@ function ScannerOverlay({
         </Card>
 
         {/* Area di scansione principale */}
-        <div className="relative w-full aspect-[4/3] rounded-b-2xl overflow-hidden">
+        <div className="relative w-full aspect-[4/3] overflow-hidden">
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
@@ -263,8 +290,8 @@ function ScannerOverlay({
               {/* Bordo area di scansione con effetto glow */}
               <div
                 className={`absolute inset-0 border-2 ${
-                  showSuccess ? "border-success" : "border-primary/50"
-                } rounded-lg shadow-[0_0_15px_rgba(var(--primary-rgb),0.3)] transition-colors duration-300`}
+                  showSuccess ? "border-success" : "border-primary"
+                } rounded-lg shadow-[0_0_15px_rgba(var(--primary-rgb),0.4)] transition-colors duration-300`}
               />
 
               {/* Guide specifiche per tipo */}
@@ -273,20 +300,20 @@ function ScannerOverlay({
                   {/* Guide per codice a barre */}
                   <div className="absolute inset-0">
                     {/* Linee verticali guida con effetto pulse */}
-                    <div className="absolute left-0 top-0 bottom-0 w-px bg-primary/30 animate-pulse" />
-                    <div className="absolute right-0 top-0 bottom-0 w-px bg-primary/30 animate-pulse" />
+                    <div className="absolute left-0 top-0 bottom-0 w-px bg-primary/50 animate-pulse" />
+                    <div className="absolute right-0 top-0 bottom-0 w-px bg-primary/50 animate-pulse" />
 
                     {/* Area centrale evidenziata */}
-                    <div className="absolute inset-y-0 left-1/4 right-1/4 border-l border-r border-primary/30" />
+                    <div className="absolute inset-y-0 left-1/4 right-1/4 border-l border-r border-primary/40" />
 
                     {/* Linea di scansione verticale con effetto glow */}
-                    <div className="absolute top-0 bottom-0 w-0.5 bg-primary/50 animate-scan-vertical left-1/2 -translate-x-1/2 shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)]" />
+                    <div className="absolute top-0 bottom-0 w-0.5 bg-primary/70 animate-scan-vertical left-1/2 -translate-x-1/2 shadow-[0_0_10px_rgba(var(--primary-rgb),0.6)]" />
                   </div>
 
                   {/* Angoli per barcode con effetto glow */}
                   <div className="absolute inset-0">
-                    <div className="absolute left-0 top-0 w-8 h-full border-l-2 border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]" />
-                    <div className="absolute right-0 top-0 w-8 h-full border-r-2 border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)]" />
+                    <div className="absolute left-0 top-0 w-8 h-full border-l-2 border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.4)]" />
+                    <div className="absolute right-0 top-0 w-8 h-full border-r-2 border-primary shadow-[0_0_10px_rgba(var(--primary-rgb),0.4)]" />
                   </div>
                 </>
               ) : (
@@ -298,13 +325,13 @@ function ScannerOverlay({
                       {[...Array(4)].map((_, i) => (
                         <div
                           key={i}
-                          className="border-primary/20 border-r last:border-r-0"
+                          className="border-primary/30 border-r last:border-r-0"
                         />
                       ))}
                       {[...Array(4)].map((_, i) => (
                         <div
                           key={i}
-                          className="border-primary/20 border-b last:border-b-0"
+                          className="border-primary/30 border-b last:border-b-0"
                         />
                       ))}
                     </div>
@@ -321,18 +348,18 @@ function ScannerOverlay({
                           <div
                             className={`absolute inset-0 border-2 ${
                               showSuccess ? "border-success" : "border-primary"
-                            } rounded-lg shadow-[0_0_10px_rgba(var(--primary-rgb),0.3)] transition-colors duration-300`}
+                            } rounded-lg shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)] transition-colors duration-300`}
                           />
                           <div
                             className={`absolute inset-2 border ${
                               showSuccess
-                                ? "border-success/50"
-                                : "border-primary/50"
+                                ? "border-success/60"
+                                : "border-primary/60"
                             } rounded-md transition-colors duration-300`}
                           />
                           <div
                             className={`absolute inset-4 ${
-                              showSuccess ? "bg-success/30" : "bg-primary/30"
+                              showSuccess ? "bg-success/40" : "bg-primary/40"
                             } rounded animate-pulse transition-colors duration-300`}
                           />
                         </div>
@@ -342,8 +369,8 @@ function ScannerOverlay({
                     {/* Linea di scansione diagonale per QR con effetto glow */}
                     <div
                       className={`absolute top-0 left-0 w-[141%] h-0.5 ${
-                        showSuccess ? "bg-success/50" : "bg-primary/50"
-                      } animate-scan-diagonal origin-top-left shadow-[0_0_10px_rgba(var(--primary-rgb),0.5)] transition-colors duration-300`}
+                        showSuccess ? "bg-success/60" : "bg-primary/60"
+                      } animate-scan-diagonal origin-top-left shadow-[0_0_10px_rgba(var(--primary-rgb),0.6)] transition-colors duration-300`}
                       style={{ transform: "rotate(45deg)" }}
                     />
                   </div>
@@ -353,11 +380,28 @@ function ScannerOverlay({
               {/* Success indicator */}
               {showSuccess && (
                 <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center animate-success-pop">
-                    <Icon
-                      icon="solar:check-circle-bold"
-                      className="text-3xl text-success"
-                    />
+                  <div className="w-16 h-16 rounded-full bg-success/30 flex items-center justify-center animate-success-pop animate-pulse-glow">
+                    <div className="relative w-12 h-12 animate-success-scan">
+                      <svg
+                        className="w-full h-full"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <circle
+                          cx="12"
+                          cy="12"
+                          r="10"
+                          className="stroke-success-500 stroke-2 fill-none"
+                        />
+                        <path
+                          d="M8 12l3 3 5-6"
+                          className="stroke-success-500 stroke-2 fill-none animate-checkmark-draw"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </div>
                   </div>
                 </div>
               )}
@@ -365,23 +409,31 @@ function ScannerOverlay({
           </div>
 
           {/* Indicatore di stato */}
-          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/50 backdrop-blur-sm border border-white/10">
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 px-4 py-2 rounded-full bg-black/60 backdrop-blur-sm border border-white/10">
             <div
               className={`w-2 h-2 rounded-full ${
                 showSuccess ? "bg-success" : "bg-primary"
               } animate-pulse`}
             />
-            <span className="text-white/80 text-sm">
+            <span className="text-white/90 text-sm">
               {showSuccess ? "Codice rilevato!" : "In attesa di scansione..."}
             </span>
           </div>
         </div>
 
         {/* Suggerimenti e feedback */}
-        <div className="p-4 text-center bg-black/50">
+        <div
+          className={`p-4 text-center ${
+            isDark ? "bg-zinc-800/70" : "bg-zinc-50/90"
+          }`}
+        >
           <div className="flex items-center justify-center gap-2">
             <Icon icon="solar:lightbulb-bold" className="text-yellow-500" />
-            <p className="text-yellow-200/70 text-xs">
+            <p
+              className={`text-xs ${
+                isDark ? "text-yellow-200/80" : "text-yellow-600/90"
+              }`}
+            >
               {type === "barcode"
                 ? "Suggerimento: Mantieni il codice parallelo alle linee verticali e assicurati che sia ben illuminato"
                 : "Suggerimento: Assicurati che tutti e 4 gli angoli siano visibili e che il QR code sia ben illuminato"}
@@ -392,7 +444,13 @@ function ScannerOverlay({
         {/* Errore (mostrato solo dopo un tentativo fallito) */}
         {error && hasAttemptedScan && (
           <div className="p-4">
-            <div className="bg-danger/10 border border-danger/20 rounded-lg p-4">
+            <div
+              className={`${
+                isDark
+                  ? "bg-danger/20 border-danger/30"
+                  : "bg-danger/10 border-danger/20"
+              } border rounded-lg p-4`}
+            >
               <div className="flex items-start gap-3">
                 <Icon
                   icon="solar:danger-triangle-bold"
@@ -403,7 +461,11 @@ function ScannerOverlay({
                     {error.split("\n\n")[0]}
                   </p>
                   {error.split("\n\n")[1] && (
-                    <p className="text-danger/80 text-sm mt-1">
+                    <p
+                      className={`${
+                        isDark ? "text-danger/90" : "text-danger/80"
+                      } text-sm mt-1`}
+                    >
                       {error.split("\n\n")[1]}
                     </p>
                   )}
@@ -476,6 +538,39 @@ const styles = {
       opacity: "1",
     },
   },
+  "@keyframes pulse-glow": {
+    "0%": {
+      boxShadow: "0 0 5px rgba(var(--primary-rgb),0.5)",
+    },
+    "50%": {
+      boxShadow: "0 0 20px rgba(var(--primary-rgb),0.8)",
+    },
+    "100%": {
+      boxShadow: "0 0 5px rgba(var(--primary-rgb),0.5)",
+    },
+  },
+  "@keyframes success-scan": {
+    "0%": {
+      opacity: "0.6",
+      transform: "scale(0.95)",
+    },
+    "50%": {
+      opacity: "1",
+      transform: "scale(1.02)",
+    },
+    "100%": {
+      opacity: "0.6",
+      transform: "scale(0.95)",
+    },
+  },
+  "@keyframes checkmark-draw": {
+    "0%": {
+      strokeDashoffset: "100",
+    },
+    "100%": {
+      strokeDashoffset: "0",
+    },
+  },
 };
 
 const customStyles = {
@@ -493,6 +588,17 @@ const customStyles = {
   },
   ".animate-fade-in": {
     animation: "fade-in 0.3s ease-out forwards",
+  },
+  ".animate-pulse-glow": {
+    animation: "pulse-glow 1.5s ease-in-out infinite",
+  },
+  ".animate-success-scan": {
+    animation: "success-scan 1.2s ease-in-out infinite",
+  },
+  ".animate-checkmark-draw": {
+    animation: "checkmark-draw 0.5s ease-in-out forwards",
+    strokeDasharray: "100",
+    strokeDashoffset: "100",
   },
 };
 
@@ -515,13 +621,13 @@ export default function AddProduct() {
   const [customAttributes, setCustomAttributes] = useState<ProductAttribute[]>(
     []
   );
+  const { isDark } = useCustomTheme();
   const [formData, setFormData] = useState<ProductFormData>({
     name: "",
     sku: "",
     description: "",
     price: "",
     minStockThreshold: "",
-    hasVariants: false,
     barcode: "",
     qrCode: "",
     supplier: "",
@@ -537,8 +643,16 @@ export default function AddProduct() {
     barcodeType: "manual",
     qrCodeType: "manual",
     attributes: [],
-    variantAttributes: [], // Initialize empty array for variant attributes
-    variants: [],
+    costPrice: "",
+    vatRate: "",
+    reorderQuantity: "",
+    stockUnit: "",
+    supplierCode: "",
+    supplierReference: "",
+    internalReference: "",
+    leadTime: "",
+    warehouse: "",
+    shelfLife: "",
   });
   const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
   const [isDraggingDocs, setIsDraggingDocs] = useState(false);
@@ -563,7 +677,8 @@ export default function AddProduct() {
   const [selectedCamera, setSelectedCamera] = useState<string>("");
   const [showScanSuccess, setShowScanSuccess] = useState(false);
   const [scannedCode, setScannedCode] = useState<string>("");
-  const [activeVariantId, setActiveVariantId] = useState<string | null>(null);
+  const [showBarcodePopover, setShowBarcodePopover] = useState<boolean>(false);
+  const [showQRCodePopover, setShowQRCodePopover] = useState<boolean>(false);
 
   useEffect(() => {
     loadInitialData();
@@ -604,6 +719,29 @@ export default function AddProduct() {
     }
     setTabErrors(errors);
   }, [formData]);
+
+  // Calcola il prezzo finale considerando IVA
+  const calculateFinalPrice = () => {
+    const basePrice = parseFloat(formData.price) || 0;
+    const vatRate = parseFloat(formData.vatRate as string) || 0;
+    const costPrice = parseFloat(formData.costPrice as string) || 0;
+
+    // Calcola il prezzo con IVA
+    const finalPrice = basePrice * (1 + vatRate / 100);
+
+    // Calcola il margine solo se c'è un costo
+    let margin = null;
+    if (costPrice > 0 && basePrice > 0) {
+      margin = ((basePrice - costPrice) / basePrice) * 100;
+      margin = margin > 0 ? margin : 0;
+    }
+
+    return {
+      basePrice,
+      finalPrice: vatRate > 0 ? finalPrice : null,
+      margin,
+    };
+  };
 
   const loadInitialData = async () => {
     setIsLoading(true);
@@ -752,8 +890,6 @@ export default function AddProduct() {
         return "solar:box-bold";
       case "physical":
         return "solar:ruler-bold";
-      case "variants":
-        return "solar:layers-bold";
       default:
         return "";
     }
@@ -769,8 +905,6 @@ export default function AddProduct() {
         return "Magazzino";
       case "physical":
         return "Specifiche Fisiche";
-      case "variants":
-        return "Varianti e Descrizioni";
       default:
         return "";
     }
@@ -932,7 +1066,17 @@ export default function AddProduct() {
     try {
       console.log("Initializing ZXing reader...");
       if (!codeReader.current) {
-        codeReader.current = new BrowserMultiFormatReader();
+        const hints = new Map();
+        // Ottimizza per prestazioni migliori
+        hints.set(2, true); // ASSUME_GS1 = false
+        hints.set(3, true); // RETURN_CODABAR_START_END = false
+        hints.set(5, true); // TRY_HARDER = true
+        hints.set(9, false); // PURE_BARCODE = false
+
+        // Crea il lettore con hint ottimizzati
+        codeReader.current = new BrowserMultiFormatReader(hints);
+        // Imposta timeout più basso per risultati più veloci
+        codeReader.current.timeBetweenDecodingAttempts = 150;
       }
       console.log("ZXing reader initialized successfully");
     } catch (error) {
@@ -953,11 +1097,17 @@ export default function AddProduct() {
   // Modify the scanner effect
   useEffect(() => {
     let isActive = true;
+    let scannerTimeout: number | null = null;
 
     const initializeScanner = async () => {
       if (isScannerOpen && scannerType && isActive) {
         try {
-          await startScanner(scannerType);
+          // Aggiungi un breve ritardo per assicurarsi che l'interfaccia sia pronta
+          scannerTimeout = setTimeout(() => {
+            startScanner(scannerType).catch((error) => {
+              console.error("Error in scanner initialization:", error);
+            });
+          }, 100);
         } catch (error) {
           console.error("Error in scanner initialization:", error);
         }
@@ -968,6 +1118,7 @@ export default function AddProduct() {
 
     return () => {
       isActive = false;
+      if (scannerTimeout) clearTimeout(scannerTimeout);
       if (codeReader.current) {
         console.log("Stopping video stream...");
         codeReader.current.reset();
@@ -997,8 +1148,26 @@ export default function AddProduct() {
     try {
       console.log("Checking camera prerequisites...");
       if (!codeReader.current) {
-        codeReader.current = new BrowserMultiFormatReader();
+        // Crea un lettore di codici ottimizzato
+        const hints = new Map();
+        hints.set(5, true); // TRY_HARDER = true (migliora il rilevamento)
+
+        if (type === "barcode") {
+          // Ottimizzazioni specifiche per barcode
+          hints.set(6, 3); // POSSIBLE_FORMATS = limitato a codici 1D più comuni
+        } else {
+          // Ottimizzazioni specifiche per QR code
+          hints.set(6, 2); // POSSIBLE_FORMATS = solo QR Code
+        }
+
+        codeReader.current = new BrowserMultiFormatReader(hints);
+        if (codeReader.current) {
+          codeReader.current.timeBetweenDecodingAttempts = 150;
+        }
+      } else if (codeReader.current) {
+        codeReader.current.timeBetweenDecodingAttempts = 150;
       }
+
       if (!videoRef.current) {
         throw new Error("Scanner non inizializzato correttamente");
       }
@@ -1016,7 +1185,16 @@ export default function AddProduct() {
       if (cameraPermissionState !== "granted") {
         try {
           console.log("Requesting camera access...");
-          await navigator.mediaDevices.getUserMedia({ video: true });
+          // Imposta configurazioni video ottimali per la scansione
+          const constraints = {
+            video: {
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+              facingMode: "environment", // Preferisci fotocamera posteriore
+              frameRate: { ideal: 30 }, // Framerate ottimale
+            },
+          };
+          await navigator.mediaDevices.getUserMedia(constraints);
           setCameraPermissionState("granted");
           console.log("Camera access granted");
         } catch (permissionError: any) {
@@ -1053,31 +1231,93 @@ export default function AddProduct() {
 
       // Set default camera if not already selected
       if (!selectedCamera) {
-        setSelectedCamera(videoInputDevices[0].deviceId);
+        // Prova a selezionare la fotocamera posteriore se disponibile
+        const backCamera = videoInputDevices.find(
+          (device) =>
+            device.label.toLowerCase().includes("back") ||
+            device.label.toLowerCase().includes("posteriore") ||
+            device.label.toLowerCase().includes("rear")
+        );
+
+        setSelectedCamera(
+          backCamera?.deviceId || videoInputDevices[0].deviceId
+        );
       }
 
       const deviceId = selectedCamera || videoInputDevices[0].deviceId;
       console.log("Using device ID:", deviceId);
 
-      console.log("Starting video stream...");
-      await codeReader.current.decodeFromVideoDevice(
-        deviceId,
+      // Verifica che la fotocamera selezionata sia ancora disponibile
+      const isCameraAvailable = videoInputDevices.some(
+        (device) => device.deviceId === deviceId
+      );
+      if (!isCameraAvailable) {
+        throw new Error("La fotocamera selezionata non è più disponibile");
+      }
+
+      // Ottimizzazione video constraints per il dispositivo specifico
+      const constraints = {
+        video: {
+          deviceId: deviceId,
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          frameRate: { ideal: 30 },
+        },
+      };
+
+      console.log("Starting video stream with optimized settings...");
+
+      // Ottimizza la funzione di callback per prestazioni migliori
+      let isProcessing = false;
+      let lastCodeDetected = "";
+      let codeDetectedCount = 0;
+
+      await codeReader.current.decodeFromConstraints(
+        constraints,
         videoRef.current,
         (result: Result | null, err: Exception | undefined) => {
+          // Evita elaborazioni multiple dello stesso frame
+          if (isProcessing) return;
+
           if (result) {
+            isProcessing = true;
             console.log("Code detected:", result.getText());
             const code = result.getText();
-            setScannedCode(code);
-            setShowScanSuccess(true);
 
-            // Dopo 1 secondo, aggiorna il form e chiudi lo scanner
-            setTimeout(() => {
-              setShowScanSuccess(false);
-              handleChange(type === "barcode" ? "barcode" : "qrCode", code);
-              stopScanner();
-            }, 1000);
-          }
-          if (err && err?.message !== "NotFoundException") {
+            // Implementa una verifica di stabilità per evitare falsi positivi
+            if (code === lastCodeDetected) {
+              codeDetectedCount++;
+
+              // Richiedi almeno 2 rilevazioni identiche per confermare il codice
+              if (codeDetectedCount >= 2) {
+                setScannedCode(code);
+                setShowScanSuccess(true);
+
+                // Dopo 800ms, aggiorna il form e chiudi lo scanner (ridotto da 1000ms)
+                setTimeout(() => {
+                  setShowScanSuccess(false);
+                  handleChange(type === "barcode" ? "barcode" : "qrCode", code);
+                  stopScanner();
+                }, 800);
+              } else {
+                isProcessing = false;
+              }
+            } else {
+              // Resetta il contatore per un nuovo codice
+              lastCodeDetected = code;
+              codeDetectedCount = 1;
+              isProcessing = false;
+            }
+          } else if (err && err?.message !== "NotFoundException") {
+            // Ignora errori momentanei per migliorare la fluidità
+            if (
+              err?.message.includes("format exception") ||
+              err?.message.includes("checksum")
+            ) {
+              // Ignora questi errori comuni che possono verificarsi durante la scansione
+              return;
+            }
+
             setHasAttemptedScan(true);
             console.error("Scanning error:", err);
             setScannerError(
@@ -1086,7 +1326,29 @@ export default function AddProduct() {
           }
         }
       );
+
       console.log("Video stream started successfully");
+
+      // Imposta l'autofocus se supportato
+      if (videoRef.current && codeReader.current) {
+        try {
+          const tracks = (videoRef.current as any).srcObject?.getVideoTracks();
+          if (tracks && tracks[0]) {
+            const capabilities = tracks[0].getCapabilities();
+            if (
+              capabilities.focusMode &&
+              capabilities.focusMode.includes("continuous")
+            ) {
+              await tracks[0].applyConstraints({
+                advanced: [{ focusMode: "continuous" }],
+              });
+              console.log("Continuous autofocus enabled");
+            }
+          }
+        } catch (focusError) {
+          console.log("Could not enable autofocus:", focusError);
+        }
+      }
     } catch (error: any) {
       setHasAttemptedScan(true);
       console.error("Scanner error:", error);
@@ -1107,6 +1369,7 @@ export default function AddProduct() {
             "Ricarica la pagina e riprova. Se il problema persiste, verifica che il browser sia aggiornato all'ultima versione.";
           break;
         case "Nessuna fotocamera trovata sul dispositivo":
+        case "Nessuna fotocamera trovata":
           errorMessage = "Nessuna fotocamera trovata";
           helpMessage =
             "Verifica che il tuo dispositivo abbia una fotocamera funzionante e che non sia in uso da altre applicazioni.";
@@ -1115,6 +1378,11 @@ export default function AddProduct() {
           errorMessage = "Browser non supportato";
           helpMessage =
             "Prova a utilizzare un browser più recente come Chrome, Firefox o Safari.";
+          break;
+        case "La fotocamera selezionata non è più disponibile":
+          errorMessage = "Fotocamera non disponibile";
+          helpMessage =
+            "La fotocamera selezionata non è più disponibile. Seleziona un'altra fotocamera dall'elenco.";
           break;
         default:
           helpMessage =
@@ -1137,46 +1405,123 @@ export default function AddProduct() {
 
   const checkCameraPermissions = async () => {
     try {
-      // Check if permissions API is supported
-      if (navigator.permissions && navigator.permissions.query) {
-        const result = await navigator.permissions.query({
-          name: "camera" as PermissionName,
-        });
-        setCameraPermissionState(result.state);
+      // Verifica se il browser supporta l'API mediaDevices
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        setCameraPermissionState("denied");
+        setCameraError(
+          "Il tuo browser non supporta l'accesso alla fotocamera. Prova con Chrome, Firefox o Safari."
+        );
+        return;
+      }
 
-        // Listen for permission changes
-        result.addEventListener("change", () => {
-          setCameraPermissionState(result.state);
-        });
-      } else {
-        // Fallback for browsers that don't support permissions API
+      // Verifica se l'API permissions è supportata
+      if (navigator.permissions && navigator.permissions.query) {
         try {
-          await navigator.mediaDevices.getUserMedia({ video: true });
-          setCameraPermissionState("granted");
-        } catch (error: any) {
-          if (error.name === "NotAllowedError") {
-            setCameraPermissionState("denied");
-          }
+          const result = await navigator.permissions.query({
+            name: "camera" as PermissionName,
+          });
+          setCameraPermissionState(result.state);
+
+          // Ascolta i cambiamenti dei permessi
+          result.addEventListener("change", () => {
+            setCameraPermissionState(result.state);
+            if (result.state === "granted" && isScannerOpen) {
+              startScanner(scannerType);
+            }
+          });
+        } catch (error) {
+          console.error("Errore nel controllo dei permessi:", error);
+          // Fallback al metodo getUserMedia
+          await checkCameraWithGetUserMedia();
         }
+      } else {
+        // Fallback per browser che non supportano l'API permissions
+        await checkCameraWithGetUserMedia();
       }
     } catch (error) {
-      console.error("Error checking camera permissions:", error);
+      console.error(
+        "Errore nel controllo dei permessi della fotocamera:",
+        error
+      );
+      setCameraPermissionState("denied");
+      setCameraError("Impossibile verificare i permessi della fotocamera");
     }
   };
 
-  useEffect(() => {
-    checkCameraPermissions();
-  }, []);
+  const checkCameraWithGetUserMedia = async () => {
+    try {
+      // Prova ad accedere alla fotocamera
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      setCameraPermissionState("granted");
+
+      // Ferma lo stream dopo il controllo
+      stream.getTracks().forEach((track) => track.stop());
+
+      // Verifica se ci sono dispositivi video disponibili
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(
+        (device) => device.kind === "videoinput"
+      );
+
+      if (videoDevices.length === 0) {
+        setCameraError("Nessuna fotocamera trovata sul dispositivo");
+        setCameraPermissionState("denied");
+      } else {
+        setAvailableCameras(videoDevices);
+        if (!selectedCamera && videoDevices.length > 0) {
+          setSelectedCamera(videoDevices[0].deviceId);
+        }
+      }
+    } catch (error: any) {
+      console.error("Errore nell'accesso alla fotocamera:", error);
+      if (error.name === "NotAllowedError") {
+        setCameraPermissionState("denied");
+        setCameraError(
+          "Accesso alla fotocamera negato. Per favore, consenti l'accesso alla fotocamera nelle impostazioni del browser."
+        );
+      } else if (error.name === "NotFoundError") {
+        setCameraError("Nessuna fotocamera trovata sul dispositivo");
+        setCameraPermissionState("denied");
+      } else {
+        setCameraError("Errore nell'accesso alla fotocamera: " + error.message);
+        setCameraPermissionState("denied");
+      }
+    }
+  };
 
   const requestCameraPermission = async () => {
     try {
-      await navigator.mediaDevices.getUserMedia({ video: true });
+      setCameraError(null);
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
       setCameraPermissionState("granted");
-      // Restart scanner after getting permission
-      startScanner(scannerType);
-    } catch (error) {
-      console.error("Error requesting camera permission:", error);
+
+      // Ferma lo stream dopo il controllo
+      stream.getTracks().forEach((track) => track.stop());
+
+      // Aggiorna la lista delle fotocamere disponibili
+      const devices = await navigator.mediaDevices.enumerateDevices();
+      const videoDevices = devices.filter(
+        (device) => device.kind === "videoinput"
+      );
+      setAvailableCameras(videoDevices);
+
+      if (videoDevices.length > 0) {
+        setSelectedCamera(videoDevices[0].deviceId);
+        // Riavvia lo scanner se era aperto
+        if (isScannerOpen) {
+          await startScanner(scannerType);
+        }
+      }
+    } catch (error: any) {
+      console.error("Errore nella richiesta dei permessi:", error);
       setCameraPermissionState("denied");
+      if (error.name === "NotAllowedError") {
+        setCameraError(
+          "Accesso alla fotocamera negato. Per favore, consenti l'accesso alla fotocamera nelle impostazioni del browser."
+        );
+      } else {
+        setCameraError("Errore nell'accesso alla fotocamera: " + error.message);
+      }
     }
   };
 
@@ -1200,17 +1545,22 @@ export default function AddProduct() {
     field: keyof ProductAttribute,
     value: string | boolean
   ) => {
-    setFormData((prev) => ({
-      ...prev,
-      attributes: prev.attributes.map((attr) =>
+    setFormData((prev) => {
+      // Aggiorna l'attributo nel prodotto principale
+      const updatedAttributes = prev.attributes.map((attr) =>
         attr.id === attributeId
           ? {
               ...attr,
               [field]: field === "isRequired" ? Boolean(value) : value,
             }
           : attr
-      ),
-    }));
+      );
+
+      return {
+        ...prev,
+        attributes: updatedAttributes,
+      };
+    });
   };
 
   const removeAttribute = (attributeId: string) => {
@@ -1223,156 +1573,27 @@ export default function AddProduct() {
     );
   };
 
-  const addVariant = () => {
-    const newVariant: ProductVariant = {
-      id: Date.now().toString(),
-      name: "",
-      attributes: [],
-      price: formData.price,
-      supplier: formData.supplier,
-      minStockThreshold: formData.minStockThreshold,
-      barcode: "",
-      qrCode: "",
-      weight: formData.weight,
-      dimensions: formData.dimensions,
-      location: formData.location,
-      notes: formData.notes,
-      certifications: [],
-      barcodeType: "manual",
-      qrCodeType: "manual",
-    };
-    setFormData((prev) => ({
-      ...prev,
-      variants: [...prev.variants, newVariant],
-    }));
-  };
-
-  const updateVariant = (
-    variantId: string,
-    field: keyof ProductVariant,
-    value: string | ProductAttribute[] | FileWithPreview[]
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      variants: prev.variants.map((variant) =>
-        variant.id === variantId
-          ? {
-              ...variant,
-              [field]: value,
-            }
-          : variant
-      ),
-    }));
-  };
-
-  const removeVariant = (variantId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      variants: prev.variants.filter((variant) => variant.id !== variantId),
-    }));
-  };
-
-  const addVariantAttribute = (variantId: string) => {
-    const newAttribute: ProductAttribute = {
-      id: Date.now().toString(),
-      name: "",
-      type: "text",
-      value: "",
-      isRequired: false,
-    };
-    setFormData((prev) => ({
-      ...prev,
-      variants: prev.variants.map((variant) =>
-        variant.id === variantId
-          ? {
-              ...variant,
-              attributes: [...variant.attributes, newAttribute],
-            }
-          : variant
-      ),
-    }));
-  };
-
-  const updateVariantAttribute = (
-    variantId: string,
-    attributeId: string,
-    field: keyof ProductAttribute,
-    value: string | boolean
-  ) => {
-    setFormData((prev) => ({
-      ...prev,
-      variants: prev.variants.map((variant) =>
-        variant.id === variantId
-          ? {
-              ...variant,
-              attributes: variant.attributes.map((attr) =>
-                attr.id === attributeId
-                  ? {
-                      ...attr,
-                      [field]: field === "isRequired" ? Boolean(value) : value,
-                    }
-                  : attr
-              ),
-            }
-          : variant
-      ),
-    }));
-  };
-
-  const removeVariantAttribute = (variantId: string, attributeId: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      variants: prev.variants.map((variant) =>
-        variant.id === variantId
-          ? {
-              ...variant,
-              attributes: variant.attributes.filter(
-                (attr) => attr.id !== attributeId
-              ),
-            }
-          : variant
-      ),
-    }));
-  };
-
   const handleScanSuccess = (code: string) => {
-    if (activeVariantId) {
-      updateVariant(
-        activeVariantId,
-        scannerType === "barcode" ? "barcode" : "qrCode",
-        code
-      );
-    } else {
-      handleChange(scannerType === "barcode" ? "barcode" : "qrCode", code);
-    }
-    setIsScannerOpen(false);
+    handleChange(scannerType === "barcode" ? "barcode" : "qrCode", code);
   };
 
-  const generateBarcodeForVariant = (variantId: string) => {
-    const prefix = "200";
-    const randomDigits = Array.from({ length: 9 }, () =>
-      Math.floor(Math.random() * 10)
-    ).join("");
-    const code = prefix + randomDigits;
-    let sum = 0;
-    for (let i = 0; i < 12; i++) {
-      sum += parseInt(code[i]) * (i % 2 === 0 ? 1 : 3);
-    }
-    const checkDigit = (10 - (sum % 10)) % 10;
-    const barcode = code + checkDigit;
+  const calculateReorderPoint = () => {
+    const minStock = parseFloat(formData.minStockThreshold) || 0;
+    const leadTime = parseFloat(formData.leadTime?.toString() || "0") || 1; // Default a 1 giorno se non specificato
 
-    updateVariant(variantId, "barcode", barcode);
+    if (minStock <= 0 || leadTime <= 0) return 0;
+
+    // Calcolo consumo giornaliero medio e punto di riordino
+    const dailyUsage = minStock / 30; // Assumiamo che la soglia minima sia per un mese
+    const reorderPoint = Math.ceil(dailyUsage * leadTime);
+
+    return reorderPoint;
   };
 
-  const generateQRCodeForVariant = (variantId: string) => {
-    const variant = formData.variants.find((v) => v.id === variantId);
-    if (!variant) return;
-
-    const timestamp = Date.now();
-    const qrCode = `${formData.sku || "PROD"}-${
-      variant.name || "VAR"
-    }-${timestamp}`;
-    updateVariant(variantId, "qrCode", qrCode);
+  const calculateProfit = () => {
+    const basePrice = parseFloat(formData.price) || 0;
+    const costPrice = parseFloat(formData.costPrice as string) || 0;
+    return basePrice - costPrice;
   };
 
   if (isLoading) {
@@ -1625,6 +1846,226 @@ export default function AddProduct() {
                   />
                 </div>
 
+                {/* Prezzo di costo */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Prezzo di Costo
+                  </label>
+                  <Input
+                    type="number"
+                    variant="bordered"
+                    color={formData.costPrice ? "success" : "primary"}
+                    placeholder="0.00"
+                    startContent={<span className="text-default-400">€</span>}
+                    value={formData.costPrice}
+                    onChange={(e) => handleChange("costPrice", e.target.value)}
+                  />
+                </div>
+
+                {/* Aliquota IVA */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Aliquota IVA
+                  </label>
+                  <Select
+                    variant="bordered"
+                    color={formData.vatRate ? "success" : "primary"}
+                    placeholder="Seleziona aliquota"
+                    selectedKeys={[formData.vatRate?.toString() || ""]}
+                    onChange={(e) => handleChange("vatRate", e.target.value)}
+                    startContent={
+                      <Icon
+                        icon="solar:percentage-bold"
+                        className={
+                          formData.vatRate ? "text-success" : "text-default-400"
+                        }
+                      />
+                    }
+                  >
+                    <SelectItem key="0" textValue="Esente">
+                      Esente (0%)
+                    </SelectItem>
+                    <SelectItem key="4" textValue="4%">
+                      4%
+                    </SelectItem>
+                    <SelectItem key="10" textValue="10%">
+                      10%
+                    </SelectItem>
+                    <SelectItem key="22" textValue="22%">
+                      22%
+                    </SelectItem>
+                  </Select>
+                </div>
+
+                {/* Unità di misura stock */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Unità di Misura
+                  </label>
+                  <Select
+                    variant="bordered"
+                    color={formData.stockUnit ? "success" : "primary"}
+                    placeholder="Seleziona unità"
+                    selectedKeys={[formData.stockUnit?.toString() || ""]}
+                    onChange={(e) => handleChange("stockUnit", e.target.value)}
+                    startContent={
+                      <Icon
+                        icon="solar:ruler-pen-bold"
+                        className={
+                          formData.stockUnit
+                            ? "text-success"
+                            : "text-default-400"
+                        }
+                      />
+                    }
+                  >
+                    <SelectItem key="pz" textValue="Pezzi">
+                      Pezzi (pz)
+                    </SelectItem>
+                    <SelectItem key="kg" textValue="Kilogrammi">
+                      Kilogrammi (kg)
+                    </SelectItem>
+                    <SelectItem key="g" textValue="Grammi">
+                      Grammi (g)
+                    </SelectItem>
+                    <SelectItem key="l" textValue="Litri">
+                      Litri (l)
+                    </SelectItem>
+                    <SelectItem key="ml" textValue="Millilitri">
+                      Millilitri (ml)
+                    </SelectItem>
+                    <SelectItem key="m" textValue="Metri">
+                      Metri (m)
+                    </SelectItem>
+                    <SelectItem key="cm" textValue="Centimetri">
+                      Centimetri (cm)
+                    </SelectItem>
+                    <SelectItem key="m2" textValue="Metri quadri">
+                      Metri quadri (m²)
+                    </SelectItem>
+                    <SelectItem key="m3" textValue="Metri cubi">
+                      Metri cubi (m³)
+                    </SelectItem>
+                  </Select>
+                </div>
+
+                {/* Magazzino */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Magazzino
+                  </label>
+                  <Select
+                    variant="bordered"
+                    color={formData.warehouse ? "success" : "primary"}
+                    placeholder="Seleziona magazzino"
+                    selectedKeys={[formData.warehouse?.toString() || ""]}
+                    onChange={(e) => handleChange("warehouse", e.target.value)}
+                    startContent={
+                      <Icon
+                        icon="solar:buildings-3-bold"
+                        className={
+                          formData.warehouse
+                            ? "text-success"
+                            : "text-default-400"
+                        }
+                      />
+                    }
+                  >
+                    <SelectItem
+                      key="principale"
+                      textValue="Magazzino Principale"
+                    >
+                      Magazzino Principale
+                    </SelectItem>
+                    <SelectItem
+                      key="secondario"
+                      textValue="Magazzino Secondario"
+                    >
+                      Magazzino Secondario
+                    </SelectItem>
+                    <SelectItem key="remoto" textValue="Magazzino Remoto">
+                      Magazzino Remoto
+                    </SelectItem>
+                  </Select>
+                </div>
+
+                {/* Tempo di approvvigionamento */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Tempo di Approvvigionamento (giorni)
+                  </label>
+                  <Input
+                    type="number"
+                    variant="bordered"
+                    color={formData.leadTime ? "success" : "primary"}
+                    placeholder="Giorni necessari per la consegna"
+                    value={formData.leadTime?.toString() || ""}
+                    onChange={(e) => handleChange("leadTime", e.target.value)}
+                    startContent={
+                      <Icon
+                        icon="solar:clock-circle-bold"
+                        className={
+                          formData.leadTime
+                            ? "text-success"
+                            : "text-default-400"
+                        }
+                      />
+                    }
+                  />
+                </div>
+
+                {/* Quantità di riordino */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Quantità di Riordino
+                  </label>
+                  <Input
+                    type="number"
+                    variant="bordered"
+                    color={formData.reorderQuantity ? "success" : "primary"}
+                    placeholder="Quantità consigliata di riordino"
+                    value={formData.reorderQuantity?.toString() || ""}
+                    onChange={(e) =>
+                      handleChange("reorderQuantity", e.target.value)
+                    }
+                    startContent={
+                      <Icon
+                        icon="solar:sort-by-time-bold"
+                        className={
+                          formData.reorderQuantity
+                            ? "text-success"
+                            : "text-default-400"
+                        }
+                      />
+                    }
+                  />
+                </div>
+
+                {/* Vita a scaffale */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Vita a Scaffale (giorni)
+                  </label>
+                  <Input
+                    type="number"
+                    variant="bordered"
+                    color={formData.shelfLife ? "success" : "primary"}
+                    placeholder="Durata di conservazione"
+                    value={formData.shelfLife?.toString() || ""}
+                    onChange={(e) => handleChange("shelfLife", e.target.value)}
+                    startContent={
+                      <Icon
+                        icon="solar:calendar-mark-bold"
+                        className={
+                          formData.shelfLife
+                            ? "text-success"
+                            : "text-default-400"
+                        }
+                      />
+                    }
+                  />
+                </div>
+
                 {/* Fornitore */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
@@ -1683,6 +2124,122 @@ export default function AddProduct() {
                       aggiungerne uno nuovo.
                     </p>
                   )}
+                </div>
+
+                {/* Riepilogo economico */}
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium mb-2">
+                    Riepilogo Economico
+                  </label>
+                  <Card
+                    className={`p-4 ${
+                      isDark ? "bg-zinc-800/50" : "bg-zinc-50/70"
+                    }`}
+                  >
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                      {/* Prezzo base */}
+                      <div>
+                        <p className="text-xs text-default-500 mb-1">
+                          Prezzo Acquisto
+                        </p>
+                        <p className="text-lg font-semibold">
+                          {parseFloat(formData.costPrice?.toString() || "0") > 0
+                            ? `€${parseFloat(
+                                formData.costPrice?.toString() || "0"
+                              ).toFixed(2)}`
+                            : "€0.00"}
+                        </p>
+                      </div>
+
+                      {/* Prezzo vendita */}
+                      <div>
+                        <p className="text-xs text-default-500 mb-1">
+                          Prezzo Vendita
+                        </p>
+                        <p className="text-lg font-semibold">
+                          {parseFloat(formData.price) > 0
+                            ? `€${parseFloat(formData.price).toFixed(2)}`
+                            : "€0.00"}
+                        </p>
+                      </div>
+
+                      {/* Prezzo finale (con IVA) */}
+                      {calculateFinalPrice().finalPrice !== null && (
+                        <div>
+                          <p className="text-xs text-default-500 mb-1">
+                            Prezzo con IVA{" "}
+                            {formData.vatRate && `(${formData.vatRate}%)`}
+                          </p>
+                          <p className="text-lg font-semibold text-primary">
+                            €
+                            {(calculateFinalPrice().finalPrice || 0).toFixed(2)}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Punto di riordino calcolato */}
+                      <div className="col-span-2 md:col-span-1">
+                        <p className="text-xs text-default-500 mb-1">
+                          Punto di Riordino
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-lg font-semibold">
+                            {calculateReorderPoint() || "-"}
+                          </p>
+                          <Tooltip content="Calcolato in base al consumo giornaliero e al tempo di approvvigionamento">
+                            <Icon
+                              icon="solar:info-circle-bold"
+                              className="text-default-400"
+                            />
+                          </Tooltip>
+                        </div>
+                      </div>
+
+                      {/* Margine */}
+                      {calculateFinalPrice().margin !== null && (
+                        <div className="col-span-2 md:col-span-2">
+                          <p className="text-xs text-default-500 mb-1">
+                            Margine e Profitto
+                          </p>
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge
+                              color={
+                                (calculateFinalPrice().margin || 0) > 30
+                                  ? "success"
+                                  : (calculateFinalPrice().margin || 0) > 15
+                                  ? "warning"
+                                  : "danger"
+                              }
+                              variant="flat"
+                              size="md"
+                            >
+                              <div className="flex items-center gap-1.5">
+                                <span>
+                                  Margine:{" "}
+                                  {(calculateFinalPrice().margin || 0).toFixed(
+                                    1
+                                  )}
+                                  %
+                                </span>
+                                <span>•</span>
+                                <span>
+                                  {(calculateFinalPrice().margin || 0) > 30
+                                    ? "Ottimo"
+                                    : (calculateFinalPrice().margin || 0) > 15
+                                    ? "Buono"
+                                    : "Basso"}
+                                </span>
+                              </div>
+                            </Badge>
+                            <p className="text-sm text-default-500">
+                              Profitto: €{calculateProfit().toFixed(2)} per
+                              unità
+                            </p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
                 </div>
               </div>
             </Tab>
@@ -1804,17 +2361,32 @@ export default function AddProduct() {
                         </Button>
                       )}
                       {formData.barcode && (
-                        <Popover placement="top">
+                        <Popover
+                          placement="top"
+                          isOpen={showBarcodePopover}
+                          onOpenChange={(open) => setShowBarcodePopover(open)}
+                        >
                           <PopoverTrigger>
                             <Button color="primary" variant="flat" isIconOnly>
                               <Icon icon="solar:eye-bold" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent>
+                          <PopoverContent className="w-80">
                             <div className="p-4">
                               <div className="bg-white p-4 rounded-lg">
-                                {/* TODO: Implementare visualizzazione barcode */}
-                                <p className="text-center font-mono">
+                                <h3 className="text-lg font-medium mb-3 text-center">
+                                  Codice a Barre
+                                </h3>
+                                <div className="flex justify-center">
+                                  <img
+                                    src={`https://barcodeapi.org/api/code128/${encodeURIComponent(
+                                      formData.barcode
+                                    )}`}
+                                    alt="Barcode"
+                                    className="h-24 w-full object-contain"
+                                  />
+                                </div>
+                                <p className="text-center text-xs text-default-500 mt-2">
                                   {formData.barcode}
                                 </p>
                               </div>
@@ -1898,17 +2470,32 @@ export default function AddProduct() {
                         </Button>
                       )}
                       {formData.qrCode && (
-                        <Popover placement="top">
+                        <Popover
+                          placement="top"
+                          isOpen={showQRCodePopover}
+                          onOpenChange={(open) => setShowQRCodePopover(open)}
+                        >
                           <PopoverTrigger>
                             <Button color="primary" variant="flat" isIconOnly>
                               <Icon icon="solar:eye-bold" />
                             </Button>
                           </PopoverTrigger>
-                          <PopoverContent>
+                          <PopoverContent className="w-80">
                             <div className="p-4">
                               <div className="bg-white p-4 rounded-lg">
-                                {/* TODO: Implementare visualizzazione QR code */}
-                                <p className="text-center font-mono">
+                                <h3 className="text-lg font-medium mb-3 text-center">
+                                  QR Code
+                                </h3>
+                                <div className="flex justify-center">
+                                  <img
+                                    src={`https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=${encodeURIComponent(
+                                      formData.qrCode
+                                    )}`}
+                                    alt="QR Code"
+                                    className="h-48 w-48 object-contain"
+                                  />
+                                </div>
+                                <p className="text-center text-xs text-default-500 mt-2">
                                   {formData.qrCode}
                                 </p>
                               </div>
@@ -2321,935 +2908,6 @@ export default function AddProduct() {
               </div>
             </Tab>
 
-            <Tab key="variants" title={getTabIcon("variants")}>
-              <div className="mt-4 space-y-6">
-                {/* Varianti Switch */}
-                <div className="flex items-center gap-2">
-                  <Switch
-                    color="primary"
-                    checked={formData.hasVariants}
-                    onChange={(e) =>
-                      handleChange("hasVariants", e.target.checked)
-                    }
-                  />
-                  <label className="text-sm font-medium">
-                    Il prodotto ha varianti
-                  </label>
-                </div>
-
-                {formData.hasVariants && (
-                  <div className="mt-6 space-y-6">
-                    {/* Attribute Selection */}
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <h3 className="text-lg font-medium">
-                          Attributi per Varianti
-                        </h3>
-                        <Select
-                          placeholder="Seleziona attributi per varianti"
-                          selectedKeys={formData.variantAttributes}
-                          onSelectionChange={(keys) => {
-                            const selectedKeys = Array.from(keys) as string[];
-                            handleChange("variantAttributes", selectedKeys);
-                          }}
-                          selectionMode="multiple"
-                          variant="bordered"
-                          color="primary"
-                          className="max-w-xs"
-                        >
-                          {formData.attributes.map((attr) => (
-                            <SelectItem key={attr.id} textValue={attr.name}>
-                              {attr.name}
-                            </SelectItem>
-                          ))}
-                        </Select>
-                      </div>
-
-                      {/* Selected Attributes Chips */}
-                      <div className="flex flex-wrap gap-2">
-                        {formData.variantAttributes.map((attrId) => {
-                          const attr = formData.attributes.find(
-                            (a) => a.id === attrId
-                          );
-                          if (!attr) return null;
-                          return (
-                            <Chip
-                              key={attrId}
-                              onClose={() => {
-                                handleChange(
-                                  "variantAttributes",
-                                  formData.variantAttributes.filter(
-                                    (id) => id !== attrId
-                                  )
-                                );
-                              }}
-                              variant="flat"
-                              color="primary"
-                            >
-                              {attr.name}
-                            </Chip>
-                          );
-                        })}
-                      </div>
-                    </div>
-
-                    {/* Variants List */}
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-medium">Varianti Prodotto</h3>
-                      <Button
-                        color="primary"
-                        variant="flat"
-                        startContent={<Icon icon="solar:add-circle-bold" />}
-                        onClick={addVariant}
-                        isDisabled={formData.variantAttributes.length === 0}
-                      >
-                        Aggiungi Variante
-                      </Button>
-                    </div>
-
-                    {formData.variants.length === 0 ? (
-                      <div className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-xl border-default-200">
-                        <div className="p-3 rounded-full bg-primary/10 mb-4">
-                          <Icon
-                            icon="solar:layers-bold"
-                            className="text-3xl text-primary"
-                          />
-                        </div>
-                        <h4 className="text-lg font-medium text-default-600 mb-2">
-                          Nessuna variante
-                        </h4>
-                        <p className="text-sm text-default-500 text-center max-w-md mb-4">
-                          {formData.variantAttributes.length === 0
-                            ? "Seleziona prima gli attributi che possono variare tra le varianti"
-                            : "Aggiungi varianti per gestire diverse versioni dello stesso prodotto"}
-                        </p>
-                        {formData.variantAttributes.length > 0 && (
-                          <Button
-                            color="primary"
-                            variant="flat"
-                            startContent={<Icon icon="solar:add-circle-bold" />}
-                            onClick={addVariant}
-                          >
-                            Aggiungi la prima variante
-                          </Button>
-                        )}
-                      </div>
-                    ) : (
-                      <div className="space-y-8">
-                        {formData.variants.map((variant) => (
-                          <div
-                            key={variant.id}
-                            className="border rounded-xl border-default-200 overflow-hidden"
-                          >
-                            <div className="p-4 bg-default-50 border-b border-default-200 flex items-center justify-between">
-                              <div className="flex-1">
-                                <Input
-                                  label="Nome Variante"
-                                  placeholder="Es: Taglia L, Colore Rosso"
-                                  value={variant.name}
-                                  onChange={(e) =>
-                                    updateVariant(
-                                      variant.id,
-                                      "name",
-                                      e.target.value
-                                    )
-                                  }
-                                  variant="bordered"
-                                  color="primary"
-                                  className="max-w-md"
-                                />
-                              </div>
-                              <Button
-                                isIconOnly
-                                color="danger"
-                                variant="light"
-                                onClick={() => removeVariant(variant.id)}
-                              >
-                                <Icon
-                                  icon="solar:trash-bin-trash-bold"
-                                  className="text-lg"
-                                />
-                              </Button>
-                            </div>
-
-                            <Tabs
-                              aria-label="Variant Options"
-                              color="primary"
-                              variant="underlined"
-                              classNames={{
-                                cursor: "w-full",
-                                tab: "max-w-fit px-4",
-                                tabContent:
-                                  "group-data-[selected=true]:text-primary",
-                              }}
-                            >
-                              {/* Variant Attributes Tab */}
-                              <Tab
-                                key="attributes"
-                                title={
-                                  <div className="flex items-center gap-2">
-                                    <Icon icon="solar:list-check-bold" />
-                                    <span>Attributi Variante</span>
-                                  </div>
-                                }
-                              >
-                                <div className="p-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    {formData.variantAttributes.map(
-                                      (attrId) => {
-                                        const attr = formData.attributes.find(
-                                          (a) => a.id === attrId
-                                        );
-                                        if (!attr) return null;
-
-                                        const variantAttr =
-                                          variant.attributes.find(
-                                            (a) => a.id === attrId
-                                          ) || {
-                                            id: attrId,
-                                            name: attr.name,
-                                            type: attr.type,
-                                            value: "",
-                                            isRequired: attr.isRequired,
-                                          };
-
-                                        return (
-                                          <div key={attrId} className="flex-1">
-                                            <label className="block text-sm font-medium mb-2">
-                                              {attr.name}
-                                              {attr.isRequired && (
-                                                <span className="text-danger">
-                                                  *
-                                                </span>
-                                              )}
-                                            </label>
-                                            {attr.type === "boolean" ? (
-                                              <Switch
-                                                checked={
-                                                  variantAttr.value === "true"
-                                                }
-                                                onChange={(e) =>
-                                                  updateVariantAttribute(
-                                                    variant.id,
-                                                    attrId,
-                                                    "value",
-                                                    e.target.checked.toString()
-                                                  )
-                                                }
-                                                color="primary"
-                                              />
-                                            ) : attr.type === "date" ? (
-                                              <DatePicker
-                                                id={`date-${attrId}`}
-                                                value={
-                                                  variantAttr.value
-                                                    ? parseDate(
-                                                        variantAttr.value
-                                                      )
-                                                    : null
-                                                }
-                                                onChange={(newDate) =>
-                                                  updateVariantAttribute(
-                                                    variant.id,
-                                                    attrId,
-                                                    "value",
-                                                    newDate
-                                                      ? newDate.toString()
-                                                      : ""
-                                                  )
-                                                }
-                                                variant="bordered"
-                                                color="primary"
-                                              />
-                                            ) : (
-                                              <Input
-                                                type={
-                                                  attr.type === "number"
-                                                    ? "number"
-                                                    : "text"
-                                                }
-                                                value={variantAttr.value}
-                                                onChange={(e) =>
-                                                  updateVariantAttribute(
-                                                    variant.id,
-                                                    attrId,
-                                                    "value",
-                                                    e.target.value
-                                                  )
-                                                }
-                                                variant="bordered"
-                                                color="primary"
-                                                placeholder={`Inserisci ${attr.name.toLowerCase()}`}
-                                                isRequired={attr.isRequired}
-                                              />
-                                            )}
-                                          </div>
-                                        );
-                                      }
-                                    )}
-                                  </div>
-                                </div>
-                              </Tab>
-
-                              {/* Commercial Info Tab */}
-                              <Tab
-                                key="commercial"
-                                title={
-                                  <div className="flex items-center gap-2">
-                                    <Icon icon="solar:dollar-minimalistic-bold" />
-                                    <span>Info Commerciali</span>
-                                  </div>
-                                }
-                              >
-                                <div className="p-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="block text-sm font-medium mb-2">
-                                        Prezzo{" "}
-                                        <span className="text-danger">*</span>
-                                      </label>
-                                      <Input
-                                        type="number"
-                                        variant="bordered"
-                                        color={
-                                          variant.price ? "success" : "primary"
-                                        }
-                                        placeholder="0.00"
-                                        startContent={
-                                          <span className="text-default-400">
-                                            €
-                                          </span>
-                                        }
-                                        value={variant.price}
-                                        onChange={(e) =>
-                                          updateVariant(
-                                            variant.id,
-                                            "price",
-                                            e.target.value
-                                          )
-                                        }
-                                        isRequired
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-sm font-medium mb-2">
-                                        Fornitore{" "}
-                                        <span className="text-danger">*</span>
-                                      </label>
-                                      <div className="flex gap-2">
-                                        <Autocomplete
-                                          variant="bordered"
-                                          color={
-                                            variant.supplier
-                                              ? "success"
-                                              : "primary"
-                                          }
-                                          placeholder="Cerca fornitore"
-                                          defaultItems={suppliers}
-                                          value={variant.supplier}
-                                          onSelectionChange={(value) =>
-                                            updateVariant(
-                                              variant.id,
-                                              "supplier",
-                                              value as string
-                                            )
-                                          }
-                                          className="flex-1"
-                                          isRequired
-                                          startContent={
-                                            <Icon
-                                              icon="solar:shop-bold-2"
-                                              className={
-                                                variant.supplier
-                                                  ? "text-success"
-                                                  : "text-default-400"
-                                              }
-                                            />
-                                          }
-                                        >
-                                          {(supplier: Supplier) => (
-                                            <AutocompleteItem
-                                              key={supplier.id}
-                                              textValue={supplier.name}
-                                            >
-                                              {supplier.name}
-                                            </AutocompleteItem>
-                                          )}
-                                        </Autocomplete>
-                                        <Tooltip content="Aggiungi nuovo fornitore">
-                                          <Button
-                                            color="primary"
-                                            variant="flat"
-                                            onClick={() =>
-                                              navigate(
-                                                "/inventory/suppliers/new"
-                                              )
-                                            }
-                                            isIconOnly
-                                          >
-                                            <Icon
-                                              icon="solar:add-circle-bold"
-                                              className="text-xl"
-                                            />
-                                          </Button>
-                                        </Tooltip>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </Tab>
-
-                              {/* Warehouse Tab */}
-                              <Tab
-                                key="warehouse"
-                                title={
-                                  <div className="flex items-center gap-2">
-                                    <Icon icon="solar:box-bold" />
-                                    <span>Magazzino</span>
-                                  </div>
-                                }
-                              >
-                                <div className="p-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="block text-sm font-medium mb-2">
-                                        Soglia Minima Stock{" "}
-                                        <span className="text-danger">*</span>
-                                      </label>
-                                      <Input
-                                        type="number"
-                                        variant="bordered"
-                                        color={
-                                          variant.minStockThreshold
-                                            ? "success"
-                                            : "primary"
-                                        }
-                                        placeholder="Quantità minima"
-                                        value={variant.minStockThreshold}
-                                        onChange={(e) =>
-                                          updateVariant(
-                                            variant.id,
-                                            "minStockThreshold",
-                                            e.target.value
-                                          )
-                                        }
-                                        isRequired
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-sm font-medium mb-2">
-                                        Posizione Magazzino
-                                      </label>
-                                      <Input
-                                        variant="bordered"
-                                        color={
-                                          variant.location
-                                            ? "success"
-                                            : "primary"
-                                        }
-                                        placeholder="Es: Scaffale A-12"
-                                        value={variant.location}
-                                        onChange={(e) =>
-                                          updateVariant(
-                                            variant.id,
-                                            "location",
-                                            e.target.value
-                                          )
-                                        }
-                                      />
-                                    </div>
-
-                                    {/* Barcode */}
-                                    <div className="col-span-2">
-                                      <label className="block text-sm font-medium mb-2">
-                                        Barcode
-                                      </label>
-                                      <div className="space-y-3">
-                                        <RadioGroup
-                                          orientation="horizontal"
-                                          value={variant.barcodeType}
-                                          onValueChange={(value) =>
-                                            updateVariant(
-                                              variant.id,
-                                              "barcodeType",
-                                              value
-                                            )
-                                          }
-                                        >
-                                          <Radio value="manual">Manuale</Radio>
-                                          <Radio value="auto">Genera</Radio>
-                                          <Radio value="scan">Scansiona</Radio>
-                                        </RadioGroup>
-
-                                        <div className="flex gap-2">
-                                          <Input
-                                            variant="bordered"
-                                            color={
-                                              variant.barcode
-                                                ? "success"
-                                                : "primary"
-                                            }
-                                            placeholder="Codice a barre"
-                                            value={variant.barcode}
-                                            onChange={(e) =>
-                                              updateVariant(
-                                                variant.id,
-                                                "barcode",
-                                                e.target.value
-                                              )
-                                            }
-                                            isDisabled={
-                                              variant.barcodeType === "auto"
-                                            }
-                                          />
-                                          {variant.barcodeType === "auto" && (
-                                            <Button
-                                              color="primary"
-                                              variant="flat"
-                                              isIconOnly
-                                              onClick={() =>
-                                                generateBarcodeForVariant(
-                                                  variant.id
-                                                )
-                                              }
-                                            >
-                                              <Icon icon="solar:refresh-bold" />
-                                            </Button>
-                                          )}
-                                          {variant.barcodeType === "scan" && (
-                                            <Button
-                                              color="primary"
-                                              variant="flat"
-                                              isIconOnly
-                                              onClick={() => {
-                                                setScannerType("barcode");
-                                                setActiveVariantId(variant.id);
-                                                setIsScannerOpen(true);
-                                              }}
-                                            >
-                                              <Icon icon="solar:camera-bold" />
-                                            </Button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-
-                                    {/* QR Code */}
-                                    <div className="col-span-2">
-                                      <label className="block text-sm font-medium mb-2">
-                                        QR Code
-                                      </label>
-                                      <div className="space-y-3">
-                                        <RadioGroup
-                                          orientation="horizontal"
-                                          value={variant.qrCodeType}
-                                          onValueChange={(value) =>
-                                            updateVariant(
-                                              variant.id,
-                                              "qrCodeType",
-                                              value
-                                            )
-                                          }
-                                        >
-                                          <Radio value="manual">Manuale</Radio>
-                                          <Radio value="auto">Genera</Radio>
-                                          <Radio value="scan">Scansiona</Radio>
-                                        </RadioGroup>
-
-                                        <div className="flex gap-2">
-                                          <Input
-                                            variant="bordered"
-                                            color={
-                                              variant.qrCode
-                                                ? "success"
-                                                : "primary"
-                                            }
-                                            placeholder="QR Code"
-                                            value={variant.qrCode}
-                                            onChange={(e) =>
-                                              updateVariant(
-                                                variant.id,
-                                                "qrCode",
-                                                e.target.value
-                                              )
-                                            }
-                                            isDisabled={
-                                              variant.qrCodeType === "auto"
-                                            }
-                                          />
-                                          {variant.qrCodeType === "auto" && (
-                                            <Button
-                                              color="primary"
-                                              variant="flat"
-                                              isIconOnly
-                                              onClick={() =>
-                                                generateQRCodeForVariant(
-                                                  variant.id
-                                                )
-                                              }
-                                            >
-                                              <Icon icon="solar:refresh-bold" />
-                                            </Button>
-                                          )}
-                                          {variant.qrCodeType === "scan" && (
-                                            <Button
-                                              color="primary"
-                                              variant="flat"
-                                              isIconOnly
-                                              onClick={() => {
-                                                setScannerType("qrcode");
-                                                setActiveVariantId(variant.id);
-                                                setIsScannerOpen(true);
-                                              }}
-                                            >
-                                              <Icon icon="solar:camera-bold" />
-                                            </Button>
-                                          )}
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-                              </Tab>
-
-                              {/* Physical Specs Tab */}
-                              <Tab
-                                key="physical"
-                                title={
-                                  <div className="flex items-center gap-2">
-                                    <Icon icon="solar:ruler-bold" />
-                                    <span>Specifiche Fisiche</span>
-                                  </div>
-                                }
-                              >
-                                <div className="p-4">
-                                  <div className="grid grid-cols-2 gap-4">
-                                    <div>
-                                      <label className="block text-sm font-medium mb-2">
-                                        Peso
-                                      </label>
-                                      <Input
-                                        type="number"
-                                        variant="bordered"
-                                        color={
-                                          variant.weight ? "success" : "primary"
-                                        }
-                                        placeholder="Peso in kg"
-                                        value={variant.weight}
-                                        onChange={(e) =>
-                                          updateVariant(
-                                            variant.id,
-                                            "weight",
-                                            e.target.value
-                                          )
-                                        }
-                                        endContent={
-                                          <div className="pointer-events-none flex items-center">
-                                            <span className="text-default-400">
-                                              kg
-                                            </span>
-                                          </div>
-                                        }
-                                      />
-                                    </div>
-
-                                    <div>
-                                      <label className="block text-sm font-medium mb-2">
-                                        Dimensioni
-                                      </label>
-                                      <Input
-                                        variant="bordered"
-                                        color={
-                                          variant.dimensions
-                                            ? "success"
-                                            : "primary"
-                                        }
-                                        placeholder="LxWxH in cm"
-                                        value={variant.dimensions}
-                                        onChange={(e) =>
-                                          updateVariant(
-                                            variant.id,
-                                            "dimensions",
-                                            e.target.value
-                                          )
-                                        }
-                                      />
-                                    </div>
-                                  </div>
-                                </div>
-                              </Tab>
-
-                              {/* Notes Tab */}
-                              <Tab
-                                key="notes"
-                                title={
-                                  <div className="flex items-center gap-2">
-                                    <Icon icon="solar:notebook-bold" />
-                                    <span>Note</span>
-                                  </div>
-                                }
-                              >
-                                <div className="p-4">
-                                  <div>
-                                    <label className="block text-sm font-medium mb-2">
-                                      Note Aggiuntive
-                                    </label>
-                                    <Textarea
-                                      variant="bordered"
-                                      color={
-                                        variant.notes ? "success" : "primary"
-                                      }
-                                      placeholder="Note aggiuntive sulla variante"
-                                      value={variant.notes}
-                                      onChange={(e) =>
-                                        updateVariant(
-                                          variant.id,
-                                          "notes",
-                                          e.target.value
-                                        )
-                                      }
-                                      minRows={3}
-                                    />
-                                  </div>
-                                </div>
-                              </Tab>
-
-                              {/* Certifications Tab */}
-                              <Tab
-                                key="certifications"
-                                title={
-                                  <div className="flex items-center gap-2">
-                                    <Icon icon="solar:diploma-verified-bold" />
-                                    <span>Certificazioni e Documenti</span>
-                                  </div>
-                                }
-                              >
-                                <div className="p-4">
-                                  <div>
-                                    <label className="block text-sm font-medium mb-2">
-                                      Certificazioni e Documenti
-                                    </label>
-                                    <div
-                                      className="border-2 border-dashed rounded-lg p-4 transition-colors border-default-200 hover:border-primary hover:bg-primary/5"
-                                      onDragOver={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        e.currentTarget.classList.add(
-                                          "border-primary",
-                                          "bg-primary/10"
-                                        );
-                                      }}
-                                      onDragLeave={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        e.currentTarget.classList.remove(
-                                          "border-primary",
-                                          "bg-primary/10"
-                                        );
-                                      }}
-                                      onDrop={(e) => {
-                                        e.preventDefault();
-                                        e.stopPropagation();
-                                        e.currentTarget.classList.remove(
-                                          "border-primary",
-                                          "bg-primary/10"
-                                        );
-                                        const files = e.dataTransfer.files;
-                                        if (files) {
-                                          const acceptedFiles = Array.from(
-                                            files
-                                          ).filter((file) => {
-                                            const validTypes = [
-                                              "application/pdf",
-                                              "application/msword",
-                                              "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                              "application/vnd.ms-excel",
-                                              "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                            ];
-                                            return (
-                                              validTypes.includes(file.type) &&
-                                              file.size <= 10 * 1024 * 1024
-                                            );
-                                          });
-
-                                          const filesWithPreview =
-                                            acceptedFiles.map((file) => {
-                                              return Object.assign(file, {
-                                                preview:
-                                                  URL.createObjectURL(file),
-                                              });
-                                            }) as FileWithPreview[];
-
-                                          updateVariant(
-                                            variant.id,
-                                            "certifications",
-                                            [
-                                              ...(variant.certifications || []),
-                                              ...filesWithPreview,
-                                            ]
-                                          );
-                                        }
-                                      }}
-                                    >
-                                      <div className="flex flex-col items-center justify-center gap-2">
-                                        <div className="p-3 rounded-full bg-primary/10">
-                                          <Icon
-                                            icon="solar:upload-bold"
-                                            className="text-2xl text-primary"
-                                          />
-                                        </div>
-                                        <div className="text-center">
-                                          <p className="text-sm text-default-600">
-                                            Trascina qui i file o{" "}
-                                            <button
-                                              type="button"
-                                              className="text-primary hover:underline"
-                                              onClick={() => {
-                                                const input =
-                                                  document.createElement(
-                                                    "input"
-                                                  );
-                                                input.type = "file";
-                                                input.accept =
-                                                  ".pdf,.doc,.docx,.xls,.xlsx";
-                                                input.multiple = true;
-                                                input.onchange = (e) => {
-                                                  const files = (
-                                                    e.target as HTMLInputElement
-                                                  ).files;
-                                                  if (files) {
-                                                    const acceptedFiles =
-                                                      Array.from(files).filter(
-                                                        (file) => {
-                                                          const validTypes = [
-                                                            "application/pdf",
-                                                            "application/msword",
-                                                            "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                                                            "application/vnd.ms-excel",
-                                                            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                                                          ];
-                                                          return (
-                                                            validTypes.includes(
-                                                              file.type
-                                                            ) &&
-                                                            file.size <=
-                                                              10 * 1024 * 1024
-                                                          );
-                                                        }
-                                                      );
-
-                                                    const filesWithPreview =
-                                                      acceptedFiles.map(
-                                                        (file) => {
-                                                          return Object.assign(
-                                                            file,
-                                                            {
-                                                              preview:
-                                                                URL.createObjectURL(
-                                                                  file
-                                                                ),
-                                                            }
-                                                          );
-                                                        }
-                                                      ) as FileWithPreview[];
-
-                                                    updateVariant(
-                                                      variant.id,
-                                                      "certifications",
-                                                      [
-                                                        ...(variant.certifications ||
-                                                          []),
-                                                        ...filesWithPreview,
-                                                      ]
-                                                    );
-                                                  }
-                                                };
-                                                input.click();
-                                              }}
-                                            >
-                                              sfoglia
-                                            </button>
-                                          </p>
-                                          <p className="text-xs text-default-400 mt-1">
-                                            PDF, DOC, DOCX, XLS, XLSX (max.
-                                            10MB)
-                                          </p>
-                                        </div>
-                                      </div>
-
-                                      {/* Preview dei file */}
-                                      {variant.certifications &&
-                                        variant.certifications.length > 0 && (
-                                          <div className="mt-4 grid grid-cols-1 gap-2">
-                                            {variant.certifications.map(
-                                              (file, index) => (
-                                                <div
-                                                  key={index}
-                                                  className="flex items-center justify-between p-2 border rounded-lg bg-default-50"
-                                                >
-                                                  <div className="flex items-center gap-2">
-                                                    <div className="p-2 rounded-lg bg-default-100">
-                                                      <Icon
-                                                        icon={getFileIcon(
-                                                          file.name
-                                                        )}
-                                                        className="text-xl text-default-600"
-                                                      />
-                                                    </div>
-                                                    <div>
-                                                      <p className="text-sm font-medium text-default-700">
-                                                        {file.name}
-                                                      </p>
-                                                      <p className="text-xs text-default-400">
-                                                        {(
-                                                          file.size /
-                                                          1024 /
-                                                          1024
-                                                        ).toFixed(2)}{" "}
-                                                        MB
-                                                      </p>
-                                                    </div>
-                                                  </div>
-                                                  <Button
-                                                    isIconOnly
-                                                    color="danger"
-                                                    variant="light"
-                                                    onClick={() => {
-                                                      updateVariant(
-                                                        variant.id,
-                                                        "certifications",
-                                                        variant.certifications.filter(
-                                                          (_, i) => i !== index
-                                                        )
-                                                      );
-                                                    }}
-                                                  >
-                                                    <Icon
-                                                      icon="solar:trash-bin-trash-bold"
-                                                      className="text-lg"
-                                                    />
-                                                  </Button>
-                                                </div>
-                                              )
-                                            )}
-                                          </div>
-                                        )}
-                                    </div>
-                                  </div>
-                                </div>
-                              </Tab>
-                            </Tabs>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </Tab>
-
             <Tab
               key="certifications"
               title={
@@ -3373,47 +3031,114 @@ export default function AddProduct() {
           {/* Success Overlay */}
           {showScanSuccess && (
             <div className="fixed inset-0 z-[60] flex items-center justify-center">
-              <div className="absolute inset-0 bg-success/95 backdrop-blur-md animate-fade-in" />
+              <div
+                className={`absolute inset-0 ${
+                  isDark ? "bg-success/90" : "bg-success/95"
+                } backdrop-blur-md animate-fade-in`}
+              />
               <div className="relative flex flex-col items-center text-center animate-success-pop">
                 {/* Icona di successo con animazione */}
                 <div className="relative mb-8">
-                  <div className="w-32 h-32 rounded-full bg-white/20 flex items-center justify-center">
-                    <Icon
-                      icon="solar:check-circle-bold"
-                      className="text-6xl text-white"
-                    />
+                  <div
+                    className={`w-32 h-32 rounded-full ${
+                      isDark ? "bg-success/30" : "bg-success/20"
+                    } flex items-center justify-center`}
+                  >
+                    <svg
+                      className="w-20 h-20"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      xmlns="http://www.w3.org/2000/svg"
+                    >
+                      <circle
+                        cx="12"
+                        cy="12"
+                        r="10"
+                        className={`${
+                          isDark ? "stroke-success-400" : "stroke-success-500"
+                        } stroke-2 fill-none`}
+                      />
+                      <path
+                        d="M8 12l3 3 5-6"
+                        className={`${
+                          isDark ? "stroke-success-400" : "stroke-success-500"
+                        } stroke-2 fill-none animate-checkmark-draw`}
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                      />
+                    </svg>
                   </div>
                   {/* Cerchi animati */}
-                  <div className="absolute inset-0 rounded-full border-4 border-white/20 animate-ping" />
                   <div
-                    className="absolute inset-0 rounded-full border-4 border-white/20 animate-ping"
+                    className={`absolute inset-0 rounded-full border-4 ${
+                      isDark ? "border-success/20" : "border-success/10"
+                    } animate-ping`}
+                  />
+                  <div
+                    className={`absolute inset-0 rounded-full border-4 ${
+                      isDark ? "border-success/20" : "border-success/10"
+                    } animate-ping`}
                     style={{ animationDelay: "0.5s" }}
                   />
                 </div>
 
                 {/* Messaggio di successo */}
                 <div className="space-y-4">
-                  <h3 className="text-3xl font-bold text-white">
+                  <h3
+                    className={`text-3xl font-bold ${
+                      isDark ? "text-white" : "text-zinc-800"
+                    }`}
+                  >
                     Scansione Completata!
                   </h3>
-                  <p className="text-xl text-white/80">
+                  <p
+                    className={`text-xl ${
+                      isDark ? "text-white/80" : "text-zinc-600"
+                    }`}
+                  >
                     {scannerType === "barcode" ? "Codice a barre" : "QR code"}{" "}
                     rilevato con successo
                   </p>
                 </div>
 
                 {/* Codice scansionato */}
-                <div className="mt-8 bg-white/10 rounded-xl p-6 w-full max-w-md mx-4 backdrop-blur-sm">
-                  <p className="text-white/80 mb-3 text-lg">Codice rilevato:</p>
-                  <div className="bg-white/5 rounded-lg p-4">
-                    <p className="font-mono text-xl text-white break-all">
+                <div
+                  className={`mt-8 ${
+                    isDark ? "bg-zinc-800/80" : "bg-zinc-100/90"
+                  } rounded-xl p-6 w-full max-w-md mx-4 backdrop-blur-sm border ${
+                    isDark ? "border-zinc-700/50" : "border-zinc-200"
+                  }`}
+                >
+                  <p
+                    className={`${
+                      isDark ? "text-zinc-300" : "text-zinc-600"
+                    } mb-3 text-lg`}
+                  >
+                    Codice rilevato:
+                  </p>
+                  <div
+                    className={`${
+                      isDark ? "bg-zinc-900/50" : "bg-white/80"
+                    } rounded-lg p-4 border ${
+                      isDark ? "border-zinc-700" : "border-zinc-200"
+                    }`}
+                  >
+                    <p
+                      className={`font-mono text-xl ${
+                        isDark ? "text-success-400" : "text-success-600"
+                      } break-all`}
+                    >
                       {scannedCode}
                     </p>
                   </div>
                 </div>
 
                 {/* Indicatore di chiusura */}
-                <div className="mt-8 flex items-center gap-2 text-white/60">
+                <div
+                  className={`mt-8 flex items-center gap-2 ${
+                    isDark ? "text-zinc-400" : "text-zinc-500"
+                  }`}
+                >
                   <Icon icon="solar:clock-circle-bold" className="text-xl" />
                   <p className="text-sm">
                     La schermata si chiuderà automaticamente...
