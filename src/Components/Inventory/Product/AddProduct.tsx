@@ -58,12 +58,6 @@ interface ProductFormData {
   vatRate: string;
   reorderQuantity: string; // Quantità di riordino consigliata
   stockUnit: string; // Unità di misura (pz, kg, l, ecc.)
-  supplierCode: string;
-  supplierReference: string;
-  internalReference: string; // Riferimento interno aziendale
-  leadTime: string; // Tempo di approvvigionamento in giorni
-  warehouse: string; // Magazzino di appartenenza
-  shelfLife: string; // Durata di conservazione in giorni
   [key: string]:
     | string
     | number
@@ -647,12 +641,7 @@ export default function AddProduct() {
     vatRate: "",
     reorderQuantity: "",
     stockUnit: "",
-    supplierCode: "",
-    supplierReference: "",
-    internalReference: "",
-    leadTime: "",
     warehouse: "",
-    shelfLife: "",
   });
   const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
   const [isDraggingDocs, setIsDraggingDocs] = useState(false);
@@ -850,9 +839,14 @@ export default function AddProduct() {
     setIsSaving(true);
 
     try {
-      // TODO: Implement API call to save product
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-      navigate("/inventory/products");
+      console.log("formData", formData);
+      await axios
+        .post("/Product/POST/CreateNewProduct", formData)
+        .then((res) => {
+          if (res.status === 200) {
+            navigate("/inventory/products");
+          }
+        });
     } catch (error) {
       console.error("Error saving product:", error);
     } finally {
@@ -1097,7 +1091,7 @@ export default function AddProduct() {
   // Modify the scanner effect
   useEffect(() => {
     let isActive = true;
-    let scannerTimeout: number | null = null;
+    let scannerTimeout: number | NodeJS.Timeout | null = null;
 
     const initializeScanner = async () => {
       if (isScannerOpen && scannerType && isActive) {
@@ -2033,31 +2027,6 @@ export default function AddProduct() {
                         icon="solar:sort-by-time-bold"
                         className={
                           formData.reorderQuantity
-                            ? "text-success"
-                            : "text-default-400"
-                        }
-                      />
-                    }
-                  />
-                </div>
-
-                {/* Vita a scaffale */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Vita a Scaffale (giorni)
-                  </label>
-                  <Input
-                    type="number"
-                    variant="bordered"
-                    color={formData.shelfLife ? "success" : "primary"}
-                    placeholder="Durata di conservazione"
-                    value={formData.shelfLife?.toString() || ""}
-                    onChange={(e) => handleChange("shelfLife", e.target.value)}
-                    startContent={
-                      <Icon
-                        icon="solar:calendar-mark-bold"
-                        className={
-                          formData.shelfLife
                             ? "text-success"
                             : "text-default-400"
                         }
@@ -3013,6 +2982,9 @@ export default function AddProduct() {
               </div>
             </Tab>
           </Tabs>
+          <Button type="submit" color="primary" variant="flat">
+            Salva
+          </Button>
         </form>
       </CardBody>
       {isScannerOpen && (
