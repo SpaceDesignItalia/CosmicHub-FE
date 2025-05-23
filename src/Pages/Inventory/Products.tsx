@@ -1,10 +1,11 @@
 import { Icon } from "@iconify/react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import ProductTable from "../../Components/Inventory/Product/ProductTable";
 import { ProductThemeProvider } from "../../Components/Inventory/Product/ProductThemeWrapper";
 import QuickStats from "../../Components/Inventory/Product/QuickStats";
 import { Button, Card, Input, Select, SelectItem } from "@heroui/react";
 import { Link } from "react-router";
+import axios from "axios";
 
 // Data types
 interface Product {
@@ -118,13 +119,31 @@ export default function Products() {
     },
   ]);
 
-  const categories = [
+  const [categories, setCategories] = useState<string[]>([
     "Tutti",
     "Elettronica",
     "Abbigliamento",
     "Casa",
     "Alimentari",
-  ];
+  ]);
+
+  useEffect(() => {
+    const fetchProducts = async () => {
+      const res = await axios.get("/Product/GET/GetAllProducts");
+      setProducts(res.data);
+    };
+
+    const fetchCategories = async () => {
+      const res = await axios.get("/Product/GET/GetAllCategories");
+      setCategories(res.data);
+    };
+
+    fetchProducts();
+    fetchCategories();
+  }, []);
+
+  console.log("products", products);
+  console.log("categories", categories);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
