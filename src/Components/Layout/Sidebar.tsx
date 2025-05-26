@@ -79,7 +79,7 @@ export const sectionNestedItems = [
   },
   {
     key: "inventory",
-    title: "Inventory",
+    title: "Inventario",
     icon: "solar:box-line-duotone",
     type: SidebarItemType.Nest,
     items: [
@@ -345,7 +345,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 "transition-colors",
                 isDisabled ? "" : "data-[hover=true]:bg-default-100",
                 isNestType
-                  ? "!bg-transparent data-[selected=true]:!bg-transparent data-[hover=true]:!bg-transparent"
+                  ? "px-0 rounded-large data-[hover=true]:bg-transparent"
                   : ""
               ),
               title: cn(
@@ -400,8 +400,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   aria-label={item.title}
                   classNames={{
                     base: "px-0",
-                    trigger: "px-0",
-                    content: "px-0",
+                    trigger: "px-0 min-h-11 h-[44px] data-[hover=true]:bg-transparent transition-colors",
+                    content: "px-0 pb-0",
                   }}
                   title={
                     <div className="flex items-center gap-2">
@@ -427,6 +427,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                       aria-label={`Sottomenu ${item.title}`}
                       items={item.items}
                       variant="flat"
+                      classNames={{
+                        list: "gap-1 pl-6 pt-1"
+                      }}
                     >
                       {item.items.map(renderItem)}
                     </Listbox>
