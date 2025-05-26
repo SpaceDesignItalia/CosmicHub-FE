@@ -23,6 +23,7 @@ import {
   Avatar,
   Select,
   SelectItem,
+  Spinner,
 } from "@heroui/react";
 import type { Selection, ChipProps } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
@@ -32,13 +33,23 @@ import { Icon } from "@iconify/react/dist/iconify.js";
 
 // Data types
 interface Product {
-  id: string;
+  product_id: string;
+  id?: string; // Per compatibilità
   name: string;
   category: string;
+  category_id: string;
   quantity: number;
   price: number;
+  min_stock_treshold: number;
   status: "Disponibile" | "Esaurito" | "Bassa giacenza";
   image?: string;
+  sku?: string;
+  description?: string;
+  barcode?: string;
+  qr_code?: string;
+  supplier_id?: string;
+  brand_id?: string;
+  attributes?: any[];
 }
 
 interface ProductTableProps {
@@ -50,6 +61,7 @@ interface ProductTableProps {
     direction: "asc" | "desc";
   };
   onSort?: (sort: { field: keyof Product; direction: "asc" | "desc" }) => void;
+  isLoading?: boolean;
 }
 
 const statusColorMap: Record<string, ChipProps["color"]> = {
@@ -68,9 +80,18 @@ const columns = [
 ];
 
 // Empty State Component
-const EmptyState = () => {
+const EmptyState = ({ isLoading }: { isLoading?: boolean }) => {
   const navigate = useNavigate();
   const { isDark } = useProductTheme();
+
+  if (isLoading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-12 px-4">
+        <Spinner size="lg" color="primary" />
+        <p className="mt-4 text-default-500">Caricamento prodotti...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -126,6 +147,7 @@ export default function ProductTable({
   onDeleteProduct,
   sortBy,
   onSort,
+  isLoading = false,
 }: ProductTableProps) {
   const navigate = useNavigate();
   const [selectedKeys, setSelectedKeys] = React.useState<Selection>(
@@ -191,6 +213,8 @@ export default function ProductTable({
   };
 
   const renderCell = useCallback((product: Product, columnKey: React.Key) => {
+    const productId = product.product_id || product.id || "";
+    
     switch (columnKey) {
       case "name":
         return (
@@ -200,7 +224,7 @@ export default function ProductTable({
               src: product.image || "https://via.placeholder.com/40",
               className: "hidden md:flex object-cover border-0",
             }}
-            description={`ID: ${product.id.substring(0, 8)}`}
+            description={`SKU: ${product.sku || "N/A"}`}
             name={product.name}
           >
             {product.name}
@@ -210,7 +234,7 @@ export default function ProductTable({
         return (
           <div className="flex items-center gap-2">
             <span
-              className={`w-2 h-2 rounded-full bg-${product.category.toLowerCase()}`}
+              className={`w-2 h-2 rounded-full bg-${product.category.toLowerCase().replace(/\s+/g, '')}`}
             />
             {product.category}
           </div>
@@ -220,21 +244,24 @@ export default function ProductTable({
           <div className="flex justify-start w-full">
             <div
               className={`font-medium ${
-                product.quantity > 0
-                  ? product.quantity <= 10
+                (product.quantity || 0) > 0
+                  ? (product.quantity || 0) <= (product.min_stock_treshold || 10)
                     ? "text-warning"
                     : "text-success"
                   : "text-danger"
               }`}
             >
-              {product.quantity}
+              {product.quantity || 0}
+              {(product.quantity || 0) === 0 && (
+                <span className="text-xs ml-1 text-danger"></span>
+              )}
             </div>
           </div>
         );
       case "price":
         return (
           <div className="flex justify-start w-full">
-            <div className="font-medium">€{product.price.toFixed(2)}</div>
+            <div className="font-medium">€{parseFloat(product.price.toString()).toFixed(2)}</div>
           </div>
         );
       case "status":
@@ -285,7 +312,7 @@ export default function ProductTable({
                 </DropdownItem>
                 <DropdownItem
                   key="edit"
-                  onClick={() => goToEditProduct(product.id)}
+                  onClick={() => goToEditProduct(productId)}
                   className="text-primary-600 data-[hover=true]:text-primary-700 data-[hover=true]:bg-primary-50"
                   startContent={
                     <Icon
@@ -353,7 +380,7 @@ export default function ProductTable({
                       if (selectedKeys === "all") {
                         // Delete all products
                         products.forEach((product) => {
-                          onDeleteProduct(product.id);
+                          onDeleteProduct(product.product_id || product.id || "");
                         });
                       } else if (typeof selectedKeys !== "string") {
                         // Delete selected products
@@ -380,7 +407,7 @@ export default function ProductTable({
                         : products.filter(
                             (p) =>
                               typeof selectedKeys !== "string" &&
-                              selectedKeys.has(p.id)
+                              selectedKeys.has(p.product_id || p.id || "")
                           );
 
                     const allAvailable = selectedProducts.every(
@@ -450,7 +477,7 @@ export default function ProductTable({
         </div>
       </div>
     );
-  }, [page, pages, onPreviousPage, onNextPage, rowsPerPage]);
+  }, [page, pages, rowsPerPage, onRowsPerPageChange]);
 
   // Add keyboard shortcuts handler near the top of the component
   const handleKeyboardShortcuts = useCallback(
@@ -462,7 +489,7 @@ export default function ProductTable({
             onOpen();
             break;
           case "e":
-            goToEditProduct(selectedProduct.id);
+            goToEditProduct(selectedProduct.product_id || selectedProduct.id || "");
             break;
           case "d":
             confirmDeleteProduct(selectedProduct);
@@ -527,9 +554,9 @@ export default function ProductTable({
             </TableColumn>
           )}
         </TableHeader>
-        <TableBody emptyContent={<EmptyState />} items={sortedItems}>
+        <TableBody emptyContent={<EmptyState isLoading={isLoading} />} items={sortedItems}>
           {(item) => (
-            <TableRow key={item.id}>
+            <TableRow key={item.product_id || item.id}>
               {(columnKey) => (
                 <TableCell>
                   <div
@@ -589,7 +616,7 @@ export default function ProductTable({
                     >
                       ID Prodotto
                     </p>
-                    <p className="font-medium">{selectedProduct.id}</p>
+                    <p className="font-medium">{selectedProduct.product_id || selectedProduct.id}</p>
                   </div>
                   <div>
                     <p
@@ -607,11 +634,21 @@ export default function ProductTable({
                         isDark ? "text-zinc-400" : "text-zinc-500"
                       }`}
                     >
+                      SKU
+                    </p>
+                    <p className="font-medium">{selectedProduct.sku || "N/A"}</p>
+                  </div>
+                  <div>
+                    <p
+                      className={`text-small ${
+                        isDark ? "text-zinc-400" : "text-zinc-500"
+                      }`}
+                    >
                       Categoria
                     </p>
                     <div className="flex items-center">
                       <span
-                        className={`w-2 h-2 rounded-full bg-${selectedProduct.category.toLowerCase()} mr-2`}
+                        className={`w-2 h-2 rounded-full bg-${selectedProduct.category.toLowerCase().replace(/\s+/g, '')} mr-2`}
                       />
                       <p className="font-medium">{selectedProduct.category}</p>
                     </div>
@@ -626,14 +663,17 @@ export default function ProductTable({
                     </p>
                     <p
                       className={`font-medium ${
-                        selectedProduct.quantity > 0
-                          ? selectedProduct.quantity <= 10
+                        (selectedProduct.quantity || 0) > 0
+                          ? (selectedProduct.quantity || 0) <= (selectedProduct.min_stock_treshold || 10)
                             ? "text-warning"
                             : "text-success"
                           : "text-danger"
                       }`}
                     >
-                      {selectedProduct.quantity}
+                      {selectedProduct.quantity || 0}
+                      {(selectedProduct.quantity || 0) === 0 && (
+                        <span className="text-xs ml-1">(Non disponibile)</span>
+                      )}
                     </p>
                   </div>
                   <div>
@@ -645,7 +685,7 @@ export default function ProductTable({
                       Prezzo
                     </p>
                     <p className="font-medium">
-                      €{selectedProduct.price.toFixed(2)}
+                      €{parseFloat(selectedProduct.price.toString()).toFixed(2)}
                     </p>
                   </div>
                   <div>
@@ -664,6 +704,18 @@ export default function ProductTable({
                       {selectedProduct.status}
                     </Chip>
                   </div>
+                  {selectedProduct.description && (
+                    <div className="col-span-2">
+                      <p
+                        className={`text-small ${
+                          isDark ? "text-zinc-400" : "text-zinc-500"
+                        }`}
+                      >
+                        Descrizione
+                      </p>
+                      <p className="font-medium">{selectedProduct.description}</p>
+                    </div>
+                  )}
                 </div>
               </ModalBody>
               <ModalFooter>
@@ -678,7 +730,7 @@ export default function ProductTable({
                   color="primary"
                   onPress={() => {
                     onClose();
-                    goToEditProduct(selectedProduct.id);
+                    goToEditProduct(selectedProduct.product_id || selectedProduct.id || "");
                   }}
                 >
                   Modifica

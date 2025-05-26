@@ -1,130 +1,134 @@
 import { Icon } from "@iconify/react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import ProductTable from "../../Components/Inventory/Product/ProductTable";
 import { ProductThemeProvider } from "../../Components/Inventory/Product/ProductThemeWrapper";
 import QuickStats from "../../Components/Inventory/Product/QuickStats";
 import { Button, Card, Input, Select, SelectItem } from "@heroui/react";
 import { Link } from "react-router";
+import axios from "axios";
 
 // Data types
-interface Product {
-  id: string;
+interface Attribute {
   name: string;
-  category: string;
-  quantity: number;
+  data_type: string;
+  value: string;
+}
+
+interface Product {
+  product_id: string;
+  id?: string; // Per compatibilità
+  name: string;
+  category_id: string;
+  sku: string;
+  description: string;
   price: number;
+  min_stock_treshold: number;
+  quantity: number;
+  barcode: string;
+  qr_code: string;
+  supplier_id: string;
+  brand_id: string;
+  weight: string;
+  dimensions: string;
+  location: string;
+  notes: string;
+  cost_price: number;
+  vat_rate: number;
+  reorder_quantity: number;
+  stock_unit: string;
+  warehouse_id: string;
+  attributes: Attribute[];
+  // Campi calcolati per UI
   status: "Disponibile" | "Esaurito" | "Bassa giacenza";
+  category: string;
   image?: string;
 }
 
-export default function Products() {
-  // Example data
-  const [products, setProducts] = useState<Product[]>([
-    {
-      id: "1",
-      name: "Product A",
-      category: "Elettronica",
-      quantity: 150,
-      price: 99.99,
-      status: "Disponibile",
-    },
-    {
-      id: "2",
-      name: "Product B",
-      category: "Abbigliamento",
-      quantity: 50,
-      price: 29.99,
-      status: "Disponibile",
-    },
-    {
-      id: "3",
-      name: "Product C",
-      category: "Casa",
-      quantity: 5,
-      price: 199.5,
-      status: "Bassa giacenza",
-    },
-    {
-      id: "4",
-      name: "Product D",
-      category: "Elettronica",
-      quantity: 0,
-      price: 499.99,
-      status: "Esaurito",
-    },
-    {
-      id: "5",
-      name: "Product E",
-      category: "Alimentari",
-      quantity: 200,
-      price: 5.99,
-      status: "Disponibile",
-    },
-    {
-      id: "6",
-      name: "Product F",
-      category: "Casa",
-      quantity: 75,
-      price: 59.99,
-      status: "Disponibile",
-    },
-    {
-      id: "7",
-      name: "Product G",
-      category: "Elettronica",
-      quantity: 8,
-      price: 899.99,
-      status: "Bassa giacenza",
-    },
-    {
-      id: "8",
-      name: "Product H",
-      category: "Abbigliamento",
-      quantity: 120,
-      price: 19.99,
-      status: "Disponibile",
-    },
-    {
-      id: "9",
-      name: "Product I",
-      category: "Elettronica",
-      quantity: 100,
-      price: 149.99,
-      status: "Disponibile",
-    },
-    {
-      id: "10",
-      name: "Product J",
-      category: "Alimentari",
-      quantity: 200,
-      price: 5.99,
-      status: "Disponibile",
-    },
-    {
-      id: "11",
-      name: "Product K",
-      category: "Elettronica",
-      quantity: 100,
-      price: 149.99,
-      status: "Disponibile",
-    },
-    {
-      id: "12",
-      name: "Product L",
-      category: "Alimentari",
-      quantity: 200,
-      price: 5.99,
-      status: "Disponibile",
-    },
-  ]);
+interface CategoryAttribute {
+  name: string;
+  type: string;
+  category_name: string;
+  attribute_id: string | null;
+  category_id: string;
+  isRequired: boolean;
+}
 
-  const categories = [
-    "Tutti",
-    "Elettronica",
-    "Abbigliamento",
-    "Casa",
-    "Alimentari",
-  ];
+export default function Products() {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categoriesData, setCategoriesData] = useState<CategoryAttribute[]>([]);
+  const [categories, setCategories] = useState<string[]>(["Tutti"]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Ottieni le categorie prima (ne abbiamo bisogno per mappare i prodotti)
+        const categoriesRes = await axios.get("/Product/GET/GetAllCategories");
+        const categoriesData = categoriesRes.data as CategoryAttribute[];
+        setCategoriesData(categoriesData);
+        
+        // Estrai i nomi unici delle categorie
+        const uniqueCategories = ["Tutti"];
+        const categoryMap = new Map<string, string>();
+        
+        categoriesData.forEach((cat) => {
+          if (!uniqueCategories.includes(cat.category_name)) {
+            uniqueCategories.push(cat.category_name);
+          }
+          categoryMap.set(cat.category_id, cat.category_name);
+        });
+        
+        setCategories(uniqueCategories);
+        
+        // Ora ottieni i prodotti
+        const productsRes = await axios.get("/Product/GET/GetAllProducts");
+        const rawProducts = productsRes.data;
+        console.log(rawProducts);
+        // Processa i prodotti con i dati ottenuti
+        const processedProducts = rawProducts.map((product: any) => {
+          // Calcola lo stato del prodotto
+          // Usa stock_unit come quantità dal database
+          const quantity = parseInt(product.stock_unit) || 0;
+          const minStock = parseInt(product.min_stock_treshold) || 10;
+          
+          let status: "Disponibile" | "Esaurito" | "Bassa giacenza";
+          if (quantity <= 0) {
+            status = "Esaurito";
+          } else if (quantity <= minStock) {
+            status = "Bassa giacenza";
+          } else {
+            status = "Disponibile";
+          }
+          
+          // Aggiungi la categoria in formato leggibile usando la mappa
+          const categoryName = categoryMap.get(product.category_id) || "Non categorizzato";
+          
+          return {
+            ...product,
+            id: product.product_id, // Per compatibilità con componenti esistenti
+            quantity: quantity, // Usa stock_unit come quantità
+            status,
+            category: categoryName
+          } as Product;
+        });
+        
+        // Log per debug: controlla se ci sono prodotti senza quantità
+        const productsWithoutQuantity = processedProducts.filter((p: Product) => !p.quantity);
+        if (productsWithoutQuantity.length > 0) {
+          console.warn(`${productsWithoutQuantity.length} prodotti non hanno quantità impostata`);
+        }
+        
+        setProducts(processedProducts);
+      } catch (error) {
+        console.error("Errore nel caricamento dei dati:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchData();
+  }, []);
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -167,19 +171,13 @@ export default function Products() {
 
   // Funzione per eliminare un prodotto
   const handleDeleteProduct = async (id: string): Promise<void> => {
-    // In un'applicazione reale, qui ci sarebbe una chiamata API
-    console.log("Eliminazione prodotto con ID:", id);
-
-    // Simuliamo una chiamata API con un ritardo
-    return new Promise<void>((resolve) => {
-      setTimeout(() => {
-        // Aggiorniamo lo stato locale rimuovendo il prodotto
-        setProducts((prevProducts) =>
-          prevProducts.filter((product) => product.id !== id)
-        );
-        resolve();
-      }, 800);
-    });
+    try {
+      await axios.delete(`/Product/DELETE/DeleteProduct/${id}`);
+      setProducts(prevProducts => prevProducts.filter(product => (product.product_id || product.id) !== id));
+    } catch (error) {
+      console.error("Errore nell'eliminazione del prodotto:", error);
+      throw new Error("Impossibile eliminare il prodotto");
+    }
   };
 
   return (
@@ -193,7 +191,7 @@ export default function Products() {
               className="text-primary text-xl sm:text-2xl"
             />
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold">Product Inventory</h1>
+          <h1 className="text-xl sm:text-2xl font-bold">Inventario Prodotti</h1>
         </div>
         <Button
           variant="solid"
@@ -207,7 +205,7 @@ export default function Products() {
       </div>
 
       {/* Quick Stats Section */}
-      <QuickStats />
+      <QuickStats products={products} />
 
       {/* Search and Filters */}
       <Card className="min-h-min p-4 transition-all duration-300 ease-in-out">
@@ -297,11 +295,11 @@ export default function Products() {
               <div className="flex flex-wrap gap-2 py-2">
                 {searchQuery && (
                   <span className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium shadow-sm hover:shadow transition-all duration-200">
-                    Search: {searchQuery}
+                    Ricerca: {searchQuery}
                     <button
                       onClick={() => setSearchQuery("")}
                       className="hover:bg-primary/20 rounded-full p-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      title="Remove search filter"
+                      title="Rimuovi filtro ricerca"
                     >
                       <Icon
                         icon="solar:close-circle-bold-duotone"
@@ -316,7 +314,7 @@ export default function Products() {
                     <button
                       onClick={() => setSelectedCategory("Tutti")}
                       className="hover:bg-primary/20 rounded-full p-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      title="Remove category filter"
+                      title="Rimuovi filtro categoria"
                     >
                       <Icon
                         icon="solar:close-circle-bold-duotone"
@@ -327,11 +325,11 @@ export default function Products() {
                 )}
                 {selectedStatus !== "Tutti" && (
                   <span className="inline-flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-lg text-sm font-medium shadow-sm hover:shadow transition-all duration-200">
-                    Status: {selectedStatus}
+                    Stato: {selectedStatus}
                     <button
                       onClick={() => setSelectedStatus("Tutti")}
                       className="hover:bg-primary/20 rounded-full p-1 transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/20"
-                      title="Remove status filter"
+                      title="Rimuovi filtro stato"
                     >
                       <Icon
                         icon="solar:close-circle-bold-duotone"
@@ -368,6 +366,7 @@ export default function Products() {
           onDeleteProduct={handleDeleteProduct}
           sortBy={sortBy}
           onSort={setSortBy}
+          isLoading={isLoading}
         />
       </ProductThemeProvider>
     </div>

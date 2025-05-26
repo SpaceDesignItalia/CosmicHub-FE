@@ -12,9 +12,11 @@ import { Icon } from "@iconify/react";
 import { useProductTheme } from "./ProductThemeWrapper";
 
 interface Product {
-  id: string;
+  product_id: string;
+  id?: string; // Per retrocompatibilità
   name: string;
-  imageUrl?: string;
+  image?: string;
+  sku?: string;
 }
 
 interface DeleteProductModalProps {
@@ -38,7 +40,8 @@ export default function DeleteProductModal({
 
     setIsDeleting(true);
     try {
-      await onDelete(product.id);
+      // Usa product_id se disponibile, altrimenti fallback su id
+      await onDelete(product.product_id || product.id || "");
       onClose();
     } catch (error) {
       console.error("Errore durante l'eliminazione del prodotto:", error);
@@ -95,7 +98,7 @@ export default function DeleteProductModal({
                   }`}
                 >
                   <Avatar
-                    src={product.imageUrl || "https://via.placeholder.com/40"}
+                    src={product.image || "https://via.placeholder.com/40"}
                     size="md"
                     radius="lg"
                     className="flex-shrink-0"
@@ -107,7 +110,7 @@ export default function DeleteProductModal({
                         isDark ? "text-zinc-400" : "text-zinc-500"
                       }`}
                     >
-                      ID: {product.id}
+                      {product.sku ? `SKU: ${product.sku}` : `ID: ${product.product_id || product.id}`}
                     </p>
                   </div>
                 </div>
