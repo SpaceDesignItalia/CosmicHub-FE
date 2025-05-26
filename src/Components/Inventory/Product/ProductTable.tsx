@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useState } from "react";
 import {
   Table,
   TableHeader,
@@ -24,12 +24,16 @@ import {
   Select,
   SelectItem,
   Spinner,
+  Input,
+  Tooltip,
 } from "@heroui/react";
 import type { Selection, ChipProps } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
 import { useProductTheme } from "./ProductThemeWrapper";
 import DeleteProductModal from "./DeleteProductModal";
+import InlineQuantityEditor from "./InlineQuantityEditor";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import axios from "axios";
 
 // Data types
 interface Product {
@@ -56,6 +60,7 @@ interface ProductTableProps {
   products: Product[];
   categories: string[];
   onDeleteProduct?: (id: string) => Promise<void>;
+  onUpdateQuantity?: (productId: string, newQuantity: number) => void;
   sortBy?: {
     field: keyof Product;
     direction: "asc" | "desc";
@@ -73,7 +78,22 @@ const statusColorMap: Record<string, ChipProps["color"]> = {
 const columns = [
   { name: "PRODOTTO", uid: "name", sortable: true },
   { name: "CATEGORIA", uid: "category", sortable: true },
-  { name: "QUANTITÀ", uid: "quantity", sortable: true },
+  { name: "SKU", uid: "sku", sortable: true },
+  { 
+    name: (
+      <div className="flex items-center gap-1">
+        <span>QUANTITÀ</span>
+        <Tooltip content="Doppio click per modificare" size="sm">
+          <Icon 
+            icon="solar:cursor-bold" 
+            className="text-xs text-default-400 cursor-help" 
+          />
+        </Tooltip>
+      </div>
+    ), 
+    uid: "quantity", 
+    sortable: true 
+  },
   { name: "PREZZO", uid: "price", sortable: true },
   { name: "STATO", uid: "status", sortable: true },
   { name: "AZIONI", uid: "actions" },
@@ -145,6 +165,7 @@ const EmptyState = ({ isLoading }: { isLoading?: boolean }) => {
 export default function ProductTable({
   products,
   onDeleteProduct,
+  onUpdateQuantity,
   sortBy,
   onSort,
   isLoading = false,
@@ -241,22 +262,14 @@ export default function ProductTable({
         );
       case "quantity":
         return (
-          <div className="flex justify-start w-full">
-            <div
-              className={`font-medium ${
-                (product.quantity || 0) > 0
-                  ? (product.quantity || 0) <= (product.min_stock_treshold || 10)
-                    ? "text-warning"
-                    : "text-success"
-                  : "text-danger"
-              }`}
-            >
-              {product.quantity || 0}
-              {(product.quantity || 0) === 0 && (
-                <span className="text-xs ml-1 text-danger"></span>
-              )}
-            </div>
-          </div>
+          <InlineQuantityEditor 
+            product={product} 
+            onUpdate={(id, newQuantity) => {
+              if (onUpdateQuantity) {
+                onUpdateQuantity(id, newQuantity);
+              }
+            }} 
+          />
         );
       case "price":
         return (
@@ -513,7 +526,6 @@ export default function ProductTable({
         bottomContent={bottomContent}
         bottomContentPlacement="inside"
         selectedKeys={selectedKeys}
-        selectionMode="multiple"
         sortDescriptor={{
           column: sortBy?.field || "name",
           direction: sortBy?.direction === "asc" ? "ascending" : "descending",
@@ -672,7 +684,7 @@ export default function ProductTable({
                     >
                       {selectedProduct.quantity || 0}
                       {(selectedProduct.quantity || 0) === 0 && (
-                        <span className="text-xs ml-1">(Non disponibile)</span>
+                        <span className="text-xs ml-1"></span>
                       )}
                     </p>
                   </div>

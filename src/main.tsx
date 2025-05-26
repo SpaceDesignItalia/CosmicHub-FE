@@ -1,18 +1,19 @@
-import { StrictMode } from "react";
-import { createRoot } from "react-dom/client";
+import React from "react";
+import ReactDOM from "react-dom/client";
+import App from "./App.tsx";
 import "./index.css";
 import { BrowserRouter } from "react-router-dom";
-import App from "./App.tsx";
-import { ThemeProvider } from "./providers/ThemeProvider";
+import { ThemeProvider } from "./providers/ThemeProvider.tsx";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
+// Importa gli interceptor axios per simulare gli endpoint mancanti
+import './utils/apiInterceptors';
+
+ReactDOM.createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
     <BrowserRouter>
       <ThemeProvider>
-        <main className="text-foreground bg-background">
-          <App />
-        </main>
+        <App />
       </ThemeProvider>
     </BrowserRouter>
-  </StrictMode>
+  </React.StrictMode>
 );

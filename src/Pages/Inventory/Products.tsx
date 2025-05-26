@@ -169,6 +169,34 @@ export default function Products() {
       });
   }, [products, searchQuery, selectedCategory, selectedStatus, sortBy]);
 
+  // Funzione per aggiornare la quantità di un prodotto
+  const handleUpdateQuantity = (productId: string, newQuantity: number) => {
+    setProducts(prevProducts => 
+      prevProducts.map(product => {
+        if ((product.product_id || product.id) === productId) {
+          // Calcola il nuovo stato basato sulla nuova quantità
+          const minStock = product.min_stock_treshold || 10;
+          let newStatus: "Disponibile" | "Esaurito" | "Bassa giacenza";
+          
+          if (newQuantity <= 0) {
+            newStatus = "Esaurito";
+          } else if (newQuantity <= minStock) {
+            newStatus = "Bassa giacenza";
+          } else {
+            newStatus = "Disponibile";
+          }
+          
+          return {
+            ...product,
+            quantity: newQuantity,
+            status: newStatus
+          };
+        }
+        return product;
+      })
+    );
+  };
+
   // Funzione per eliminare un prodotto
   const handleDeleteProduct = async (id: string): Promise<void> => {
     try {
@@ -360,10 +388,13 @@ export default function Products() {
       </Card>
 
       <ProductThemeProvider>
+       
+        
         <ProductTable
           products={filteredProducts}
           categories={categories}
           onDeleteProduct={handleDeleteProduct}
+          onUpdateQuantity={handleUpdateQuantity}
           sortBy={sortBy}
           onSort={setSortBy}
           isLoading={isLoading}
