@@ -57,7 +57,7 @@ interface ProductFormData {
   costPrice: string;
   vatRate: string;
   reorderQuantity: string; // Quantità di riordino consigliata
-  stockUnit: string; // Unità di misura (pz, kg, l, ecc.)
+  stockUnit: string; // Quantità disponibile (stock)
   warehouse: string;
   leadTime?: string;
 }
@@ -866,6 +866,7 @@ export default function AddProduct() {
         description: formData.description,
         price: parseFloat(formData.price) || 0,
         minStockThreshold: parseInt(formData.minStockThreshold) || 0,
+
         barcode: formData.barcode,
         qrCode: formData.qrCode,
         supplier: formData.supplier,
@@ -878,7 +879,7 @@ export default function AddProduct() {
         costPrice: parseFloat(formData.costPrice) || 0,
         vatRate: parseFloat(formData.vatRate) || 0,
         reorderQuantity: parseInt(formData.reorderQuantity) || 0,
-        stockUnit: formData.stockUnit,
+        stockUnit: parseInt(formData.stockUnit) || 0, // Quantità disponibile
         warehouse: formData.warehouse,
         attributes: formData.attributes.filter(attr => attr.name && attr.value) // Solo attributi con nome e valore
       };
@@ -888,7 +889,12 @@ export default function AddProduct() {
       const response = await axios.post("/Product/POST/CreateNewProduct", productData);
       
       if (response.status === 200) {
+        // Mostra un messaggio di successo
+        alert("Prodotto creato con successo!");
+        // Naviga alla pagina dei prodotti
         navigate("/inventory/products");
+      } else {
+        throw new Error("Risposta del server non valida");
       }
     } catch (error) {
       console.error("Error saving product:", error);
@@ -1105,16 +1111,12 @@ export default function AddProduct() {
     try {
       console.log("Initializing ZXing reader...");
       if (!codeReader.current) {
-        const hints = new Map();
-        // Ottimizza per prestazioni migliori
-        hints.set(2, true); // ASSUME_GS1 = false
-        hints.set(3, true); // RETURN_CODABAR_START_END = false
-        hints.set(5, true); // TRY_HARDER = true
-        hints.set(9, false); // PURE_BARCODE = false
-
-        // Crea il lettore con hint ottimizzati
-        codeReader.current = new BrowserMultiFormatReader(hints);
-        // Imposta timeout più basso per risultati più veloci
+        // Crea un lettore di codici semplificato
+        codeReader.current = new BrowserMultiFormatReader();
+        if (codeReader.current) {
+          codeReader.current.timeBetweenDecodingAttempts = 150;
+        }
+      } else if (codeReader.current) {
         codeReader.current.timeBetweenDecodingAttempts = 150;
       }
       console.log("ZXing reader initialized successfully");
@@ -1187,19 +1189,8 @@ export default function AddProduct() {
     try {
       console.log("Checking camera prerequisites...");
       if (!codeReader.current) {
-        // Crea un lettore di codici ottimizzato
-        const hints = new Map();
-        hints.set(5, true); // TRY_HARDER = true (migliora il rilevamento)
-
-        if (type === "barcode") {
-          // Ottimizzazioni specifiche per barcode
-          hints.set(6, 3); // POSSIBLE_FORMATS = limitato a codici 1D più comuni
-        } else {
-          // Ottimizzazioni specifiche per QR code
-          hints.set(6, 2); // POSSIBLE_FORMATS = solo QR Code
-        }
-
-        codeReader.current = new BrowserMultiFormatReader(hints);
+        // Crea un lettore di codici semplificato
+        codeReader.current = new BrowserMultiFormatReader();
         if (codeReader.current) {
           codeReader.current.timeBetweenDecodingAttempts = 150;
         }
@@ -1880,7 +1871,21 @@ export default function AddProduct() {
                     placeholder="0.00"
                     startContent={<span className="text-default-400">€</span>}
                     value={formData.price}
-                    onChange={(e) => handleChange("price", e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Permetti solo numeri positivi e decimali
+                      if (value === '' || (parseFloat(value) >= 0 && !isNaN(parseFloat(value)))) {
+                        handleChange("price", value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Impedisci l'inserimento del segno meno
+                      if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+                        e.preventDefault();
+                      }
+                    }}
+                    min="0"
+                    step="0.01"
                     isRequired
                   />
                 </div>
@@ -1897,7 +1902,19 @@ export default function AddProduct() {
                     placeholder="0.00"
                     startContent={<span className="text-default-400">€</span>}
                     value={formData.costPrice}
-                    onChange={(e) => handleChange("costPrice", e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      if (value === '' || (parseFloat(value) >= 0 && !isNaN(parseFloat(value)))) {
+                        handleChange("costPrice", value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+                        e.preventDefault();
+                      }
+                    }}
+                    min="0"
+                    step="0.01"
                   />
                 </div>
 
@@ -1936,57 +1953,7 @@ export default function AddProduct() {
                   </Select>
                 </div>
 
-                {/* Unità di misura stock */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Unità di Misura
-                  </label>
-                  <Select
-                    variant="bordered"
-                    color={formData.stockUnit ? "success" : "primary"}
-                    placeholder="Seleziona unità"
-                    selectedKeys={[formData.stockUnit?.toString() || ""]}
-                    onChange={(e) => handleChange("stockUnit", e.target.value)}
-                    startContent={
-                      <Icon
-                        icon="solar:ruler-pen-bold"
-                        className={
-                          formData.stockUnit
-                            ? "text-success"
-                            : "text-default-400"
-                        }
-                      />
-                    }
-                  >
-                    <SelectItem key="pz" textValue="Pezzi">
-                      Pezzi (pz)
-                    </SelectItem>
-                    <SelectItem key="kg" textValue="Kilogrammi">
-                      Kilogrammi (kg)
-                    </SelectItem>
-                    <SelectItem key="g" textValue="Grammi">
-                      Grammi (g)
-                    </SelectItem>
-                    <SelectItem key="l" textValue="Litri">
-                      Litri (l)
-                    </SelectItem>
-                    <SelectItem key="ml" textValue="Millilitri">
-                      Millilitri (ml)
-                    </SelectItem>
-                    <SelectItem key="m" textValue="Metri">
-                      Metri (m)
-                    </SelectItem>
-                    <SelectItem key="cm" textValue="Centimetri">
-                      Centimetri (cm)
-                    </SelectItem>
-                    <SelectItem key="m2" textValue="Metri quadri">
-                      Metri quadri (m²)
-                    </SelectItem>
-                    <SelectItem key="m3" textValue="Metri cubi">
-                      Metri cubi (m³)
-                    </SelectItem>
-                  </Select>
-                </div>
+
 
                 {/* Magazzino */}
                 <div>
@@ -2038,8 +2005,21 @@ export default function AddProduct() {
                     variant="bordered"
                     color={formData.leadTime ? "success" : "primary"}
                     placeholder="Giorni necessari per la consegna"
-                    value={formData.leadTime?.toString() || ""}
-                    onChange={(e) => handleChange("leadTime", e.target.value)}
+                    value={formData.leadTime || ""}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Permetti solo numeri interi positivi
+                      if (value === '' || (parseInt(value) >= 0 && !isNaN(parseInt(value)) && !value.includes('.'))) {
+                        handleChange("leadTime", value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') {
+                        e.preventDefault();
+                      }
+                    }}
+                    min="0"
+                    step="1"
                     startContent={
                       <Icon
                         icon="solar:clock-circle-bold"
@@ -2063,10 +2043,21 @@ export default function AddProduct() {
                     variant="bordered"
                     color={formData.reorderQuantity ? "success" : "primary"}
                     placeholder="Quantità consigliata di riordino"
-                    value={formData.reorderQuantity?.toString() || ""}
-                    onChange={(e) =>
-                      handleChange("reorderQuantity", e.target.value)
-                    }
+                    value={formData.reorderQuantity}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Permetti solo numeri interi positivi
+                      if (value === '' || (parseInt(value) >= 0 && !isNaN(parseInt(value)) && !value.includes('.'))) {
+                        handleChange("reorderQuantity", value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') {
+                        e.preventDefault();
+                      }
+                    }}
+                    min="0"
+                    step="1"
                     startContent={
                       <Icon
                         icon="solar:sort-by-time-bold"
@@ -2271,15 +2262,66 @@ export default function AddProduct() {
                     color={formData.minStockThreshold ? "success" : "primary"}
                     placeholder="Quantità minima"
                     value={formData.minStockThreshold}
-                    onChange={(e) =>
-                      handleChange("minStockThreshold", e.target.value)
-                    }
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Permetti solo numeri interi positivi
+                      if (value === '' || (parseInt(value) >= 0 && !isNaN(parseInt(value)) && !value.includes('.'))) {
+                        handleChange("minStockThreshold", value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Impedisci l'inserimento del segno meno, punto decimale e caratteri non numerici
+                      if (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') {
+                        e.preventDefault();
+                      }
+                    }}
+                    min="0"
+                    step="1"
                     isRequired
                     startContent={
                       <Icon
                         icon="solar:chart-2-bold"
                         className={
                           formData.minStockThreshold
+                            ? "text-success"
+                            : "text-default-400"
+                        }
+                      />
+                    }
+                  />
+                </div>
+
+                {/* Quantità disponibile (Stock) */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Quantità Disponibile
+                  </label>
+                  <Input
+                    type="number"
+                    variant="bordered"
+                    color={formData.stockUnit ? "success" : "primary"}
+                    placeholder="Quantità disponibile in magazzino"
+                    value={formData.stockUnit}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Permetti solo numeri interi positivi
+                      if (value === '' || (parseInt(value) >= 0 && !isNaN(parseInt(value)) && !value.includes('.'))) {
+                        handleChange("stockUnit", value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      // Impedisci l'inserimento del segno meno, punto decimale e caratteri non numerici
+                      if (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') {
+                        e.preventDefault();
+                      }
+                    }}
+                    min="0"
+                    step="1"
+                    startContent={
+                      <Icon
+                        icon="solar:box-bold"
+                        className={
+                          formData.stockUnit
                             ? "text-success"
                             : "text-default-400"
                         }
@@ -2544,7 +2586,20 @@ export default function AddProduct() {
                     color={formData.weight ? "success" : "primary"}
                     placeholder="Peso in kg"
                     value={formData.weight}
-                    onChange={(e) => handleChange("weight", e.target.value)}
+                    onChange={(e) => {
+                      const value = e.target.value;
+                      // Permetti solo numeri positivi e decimali
+                      if (value === '' || (parseFloat(value) >= 0 && !isNaN(parseFloat(value)))) {
+                        handleChange("weight", value);
+                      }
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+                        e.preventDefault();
+                      }
+                    }}
+                    min="0"
+                    step="0.01"
                     startContent={
                       <Icon
                         icon="solar:scales-bold"

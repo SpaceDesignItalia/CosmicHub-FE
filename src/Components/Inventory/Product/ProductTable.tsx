@@ -244,14 +244,17 @@ export default function ProductTable({
           <div className="flex justify-start w-full">
             <div
               className={`font-medium ${
-                product.quantity > 0
-                  ? product.quantity <= (product.min_stock_treshold || 10)
+                (product.quantity || 0) > 0
+                  ? (product.quantity || 0) <= (product.min_stock_treshold || 10)
                     ? "text-warning"
                     : "text-success"
                   : "text-danger"
               }`}
             >
-              {product.quantity}
+              {product.quantity || 0}
+              {(product.quantity || 0) === 0 && (
+                <span className="text-xs ml-1 text-danger"></span>
+              )}
             </div>
           </div>
         );
@@ -660,14 +663,17 @@ export default function ProductTable({
                     </p>
                     <p
                       className={`font-medium ${
-                        selectedProduct.quantity > 0
-                          ? selectedProduct.quantity <= (selectedProduct.min_stock_treshold || 10)
+                        (selectedProduct.quantity || 0) > 0
+                          ? (selectedProduct.quantity || 0) <= (selectedProduct.min_stock_treshold || 10)
                             ? "text-warning"
                             : "text-success"
                           : "text-danger"
                       }`}
                     >
-                      {selectedProduct.quantity}
+                      {selectedProduct.quantity || 0}
+                      {(selectedProduct.quantity || 0) === 0 && (
+                        <span className="text-xs ml-1">(Non disponibile)</span>
+                      )}
                     </p>
                   </div>
                   <div>

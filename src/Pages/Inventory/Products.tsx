@@ -84,12 +84,13 @@ export default function Products() {
         // Ora ottieni i prodotti
         const productsRes = await axios.get("/Product/GET/GetAllProducts");
         const rawProducts = productsRes.data;
-        
+        console.log(rawProducts);
         // Processa i prodotti con i dati ottenuti
         const processedProducts = rawProducts.map((product: any) => {
           // Calcola lo stato del prodotto
-          const quantity = product.quantity || 0;
-          const minStock = product.min_stock_treshold || 10;
+          // Usa stock_unit come quantità dal database
+          const quantity = parseInt(product.stock_unit) || 0;
+          const minStock = parseInt(product.min_stock_treshold) || 10;
           
           let status: "Disponibile" | "Esaurito" | "Bassa giacenza";
           if (quantity <= 0) {
@@ -106,10 +107,17 @@ export default function Products() {
           return {
             ...product,
             id: product.product_id, // Per compatibilità con componenti esistenti
+            quantity: quantity, // Usa stock_unit come quantità
             status,
             category: categoryName
           } as Product;
         });
+        
+        // Log per debug: controlla se ci sono prodotti senza quantità
+        const productsWithoutQuantity = processedProducts.filter((p: Product) => !p.quantity);
+        if (productsWithoutQuantity.length > 0) {
+          console.warn(`${productsWithoutQuantity.length} prodotti non hanno quantità impostata`);
+        }
         
         setProducts(processedProducts);
       } catch (error) {
