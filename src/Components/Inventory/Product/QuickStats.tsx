@@ -1,7 +1,21 @@
 import { Card } from "@heroui/react";
 import { Icon } from "@iconify/react/dist/iconify.js";
+import { useMemo } from "react";
 
-export default function QuickStats() {
+interface Product {
+  product_id: string;
+  name: string;
+  quantity: number;
+  price: number;
+  min_stock_treshold: number;
+  status: string;
+}
+
+interface QuickStatsProps {
+  products: Product[];
+}
+
+export default function QuickStats({ products }: QuickStatsProps) {
   // Function to format currency numbers
   const formatCurrency = (num: number) => {
     return new Intl.NumberFormat("it-IT", {
@@ -20,31 +34,59 @@ export default function QuickStats() {
     }).format(num);
   };
 
+  // Calcola le statistiche basate sui prodotti effettivi
+  const statsData = useMemo(() => {
+    // Totale prodotti
+    const totalProducts = products.length;
+    
+    // Prodotti con bassa giacenza
+    const lowStockProducts = products.filter(
+      (product) => product.status === "Bassa giacenza"
+    ).length;
+    
+    // Prodotti esauriti
+    const outOfStockProducts = products.filter(
+      (product) => product.status === "Esaurito"
+    ).length;
+    
+    // Valore totale dell'inventario
+    const totalValue = products.reduce((total, product) => {
+      return total + (product.price || 0) * (product.quantity || 0);
+    }, 0);
+    
+    return {
+      totalProducts,
+      lowStockProducts,
+      outOfStockProducts,
+      totalValue,
+    };
+  }, [products]);
+
   const stats = [
     {
-      title: "Total Products",
-      value: 100,
+      title: "Prodotti Totali",
+      value: statsData.totalProducts,
       icon: "solar:box-bold-duotone",
       color: "blue",
       format: formatNumber,
     },
     {
-      title: "Low Stock",
-      value: 10,
+      title: "Bassa Giacenza",
+      value: statsData.lowStockProducts,
       icon: "uil:chart-down",
       color: "yellow",
       format: formatNumber,
     },
     {
-      title: "Out of Stock",
-      value: 20,
+      title: "Esauriti",
+      value: statsData.outOfStockProducts,
       icon: "solar:close-circle-bold-duotone",
       color: "red",
       format: formatNumber,
     },
     {
-      title: "Total Value",
-      value: 400000,
+      title: "Valore Totale",
+      value: statsData.totalValue,
       icon: "solar:dollar-bold-duotone",
       color: "green",
       format: formatCurrency,
