@@ -58,15 +58,8 @@ interface ProductFormData {
   vatRate: string;
   reorderQuantity: string; // Quantità di riordino consigliata
   stockUnit: string; // Unità di misura (pz, kg, l, ecc.)
-  [key: string]:
-    | string
-    | number
-    | boolean
-    | FileWithPreview[]
-    | "manual"
-    | "auto"
-    | "scan"
-    | ProductAttribute[];
+  warehouse: string;
+  leadTime?: string;
 }
 
 interface FileWithPreview extends File {
@@ -642,6 +635,7 @@ export default function AddProduct() {
     reorderQuantity: "",
     stockUnit: "",
     warehouse: "",
+    leadTime: "",
   });
   const [isDraggingPhotos, setIsDraggingPhotos] = useState(false);
   const [isDraggingDocs, setIsDraggingDocs] = useState(false);
@@ -676,7 +670,7 @@ export default function AddProduct() {
 
   useEffect(() => {
     // Calculate form completion progress
-    const requiredFields = [
+    const requiredFields: (keyof ProductFormData)[] = [
       "name",
       "sku",
       "category",
@@ -692,15 +686,17 @@ export default function AddProduct() {
     // Calculate errors per tab
     const errors: TabError[] = [];
     if (!formData.name || !formData.sku || !formData.category) {
+      const missingBasicFields = ["name", "sku", "category"].filter((f) => !formData[f as keyof ProductFormData]);
       errors.push({
         tab: "basic",
-        count: ["name", "sku", "category"].filter((f) => !formData[f]).length,
+        count: missingBasicFields.length,
       });
     }
     if (!formData.price || !formData.supplier) {
+      const missingCommercialFields = ["price", "supplier"].filter((f) => !formData[f as keyof ProductFormData]);
       errors.push({
         tab: "commercial",
-        count: ["price", "supplier"].filter((f) => !formData[f]).length,
+        count: missingCommercialFields.length,
       });
     }
     if (!formData.minStockThreshold) {
@@ -712,8 +708,8 @@ export default function AddProduct() {
   // Calcola il prezzo finale considerando IVA
   const calculateFinalPrice = () => {
     const basePrice = parseFloat(formData.price) || 0;
-    const vatRate = parseFloat(formData.vatRate as string) || 0;
-    const costPrice = parseFloat(formData.costPrice as string) || 0;
+    const vatRate = parseFloat(formData.vatRate) || 0;
+    const costPrice = parseFloat(formData.costPrice) || 0;
 
     // Calcola il prezzo con IVA
     const finalPrice = basePrice * (1 + vatRate / 100);
@@ -827,7 +823,7 @@ export default function AddProduct() {
     }
   };
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: keyof ProductFormData, value: any) => {
     setFormData((prev) => ({
       ...prev,
       [field]: value,
@@ -836,19 +832,68 @@ export default function AddProduct() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Validazione campi obbligatori
+    const requiredFields = {
+      name: "Nome Prodotto",
+      sku: "SKU",
+      category: "Categoria",
+      price: "Prezzo",
+      minStockThreshold: "Soglia Minima Stock",
+      supplier: "Fornitore"
+    };
+    
+    const missingFields = Object.entries(requiredFields).filter(
+      ([field, _]) => {
+        const value = formData[field as keyof ProductFormData];
+        return !value || (typeof value === 'string' && value.trim() === "");
+      }
+    );
+    
+    if (missingFields.length > 0) {
+      const missingFieldNames = missingFields.map(([_, label]) => label).join(", ");
+      alert(`I seguenti campi sono obbligatori: ${missingFieldNames}`);
+      return;
+    }
+    
     setIsSaving(true);
 
     try {
-      console.log("formData", formData);
-      await axios
-        .post("/Product/POST/CreateNewProduct", formData)
-        .then((res) => {
-          if (res.status === 200) {
-            navigate("/inventory/products");
-          }
-        });
+      // Prepara i dati nel formato atteso dal backend
+      const productData = {
+        name: formData.name,
+        sku: formData.sku,
+        description: formData.description,
+        price: parseFloat(formData.price) || 0,
+        minStockThreshold: parseInt(formData.minStockThreshold) || 0,
+        barcode: formData.barcode,
+        qrCode: formData.qrCode,
+        supplier: formData.supplier,
+        category: formData.category, // Il backend cerca per nome categoria
+        brand: formData.brand,
+        weight: formData.weight,
+        dimensions: formData.dimensions,
+        location: formData.location,
+        notes: formData.notes,
+        costPrice: parseFloat(formData.costPrice) || 0,
+        vatRate: parseFloat(formData.vatRate) || 0,
+        reorderQuantity: parseInt(formData.reorderQuantity) || 0,
+        stockUnit: formData.stockUnit,
+        warehouse: formData.warehouse,
+        attributes: formData.attributes.filter(attr => attr.name && attr.value) // Solo attributi con nome e valore
+      };
+
+      console.log("Sending product data:", productData);
+      
+      const response = await axios.post("/Product/POST/CreateNewProduct", productData);
+      
+      if (response.status === 200) {
+        navigate("/inventory/products");
+      }
     } catch (error) {
       console.error("Error saving product:", error);
+      // Mostra un messaggio di errore all'utente
+      alert("Errore durante il salvataggio del prodotto. Riprova.");
     } finally {
       setIsSaving(false);
     }
@@ -1573,7 +1618,7 @@ export default function AddProduct() {
 
   const calculateReorderPoint = () => {
     const minStock = parseFloat(formData.minStockThreshold) || 0;
-    const leadTime = parseFloat(formData.leadTime?.toString() || "0") || 1; // Default a 1 giorno se non specificato
+    const leadTime = parseFloat(formData.leadTime || "0") || 1; // Default a 1 giorno se non specificato
 
     if (minStock <= 0 || leadTime <= 0) return 0;
 
@@ -1586,7 +1631,7 @@ export default function AddProduct() {
 
   const calculateProfit = () => {
     const basePrice = parseFloat(formData.price) || 0;
-    const costPrice = parseFloat(formData.costPrice as string) || 0;
+    const costPrice = parseFloat(formData.costPrice) || 0;
     return basePrice - costPrice;
   };
 
@@ -2982,8 +3027,16 @@ export default function AddProduct() {
               </div>
             </Tab>
           </Tabs>
-          <Button type="submit" color="primary" variant="flat">
-            Salva
+          <Button 
+            type="submit" 
+            color="primary" 
+            variant="solid"
+            isLoading={isSaving}
+            disabled={isSaving}
+            startContent={!isSaving && <Icon icon="solar:diskette-bold" />}
+            className="min-w-32"
+          >
+            {isSaving ? "Salvataggio..." : "Salva Prodotto"}
           </Button>
         </form>
       </CardBody>
