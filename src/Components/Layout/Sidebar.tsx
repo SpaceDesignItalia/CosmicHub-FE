@@ -400,7 +400,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   aria-label={item.title}
                   classNames={{
                     base: "px-0",
-                    trigger: "px-0 min-h-11 h-[44px] data-[hover=true]:bg-transparent transition-colors",
+                    trigger:
+                      "px-0 min-h-11 h-[44px] data-[hover=true]:bg-transparent transition-colors",
                     content: "px-0 pb-0",
                   }}
                   title={
@@ -428,7 +429,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                       items={item.items}
                       variant="flat"
                       classNames={{
-                        list: "gap-1 pl-6 pt-1"
+                        list: "gap-1 pl-6 pt-1",
                       }}
                     >
                       {item.items.map(renderItem)}
@@ -597,7 +598,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               <DropdownTrigger>
                 <Button
                   fullWidth
-                  variant="light"
+                  variant="bordered"
                   className={cn(
                     "justify-between",
                     isDark

@@ -686,14 +686,18 @@ export default function AddProduct() {
     // Calculate errors per tab
     const errors: TabError[] = [];
     if (!formData.name || !formData.sku || !formData.category) {
-      const missingBasicFields = ["name", "sku", "category"].filter((f) => !formData[f as keyof ProductFormData]);
+      const missingBasicFields = ["name", "sku", "category"].filter(
+        (f) => !formData[f as keyof ProductFormData]
+      );
       errors.push({
         tab: "basic",
         count: missingBasicFields.length,
       });
     }
     if (!formData.price || !formData.supplier) {
-      const missingCommercialFields = ["price", "supplier"].filter((f) => !formData[f as keyof ProductFormData]);
+      const missingCommercialFields = ["price", "supplier"].filter(
+        (f) => !formData[f as keyof ProductFormData]
+      );
       errors.push({
         tab: "commercial",
         count: missingCommercialFields.length,
@@ -832,7 +836,7 @@ export default function AddProduct() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validazione campi obbligatori
     const requiredFields = {
       name: "Nome Prodotto",
@@ -840,22 +844,24 @@ export default function AddProduct() {
       category: "Categoria",
       price: "Prezzo",
       minStockThreshold: "Soglia Minima Stock",
-      supplier: "Fornitore"
+      supplier: "Fornitore",
     };
-    
+
     const missingFields = Object.entries(requiredFields).filter(
       ([field, _]) => {
         const value = formData[field as keyof ProductFormData];
-        return !value || (typeof value === 'string' && value.trim() === "");
+        return !value || (typeof value === "string" && value.trim() === "");
       }
     );
-    
+
     if (missingFields.length > 0) {
-      const missingFieldNames = missingFields.map(([_, label]) => label).join(", ");
+      const missingFieldNames = missingFields
+        .map(([_, label]) => label)
+        .join(", ");
       alert(`I seguenti campi sono obbligatori: ${missingFieldNames}`);
       return;
     }
-    
+
     setIsSaving(true);
 
     try {
@@ -881,13 +887,18 @@ export default function AddProduct() {
         reorderQuantity: parseInt(formData.reorderQuantity) || 0,
         stockUnit: parseInt(formData.stockUnit) || 0, // Quantità disponibile
         warehouse: formData.warehouse,
-        attributes: formData.attributes.filter(attr => attr.name && attr.value) // Solo attributi con nome e valore
+        attributes: formData.attributes.filter(
+          (attr) => attr.name && attr.value
+        ), // Solo attributi con nome e valore
       };
 
       console.log("Sending product data:", productData);
-      
-      const response = await axios.post("/Product/POST/CreateNewProduct", productData);
-      
+
+      const response = await axios.post(
+        "/Product/POST/CreateNewProduct",
+        productData
+      );
+
       if (response.status === 200) {
         // Mostra un messaggio di successo
         alert("Prodotto creato con successo!");
@@ -1138,7 +1149,7 @@ export default function AddProduct() {
   // Modify the scanner effect
   useEffect(() => {
     let isActive = true;
-    let scannerTimeout: number | NodeJS.Timeout | null = null;
+    let scannerTimeout: number | ReturnType<typeof setTimeout> | null = null;
 
     const initializeScanner = async () => {
       if (isScannerOpen && scannerType && isActive) {
@@ -1874,13 +1885,16 @@ export default function AddProduct() {
                     onChange={(e) => {
                       const value = e.target.value;
                       // Permetti solo numeri positivi e decimali
-                      if (value === '' || (parseFloat(value) >= 0 && !isNaN(parseFloat(value)))) {
+                      if (
+                        value === "" ||
+                        (parseFloat(value) >= 0 && !isNaN(parseFloat(value)))
+                      ) {
                         handleChange("price", value);
                       }
                     }}
                     onKeyDown={(e) => {
                       // Impedisci l'inserimento del segno meno
-                      if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+                      if (e.key === "-" || e.key === "e" || e.key === "E") {
                         e.preventDefault();
                       }
                     }}
@@ -1904,12 +1918,15 @@ export default function AddProduct() {
                     value={formData.costPrice}
                     onChange={(e) => {
                       const value = e.target.value;
-                      if (value === '' || (parseFloat(value) >= 0 && !isNaN(parseFloat(value)))) {
+                      if (
+                        value === "" ||
+                        (parseFloat(value) >= 0 && !isNaN(parseFloat(value)))
+                      ) {
                         handleChange("costPrice", value);
                       }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+                      if (e.key === "-" || e.key === "e" || e.key === "E") {
                         e.preventDefault();
                       }
                     }}
@@ -1952,8 +1969,6 @@ export default function AddProduct() {
                     </SelectItem>
                   </Select>
                 </div>
-
-
 
                 {/* Magazzino */}
                 <div>
@@ -2009,12 +2024,22 @@ export default function AddProduct() {
                     onChange={(e) => {
                       const value = e.target.value;
                       // Permetti solo numeri interi positivi
-                      if (value === '' || (parseInt(value) >= 0 && !isNaN(parseInt(value)) && !value.includes('.'))) {
+                      if (
+                        value === "" ||
+                        (parseInt(value) >= 0 &&
+                          !isNaN(parseInt(value)) &&
+                          !value.includes("."))
+                      ) {
                         handleChange("leadTime", value);
                       }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') {
+                      if (
+                        e.key === "-" ||
+                        e.key === "." ||
+                        e.key === "e" ||
+                        e.key === "E"
+                      ) {
                         e.preventDefault();
                       }
                     }}
@@ -2047,12 +2072,22 @@ export default function AddProduct() {
                     onChange={(e) => {
                       const value = e.target.value;
                       // Permetti solo numeri interi positivi
-                      if (value === '' || (parseInt(value) >= 0 && !isNaN(parseInt(value)) && !value.includes('.'))) {
+                      if (
+                        value === "" ||
+                        (parseInt(value) >= 0 &&
+                          !isNaN(parseInt(value)) &&
+                          !value.includes("."))
+                      ) {
                         handleChange("reorderQuantity", value);
                       }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') {
+                      if (
+                        e.key === "-" ||
+                        e.key === "." ||
+                        e.key === "e" ||
+                        e.key === "E"
+                      ) {
                         e.preventDefault();
                       }
                     }}
@@ -2265,13 +2300,23 @@ export default function AddProduct() {
                     onChange={(e) => {
                       const value = e.target.value;
                       // Permetti solo numeri interi positivi
-                      if (value === '' || (parseInt(value) >= 0 && !isNaN(parseInt(value)) && !value.includes('.'))) {
+                      if (
+                        value === "" ||
+                        (parseInt(value) >= 0 &&
+                          !isNaN(parseInt(value)) &&
+                          !value.includes("."))
+                      ) {
                         handleChange("minStockThreshold", value);
                       }
                     }}
                     onKeyDown={(e) => {
                       // Impedisci l'inserimento del segno meno, punto decimale e caratteri non numerici
-                      if (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') {
+                      if (
+                        e.key === "-" ||
+                        e.key === "." ||
+                        e.key === "e" ||
+                        e.key === "E"
+                      ) {
                         e.preventDefault();
                       }
                     }}
@@ -2305,13 +2350,23 @@ export default function AddProduct() {
                     onChange={(e) => {
                       const value = e.target.value;
                       // Permetti solo numeri interi positivi
-                      if (value === '' || (parseInt(value) >= 0 && !isNaN(parseInt(value)) && !value.includes('.'))) {
+                      if (
+                        value === "" ||
+                        (parseInt(value) >= 0 &&
+                          !isNaN(parseInt(value)) &&
+                          !value.includes("."))
+                      ) {
                         handleChange("stockUnit", value);
                       }
                     }}
                     onKeyDown={(e) => {
                       // Impedisci l'inserimento del segno meno, punto decimale e caratteri non numerici
-                      if (e.key === '-' || e.key === '.' || e.key === 'e' || e.key === 'E') {
+                      if (
+                        e.key === "-" ||
+                        e.key === "." ||
+                        e.key === "e" ||
+                        e.key === "E"
+                      ) {
                         e.preventDefault();
                       }
                     }}
@@ -2589,12 +2644,15 @@ export default function AddProduct() {
                     onChange={(e) => {
                       const value = e.target.value;
                       // Permetti solo numeri positivi e decimali
-                      if (value === '' || (parseFloat(value) >= 0 && !isNaN(parseFloat(value)))) {
+                      if (
+                        value === "" ||
+                        (parseFloat(value) >= 0 && !isNaN(parseFloat(value)))
+                      ) {
                         handleChange("weight", value);
                       }
                     }}
                     onKeyDown={(e) => {
-                      if (e.key === '-' || e.key === 'e' || e.key === 'E') {
+                      if (e.key === "-" || e.key === "e" || e.key === "E") {
                         e.preventDefault();
                       }
                     }}
@@ -3082,9 +3140,9 @@ export default function AddProduct() {
               </div>
             </Tab>
           </Tabs>
-          <Button 
-            type="submit" 
-            color="primary" 
+          <Button
+            type="submit"
+            color="primary"
             variant="solid"
             isLoading={isSaving}
             disabled={isSaving}
