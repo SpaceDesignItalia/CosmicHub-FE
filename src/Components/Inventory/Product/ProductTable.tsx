@@ -36,24 +36,40 @@ import { Icon } from "@iconify/react/dist/iconify.js";
 import axios from "axios";
 
 // Data types
+interface Attribute {
+  name: string;
+  data_type: string;
+  value: string;
+}
+
 interface Product {
   product_id: string;
   id?: string; // Per compatibilità
   name: string;
-  category: string;
   category_id: string;
-  quantity: number;
+  sku: string;
+  description: string;
   price: number;
   min_stock_treshold: number;
+  quantity: number;
+  barcode: string;
+  qr_code: string;
+  supplier_id: string;
+  brand_id: string;
+  weight: string;
+  dimensions: string;
+  location: string;
+  notes: string;
+  cost_price: number;
+  vat_rate: number;
+  reorder_quantity: number;
+  stock_unit: string;
+  warehouse_id: string;
+  attributes: Attribute[];
+  // Campi calcolati per UI
   status: "Disponibile" | "Esaurito" | "Bassa giacenza";
+  category: string;
   image?: string;
-  sku?: string;
-  description?: string;
-  barcode?: string;
-  qr_code?: string;
-  supplier_id?: string;
-  brand_id?: string;
-  attributes?: any[];
 }
 
 interface ProductTableProps {
@@ -79,20 +95,20 @@ const columns = [
   { name: "PRODOTTO", uid: "name", sortable: true },
   { name: "CATEGORIA", uid: "category", sortable: true },
   { name: "SKU", uid: "sku", sortable: true },
-  { 
+  {
     name: (
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 w-full">
         <span>QUANTITÀ</span>
-        <Tooltip content="Doppio click per modificare" size="sm">
-          <Icon 
-            icon="solar:cursor-bold" 
-            className="text-xs text-default-400 cursor-help" 
+        <Tooltip content="Doppio click sulla cella per modificare" size="sm">
+          <Icon
+            icon="solar:question-circle-linear"
+            className="text-xs text-default-400 cursor-help"
           />
         </Tooltip>
       </div>
-    ), 
-    uid: "quantity", 
-    sortable: true 
+    ),
+    uid: "quantity",
+    sortable: true,
   },
   { name: "PREZZO", uid: "price", sortable: true },
   { name: "STATO", uid: "status", sortable: true },
@@ -235,7 +251,7 @@ export default function ProductTable({
 
   const renderCell = useCallback((product: Product, columnKey: React.Key) => {
     const productId = product.product_id || product.id || "";
-    
+
     switch (columnKey) {
       case "name":
         return (
@@ -255,26 +271,30 @@ export default function ProductTable({
         return (
           <div className="flex items-center gap-2">
             <span
-              className={`w-2 h-2 rounded-full bg-${product.category.toLowerCase().replace(/\s+/g, '')}`}
+              className={`w-2 h-2 rounded-full bg-${product.category
+                .toLowerCase()
+                .replace(/\s+/g, "")}`}
             />
             {product.category}
           </div>
         );
       case "quantity":
         return (
-          <InlineQuantityEditor 
-            product={product} 
+          <InlineQuantityEditor
+            product={product}
             onUpdate={(id, newQuantity) => {
               if (onUpdateQuantity) {
                 onUpdateQuantity(id, newQuantity);
               }
-            }} 
+            }}
           />
         );
       case "price":
         return (
           <div className="flex justify-start w-full">
-            <div className="font-medium">€{parseFloat(product.price.toString()).toFixed(2)}</div>
+            <div className="font-medium">
+              €{parseFloat(product.price.toString()).toFixed(2)}
+            </div>
           </div>
         );
       case "status":
@@ -354,7 +374,11 @@ export default function ProductTable({
           </div>
         );
       default:
-        return product[columnKey as keyof Product];
+        const value = product[columnKey as keyof Product];
+        if (Array.isArray(value)) {
+          return value.map((item) => item.name || "").join(", ");
+        }
+        return value?.toString() || "";
     }
   }, []);
 
@@ -393,7 +417,9 @@ export default function ProductTable({
                       if (selectedKeys === "all") {
                         // Delete all products
                         products.forEach((product) => {
-                          onDeleteProduct(product.product_id || product.id || "");
+                          onDeleteProduct(
+                            product.product_id || product.id || ""
+                          );
                         });
                       } else if (typeof selectedKeys !== "string") {
                         // Delete selected products
@@ -502,7 +528,9 @@ export default function ProductTable({
             onOpen();
             break;
           case "e":
-            goToEditProduct(selectedProduct.product_id || selectedProduct.id || "");
+            goToEditProduct(
+              selectedProduct.product_id || selectedProduct.id || ""
+            );
             break;
           case "d":
             confirmDeleteProduct(selectedProduct);
@@ -566,7 +594,10 @@ export default function ProductTable({
             </TableColumn>
           )}
         </TableHeader>
-        <TableBody emptyContent={<EmptyState isLoading={isLoading} />} items={sortedItems}>
+        <TableBody
+          emptyContent={<EmptyState isLoading={isLoading} />}
+          items={sortedItems}
+        >
           {(item) => (
             <TableRow key={item.product_id || item.id}>
               {(columnKey) => (
@@ -628,7 +659,9 @@ export default function ProductTable({
                     >
                       ID Prodotto
                     </p>
-                    <p className="font-medium">{selectedProduct.product_id || selectedProduct.id}</p>
+                    <p className="font-medium">
+                      {selectedProduct.product_id || selectedProduct.id}
+                    </p>
                   </div>
                   <div>
                     <p
@@ -648,7 +681,9 @@ export default function ProductTable({
                     >
                       SKU
                     </p>
-                    <p className="font-medium">{selectedProduct.sku || "N/A"}</p>
+                    <p className="font-medium">
+                      {selectedProduct.sku || "N/A"}
+                    </p>
                   </div>
                   <div>
                     <p
@@ -660,7 +695,9 @@ export default function ProductTable({
                     </p>
                     <div className="flex items-center">
                       <span
-                        className={`w-2 h-2 rounded-full bg-${selectedProduct.category.toLowerCase().replace(/\s+/g, '')} mr-2`}
+                        className={`w-2 h-2 rounded-full bg-${selectedProduct.category
+                          .toLowerCase()
+                          .replace(/\s+/g, "")} mr-2`}
                       />
                       <p className="font-medium">{selectedProduct.category}</p>
                     </div>
@@ -676,7 +713,8 @@ export default function ProductTable({
                     <p
                       className={`font-medium ${
                         (selectedProduct.quantity || 0) > 0
-                          ? (selectedProduct.quantity || 0) <= (selectedProduct.min_stock_treshold || 10)
+                          ? (selectedProduct.quantity || 0) <=
+                            (selectedProduct.min_stock_treshold || 10)
                             ? "text-warning"
                             : "text-success"
                           : "text-danger"
@@ -725,7 +763,9 @@ export default function ProductTable({
                       >
                         Descrizione
                       </p>
-                      <p className="font-medium">{selectedProduct.description}</p>
+                      <p className="font-medium">
+                        {selectedProduct.description}
+                      </p>
                     </div>
                   )}
                 </div>
@@ -742,7 +782,9 @@ export default function ProductTable({
                   color="primary"
                   onPress={() => {
                     onClose();
-                    goToEditProduct(selectedProduct.product_id || selectedProduct.id || "");
+                    goToEditProduct(
+                      selectedProduct.product_id || selectedProduct.id || ""
+                    );
                   }}
                 >
                   Modifica
