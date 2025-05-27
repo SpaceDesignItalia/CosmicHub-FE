@@ -59,6 +59,101 @@ export default function Products() {
   const [categories, setCategories] = useState<string[]>(["Tutti"]);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Stato per il magazzino selezionato
+  const [selectedWarehouse, setSelectedWarehouse] = useState<string | null>(
+    () => {
+      return localStorage.getItem("selectedWarehouse");
+    }
+  );
+
+  // Stato per i dettagli del magazzino selezionato
+  const [warehouseDetails, setWarehouseDetails] = useState<{
+    name: string;
+    code?: string;
+    id?: string | number; // Aggiungo l'ID numerico del magazzino
+  } | null>(null);
+
+  // Funzione per recuperare i dettagli del magazzino
+  const fetchWarehouseDetails = async (warehouseId: string) => {
+    try {
+      const response = await axios.get("/Warehouse/GET/GetWarehouseByUUID", {
+        params: {
+          warehouse_uuid: warehouseId,
+        },
+      });
+
+      if (response.data) {
+        setWarehouseDetails({
+          name:
+            response.data.name || response.data.WarehouseName || "Magazzino",
+          code: response.data.WarehouseCode,
+          id:
+            response.data.WarehouseID ||
+            response.data.warehouse_id ||
+            response.data.id,
+        });
+      }
+    } catch (error) {
+      console.error("Errore nel caricamento dettagli magazzino:", error);
+      // Fallback: prova con GetAllWarehouses e trova il magazzino
+      try {
+        const allWarehousesResponse = await axios.get(
+          "/Warehouse/GET/GetAllWarehouses"
+        );
+        const warehouse = allWarehousesResponse.data.find(
+          (w: any) => (w.WarehouseUUID || w.warehouse_id) === warehouseId
+        );
+
+        if (warehouse) {
+          setWarehouseDetails({
+            name: warehouse.name || warehouse.WarehouseName || "Magazzino",
+            code: warehouse.WarehouseCode,
+            id: warehouse.WarehouseID || warehouse.warehouse_id || warehouse.id,
+          });
+        }
+      } catch (fallbackError) {
+        console.error(
+          "Errore nel fallback per dettagli magazzino:",
+          fallbackError
+        );
+        setWarehouseDetails(null);
+      }
+    }
+  };
+
+  // Effetto per caricare i dettagli del magazzino quando cambia
+  useEffect(() => {
+    if (selectedWarehouse) {
+      fetchWarehouseDetails(selectedWarehouse);
+    } else {
+      setWarehouseDetails(null);
+    }
+  }, [selectedWarehouse]);
+
+  // Effetto per monitorare i cambiamenti del magazzino selezionato nel localStorage
+  useEffect(() => {
+    const handleStorageChange = () => {
+      const newSelectedWarehouse = localStorage.getItem("selectedWarehouse");
+      setSelectedWarehouse(newSelectedWarehouse);
+    };
+
+    // Ascolta i cambiamenti nel localStorage
+    window.addEventListener("storage", handleStorageChange);
+
+    // Controlla periodicamente per cambiamenti locali
+    const interval = setInterval(() => {
+      const currentWarehouse = localStorage.getItem("selectedWarehouse");
+      if (currentWarehouse !== selectedWarehouse) {
+        setSelectedWarehouse(currentWarehouse);
+      }
+    }, 1000);
+
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [selectedWarehouse]);
+
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -67,31 +162,46 @@ export default function Products() {
         const categoriesRes = await axios.get("/Product/GET/GetAllCategories");
         const categoriesData = categoriesRes.data as CategoryAttribute[];
         setCategoriesData(categoriesData);
-        
+
         // Estrai i nomi unici delle categorie
         const uniqueCategories = ["Tutti"];
         const categoryMap = new Map<string, string>();
-        
+
         categoriesData.forEach((cat) => {
           if (!uniqueCategories.includes(cat.category_name)) {
             uniqueCategories.push(cat.category_name);
           }
           categoryMap.set(cat.category_id, cat.category_name);
         });
-        
+
         setCategories(uniqueCategories);
-        
-        // Ora ottieni i prodotti
-        const productsRes = await axios.get("/Product/GET/GetAllProducts");
+
+        // Ora ottieni i prodotti filtrati per magazzino
+        let productsRes;
+        if (selectedWarehouse && warehouseDetails?.id) {
+          // Se c'è un magazzino selezionato e abbiamo l'ID numerico, usa l'endpoint specifico per magazzino
+          productsRes = await axios.get("/Product/GET/GetProductsByWarehouse", {
+            params: {
+              warehouse_id: warehouseDetails.id,
+            },
+          });
+        } else if (selectedWarehouse) {
+          // Se abbiamo solo l'UUID ma non ancora l'ID numerico, aspetta che warehouseDetails sia caricato
+          return; // Esce dalla funzione, verrà richiamata quando warehouseDetails sarà disponibile
+        } else {
+          // Se non c'è un magazzino selezionato, carica tutti i prodotti
+          productsRes = await axios.get("/Product/GET/GetAllProducts");
+        }
+
         const rawProducts = productsRes.data;
-        console.log(rawProducts);
+
         // Processa i prodotti con i dati ottenuti
         const processedProducts = rawProducts.map((product: any) => {
           // Calcola lo stato del prodotto
           // Usa stock_unit come quantità dal database
           const quantity = parseInt(product.stock_unit) || 0;
           const minStock = parseInt(product.min_stock_treshold) || 10;
-          
+
           let status: "Disponibile" | "Esaurito" | "Bassa giacenza";
           if (quantity <= 0) {
             status = "Esaurito";
@@ -100,25 +210,25 @@ export default function Products() {
           } else {
             status = "Disponibile";
           }
-          
+
           // Aggiungi la categoria in formato leggibile usando la mappa
-          const categoryName = categoryMap.get(product.category_id) || "Non categorizzato";
-          
+          const categoryName =
+            categoryMap.get(product.category_id) || "Non categorizzato";
+
           return {
             ...product,
             id: product.product_id, // Per compatibilità con componenti esistenti
             quantity: quantity, // Usa stock_unit come quantità
             status,
-            category: categoryName
+            category: categoryName,
           } as Product;
         });
-        
+
         // Log per debug: controlla se ci sono prodotti senza quantità
-        const productsWithoutQuantity = processedProducts.filter((p: Product) => !p.quantity);
-        if (productsWithoutQuantity.length > 0) {
-          console.warn(`${productsWithoutQuantity.length} prodotti non hanno quantità impostata`);
-        }
-        
+        const productsWithoutQuantity = processedProducts.filter(
+          (p: Product) => !p.quantity
+        );
+
         setProducts(processedProducts);
       } catch (error) {
         console.error("Errore nel caricamento dei dati:", error);
@@ -126,9 +236,9 @@ export default function Products() {
         setIsLoading(false);
       }
     };
-    
+
     fetchData();
-  }, []);
+  }, [selectedWarehouse, warehouseDetails]); // Aggiungo warehouseDetails come dipendenza
 
   // Search and filter state
   const [searchQuery, setSearchQuery] = useState("");
@@ -171,13 +281,13 @@ export default function Products() {
 
   // Funzione per aggiornare la quantità di un prodotto
   const handleUpdateQuantity = (productId: string, newQuantity: number) => {
-    setProducts(prevProducts => 
-      prevProducts.map(product => {
+    setProducts((prevProducts) =>
+      prevProducts.map((product) => {
         if ((product.product_id || product.id) === productId) {
           // Calcola il nuovo stato basato sulla nuova quantità
           const minStock = product.min_stock_treshold || 10;
           let newStatus: "Disponibile" | "Esaurito" | "Bassa giacenza";
-          
+
           if (newQuantity <= 0) {
             newStatus = "Esaurito";
           } else if (newQuantity <= minStock) {
@@ -185,11 +295,11 @@ export default function Products() {
           } else {
             newStatus = "Disponibile";
           }
-          
+
           return {
             ...product,
             quantity: newQuantity,
-            status: newStatus
+            status: newStatus,
           };
         }
         return product;
@@ -201,7 +311,11 @@ export default function Products() {
   const handleDeleteProduct = async (id: string): Promise<void> => {
     try {
       await axios.delete(`/Product/DELETE/DeleteProduct/${id}`);
-      setProducts(prevProducts => prevProducts.filter(product => (product.product_id || product.id) !== id));
+      setProducts((prevProducts) =>
+        prevProducts.filter(
+          (product) => (product.product_id || product.id) !== id
+        )
+      );
     } catch (error) {
       console.error("Errore nell'eliminazione del prodotto:", error);
       throw new Error("Impossibile eliminare il prodotto");
@@ -212,14 +326,45 @@ export default function Products() {
     <div className="w-full flex flex-col p-2 sm:p-4 gap-4 sm:gap-6 min-h-screen h-full overflow-auto">
       {/* Header Section */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Icon
-              icon="solar:box-bold-duotone"
-              className="text-primary text-xl sm:text-2xl"
-            />
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Icon
+                icon="solar:box-bold-duotone"
+                className="text-primary text-xl sm:text-2xl"
+              />
+            </div>
+            <h1 className="text-xl sm:text-2xl font-bold">
+              Inventario Prodotti
+            </h1>
           </div>
-          <h1 className="text-xl sm:text-2xl font-bold">Inventario Prodotti</h1>
+          {/* Indicatore magazzino selezionato */}
+          {selectedWarehouse && warehouseDetails && (
+            <div className="flex items-center gap-2 ml-12 sm:ml-15">
+              <Icon
+                icon="solar:warehouse-bold"
+                className="text-primary text-sm"
+              />
+              <span className="text-sm text-default-600">
+                Magazzino:{" "}
+                <span className="font-medium text-primary">
+                  {warehouseDetails.name}
+                  {warehouseDetails.code && ` (${warehouseDetails.code})`}
+                </span>
+              </span>
+            </div>
+          )}
+          {!selectedWarehouse && (
+            <div className="flex items-center gap-2 ml-12 sm:ml-15">
+              <Icon
+                icon="solar:info-circle-bold"
+                className="text-warning text-sm"
+              />
+              <span className="text-sm text-warning">
+                Nessun magazzino selezionato - Mostrando tutti i prodotti
+              </span>
+            </div>
+          )}
         </div>
         <Button
           variant="solid"
@@ -378,7 +523,7 @@ export default function Products() {
                     color="primary"
                     variant="light"
                   >
-                    Rimuovi tutti i filtri
+                    Rimuovi filtri ricerca
                   </Button>
                 )}
               </div>
@@ -388,8 +533,6 @@ export default function Products() {
       </Card>
 
       <ProductThemeProvider>
-       
-        
         <ProductTable
           products={filteredProducts}
           categories={categories}

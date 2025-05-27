@@ -76,6 +76,15 @@ interface Supplier {
   name: string;
 }
 
+interface Warehouse {
+  WarehouseID: string;
+  WarehouseUUID: string;
+  WarehouseName: string;
+  WarehouseCode: string;
+  WarehouseCountry: string;
+  IsActive: boolean;
+}
+
 interface ApiResponse {
   attribute_id: string | null;
   category_id: string;
@@ -597,6 +606,7 @@ export default function AddProduct() {
   const [brands, setBrands] = useState<Brand[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
   const [suppliers, setSuppliers] = useState<Supplier[]>([]);
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
   const [brandQuery, setBrandQuery] = useState("");
   const [categoryQuery, setCategoryQuery] = useState("");
   const [supplierQuery, setSupplierQuery] = useState("");
@@ -666,6 +676,7 @@ export default function AddProduct() {
   useEffect(() => {
     loadInitialData();
     loadSuppliers();
+    loadWarehouses();
   }, []);
 
   useEffect(() => {
@@ -677,6 +688,7 @@ export default function AddProduct() {
       "price",
       "minStockThreshold",
       "supplier",
+      "warehouse",
     ];
     const completedFields = requiredFields.filter(
       (field) => formData[field] && formData[field].toString().trim() !== ""
@@ -694,8 +706,8 @@ export default function AddProduct() {
         count: missingBasicFields.length,
       });
     }
-    if (!formData.price || !formData.supplier) {
-      const missingCommercialFields = ["price", "supplier"].filter(
+    if (!formData.price || !formData.supplier || !formData.warehouse) {
+      const missingCommercialFields = ["price", "supplier", "warehouse"].filter(
         (f) => !formData[f as keyof ProductFormData]
       );
       errors.push({
@@ -786,6 +798,19 @@ export default function AddProduct() {
       setSuppliers(mockSuppliers);
     } catch (error) {
       console.error("Error loading suppliers:", error);
+    }
+  };
+
+  const loadWarehouses = async () => {
+    try {
+      const response = await axios.get("/Warehouse/GET/GetAllWarehouses");
+      // Filtra solo i magazzini attivi
+      const activeWarehouses = response.data.filter(
+        (warehouse: Warehouse) => warehouse.IsActive
+      );
+      setWarehouses(activeWarehouses);
+    } catch (error) {
+      console.error("Error loading warehouses:", error);
     }
   };
 
@@ -1973,7 +1998,7 @@ export default function AddProduct() {
                 {/* Magazzino */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Magazzino
+                    Magazzino <span className="text-danger">*</span>
                   </label>
                   <Select
                     variant="bordered"
@@ -1981,6 +2006,7 @@ export default function AddProduct() {
                     placeholder="Seleziona magazzino"
                     selectedKeys={[formData.warehouse?.toString() || ""]}
                     onChange={(e) => handleChange("warehouse", e.target.value)}
+                    isRequired
                     startContent={
                       <Icon
                         icon="solar:buildings-3-bold"
@@ -1992,21 +2018,14 @@ export default function AddProduct() {
                       />
                     }
                   >
-                    <SelectItem
-                      key="principale"
-                      textValue="Magazzino Principale"
-                    >
-                      Magazzino Principale
-                    </SelectItem>
-                    <SelectItem
-                      key="secondario"
-                      textValue="Magazzino Secondario"
-                    >
-                      Magazzino Secondario
-                    </SelectItem>
-                    <SelectItem key="remoto" textValue="Magazzino Remoto">
-                      Magazzino Remoto
-                    </SelectItem>
+                    {warehouses.map((warehouse) => (
+                      <SelectItem
+                        key={warehouse.WarehouseID}
+                        textValue={`${warehouse.WarehouseName} ${warehouse.WarehouseCode}`}
+                      >
+                        {warehouse.WarehouseName} {warehouse.WarehouseCode}
+                      </SelectItem>
+                    ))}
                   </Select>
                 </div>
 
