@@ -146,24 +146,6 @@ const WarehouseDetail: React.FC = () => {
   // Stato per la finestra info della mappa (per compatibilità)
   const [infoOpen, setInfoOpen] = useState<boolean>(true);
 
-  // Stati per il modal di modifica
-  const {
-    isOpen: isEditOpen,
-    onOpen: onEditOpen,
-    onClose: onEditClose,
-  } = useDisclosure();
-  const [editForm, setEditForm] = useState<{
-    name: string;
-    location: string;
-    capacity: string;
-  }>({
-    name: "",
-    location: "",
-    capacity: "",
-  });
-  const [isEditLoading, setIsEditLoading] = useState<boolean>(false);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
   // Stati per il modal di eliminazione
   const {
     isOpen: isDeleteOpen,
@@ -171,8 +153,9 @@ const WarehouseDetail: React.FC = () => {
     onClose: onDeleteClose,
   } = useDisclosure();
   const [isDeleteLoading, setIsDeleteLoading] = useState<boolean>(false);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Stati per la planimetria interattiva
+  // Stati per lo zoom della planimetria
   const [floorplanScale, setFloorplanScale] = useState(1);
   const [floorplanPosition, setFloorplanPosition] = useState({ x: 0, y: 0 });
   const floorplanRef = useRef<HTMLImageElement>(null);
@@ -252,22 +235,12 @@ const WarehouseDetail: React.FC = () => {
 
         setWarehouse(warehouseData);
 
-        // Inizializza il form di modifica con i dati attuali
-        if (warehouseData) {
-          setEditForm({
-            name: warehouseData.name || warehouseData.WarehouseName || "",
-            location:
-              warehouseData.location || warehouseData.WarehouseAdress || "",
-            capacity: warehouseData.capacity || "",
-          });
-
-          // Recupera i dettagli dell'utente che ha creato il magazzino
-          const creatorId = warehouseData.CreatedBy || warehouseData.created_by;
-          if (creatorId) {
-            const employeeData = await fetchEmployeeDetails(creatorId);
-            if (employeeData && employeeData.company_id) {
-              await fetchCompanyDetails(employeeData.company_id);
-            }
+        // Recupera i dettagli dell'utente che ha creato il magazzino
+        const creatorId = warehouseData.CreatedBy || warehouseData.created_by;
+        if (creatorId) {
+          const employeeData = await fetchEmployeeDetails(creatorId);
+          if (employeeData && employeeData.company_id) {
+            await fetchCompanyDetails(employeeData.company_id);
           }
         }
 
@@ -343,60 +316,6 @@ const WarehouseDetail: React.FC = () => {
       month: "2-digit",
       year: "numeric",
     });
-  };
-
-  // Gestione del form di modifica
-  const handleEditFormChange = (field: string, value: string) => {
-    setEditForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
-  };
-
-  // Salvataggio delle modifiche
-  const handleSaveChanges = async () => {
-    if (!warehouse || !UUID) return;
-
-    setIsEditLoading(true);
-    try {
-      // Endpoint per l'aggiornamento del magazzino
-      await axios.put(`/Warehouse/UPDATE/UpdateWarehouse`, {
-        warehouse_uuid: UUID,
-        WarehouseID: warehouse.WarehouseID,
-        WarehouseUUID: warehouse.WarehouseUUID,
-        WarehouseName: editForm.name,
-        WarehouseAdress: editForm.location,
-        capacity: editForm.capacity,
-        company_id: warehouse.company_id,
-        IsActive: warehouse.IsActive !== false, // Manteniamo lo stato attivo
-      });
-
-      // Aggiorna i dati locali
-      setWarehouse((prev) => {
-        if (!prev) return null;
-        return {
-          ...prev,
-          name: editForm.name,
-          WarehouseName: editForm.name,
-          location: editForm.location,
-          WarehouseAdress: editForm.location,
-          capacity: editForm.capacity,
-        };
-      });
-
-      onEditClose();
-      // Mostra il messaggio di successo
-      setSuccessMessage("Magazzino modificato con successo!");
-      // Nascondi il messaggio dopo 3 secondi
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 3000);
-    } catch (error) {
-      console.error("Errore durante l'aggiornamento del magazzino:", error);
-      // Gestire l'errore qui (es. mostrare un messaggio all'utente)
-    } finally {
-      setIsEditLoading(false);
-    }
   };
 
   // Eliminazione del magazzino
@@ -553,16 +472,6 @@ const WarehouseDetail: React.FC = () => {
         <BreadcrumbItem>{warehouse.name}</BreadcrumbItem>
       </Breadcrumbs>
 
-      {/* Messaggio di successo */}
-      {successMessage && (
-        <div className="mb-4 rounded-md bg-success-100 p-4 text-success-700">
-          <div className="flex items-center">
-            <Icon icon="solar:check-circle-bold" className="mr-2" width={20} />
-            <p>{successMessage}</p>
-          </div>
-        </div>
-      )}
-
       {/* Header con info principali */}
       <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
         <div className="flex items-center">
@@ -591,7 +500,7 @@ const WarehouseDetail: React.FC = () => {
             color="primary"
             variant="flat"
             startContent={<Icon icon="solar:pen-bold" width={18} />}
-            onPress={onEditOpen}
+            onPress={() => navigate(`/inventory/warehouses/edit/${UUID}`)}
           >
             Modifica
           </Button>
@@ -599,7 +508,7 @@ const WarehouseDetail: React.FC = () => {
             color="danger"
             variant="flat"
             startContent={<Icon icon="solar:trash-bin-trash-bold" width={18} />}
-            onPress={onDeleteOpen}
+            onPress={() => {}}
           >
             {warehouse.IsActive === false ? "Elimina" : "Disattiva"}
           </Button>
@@ -619,91 +528,6 @@ const WarehouseDetail: React.FC = () => {
           </div>
         </div>
       )}
-
-      {/* Modal di modifica */}
-      <Modal isOpen={isEditOpen} onClose={onEditClose} size="2xl">
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">
-            Modifica Magazzino
-          </ModalHeader>
-          <ModalBody>
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-              <div>
-                <p className="mb-2 text-sm">Nome</p>
-                <Input
-                  placeholder="Nome del magazzino"
-                  value={editForm.name}
-                  onChange={(e) => handleEditFormChange("name", e.target.value)}
-                />
-              </div>
-              <div>
-                <p className="mb-2 text-sm">Posizione</p>
-                <Input
-                  placeholder="Posizione del magazzino"
-                  value={editForm.location}
-                  onChange={(e) =>
-                    handleEditFormChange("location", e.target.value)
-                  }
-                />
-              </div>
-              <div>
-                <p className="mb-2 text-sm">Capacità (m³)</p>
-                <Input
-                  placeholder="Capacità del magazzino"
-                  type="number"
-                  value={editForm.capacity}
-                  onChange={(e) =>
-                    handleEditFormChange("capacity", e.target.value)
-                  }
-                />
-              </div>
-            </div>
-          </ModalBody>
-          <ModalFooter>
-            <Button color="default" variant="light" onPress={onEditClose}>
-              Annulla
-            </Button>
-            <Button
-              color="primary"
-              onPress={handleSaveChanges}
-              isLoading={isEditLoading}
-            >
-              Salva Modifiche
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Modal di conferma eliminazione */}
-      <Modal isOpen={isDeleteOpen} onClose={onDeleteClose} size="md">
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">
-            Conferma Eliminazione
-          </ModalHeader>
-          <ModalBody>
-            <p>
-              Sei sicuro di voler eliminare il magazzino{" "}
-              <strong>{warehouse.name}</strong>?
-            </p>
-            <p className="mt-2 text-danger">
-              Questa azione è irreversibile e comporterà la perdita di tutti i
-              dati associati.
-            </p>
-          </ModalBody>
-          <ModalFooter>
-            <Button color="default" variant="light" onPress={onDeleteClose}>
-              Annulla
-            </Button>
-            <Button
-              color="danger"
-              onPress={handleDeleteWarehouse}
-              isLoading={isDeleteLoading}
-            >
-              Elimina
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
 
       {/* Tabs di navigazione */}
       <Tabs
