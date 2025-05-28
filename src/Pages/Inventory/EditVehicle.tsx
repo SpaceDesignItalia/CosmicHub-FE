@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import axios from "axios";
+import type { Key } from "react";
 import {
   Card,
   CardBody,
@@ -15,18 +16,21 @@ import {
   ModalHeader,
   ModalBody,
   ModalFooter,
+  DatePicker,
   Select,
   SelectItem,
-  DatePicker,
+  Autocomplete,
+  AutocompleteItem,
 } from "@heroui/react";
 import { parseDate } from "@internationalized/date";
 import type { DateValue } from "@internationalized/date";
+import type { Employee } from "../../types/Employee";
 
 axios.defaults.baseURL = import.meta.env.VITE_API_URL;
 
 export default function EditVehicle() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [formError, setFormError] = useState("");
@@ -37,90 +41,105 @@ export default function EditVehicle() {
     name: "",
     license_plate: "",
     capacity: "",
-    type: "Large Van", // Default value
-    status: "Available", // Default value
+    type: "",
+    assignedUser: "",
     last_inspection_date: new Date().toISOString().split("T")[0],
   });
 
-  // Caricamento dei dati del veicolo esistente
+  // Stati per gli utenti
+  const [availableUsers, setAvailableUsers] = useState<Employee[]>([]);
+  const [allUsers, setAllUsers] = useState<Employee[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+  const [currentAssignedUser, setCurrentAssignedUser] = useState<Employee | null>(null);
+
+  // Tipi di veicolo disponibili
+  const vehicleTypes = [
+    { key: "Furgone grande", label: "Large Van" },
+    { key: "Furgone piccolo", label: "Small Van" },
+  ];
+
+  // Carica i dati del veicolo
   useEffect(() => {
-    const fetchVehicle = async () => {
+    const fetchVehicleData = async () => {
+      if (!id) return;
+      
       setIsLoadingData(true);
       try {
-        // API per ottenere i dettagli del veicolo
-        const response = await axios.get("/Warehouse/GET/GetVehicleById", {
-          params: {
-            vehicleId: id,
-          },
-        });
-        const vehicle = response.data;
+        const response = await axios.get("/Warehouse/GET/GetAllVehicles");
+        const vehicle = response.data.find((v: any) => v.warehouse_id === id);
+        
+        if (vehicle) {
+          // Recupera l'utente assegnato al veicolo se presente
+          let assignedUserId = "";
+          try {
+            const userIdResponse = await axios.get(
+              `/Warehouse/GET/GetUserByVehicleId`,
+              {
+                params: {
+                  vehicleId: id,
+                },
+              }
+            );
+            if (userIdResponse.data && userIdResponse.data.user_id) {
+              assignedUserId = userIdResponse.data.user_id;
+            }
+          } catch (error) {
+            console.log("Nessun utente assegnato al veicolo");
+          }
 
-        // Mappiamo i dati dal format del backend al nostro formato form
-        setFormData({
-          name: vehicle.name || "",
-          license_plate: vehicle.license_plate || "",
-          capacity: vehicle.capacity ? vehicle.capacity.toString() : "",
-          type: vehicle.type === "Furgone grande" ? "Large Van" : "Small Van",
-          status: mapStatus(vehicle.status || "Disponibile"),
-          last_inspection_date:
-            vehicle.last_inspection_date ||
-            new Date().toISOString().split("T")[0],
-        });
+          setFormData({
+            name: vehicle.name || "",
+            license_plate: vehicle.license_plate || "",
+            capacity: vehicle.capacity?.toString() || "",
+            type: vehicle.type || "",
+            assignedUser: assignedUserId,
+            last_inspection_date: vehicle.last_inspection || new Date().toISOString().split("T")[0],
+          });
+        } else {
+          setFormError("Veicolo non trovato");
+        }
       } catch (error) {
-        setFormError(
-          "Impossibile caricare i dati del veicolo. Riprova più tardi."
-        );
-
-        // Dati di fallback per lo sviluppo
-        setFormData({
-          name: "Veicolo di Esempio",
-          license_plate: "AB123CD",
-          capacity: "3500",
-          type: "Large Van",
-          status: "Available",
-          last_inspection_date: new Date().toISOString().split("T")[0],
-        });
+        console.error("Errore nel caricamento del veicolo:", error);
+        setFormError("Errore nel caricamento dei dati del veicolo");
       } finally {
         setIsLoadingData(false);
       }
     };
 
-    if (id) {
-      fetchVehicle();
-    }
+    fetchVehicleData();
   }, [id]);
 
-  // Funzione per mappare gli stati da italiano a inglese
-  const mapStatus = (
-    italianStatus: string
-  ): "Available" | "In use" | "Maintenance" => {
-    switch (italianStatus) {
-      case "Disponibile":
-        return "Available";
-      case "In uso":
-        return "In use";
-      case "In manutenzione":
-        return "Maintenance";
-      default:
-        return "Available";
-    }
-  };
+  // Carica gli utenti disponibili
+  useEffect(() => {
+    const fetchUsers = async () => {
+      setIsLoadingUsers(true);
+      try {
+        // Carica tutti gli utenti
+        const allUsersResponse = await axios.get("/Employee/GET/GetAllEmployees");
+        const allUsersData = allUsersResponse.data || [];
+        setAllUsers(allUsersData);
 
-  // Funzione per mappare gli stati da inglese a italiano
-  const mapStatusToItalian = (
-    status: string
-  ): "Disponibile" | "In uso" | "In manutenzione" => {
-    switch (status) {
-      case "Available":
-        return "Disponibile";
-      case "In use":
-        return "In uso";
-      case "Maintenance":
-        return "In manutenzione";
-      default:
-        return "Disponibile";
-    }
-  };
+        // Carica gli utenti senza veicolo assegnato
+        const availableUsersResponse = await axios.get("/Employee/GET/GetEmplyeesWithoutVehicle");
+        const availableUsersData = availableUsersResponse.data || [];
+        setAvailableUsers(availableUsersData);
+
+        // Se c'è un utente assegnato al veicolo, trovalo
+        if (formData.assignedUser) {
+          const currentUser = allUsersData.find((user: Employee) => user.id === formData.assignedUser);
+          setCurrentAssignedUser(currentUser || null);
+        }
+      } catch (error) {
+        console.error("Errore nel caricamento degli utenti:", error);
+        setAvailableUsers([]);
+        setAllUsers([]);
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    fetchUsers();
+  }, [formData.assignedUser]);
 
   // Gestisce i cambiamenti nei campi del form
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -131,10 +150,25 @@ export default function EditVehicle() {
     });
   };
 
+  // Gestisce il cambio del tipo di veicolo
+  const handleTypeChange = (value: string) => {
+    setFormData({
+      ...formData,
+      type: value,
+    });
+  };
+
+  // Gestisce l'assegnazione utente
+  const handleUserAssignment = (key: Key | null) => {
+    setFormData({
+      ...formData,
+      assignedUser: key ? String(key) : "",
+    });
+  };
+
   // Gestisce il cambio della data
   const handleDateChange = (value: DateValue | null) => {
     if (value) {
-      // Converte il DateValue in una stringa di data nel formato YYYY-MM-DD
       const year = value.year;
       const month = value.month.toString().padStart(2, "0");
       const day = value.day.toString().padStart(2, "0");
@@ -145,22 +179,6 @@ export default function EditVehicle() {
         last_inspection_date: dateString,
       });
     }
-  };
-
-  // Gestisce il cambio di stato del veicolo
-  const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      status: e.target.value as "Available" | "In use" | "Maintenance",
-    });
-  };
-
-  // Gestisce il cambio del tipo di veicolo
-  const handleTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    setFormData({
-      ...formData,
-      type: e.target.value as "Large Van" | "Small Van",
-    });
   };
 
   // Gestisce l'invio del form
@@ -174,6 +192,7 @@ export default function EditVehicle() {
       !formData.name ||
       !formData.license_plate ||
       !formData.capacity ||
+      !formData.type ||
       !formData.last_inspection_date
     ) {
       setFormError("Tutti i campi sono obbligatori");
@@ -188,23 +207,43 @@ export default function EditVehicle() {
         name: formData.name,
         license_plate: formData.license_plate,
         capacity: parseInt(formData.capacity),
-        type:
-          formData.type === "Large Van" ? "Furgone grande" : "Furgone piccolo",
-        status: mapStatusToItalian(formData.status),
+        type: formData.type,
         last_inspection_date: formData.last_inspection_date,
       };
 
       // Chiamata API per aggiornare il veicolo
-      await axios.put(`/Warehouse/UPDATE/UpdateVehicle`, vehicleData, {
-        params: {
-          vehicleId: id,
-          vehicleData: vehicleData,
-        },
-      });
+      await axios.put("/Warehouse/UPDATE/UpdateVehicle", vehicleData);
+
+      // Gestisci l'assegnazione utente
+      const originalAssignedUser = currentAssignedUser?.id || "";
+      const newAssignedUser = formData.assignedUser;
+
+      if (originalAssignedUser !== newAssignedUser) {
+        try {
+          if (newAssignedUser) {
+            // Assegna il veicolo al nuovo utente
+            await axios.put("/Employee/UPDATE/UpdateEmployeeVan", {
+              van_id: id,
+              employee_id: newAssignedUser,
+            });
+          } else if (originalAssignedUser) {
+            // Rimuovi l'assegnazione del veicolo dall'utente precedente
+            await axios.put("/Employee/UPDATE/UpdateEmployeeVan", {
+              van_id: null,
+              employee_id: originalAssignedUser,
+            });
+          }
+        } catch (assignmentError) {
+          console.error("Errore nell'aggiornamento dell'assegnazione:", assignmentError);
+          // Il veicolo è stato aggiornato ma l'assegnazione è fallita
+          // Potresti voler mostrare un messaggio di avviso all'utente
+        }
+      }
 
       // Apri il modal di successo
       onOpen();
     } catch (error) {
+      console.error("Errore nell'aggiornamento del veicolo:", error);
       setFormError(
         "Si è verificato un errore durante l'aggiornamento del veicolo. Riprova più tardi."
       );
@@ -213,11 +252,21 @@ export default function EditVehicle() {
     }
   };
 
-  // Reindirizza alla pagina dei veicoli dopo l'aggiornamento
+  // Reindirizza alla pagina dei veicoli dopo la modifica
   const handleSuccessConfirm = () => {
     onClose();
     navigate("/inventory/vehicles");
   };
+
+  if (isLoadingData) {
+    return (
+      <div className="w-full flex-1 flex flex-col p-5 gap-5 bg-zinc-50 dark:bg-zinc-950">
+        <div className="flex items-center justify-center h-64">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="w-full flex-1 flex flex-col p-5 gap-5 bg-zinc-50 dark:bg-zinc-950">
@@ -236,9 +285,7 @@ export default function EditVehicle() {
               Modifica Veicolo
             </h1>
             <p className="text-sm text-zinc-600 dark:text-zinc-300">
-              {formData.license_plate
-                ? `Targa: ${formData.license_plate}`
-                : "Caricamento..."}
+              Modifica i dettagli del veicolo {formData.license_plate}
             </p>
           </div>
         </div>
@@ -265,146 +312,172 @@ export default function EditVehicle() {
             </div>
           )}
 
-          {isLoadingData ? (
-            <div className="flex items-center justify-center h-64">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Nome veicolo */}
-                <div>
-                  <label
-                    htmlFor="name"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Nome Veicolo *
-                  </label>
-                  <Input
-                    id="name"
-                    name="name"
-                    placeholder="Es. Iveco Daily"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Targa */}
-                <div>
-                  <label
-                    htmlFor="license_plate"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Targa *
-                  </label>
-                  <Input
-                    id="license_plate"
-                    name="license_plate"
-                    placeholder="Es. AB123CD"
-                    value={formData.license_plate}
-                    onChange={handleChange}
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Tipo */}
-                <div>
-                  <label
-                    htmlFor="type"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Tipo *
-                  </label>
-                  <select
-                    id="type"
-                    name="type"
-                    value={formData.type}
-                    onChange={handleTypeChange}
-                    className="w-full rounded-lg border-2 border-default-200 bg-white dark:bg-zinc-900 dark:border-zinc-700 p-2"
-                  >
-                    <option value="Large Van">Furgone Grande</option>
-                    <option value="Small Van">Furgone Piccolo</option>
-                  </select>
-                </div>
-
-                {/* Stato */}
-                <div>
-                  <label
-                    htmlFor="status"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Stato *
-                  </label>
-                  <select
-                    id="status"
-                    name="status"
-                    value={formData.status}
-                    onChange={handleStatusChange}
-                    className="w-full rounded-lg border-2 border-default-200 bg-white dark:bg-zinc-900 dark:border-zinc-700 p-2"
-                  >
-                    <option value="Available">Disponibile</option>
-                    <option value="In use">In uso</option>
-                    <option value="Maintenance">In manutenzione</option>
-                  </select>
-                </div>
-
-                {/* Capacità */}
-                <div>
-                  <label
-                    htmlFor="capacity"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Capacità (kg) *
-                  </label>
-                  <Input
-                    id="capacity"
-                    name="capacity"
-                    type="number"
-                    placeholder="Es. 3500"
-                    value={formData.capacity}
-                    onChange={handleChange}
-                    className="w-full"
-                  />
-                </div>
-
-                {/* Data ultima ispezione */}
-                <div>
-                  <label
-                    htmlFor="last_inspection_date"
-                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
-                  >
-                    Data Ultima Ispezione *
-                  </label>
-                  <DatePicker
-                    id="last_inspection_date"
-                    value={
-                      formData.last_inspection_date
-                        ? parseDate(formData.last_inspection_date)
-                        : null
-                    }
-                    onChange={handleDateChange}
-                    className="w-full"
-                  />
-                </div>
-              </div>
-
-              <Divider className="my-6" />
-
-              <div className="flex justify-end space-x-3">
-                <Button
-                  variant="flat"
-                  color="default"
-                  onPress={() => navigate("/inventory/vehicles")}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Nome veicolo */}
+              <div>
+                <label
+                  htmlFor="name"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
                 >
-                  Annulla
-                </Button>
-                <Button type="submit" color="primary" isLoading={isLoading}>
-                  Salva Modifiche
-                </Button>
+                  Nome Veicolo *
+                </label>
+                <Input
+                  id="name"
+                  name="name"
+                  placeholder="Es. Iveco Daily"
+                  value={formData.name}
+                  onChange={handleChange}
+                  className="w-full"
+                />
               </div>
-            </form>
-          )}
+
+              {/* Targa */}
+              <div>
+                <label
+                  htmlFor="license_plate"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Targa *
+                </label>
+                <Input
+                  id="license_plate"
+                  name="license_plate"
+                  placeholder="Es. AB123CD"
+                  value={formData.license_plate}
+                  onChange={handleChange}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Tipo veicolo */}
+              <div>
+                <label
+                  htmlFor="type"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Tipo Veicolo *
+                </label>
+                <Select
+                  id="type"
+                  placeholder="Seleziona tipo veicolo"
+                  selectedKeys={formData.type ? [formData.type] : []}
+                  onSelectionChange={(keys) => {
+                    const selectedKey = Array.from(keys)[0] as string;
+                    handleTypeChange(selectedKey);
+                  }}
+                  className="w-full"
+                >
+                  {vehicleTypes.map((type) => (
+                    <SelectItem key={type.key}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
+
+              {/* Capacità */}
+              <div>
+                <label
+                  htmlFor="capacity"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Capacità (kg) *
+                </label>
+                <Input
+                  id="capacity"
+                  name="capacity"
+                  type="number"
+                  placeholder="Es. 3500"
+                  value={formData.capacity}
+                  onChange={handleChange}
+                  className="w-full"
+                />
+              </div>
+
+              {/* Data ultima ispezione */}
+              <div className="md:col-span-2">
+                <label
+                  htmlFor="last_inspection_date"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Data Ultima Ispezione *
+                </label>
+                <DatePicker
+                  id="last_inspection_date"
+                  value={
+                    formData.last_inspection_date
+                      ? parseDate(formData.last_inspection_date)
+                      : null
+                  }
+                  onChange={handleDateChange}
+                  className="w-full max-w-sm"
+                />
+              </div>
+
+              {/* Assegnazione utente */}
+              <div className="md:col-span-2">
+                <label
+                  htmlFor="assignedUser"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Assegna a Utente (opzionale)
+                </label>
+                <Autocomplete
+                  id="assignedUser"
+                  placeholder={isLoadingUsers ? "Caricamento utenti..." : "Seleziona un utente"}
+                  selectedKey={formData.assignedUser}
+                  onSelectionChange={handleUserAssignment}
+                  isLoading={isLoadingUsers}
+                  className="w-full max-w-sm"
+                  allowsCustomValue={false}
+                  items={[
+                    ...availableUsers,
+                    ...(currentAssignedUser && !availableUsers.find(u => u.id === currentAssignedUser.id) 
+                      ? [currentAssignedUser] 
+                      : [])
+                  ]}
+                >
+                  {(user) => (
+                    <AutocompleteItem key={user.id} textValue={user.name}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{user.name}</span>
+                        <span className="text-xs text-gray-500">
+                          {user.role}
+                          {user.id === formData.assignedUser ? " (Attualmente assegnato)" : ""}
+                        </span>
+                      </div>
+                    </AutocompleteItem>
+                  )}
+                </Autocomplete>
+                {currentAssignedUser && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    Attualmente assegnato a: {currentAssignedUser.name}
+                  </p>
+                )}
+                {availableUsers.length === 0 && !currentAssignedUser && !isLoadingUsers && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Nessun utente disponibile (tutti gli utenti hanno già un veicolo assegnato)
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <Divider className="my-6" />
+
+            <div className="flex justify-end space-x-3">
+              <Button
+                variant="flat"
+                color="default"
+                onPress={() => navigate("/inventory/vehicles")}
+              >
+                Annulla
+              </Button>
+              <Button type="submit" color="primary" isLoading={isLoading}>
+                Salva Modifiche
+              </Button>
+            </div>
+          </form>
         </CardBody>
       </Card>
 
@@ -412,24 +485,24 @@ export default function EditVehicle() {
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
-            Veicolo aggiornato con successo
+            Veicolo modificato con successo
           </ModalHeader>
           <ModalBody>
             <div className="flex flex-col items-center justify-center p-4">
               <div className="w-16 h-16 rounded-full bg-success-100 dark:bg-success-900 flex items-center justify-center mb-4">
                 <Icon
-                  icon="solar:check-circle-bold"
+                  icon="mdi:check"
                   className="text-4xl text-success-600 dark:text-success-400"
                 />
               </div>
-              <p className="text-center text-gray-700 dark:text-gray-300">
-                Il veicolo è stato aggiornato correttamente nel sistema.
+              <p className="text-center">
+                Le modifiche al veicolo sono state salvate correttamente.
               </p>
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button color="primary" onPress={handleSuccessConfirm} autoFocus>
-              Torna alla Lista
+            <Button color="primary" onPress={handleSuccessConfirm} fullWidth>
+              Torna ai Veicoli
             </Button>
           </ModalFooter>
         </ModalContent>

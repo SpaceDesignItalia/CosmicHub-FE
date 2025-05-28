@@ -721,19 +721,6 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                 ))}
               </Autocomplete>
             )}
-            {onEdit && (
-              <Button
-                size="sm"
-                color="primary"
-                variant="flat"
-                startContent={
-                  <Icon icon="solar:pen-bold" className="text-sm" />
-                }
-                onPress={onEdit}
-              >
-                Modifica
-              </Button>
-            )}
             {onDelete && (
               <Button
                 size="sm"
@@ -1027,7 +1014,11 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
             <div className="p-5 bg-white dark:bg-zinc-900">
               {/* Vehicle info */}
               <div className="grid grid-cols-2 gap-4 mb-5">
-                <div className="col-span-2 bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <div 
+                  className="col-span-2 bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+                  onDoubleClick={() => onEdit && onEdit()}
+                  title="Doppio click per modificare"
+                >
                   <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">
                     Tipo veicolo
                   </p>
@@ -1046,9 +1037,16 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                       {vehicle.type}
                     </p>
                   </div>
+                  <div className="mt-2 text-xs text-blue-600 dark:text-blue-300 opacity-70">
+                    💡 Doppio click per modificare
+                  </div>
                 </div>
 
-                <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <div 
+                  className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+                  onDoubleClick={() => onEdit && onEdit()}
+                  title="Doppio click per modificare"
+                >
                   <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">
                     Targa
                   </p>
@@ -1057,7 +1055,11 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <div 
+                  className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+                  onDoubleClick={() => onEdit && onEdit()}
+                  title="Doppio click per modificare"
+                >
                   <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">
                     Modello
                   </p>
@@ -1066,7 +1068,11 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <div 
+                  className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+                  onDoubleClick={() => onEdit && onEdit()}
+                  title="Doppio click per modificare"
+                >
                   <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">
                     Capacità
                   </p>
@@ -1075,7 +1081,11 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <div 
+                  className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
+                  onDoubleClick={() => onEdit && onEdit()}
+                  title="Doppio click per modificare"
+                >
                   <p className="text-xs text-zinc-500 dark:text-zinc-300 mb-1">
                     Ultima revisione
                   </p>

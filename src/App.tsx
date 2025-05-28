@@ -15,6 +15,7 @@ import ProductEdit from "./Pages/Inventory/ProductEdit";
 import Categories from "./Pages/Inventory/Categories";
 import CategoryAdd from "./Pages/Inventory/CategoryAdd";
 import AddVehicle from "./Pages/Inventory/AddVehicle";
+import EditVehicle from "./Pages/Inventory/EditVehicle";
 import Vehicles from "./Pages/Inventory/Vehicles";
 import Suppliers from "./Pages/Suppliers/Suppliers";
 
@@ -81,6 +82,7 @@ function App() {
           <Route path="/inventory/categories/add" element={<CategoryAdd />} />
           <Route path="/inventory/vehicles" element={<Vehicles />} />
           <Route path="/inventory/vehicles/add" element={<AddVehicle />} />
+          <Route path="/inventory/vehicles/edit/:id" element={<EditVehicle />} />
           <Route path="/inventory/warehouses/add" element={<AddWarehouse />} />
           <Route
             path="/inventory/warehouses/edit/:UUID"

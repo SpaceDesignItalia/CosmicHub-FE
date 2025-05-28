@@ -657,7 +657,7 @@ export default function Vehicles() {
 
                 <Button
                   color="primary"
-                  onPress={() => navigate("/inventory/vehicles/add-vehicle")}
+                  onPress={() => navigate("/inventory/vehicles/add")}
                 >
                   <Icon
                     icon="material-symbols:add"

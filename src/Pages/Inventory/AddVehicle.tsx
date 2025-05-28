@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
 import axios from "axios";
+import type { Key } from "react";
 import {
   Card,
   CardBody,
@@ -16,9 +17,14 @@ import {
   ModalBody,
   ModalFooter,
   DatePicker,
+  Select,
+  SelectItem,
+  Autocomplete,
+  AutocompleteItem,
 } from "@heroui/react";
 import { parseDate } from "@internationalized/date";
 import type { DateValue } from "@internationalized/date";
+import type { Employee } from "../../types/Employee";
 
 axios.defaults.baseURL = import.meta.env.VITE_API_URL;
 
@@ -33,8 +39,39 @@ export default function AddVehicle() {
     name: "",
     license_plate: "",
     capacity: "",
+    type: "",
+    assignedUser: "",
     last_inspection_date: new Date().toISOString().split("T")[0],
   });
+
+  // Stati per gli utenti
+  const [availableUsers, setAvailableUsers] = useState<Employee[]>([]);
+  const [isLoadingUsers, setIsLoadingUsers] = useState(false);
+
+  // Tipi di veicolo disponibili
+  const vehicleTypes = [
+    { key: "Furgone grande", label: "Large Van" },
+    { key: "Furgone piccolo", label: "Small Van" },
+  ];
+
+  // Carica gli utenti disponibili (senza veicolo assegnato)
+  useEffect(() => {
+    const fetchAvailableUsers = async () => {
+      setIsLoadingUsers(true);
+      try {
+        const response = await axios.get("/Employee/GET/GetEmplyeesWithoutVehicle");
+        setAvailableUsers(response.data || []);
+      } catch (error) {
+        console.error("Errore nel caricamento degli utenti:", error);
+        // In caso di errore, impostiamo un array vuoto
+        setAvailableUsers([]);
+      } finally {
+        setIsLoadingUsers(false);
+      }
+    };
+
+    fetchAvailableUsers();
+  }, []);
 
   // Gestisce i cambiamenti nei campi del form
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -42,6 +79,22 @@ export default function AddVehicle() {
     setFormData({
       ...formData,
       [name]: value,
+    });
+  };
+
+  // Gestisce il cambio del tipo di veicolo
+  const handleTypeChange = (value: string) => {
+    setFormData({
+      ...formData,
+      type: value,
+    });
+  };
+
+  // Gestisce l'assegnazione utente
+  const handleUserAssignment = (key: Key | null) => {
+    setFormData({
+      ...formData,
+      assignedUser: key ? String(key) : "",
     });
   };
 
@@ -72,6 +125,7 @@ export default function AddVehicle() {
       !formData.name ||
       !formData.license_plate ||
       !formData.capacity ||
+      !formData.type ||
       !formData.last_inspection_date
     ) {
       setFormError("Tutti i campi sono obbligatori");
@@ -86,17 +140,33 @@ export default function AddVehicle() {
         location: "N/A",
         license_plate: formData.license_plate,
         capacity: parseInt(formData.capacity),
+        type: formData.type,
         company_id: 1, // Valore predefinito o da ottenere dal contesto dell'applicazione
         created_by: 1, // Valore predefinito o ID dell'utente corrente
         last_inspection_date: formData.last_inspection_date,
       };
 
       // Chiamata API per aggiungere il veicolo
-      await axios.post("/Warehouse/POST/CreateVehicle", warehouseData);
+      const vehicleResponse = await axios.post("/Warehouse/POST/CreateVehicle", warehouseData);
+
+      // Se è stato selezionato un utente, assegnalo al veicolo
+      if (formData.assignedUser && vehicleResponse.data) {
+        try {
+          await axios.put("/Employee/UPDATE/UpdateEmployeeVan", {
+            van_id: vehicleResponse.data.warehouse_id || vehicleResponse.data.id,
+            employee_id: formData.assignedUser,
+          });
+        } catch (assignmentError) {
+          console.error("Errore nell'assegnazione dell'utente:", assignmentError);
+          // Il veicolo è stato creato ma l'assegnazione è fallita
+          // Potresti voler mostrare un messaggio di avviso all'utente
+        }
+      }
 
       // Apri il modal di successo
       onOpen();
     } catch (error) {
+      console.error("Errore nella creazione del veicolo:", error);
       setFormError(
         "Si è verificato un errore durante l'aggiunta del veicolo. Riprova più tardi."
       );
@@ -212,6 +282,32 @@ export default function AddVehicle() {
                 />
               </div>
 
+              {/* Tipo di veicolo */}
+              <div>
+                <label
+                  htmlFor="type"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Tipo di Veicolo *
+                </label>
+                <Select
+                  id="type"
+                  placeholder="Seleziona tipo veicolo"
+                  selectedKeys={formData.type ? [formData.type] : []}
+                  onSelectionChange={(keys) => {
+                    const selectedKey = Array.from(keys)[0] as string;
+                    handleTypeChange(selectedKey);
+                  }}
+                  className="w-full"
+                >
+                  {vehicleTypes.map((type) => (
+                    <SelectItem key={type.key}>
+                      {type.label}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
+
               {/* Data ultima ispezione */}
               <div>
                 <label
@@ -230,6 +326,40 @@ export default function AddVehicle() {
                   onChange={handleDateChange}
                   className="w-full"
                 />
+              </div>
+
+              {/* Assegnazione utente */}
+              <div>
+                <label
+                  htmlFor="assignedUser"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1"
+                >
+                  Assegna a Utente (opzionale)
+                </label>
+                <Autocomplete
+                  id="assignedUser"
+                  placeholder={isLoadingUsers ? "Caricamento utenti..." : "Seleziona un utente"}
+                  selectedKey={formData.assignedUser}
+                  onSelectionChange={handleUserAssignment}
+                  isLoading={isLoadingUsers}
+                  className="w-full"
+                  allowsCustomValue={false}
+                  items={availableUsers}
+                >
+                  {(user) => (
+                    <AutocompleteItem key={user.id} textValue={user.name}>
+                      <div className="flex flex-col">
+                        <span className="font-medium">{user.name}</span>
+                        <span className="text-xs text-gray-500">{user.role}</span>
+                      </div>
+                    </AutocompleteItem>
+                  )}
+                </Autocomplete>
+                {availableUsers.length === 0 && !isLoadingUsers && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    Nessun utente disponibile (tutti gli utenti hanno già un veicolo assegnato)
+                  </p>
+                )}
               </div>
             </div>
 
