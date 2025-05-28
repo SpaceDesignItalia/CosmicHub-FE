@@ -59,7 +59,9 @@ export default function AddVehicle() {
     const fetchAvailableUsers = async () => {
       setIsLoadingUsers(true);
       try {
-        const response = await axios.get("/Employee/GET/GetEmplyeesWithoutVehicle");
+        const response = await axios.get(
+          "/Employee/GET/GetEmplyeesWithoutVehicle"
+        );
         setAvailableUsers(response.data || []);
       } catch (error) {
         console.error("Errore nel caricamento degli utenti:", error);
@@ -142,29 +144,20 @@ export default function AddVehicle() {
         capacity: parseInt(formData.capacity),
         type: formData.type,
         company_id: 1, // Valore predefinito o da ottenere dal contesto dell'applicazione
-        created_by: 1, // Valore predefinito o ID dell'utente corrente
-        last_inspection_date: formData.last_inspection_date,
+        assigned_user_id: formData.assignedUser,
+        last_inspection: formData.last_inspection_date,
       };
 
       // Chiamata API per aggiungere il veicolo
-      const vehicleResponse = await axios.post("/Warehouse/POST/CreateVehicle", warehouseData);
-
-      // Se è stato selezionato un utente, assegnalo al veicolo
-      if (formData.assignedUser && vehicleResponse.data) {
-        try {
-          await axios.put("/Employee/UPDATE/UpdateEmployeeVan", {
-            van_id: vehicleResponse.data.warehouse_id || vehicleResponse.data.id,
-            employee_id: formData.assignedUser,
-          });
-        } catch (assignmentError) {
-          console.error("Errore nell'assegnazione dell'utente:", assignmentError);
-          // Il veicolo è stato creato ma l'assegnazione è fallita
-          // Potresti voler mostrare un messaggio di avviso all'utente
-        }
-      }
+      const vehicleResponse = await axios.post(
+        "/Warehouse/POST/CreateNewVehicle",
+        warehouseData
+      );
 
       // Apri il modal di successo
-      onOpen();
+      if (vehicleResponse.status === 200) {
+        onOpen();
+      }
     } catch (error) {
       console.error("Errore nella creazione del veicolo:", error);
       setFormError(
@@ -301,9 +294,7 @@ export default function AddVehicle() {
                   className="w-full"
                 >
                   {vehicleTypes.map((type) => (
-                    <SelectItem key={type.key}>
-                      {type.label}
-                    </SelectItem>
+                    <SelectItem key={type.key}>{type.label}</SelectItem>
                   ))}
                 </Select>
               </div>
@@ -338,7 +329,11 @@ export default function AddVehicle() {
                 </label>
                 <Autocomplete
                   id="assignedUser"
-                  placeholder={isLoadingUsers ? "Caricamento utenti..." : "Seleziona un utente"}
+                  placeholder={
+                    isLoadingUsers
+                      ? "Caricamento utenti..."
+                      : "Seleziona un utente"
+                  }
                   selectedKey={formData.assignedUser}
                   onSelectionChange={handleUserAssignment}
                   isLoading={isLoadingUsers}
@@ -350,14 +345,17 @@ export default function AddVehicle() {
                     <AutocompleteItem key={user.id} textValue={user.name}>
                       <div className="flex flex-col">
                         <span className="font-medium">{user.name}</span>
-                        <span className="text-xs text-gray-500">{user.role}</span>
+                        <span className="text-xs text-gray-500">
+                          {user.role}
+                        </span>
                       </div>
                     </AutocompleteItem>
                   )}
                 </Autocomplete>
                 {availableUsers.length === 0 && !isLoadingUsers && (
                   <p className="text-xs text-gray-500 mt-1">
-                    Nessun utente disponibile (tutti gli utenti hanno già un veicolo assegnato)
+                    Nessun utente disponibile (tutti gli utenti hanno già un
+                    veicolo assegnato)
                   </p>
                 )}
               </div>

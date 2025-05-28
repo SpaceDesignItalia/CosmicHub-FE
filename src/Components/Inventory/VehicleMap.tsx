@@ -349,24 +349,14 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
         if (currentVehicle) {
           // Recupera l'utente assegnato al veicolo
           try {
-            // Prima chiamata per ottenere l'ID dell'utente assegnato al veicolo
-            const userIdResponse = await axios.get(
-              `/Warehouse/GET/GetUserByVehicleId`,
-              {
-                params: {
-                  vehicleId: vehicle.id,
-                },
-              }
-            );
-
             // Se c'è un utente assegnato
-            if (userIdResponse.data && userIdResponse.data.user_id) {
+            if (currentVehicle.assigned_user_id) {
               // Seconda chiamata per ottenere i dettagli dell'utente
               const employeeResponse = await axios.get(
                 `/Employee/GET/GetEmployeeById`,
                 {
                   params: {
-                    employeeId: userIdResponse.data.user_id,
+                    employeeId: currentVehicle.assigned_user_id,
                   },
                 }
               );
@@ -839,9 +829,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                       icon="mdi:clock-outline"
                       className="text-zinc-500 dark:text-zinc-300"
                     />
-                    <span className="text-sm font-medium">
-                      Ultimi 7 giorni
-                    </span>
+                    <span className="text-sm font-medium">Ultimi 7 giorni</span>
                   </div>
                 </div>
 
@@ -855,7 +843,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-                          {currentAddress || vehicle.position || "Posizione attuale"}
+                          {currentAddress ||
+                            vehicle.position ||
+                            "Posizione attuale"}
                         </span>
                         <Chip
                           size="sm"
@@ -863,7 +853,11 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                           variant="flat"
                           className="text-xs"
                         >
-                          {isOnRoute ? "In movimento" : isAvailable ? "In deposito" : "Fermo"}
+                          {isOnRoute
+                            ? "In movimento"
+                            : isAvailable
+                            ? "In deposito"
+                            : "Fermo"}
                         </Chip>
                       </div>
                       <p className="text-xs text-zinc-500 dark:text-zinc-300">
@@ -879,50 +873,50 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                       status: "Consegna completata",
                       time: "Oggi, 14:30",
                       duration: "45 min",
-                      color: "blue"
+                      color: "blue",
                     },
                     {
                       address: "Piazza del Duomo, Firenze",
                       status: "Sosta",
                       time: "Oggi, 13:15",
                       duration: "30 min",
-                      color: "amber"
+                      color: "amber",
                     },
                     {
                       address: "Deposito centrale",
                       status: "Partenza",
                       time: "Oggi, 08:00",
                       duration: "2 ore",
-                      color: "green"
+                      color: "green",
                     },
                     {
                       address: "Deposito centrale",
                       status: "Parcheggiato",
                       time: "Ieri, 18:30",
                       duration: "13 ore",
-                      color: "zinc"
+                      color: "zinc",
                     },
                     {
                       address: "Via Nazionale 67, Pistoia",
                       status: "Consegna completata",
                       time: "Ieri, 16:45",
                       duration: "1 ora",
-                      color: "blue"
+                      color: "blue",
                     },
                     {
                       address: "Corso Italia 12, Pistoia",
                       status: "Consegna completata",
                       time: "Ieri, 15:30",
                       duration: "45 min",
-                      color: "blue"
+                      color: "blue",
                     },
                     {
                       address: "Viale dei Mille 45, Prato",
                       status: "Consegna completata",
                       time: "Ieri, 14:00",
                       duration: "1 ora 15 min",
-                      color: "blue"
-                    }
+                      color: "blue",
+                    },
                   ].map((entry, index, array) => (
                     <div key={index} className="relative pl-8 pb-4">
                       <div
@@ -932,24 +926,28 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                             : "bg-zinc-300 dark:bg-zinc-600 h-full"
                         }`}
                       ></div>
-                      <div className={`absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center border-2 z-10 ${
-                        entry.color === "blue" 
-                          ? "bg-blue-50 dark:bg-blue-950 border-blue-500 dark:border-blue-700"
-                          : entry.color === "amber"
-                          ? "bg-amber-50 dark:bg-amber-950 border-amber-500 dark:border-amber-700"
-                          : entry.color === "green"
-                          ? "bg-green-50 dark:bg-green-950 border-green-500 dark:border-green-700"
-                          : "bg-zinc-50 dark:bg-zinc-950 border-zinc-500 dark:border-zinc-700"
-                      }`}>
-                        <div className={`w-2.5 h-2.5 rounded-full ${
-                          entry.color === "blue" 
-                            ? "bg-blue-500"
+                      <div
+                        className={`absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center border-2 z-10 ${
+                          entry.color === "blue"
+                            ? "bg-blue-50 dark:bg-blue-950 border-blue-500 dark:border-blue-700"
                             : entry.color === "amber"
-                            ? "bg-amber-500"
+                            ? "bg-amber-50 dark:bg-amber-950 border-amber-500 dark:border-amber-700"
                             : entry.color === "green"
-                            ? "bg-green-500"
-                            : "bg-zinc-500"
-                        }`}></div>
+                            ? "bg-green-50 dark:bg-green-950 border-green-500 dark:border-green-700"
+                            : "bg-zinc-50 dark:bg-zinc-950 border-zinc-500 dark:border-zinc-700"
+                        }`}
+                      >
+                        <div
+                          className={`w-2.5 h-2.5 rounded-full ${
+                            entry.color === "blue"
+                              ? "bg-blue-500"
+                              : entry.color === "amber"
+                              ? "bg-amber-500"
+                              : entry.color === "green"
+                              ? "bg-green-500"
+                              : "bg-zinc-500"
+                          }`}
+                        ></div>
                       </div>
                       <div>
                         <div className="flex items-center gap-2 flex-wrap">
@@ -960,7 +958,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                             size="sm"
                             variant="flat"
                             className={`text-xs ${
-                              entry.color === "blue" 
+                              entry.color === "blue"
                                 ? "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300"
                                 : entry.color === "amber"
                                 ? "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300"
@@ -1014,7 +1012,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
             <div className="p-5 bg-white dark:bg-zinc-900">
               {/* Vehicle info */}
               <div className="grid grid-cols-2 gap-4 mb-5">
-                <div 
+                <div
                   className="col-span-2 bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1042,7 +1040,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </div>
                 </div>
 
-                <div 
+                <div
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1055,7 +1053,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div 
+                <div
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1068,7 +1066,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div 
+                <div
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1081,7 +1079,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div 
+                <div
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
