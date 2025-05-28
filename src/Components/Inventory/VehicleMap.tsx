@@ -1012,7 +1012,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
             <div className="p-5 bg-white dark:bg-zinc-900">
               {/* Vehicle info */}
               <div className="grid grid-cols-2 gap-4 mb-5">
-                <div
+                <div 
                   className="col-span-2 bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1040,7 +1040,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </div>
                 </div>
 
-                <div
+                <div 
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1053,7 +1053,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div
+                <div 
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1066,7 +1066,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div
+                <div 
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1079,7 +1079,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div
+                <div 
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1278,6 +1278,340 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   <div className="space-y-3">{/* ... existing code ... */}</div>
                 </div>
               </div>
+            </div>
+          </Tab>
+
+          <Tab
+            key="inventory"
+            title={
+              <div className="flex items-center gap-2">
+                <Icon icon="mdi:package-variant" />
+                <span>Inventario</span>
+              </div>
+            }
+          >
+            <div className="p-5 bg-white dark:bg-zinc-900">
+              {/* Header inventario */}
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
+                <div>
+                  <h4 className="text-xl font-bold text-zinc-800 dark:text-zinc-50 flex items-center gap-2">
+                    <Icon
+                      icon="mdi:package-variant"
+                      className="text-blue-600 dark:text-blue-300"
+                    />
+                    <span>Inventario Furgone</span>
+                  </h4>
+                  <p className="text-sm text-zinc-500 dark:text-zinc-300 mt-1">
+                    Prodotti e materiali attualmente caricati nel veicolo
+                  </p>
+                </div>
+                <div className="flex items-center gap-4">
+                  <div className="text-center">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Peso caricato</p>
+                    <p className="text-lg font-bold text-blue-600 dark:text-blue-300">
+                      {Math.round((vehicle.capacity * (capacityUsed / 100))).toLocaleString("it-IT")} kg
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Articoli</p>
+                    <p className="text-lg font-bold text-green-600 dark:text-green-300">
+                      {isOnRoute ? "18" : isAvailable ? "6" : "0"}
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Utilizzo</p>
+                    <p className="text-lg font-bold text-purple-600 dark:text-purple-300">
+                      {capacityUsed}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Barra di capacità avanzata */}
+              <div className="mb-6 bg-gradient-to-r from-zinc-50 to-blue-50 dark:from-zinc-950 dark:to-blue-950 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+                    Capacità di carico
+                  </span>
+                  <span className="text-sm font-bold text-blue-600 dark:text-blue-300 bg-white dark:bg-zinc-800 px-3 py-1 rounded-full">
+                    {Math.round((vehicle.capacity * (capacityUsed / 100))).toLocaleString("it-IT")} / {vehicle.capacity.toLocaleString("it-IT")} kg
+                  </span>
+                </div>
+                <Progress
+                  value={capacityUsed}
+                  color={capacityUsed > 90 ? "danger" : capacityUsed > 75 ? "warning" : "primary"}
+                  size="lg"
+                  showValueLabel={true}
+                  classNames={{
+                    base: "bg-zinc-200 dark:bg-zinc-700",
+                    indicator: capacityUsed > 90 
+                      ? "bg-gradient-to-r from-red-500 to-red-600" 
+                      : capacityUsed > 75 
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500"
+                      : "bg-gradient-to-r from-blue-500 to-blue-600",
+                  }}
+                />
+                <div className="flex justify-between mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  <span>🟢 Vuoto</span>
+                  <span>🟡 Medio</span>
+                  <span>🔴 Pieno</span>
+                </div>
+              </div>
+
+              {/* Contenuto inventario */}
+              {isOnRoute || isAvailable ? (
+                <div className="space-y-4">
+                  {/* Categorie prodotti */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                    {[
+                      { name: "Elettronica", count: 5, icon: "mdi:chip", color: "blue" },
+                      { name: "Materiali", count: 8, icon: "mdi:cube-outline", color: "green" },
+                      { name: "Strumenti", count: 3, icon: "mdi:tools", color: "purple" },
+                      { name: "Energia", count: 2, icon: "mdi:solar-panel", color: "amber" }
+                    ].map((category, index) => (
+                      <div key={index} className={`p-4 rounded-xl border-2 border-dashed ${
+                        category.color === "blue" ? "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950" :
+                        category.color === "green" ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950" :
+                        category.color === "purple" ? "border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950" :
+                        "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950"
+                      }`}>
+                        <div className="flex items-center gap-3">
+                          <Icon
+                            icon={category.icon}
+                            className={`text-2xl ${
+                              category.color === "blue" ? "text-blue-600 dark:text-blue-300" :
+                              category.color === "green" ? "text-green-600 dark:text-green-300" :
+                              category.color === "purple" ? "text-purple-600 dark:text-purple-300" :
+                              "text-amber-600 dark:text-amber-300"
+                            }`}
+                          />
+                          <div>
+                            <p className="font-semibold text-zinc-800 dark:text-zinc-50">{category.name}</p>
+                            <p className="text-sm text-zinc-500 dark:text-zinc-400">{category.count} articoli</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Lista dettagliata prodotti */}
+                  <div className="space-y-3">
+                    <h5 className="text-lg font-semibold text-zinc-800 dark:text-zinc-50 flex items-center gap-2">
+                      <Icon icon="mdi:format-list-bulleted" className="text-blue-600 dark:text-blue-300" />
+                      Lista Prodotti Caricati
+                    </h5>
+                    
+                    {[
+                      {
+                        id: "1",
+                        name: "Moduli Fotovoltaici Premium",
+                        category: "Energia",
+                        sku: "PV-2024-001",
+                        quantity: 12,
+                        weight: 180.5,
+                        destination: "Via Roma 123, Firenze",
+                        priority: "Alta",
+                        status: "Pronto per consegna",
+                        icon: "mdi:solar-panel",
+                        color: "amber"
+                      },
+                      {
+                        id: "2",
+                        name: "Componenti Elettronici Avanzati",
+                        category: "Elettronica",
+                        sku: "EL-2024-045",
+                        quantity: 85,
+                        weight: 45.2,
+                        destination: "Piazza del Duomo, Firenze",
+                        priority: "Alta",
+                        status: "In transito",
+                        icon: "mdi:chip",
+                        color: "blue"
+                      },
+                      {
+                        id: "3",
+                        name: "Materiali Isolanti Termici",
+                        category: "Materiali",
+                        sku: "MT-2024-012",
+                        quantity: 50,
+                        weight: 120.8,
+                        destination: "Viale dei Mille 45, Prato",
+                        priority: "Media",
+                        status: "In transito",
+                        icon: "mdi:cube-outline",
+                        color: "green"
+                      },
+                      {
+                        id: "4",
+                        name: "Kit Strumentazione Precisione",
+                        category: "Strumenti",
+                        sku: "ST-2024-008",
+                        quantity: 15,
+                        weight: 67.5,
+                        destination: "Via Nazionale 67, Pistoia",
+                        priority: "Bassa",
+                        status: "Programmato",
+                        icon: "mdi:tools",
+                        color: "purple"
+                      }
+                    ].filter((_, index) => isOnRoute || index < 2).map((product) => (
+                      <div key={product.id} className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all duration-200 hover:border-blue-300 dark:hover:border-blue-700">
+                        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
+                          {/* Icona e info principale */}
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                              product.color === "blue" ? "bg-blue-100 dark:bg-blue-900" :
+                              product.color === "green" ? "bg-green-100 dark:bg-green-900" :
+                              product.color === "purple" ? "bg-purple-100 dark:bg-purple-900" :
+                              "bg-amber-100 dark:bg-amber-900"
+                            }`}>
+                              <Icon
+                                icon={product.icon}
+                                className={`text-2xl ${
+                                  product.color === "blue" ? "text-blue-600 dark:text-blue-300" :
+                                  product.color === "green" ? "text-green-600 dark:text-green-300" :
+                                  product.color === "purple" ? "text-purple-600 dark:text-purple-300" :
+                                  "text-amber-600 dark:text-amber-300"
+                                }`}
+                              />
+                            </div>
+                            <div className="flex-1">
+                              <h6 className="font-bold text-zinc-800 dark:text-zinc-50 text-lg">
+                                {product.name}
+                              </h6>
+                              <div className="flex items-center gap-3 mt-1">
+                                <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                                  SKU: {product.sku}
+                                </span>
+                                <span className="text-sm text-zinc-500 dark:text-zinc-400">•</span>
+                                <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                                  {product.category}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Dettagli prodotto */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
+                            <div className="text-center">
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Quantità</p>
+                              <p className="font-bold text-zinc-800 dark:text-zinc-50">
+                                {product.quantity} pz
+                              </p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Peso</p>
+                              <p className="font-bold text-zinc-800 dark:text-zinc-50">
+                                {product.weight} kg
+                              </p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Priorità</p>
+                              <Chip
+                                size="sm"
+                                variant="flat"
+                                className={`font-medium ${
+                                  product.priority === "Alta"
+                                    ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
+                                    : product.priority === "Media"
+                                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
+                                    : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
+                                }`}
+                              >
+                                {product.priority}
+                              </Chip>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Stato</p>
+                              <Chip
+                                size="sm"
+                                variant="flat"
+                                className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-medium"
+                              >
+                                {product.status}
+                              </Chip>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Destinazione (solo per veicoli in movimento) */}
+                        {isOnRoute && (
+                          <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-700">
+                            <div className="flex items-center gap-2">
+                              <Icon
+                                icon="mdi:map-marker"
+                                className="text-blue-600 dark:text-blue-300"
+                              />
+                              <span className="text-sm font-medium text-zinc-700 dark:text-zinc-200">
+                                Destinazione:
+                              </span>
+                              <span className="text-sm text-zinc-600 dark:text-zinc-300">
+                                {product.destination}
+                              </span>
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="w-20 h-20 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-6">
+                    <Icon
+                      icon="mdi:package-variant-closed"
+                      className="text-5xl text-zinc-400 dark:text-zinc-500"
+                    />
+                  </div>
+                  <h5 className="text-xl font-bold text-zinc-600 dark:text-zinc-300 mb-3">
+                    Furgone Vuoto
+                  </h5>
+                  <p className="text-zinc-500 dark:text-zinc-400 max-w-md">
+                    Il veicolo è attualmente in manutenzione e non contiene prodotti. 
+                    Una volta operativo, qui vedrai l'inventario completo.
+                  </p>
+                </div>
+              )}
+
+              {/* Azioni inventario */}
+              {(isOnRoute || isAvailable) && (
+                <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-800">
+                  <div className="flex flex-wrap gap-3">
+                    <Button
+                      variant="flat"
+                      size="md"
+                      startContent={<Icon icon="mdi:plus" width={18} />}
+                      className="bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900 font-medium"
+                    >
+                      Aggiungi Prodotto
+                    </Button>
+                    <Button
+                      variant="flat"
+                      size="md"
+                      startContent={<Icon icon="mdi:file-export" width={18} />}
+                      className="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 font-medium"
+                    >
+                      Esporta Inventario
+                    </Button>
+                    <Button
+                      variant="flat"
+                      size="md"
+                      startContent={<Icon icon="mdi:qrcode-scan" width={18} />}
+                      className="bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 font-medium"
+                    >
+                      Scansiona QR
+                    </Button>
+                    <Button
+                      variant="flat"
+                      size="md"
+                      startContent={<Icon icon="mdi:truck-fast" width={18} />}
+                      className="bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-950 dark:text-orange-300 dark:hover:bg-orange-900 font-medium"
+                    >
+                      Ottimizza Carico
+                    </Button>
+                  </div>
+                </div>
+              )}
             </div>
           </Tab>
         </Tabs>
