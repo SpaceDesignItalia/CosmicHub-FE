@@ -837,86 +837,181 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                 </div>
               </div>
 
-              {/* Route details (only if vehicle is in use) */}
-              {isOnRoute && (
-                <div className="mt-4 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                  <div className="flex justify-between items-center mb-4">
-                    <h4 className="text-md font-semibold text-zinc-800 dark:text-zinc-50 flex items-center gap-2">
-                      <Icon
-                        icon="mdi:road-variant"
-                        className="text-blue-600 dark:text-blue-300"
-                      />
-                      <span>Percorso attivo</span>
-                    </h4>
-                    <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 py-1 px-3 rounded-full text-zinc-600 dark:text-zinc-200">
-                      <Icon
-                        icon="mdi:clock-outline"
-                        className="text-zinc-500 dark:text-zinc-300"
-                      />
-                      <span className="text-sm font-medium">
-                        ETA: {vehicle.eta}
-                      </span>
+              {/* Storico posizioni */}
+              <div className="mt-4 bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                <div className="flex justify-between items-center mb-4">
+                  <h4 className="text-md font-semibold text-zinc-800 dark:text-zinc-50 flex items-center gap-2">
+                    <Icon
+                      icon="mdi:history"
+                      className="text-blue-600 dark:text-blue-300"
+                    />
+                    <span>Storico Posizioni</span>
+                  </h4>
+                  <div className="flex items-center gap-2 bg-zinc-50 dark:bg-zinc-800 py-1 px-3 rounded-full text-zinc-600 dark:text-zinc-200">
+                    <Icon
+                      icon="mdi:clock-outline"
+                      className="text-zinc-500 dark:text-zinc-300"
+                    />
+                    <span className="text-sm font-medium">
+                      Ultimi 7 giorni
+                    </span>
+                  </div>
+                </div>
+
+                <div className="space-y-0 ml-4 max-h-80 overflow-y-auto">
+                  {/* Posizione attuale */}
+                  <div className="relative pl-8 pb-4">
+                    <div className="absolute left-[11px] top-[24px] bottom-0 w-[2px] bg-gradient-to-b from-green-500 to-zinc-300 dark:to-zinc-600"></div>
+                    <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-green-50 dark:bg-green-950 flex items-center justify-center border-2 border-green-500 dark:border-green-700 z-10">
+                      <div className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse"></div>
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
+                          {currentAddress || vehicle.position || "Posizione attuale"}
+                        </span>
+                        <Chip
+                          size="sm"
+                          color="success"
+                          variant="flat"
+                          className="text-xs"
+                        >
+                          {isOnRoute ? "In movimento" : isAvailable ? "In deposito" : "Fermo"}
+                        </Chip>
+                      </div>
+                      <p className="text-xs text-zinc-500 dark:text-zinc-300">
+                        Ora: {new Date().toLocaleString("it-IT")}
+                      </p>
                     </div>
                   </div>
 
-                  <div className="space-y-0 ml-4">
-                    {/* Starting point */}
-                    <div className="relative pl-8 pb-6">
-                      <div className="absolute left-[11px] top-[24px] bottom-0 w-[2px] bg-gradient-to-b from-green-500 to-blue-500"></div>
-                      <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-green-50 dark:bg-green-950 flex items-center justify-center border-2 border-green-500 dark:border-green-700 z-10">
-                        <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
+                  {/* Storico posizioni precedenti */}
+                  {[
+                    {
+                      address: "Via Roma 123, Firenze",
+                      status: "Consegna completata",
+                      time: "Oggi, 14:30",
+                      duration: "45 min",
+                      color: "blue"
+                    },
+                    {
+                      address: "Piazza del Duomo, Firenze",
+                      status: "Sosta",
+                      time: "Oggi, 13:15",
+                      duration: "30 min",
+                      color: "amber"
+                    },
+                    {
+                      address: "Deposito centrale",
+                      status: "Partenza",
+                      time: "Oggi, 08:00",
+                      duration: "2 ore",
+                      color: "green"
+                    },
+                    {
+                      address: "Deposito centrale",
+                      status: "Parcheggiato",
+                      time: "Ieri, 18:30",
+                      duration: "13 ore",
+                      color: "zinc"
+                    },
+                    {
+                      address: "Via Nazionale 67, Pistoia",
+                      status: "Consegna completata",
+                      time: "Ieri, 16:45",
+                      duration: "1 ora",
+                      color: "blue"
+                    },
+                    {
+                      address: "Corso Italia 12, Pistoia",
+                      status: "Consegna completata",
+                      time: "Ieri, 15:30",
+                      duration: "45 min",
+                      color: "blue"
+                    },
+                    {
+                      address: "Viale dei Mille 45, Prato",
+                      status: "Consegna completata",
+                      time: "Ieri, 14:00",
+                      duration: "1 ora 15 min",
+                      color: "blue"
+                    }
+                  ].map((entry, index, array) => (
+                    <div key={index} className="relative pl-8 pb-4">
+                      <div
+                        className={`absolute left-[11px] top-0 bottom-0 w-[2px] ${
+                          index === array.length - 1
+                            ? "bg-zinc-300 dark:bg-zinc-600 h-6"
+                            : "bg-zinc-300 dark:bg-zinc-600 h-full"
+                        }`}
+                      ></div>
+                      <div className={`absolute left-0 top-1 w-6 h-6 rounded-full flex items-center justify-center border-2 z-10 ${
+                        entry.color === "blue" 
+                          ? "bg-blue-50 dark:bg-blue-950 border-blue-500 dark:border-blue-700"
+                          : entry.color === "amber"
+                          ? "bg-amber-50 dark:bg-amber-950 border-amber-500 dark:border-amber-700"
+                          : entry.color === "green"
+                          ? "bg-green-50 dark:bg-green-950 border-green-500 dark:border-green-700"
+                          : "bg-zinc-50 dark:bg-zinc-950 border-zinc-500 dark:border-zinc-700"
+                      }`}>
+                        <div className={`w-2.5 h-2.5 rounded-full ${
+                          entry.color === "blue" 
+                            ? "bg-blue-500"
+                            : entry.color === "amber"
+                            ? "bg-amber-500"
+                            : entry.color === "green"
+                            ? "bg-green-500"
+                            : "bg-zinc-500"
+                        }`}></div>
                       </div>
                       <div>
-                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-                          Deposito centrale
-                        </span>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-300">
-                          Partenza
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* Delivery points */}
-                    {vehicle.deliveryPoints?.map((point, index, array) => (
-                      <div key={index} className="relative pl-8 pb-6">
-                        <div
-                          className={`absolute left-[11px] top-0 bottom-0 w-[2px] ${
-                            index === array.length - 1
-                              ? "bg-gradient-to-b from-blue-500 to-red-500 h-full"
-                              : "bg-blue-500 h-full"
-                          }`}
-                        ></div>
-                        <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-blue-50 dark:bg-blue-950 flex items-center justify-center border-2 border-blue-500 dark:border-blue-700 z-10">
-                          <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
-                        </div>
-                        <div>
+                        <div className="flex items-center gap-2 flex-wrap">
                           <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-                            {point.address}
+                            {entry.address}
                           </span>
-                          <p className="text-xs text-zinc-500 dark:text-zinc-300">
-                            Pianificato: {point.time}
+                          <Chip
+                            size="sm"
+                            variant="flat"
+                            className={`text-xs ${
+                              entry.color === "blue" 
+                                ? "bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300"
+                                : entry.color === "amber"
+                                ? "bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-300"
+                                : entry.color === "green"
+                                ? "bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-300"
+                                : "bg-zinc-50 text-zinc-600 dark:bg-zinc-950 dark:text-zinc-300"
+                            }`}
+                          >
+                            {entry.status}
+                          </Chip>
+                        </div>
+                        <div className="flex items-center gap-3 mt-1">
+                          <p className="text-xs text-zinc-500 dark:text-zinc-300 flex items-center gap-1">
+                            <Icon icon="mdi:clock-outline" width={12} />
+                            {entry.time}
+                          </p>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-300 flex items-center gap-1">
+                            <Icon icon="mdi:timer-outline" width={12} />
+                            Durata: {entry.duration}
                           </p>
                         </div>
                       </div>
-                    ))}
-
-                    {/* Arrival point */}
-                    <div className="relative pl-8">
-                      <div className="absolute left-0 top-1 w-6 h-6 rounded-full bg-red-50 dark:bg-red-950 flex items-center justify-center border-2 border-red-500 dark:border-red-700 z-10">
-                        <div className="w-2.5 h-2.5 rounded-full bg-red-500"></div>
-                      </div>
-                      <div>
-                        <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-                          {vehicle.position}
-                        </span>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-300">
-                          Destinazione finale
-                        </p>
-                      </div>
                     </div>
-                  </div>
+                  ))}
                 </div>
-              )}
+
+                {/* Pulsante per vedere tutto lo storico */}
+                <div className="mt-4 pt-4 border-t border-zinc-200 dark:border-zinc-800">
+                  <Button
+                    variant="flat"
+                    size="sm"
+                    className="w-full"
+                    startContent={<Icon icon="mdi:history" width={16} />}
+                  >
+                    Visualizza storico completo
+                  </Button>
+                </div>
+              </div>
             </div>
           </Tab>
 

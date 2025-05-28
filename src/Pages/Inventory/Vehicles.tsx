@@ -104,6 +104,7 @@ export default function Vehicles() {
   const [selectedVehicleType, setSelectedVehicleType] = useState("Tutti");
   const selectedVehicleRef = useRef<HTMLDivElement>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [usingMockData, setUsingMockData] = useState(false); // Traccia se stiamo usando dati di prova
 
   // Tipi di veicolo disponibili
   const vehicleTypes = ["Tutti", "Large Van", "Small Van"];
@@ -234,7 +235,137 @@ export default function Vehicles() {
         }
         setError("");
       } catch (error) {
-        setError("Impossibile caricare i veicoli. Riprova più tardi.");
+        console.log("API non disponibile, carico veicoli di prova...");
+        
+        // Veicoli di prova per visualizzare il frontend
+        const mockVehicles: Vehicle[] = [
+          {
+            id: "1",
+            plate: "AB123CD",
+            model: "Ford Transit",
+            type: "Large Van",
+            capacity: 2000,
+            status: "Available",
+            lastCheck: "2024-01-15",
+            usedCapacity: 0,
+            position: "In deposito",
+            travelTime: "00:00:00",
+            eta: "N/A",
+            coordinates: DEPOSITO_COORDINATES,
+            deliveryPoints: [],
+            assignedUser: "Mario Rossi"
+          },
+          {
+            id: "2",
+            plate: "EF456GH",
+            model: "Mercedes Sprinter",
+            type: "Large Van",
+            capacity: 2500,
+            status: "In use",
+            lastCheck: "2024-01-10",
+            usedCapacity: 65,
+            position: "Via Roma 123, Firenze",
+            travelTime: "02:15:30",
+            eta: "16:30",
+            coordinates: { lat: 43.7696, lng: 11.2558 },
+            deliveryPoints: [
+              {
+                address: "Via Roma 123, Firenze",
+                time: "14:30"
+              },
+              {
+                address: "Piazza del Duomo, Firenze",
+                time: "15:45"
+              }
+            ],
+            assignedUser: "Luca Bianchi"
+          },
+          {
+            id: "3",
+            plate: "IJ789KL",
+            model: "Iveco Daily",
+            type: "Small Van",
+            capacity: 1500,
+            status: "In use",
+            lastCheck: "2024-01-20",
+            usedCapacity: 45,
+            position: "Viale dei Mille 45, Prato",
+            travelTime: "01:45:15",
+            eta: "17:15",
+            coordinates: { lat: 43.8777, lng: 11.0955 },
+            deliveryPoints: [
+              {
+                address: "Viale dei Mille 45, Prato",
+                time: "16:00"
+              }
+            ],
+            assignedUser: "Giuseppe Verdi"
+          },
+          {
+            id: "4",
+            plate: "MN012OP",
+            model: "Fiat Ducato",
+            type: "Small Van",
+            capacity: 1200,
+            status: "Maintenance",
+            lastCheck: "2024-01-05",
+            usedCapacity: 0,
+            position: "In manutenzione",
+            travelTime: "N/A",
+            eta: "N/A",
+            coordinates: undefined,
+            deliveryPoints: [],
+            assignedUser: undefined
+          },
+          {
+            id: "5",
+            plate: "QR345ST",
+            model: "Volkswagen Crafter",
+            type: "Large Van",
+            capacity: 2200,
+            status: "Available",
+            lastCheck: "2024-01-18",
+            usedCapacity: 0,
+            position: "In deposito",
+            travelTime: "00:00:00",
+            eta: "N/A",
+            coordinates: DEPOSITO_COORDINATES,
+            deliveryPoints: [],
+            assignedUser: undefined
+          },
+          {
+            id: "6",
+            plate: "UV678WX",
+            model: "Renault Master",
+            type: "Large Van",
+            capacity: 1800,
+            status: "In use",
+            lastCheck: "2024-01-12",
+            usedCapacity: 80,
+            position: "Via Nazionale 67, Pistoia",
+            travelTime: "03:20:45",
+            eta: "18:45",
+            coordinates: { lat: 43.9335, lng: 10.9177 },
+            deliveryPoints: [
+              {
+                address: "Via Nazionale 67, Pistoia",
+                time: "17:30"
+              },
+              {
+                address: "Corso Italia 12, Pistoia",
+                time: "18:15"
+              }
+            ],
+            assignedUser: "Anna Neri"
+          }
+        ];
+
+        setVehicles(mockVehicles);
+        if (mockVehicles.length > 0 && !selectedVehicle) {
+          setSelectedVehicle(mockVehicles[0]);
+        }
+        setUsingMockData(true); // Indica che stiamo usando dati di prova
+        setError(""); // Non mostriamo errore con i dati di prova
       } finally {
         setIsLoading(false);
       }
@@ -377,13 +508,20 @@ export default function Vehicles() {
 
     fetchVehicles();
 
-    // Aggiorna i veicoli ogni 30 secondi senza mostrare loading
-    const intervalId = setInterval(() => {
-      silentlyUpdateVehicles();
-    }, 30000);
+    // Aggiorna i veicoli ogni 30 secondi senza mostrare loading solo se non stiamo usando dati di prova
+    let intervalId: NodeJS.Timeout | null = null;
+    if (!usingMockData) {
+      intervalId = setInterval(() => {
+        silentlyUpdateVehicles();
+      }, 30000);
+    }
 
-    return () => clearInterval(intervalId);
-  }, []);
+    return () => {
+      if (intervalId) {
+        clearInterval(intervalId);
+      }
+    };
+  }, [usingMockData]); // Aggiungo usingMockData come dipendenza
 
   // Gestisci selezione veicolo
   const handleVehicleSelect = (vehicle: Vehicle) => {
@@ -439,6 +577,16 @@ export default function Vehicles() {
   return (
     <VehicleThemeProvider>
       <div className="w-full flex-1 flex flex-col p-5 bg-zinc-50 dark:bg-zinc-950">
+        {/* Banner informativo per dati di prova */}
+        {usingMockData && (
+          <div className="mb-4 bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800 text-blue-700 dark:text-blue-300 p-3 rounded-lg flex items-center gap-2">
+            <Icon icon="solar:info-circle-bold" className="text-lg" />
+            <span className="text-sm">
+              Modalità demo: Stai visualizzando dati di prova. L'API non è disponibile.
+            </span>
+          </div>
+        )}
+        
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>

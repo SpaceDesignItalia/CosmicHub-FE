@@ -78,6 +78,12 @@ export const sectionNestedItems = [
     href: "/suppliers",
   },
   {
+    key: "vehicles",
+    title: "Veicoli",
+    icon: "mingcute:truck-line",
+    href: "/inventory/vehicles",
+  },
+  {
     key: "inventory",
     title: "Inventario",
     icon: "solar:box-line-duotone",
