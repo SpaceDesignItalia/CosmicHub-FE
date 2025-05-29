@@ -1112,6 +1112,10 @@ export default function ProductTable({
 
     setIsProcessingBatchStock(true);
     try {
+      const validOperations = [];
+      const invalidOperations = [];
+
+      // Valida tutte le operazioni prima di eseguirle
       for (const product of batchProducts) {
         const productId = product.product_id || product.id || "";
         const amount = parseInt(batchStockData[productId] || "0");
@@ -1122,22 +1126,104 @@ export default function ProductTable({
               ? product.quantity + amount
               : product.quantity - amount;
 
-          if (newQuantity >= 0 && onUpdateQuantity) {
-            onUpdateQuantity(productId, newQuantity);
+          if (newQuantity >= 0) {
+            validOperations.push({
+              product,
+              productId,
+              amount,
+              newQuantity,
+            });
+          } else {
+            invalidOperations.push({
+              product,
+              amount,
+              available: product.quantity,
+              deficit: Math.abs(newQuantity),
+            });
           }
         }
       }
 
-      console.log("Operazione batch completata:", {
-        type: batchStockType,
-        products: batchProducts.length,
-        reason: batchStockReason,
-        timestamp: new Date(),
-      });
+      // Se ci sono operazioni non valide, mostra errore
+      if (invalidOperations.length > 0) {
+        const errorMessages = invalidOperations
+          .map(
+            (op) =>
+              `${op.product.name}: richiesto ${op.amount}, disponibile ${op.available} (deficit: ${op.deficit})`
+          )
+          .join("\n");
 
+        alert(
+          `Le seguenti operazioni non possono essere eseguite perché porterebbero a quantità negative:\n\n${errorMessages}\n\nCorreggi le quantità e riprova.`
+        );
+        return;
+      }
+
+      // Esegui solo le operazioni valide
+      let successCount = 0;
+      let errorCount = 0;
+
+      for (const operation of validOperations) {
+        try {
+          // Usa lo stesso endpoint dell'InlineQuantityEditor
+          await axios.put(`/Product/UPDATE/UpdateProductQuantity/`, {
+            product_id: operation.productId,
+            stock_unit: operation.newQuantity.toString(),
+          });
+
+          // Registra il movimento
+          const movementEndpoint =
+            batchStockType === "increase"
+              ? "/Movement/POST/CreateLoadMovement"
+              : "/Movement/POST/CreateUnloadMovement";
+
+          const movementData = {
+            product_id: operation.productId,
+            quantity: operation.amount,
+            reason: batchStockReason,
+            warehouse_id: operation.product.warehouse_id,
+            timestamp: new Date().toISOString(),
+            movement_type: batchStockType === "increase" ? "LOAD" : "UNLOAD",
+            notes: `${
+              batchStockType === "increase" ? "Carico" : "Scarico"
+            } batch: ${batchStockReason}`,
+            user_id: "current_user",
+            created_at: new Date().toISOString(),
+          };
+
+          try {
+            await axios.post(movementEndpoint, movementData);
+          } catch (movementError) {
+            console.warn(
+              "Errore nella registrazione del movimento:",
+              movementError
+            );
+          }
+
+          // Aggiorna l'UI
+          if (onUpdateQuantity) {
+            onUpdateQuantity(operation.productId, operation.newQuantity);
+          }
+          successCount++;
+        } catch (error) {
+          console.error(
+            `Errore nell'aggiornamento del prodotto ${operation.product.name}:`,
+            error
+          );
+          errorCount++;
+        }
+      }
+
+      // Mostra risultati
+      let message = `Operazione completata: ${successCount} prodotti aggiornati con successo`;
+      if (errorCount > 0) {
+        message += `, ${errorCount} errori`;
+      }
+
+      setShowSuccessMessage(true);
+      setSuccessMessage(message);
       setIsBatchStockModalOpen(false);
       setSelectedKeys(new Set([]));
-      alert("Operazione completata con successo!");
     } catch (error) {
       console.error("Errore nell'operazione batch:", error);
       alert("Errore nell'operazione. Riprova.");
@@ -1148,13 +1234,49 @@ export default function ProductTable({
 
   const handleBatchMoveOperation = async () => {
     if (batchProducts.length === 0 || !batchTargetWarehouse) return;
+
     setIsProcessingBatchMove(true);
     try {
-      const operations = batchProducts.filter((product) => {
+      const validOperations = [];
+      const invalidOperations = [];
+
+      // Valida tutte le operazioni prima di eseguirle
+      for (const product of batchProducts) {
         const productId = product.product_id || product.id || "";
         const amount = parseInt(batchMoveData[productId] || "0");
-        return amount > 0 && amount <= product.quantity;
-      });
+
+        if (amount > 0) {
+          if (amount <= product.quantity) {
+            validOperations.push({
+              product,
+              productId,
+              amount,
+            });
+          } else {
+            invalidOperations.push({
+              product,
+              amount,
+              available: product.quantity,
+              excess: amount - product.quantity,
+            });
+          }
+        }
+      }
+
+      // Se ci sono operazioni non valide, mostra errore
+      if (invalidOperations.length > 0) {
+        const errorMessages = invalidOperations
+          .map(
+            (op) =>
+              `${op.product.name}: richiesto ${op.amount}, disponibile ${op.available} (eccesso: ${op.excess})`
+          )
+          .join("\n");
+
+        alert(
+          `Le seguenti operazioni non possono essere eseguite perché la quantità richiesta supera quella disponibile:\n\n${errorMessages}\n\nCorreggi le quantità e riprova.`
+        );
+        return;
+      }
 
       // Trova il magazzino di destinazione
       const targetWarehouseData = warehouses.find(
@@ -1167,38 +1289,39 @@ export default function ProductTable({
         return;
       }
 
-      // Esegui i trasferimenti uno per uno
-      for (const product of operations) {
-        const productId = product.product_id || product.id || "";
-        const amount = parseInt(batchMoveData[productId]);
+      // Esegui i trasferimenti
+      let successCount = 0;
+      let errorCount = 0;
 
-        // Trova il magazzino di origine per questo prodotto
-        const sourceWarehouseData = warehouses.find(
-          (w) =>
-            (w.WarehouseUUID || w.WarehouseID.toString()) ===
-              product.warehouse_id ||
-            w.WarehouseName === product.warehouse_id ||
-            w.WarehouseCode === product.warehouse_id
-        );
-
-        if (!sourceWarehouseData) {
-          console.error(
-            `Magazzino di origine non trovato per prodotto ${product.name}`
-          );
-          continue; // Salta questo prodotto e continua con i prossimi
-        }
-
-        const transferData = {
-          product_id: productId,
-          amount: amount,
-          from_warehouse_id: sourceWarehouseData.WarehouseID, // ID numerico
-          to_warehouse_id: targetWarehouseData.WarehouseID, // ID numerico
-          movement_date: new Date().toISOString(),
-          notes: `Trasferimento batch di ${amount} unità di ${product.name}`,
-          reason: "Trasferimento batch tra magazzini",
-        };
-
+      for (const operation of validOperations) {
         try {
+          // Trova il magazzino di origine per questo prodotto
+          const sourceWarehouseData = warehouses.find(
+            (w) =>
+              (w.WarehouseUUID || w.WarehouseID.toString()) ===
+                operation.product.warehouse_id ||
+              w.WarehouseName === operation.product.warehouse_id ||
+              w.WarehouseCode === operation.product.warehouse_id
+          );
+
+          if (!sourceWarehouseData) {
+            console.error(
+              `Magazzino di origine non trovato per prodotto ${operation.product.name}`
+            );
+            errorCount++;
+            continue;
+          }
+
+          const transferData = {
+            product_id: operation.productId,
+            amount: operation.amount,
+            from_warehouse_id: sourceWarehouseData.WarehouseID,
+            to_warehouse_id: targetWarehouseData.WarehouseID,
+            movement_date: new Date().toISOString(),
+            notes: `Trasferimento batch di ${operation.amount} unità di ${operation.product.name}`,
+            reason: "Trasferimento batch tra magazzini",
+          };
+
           const response = await axios.post(
             "/Movement/POST/CreateTransferMovement",
             transferData
@@ -1206,34 +1329,35 @@ export default function ProductTable({
 
           if (response.status === 201) {
             // Aggiorna la quantità del prodotto nel magazzino di origine
-            const newQuantity = product.quantity - amount;
+            const newQuantity = operation.product.quantity - operation.amount;
             if (onUpdateQuantity) {
-              onUpdateQuantity(productId, newQuantity);
+              onUpdateQuantity(operation.productId, newQuantity);
             }
+            successCount++;
           }
         } catch (error) {
           console.error(
-            `Errore nel trasferimento del prodotto ${product.name}:`,
+            `Errore nel trasferimento del prodotto ${operation.product.name}:`,
             error
           );
-          // Continua con i prossimi prodotti anche se uno fallisce
+          errorCount++;
         }
       }
 
-      // Mostra messaggio di successo
-      setShowSuccessMessage(true);
-      setSuccessMessage(
-        `${operations.length} prodotti trasferiti con successo a ${targetWarehouseData.WarehouseName}!`
-      );
+      // Mostra risultati
+      let message = `${successCount} prodotti trasferiti con successo a ${targetWarehouseData.WarehouseName}`;
+      if (errorCount > 0) {
+        message += `, ${errorCount} errori`;
+      }
 
+      setShowSuccessMessage(true);
+      setSuccessMessage(message);
       setIsBatchMoveModalOpen(false);
       setSelectedKeys(new Set([]));
 
       // Reset dei dati
       setBatchMoveData({});
       setBatchTargetWarehouse("");
-
-      console.log("Trasferimenti batch completati:", operations.length);
     } catch (error) {
       console.error("Errore nello spostamento batch:", error);
       alert(
@@ -1246,30 +1370,59 @@ export default function ProductTable({
 
   const handleBatchLoadOperation = async () => {
     if (batchProducts.length === 0 || !batchTargetVehicle) return;
+
     setIsProcessingBatchLoad(true);
     try {
-      const operations = batchProducts
-        .filter((product) => {
-          const productId = product.product_id || product.id || "";
-          const amount = parseInt(batchLoadData[productId] || "0");
-          return amount > 0 && amount <= product.quantity;
-        })
-        .map((product) => {
-          const productId = product.product_id || product.id || "";
-          const amount = parseInt(batchLoadData[productId]);
-          return {
-            product: product.name,
-            amount,
-            warehouse: product.warehouse_id,
-            vehicle: batchTargetVehicle,
-          };
-        });
+      const validOperations = [];
+      const invalidOperations = [];
 
-      console.log("Caricamenti batch:", operations);
+      // Valida tutte le operazioni prima di eseguirle
+      for (const product of batchProducts) {
+        const productId = product.product_id || product.id || "";
+        const amount = parseInt(batchLoadData[productId] || "0");
 
+        if (amount > 0) {
+          if (amount <= product.quantity) {
+            validOperations.push({
+              product,
+              productId,
+              amount,
+            });
+          } else {
+            invalidOperations.push({
+              product,
+              amount,
+              available: product.quantity,
+              excess: amount - product.quantity,
+            });
+          }
+        }
+      }
+
+      // Se ci sono operazioni non valide, mostra errore
+      if (invalidOperations.length > 0) {
+        const errorMessages = invalidOperations
+          .map(
+            (op) =>
+              `${op.product.name}: richiesto ${op.amount}, disponibile ${op.available} (eccesso: ${op.excess})`
+          )
+          .join("\n");
+
+        alert(
+          `Le seguenti operazioni non possono essere eseguite perché la quantità richiesta supera quella disponibile:\n\n${errorMessages}\n\nCorreggi le quantità e riprova.`
+        );
+        return;
+      }
+
+      // TODO: Qui implementare la logica per caricare su furgone quando l'endpoint sarà disponibile
+      console.log("Caricamenti batch validi:", validOperations);
+
+      let message = `${validOperations.length} prodotti pronti per il caricamento su furgone`;
+
+      setShowSuccessMessage(true);
+      setSuccessMessage(message);
       setIsBatchLoadModalOpen(false);
       setSelectedKeys(new Set([]));
-      alert(`${operations.length} prodotti caricati su furgone con successo!`);
     } catch (error) {
       console.error("Errore nel caricamento batch:", error);
       alert("Errore nel caricamento. Riprova.");
@@ -1296,6 +1449,33 @@ export default function ProductTable({
   React.useEffect(() => {
     loadWarehouses();
   }, []);
+
+  // Funzioni di validazione per i modali batch
+  const getBatchStockValidationErrors = () => {
+    return batchProducts.filter((product) => {
+      const productId = product.product_id || product.id || "";
+      const amount = parseInt(batchStockData[productId] || "0");
+      return (
+        amount > 0 && batchStockType === "decrease" && amount > product.quantity
+      );
+    });
+  };
+
+  const getBatchMoveValidationErrors = () => {
+    return batchProducts.filter((product) => {
+      const productId = product.product_id || product.id || "";
+      const amount = parseInt(batchMoveData[productId] || "0");
+      return amount > 0 && amount > product.quantity;
+    });
+  };
+
+  const getBatchLoadValidationErrors = () => {
+    return batchProducts.filter((product) => {
+      const productId = product.product_id || product.id || "";
+      const amount = parseInt(batchLoadData[productId] || "0");
+      return amount > 0 && amount > product.quantity;
+    });
+  };
 
   return (
     <>
@@ -2140,10 +2320,25 @@ export default function ProductTable({
                 <div className="space-y-3">
                   {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
+                    const inputAmount = parseInt(
+                      batchStockData[productId] || "0"
+                    );
+                    const isValidAmount =
+                      batchStockType === "increase"
+                        ? true
+                        : inputAmount <= product.quantity;
+                    const wouldBeNegative =
+                      batchStockType === "decrease" &&
+                      inputAmount > product.quantity;
+
                     return (
                       <div
                         key={productId}
-                        className="flex items-center gap-4 p-3 bg-default-50 rounded-lg"
+                        className={`flex items-center gap-4 p-3 rounded-lg transition-all ${
+                          wouldBeNegative
+                            ? "bg-danger-50 border border-danger-200"
+                            : "bg-default-50"
+                        }`}
                       >
                         <div className="flex-1">
                           <p className="font-medium">{product.name}</p>
@@ -2151,6 +2346,11 @@ export default function ProductTable({
                             <span>SKU: {product.sku}</span>
                             <span>Attuale: {product.quantity}</span>
                             <span>Magazzino: {product.warehouse_id}</span>
+                            {wouldBeNegative && (
+                              <span className="text-danger font-medium">
+                                ⚠️ Quantità insufficiente
+                              </span>
+                            )}
                           </div>
                         </div>
                         <div className="w-32">
@@ -2179,24 +2379,36 @@ export default function ProductTable({
                                     : "solar:minus-circle-bold"
                                 }
                                 className={
-                                  batchStockType === "increase"
+                                  wouldBeNegative
+                                    ? "text-danger"
+                                    : batchStockType === "increase"
                                     ? "text-success"
                                     : "text-warning"
                                 }
                                 width={16}
                               />
                             }
+                            isInvalid={wouldBeNegative}
+                            errorMessage={
+                              wouldBeNegative
+                                ? "Quantità troppo alta"
+                                : undefined
+                            }
                           />
                         </div>
                         <div className="w-20 text-right">
                           {batchStockData[productId] && (
                             <div className="text-sm">
-                              <p className="font-bold text-primary">
+                              <p
+                                className={`font-bold ${
+                                  wouldBeNegative
+                                    ? "text-danger"
+                                    : "text-primary"
+                                }`}
+                              >
                                 {batchStockType === "increase"
-                                  ? product.quantity +
-                                    parseInt(batchStockData[productId])
-                                  : product.quantity -
-                                    parseInt(batchStockData[productId])}
+                                  ? product.quantity + inputAmount
+                                  : Math.max(0, product.quantity - inputAmount)}
                               </p>
                               <p className="text-xs text-default-500">Nuovo</p>
                             </div>
@@ -2274,7 +2486,9 @@ export default function ProductTable({
               onPress={handleBatchStockOperation}
               isLoading={isProcessingBatchStock}
               isDisabled={
-                !batchStockReason || Object.keys(batchStockData).length === 0
+                !batchStockReason ||
+                Object.keys(batchStockData).length === 0 ||
+                getBatchStockValidationErrors().length > 0
               }
             >
               {batchStockType === "increase"
@@ -2404,10 +2618,20 @@ export default function ProductTable({
                 <div className="space-y-3">
                   {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
+                    const inputAmount = parseInt(
+                      batchMoveData[productId] || "0"
+                    );
+                    const isValidAmount = inputAmount <= product.quantity;
+                    const exceedsAvailable = inputAmount > product.quantity;
+
                     return (
                       <div
                         key={productId}
-                        className="flex items-center gap-4 p-3 bg-default-50 rounded-lg"
+                        className={`flex items-center gap-4 p-3 rounded-lg transition-all ${
+                          exceedsAvailable
+                            ? "bg-danger-50 border border-danger-200"
+                            : "bg-default-50"
+                        }`}
                       >
                         <div className="flex-1">
                           <p className="font-medium">{product.name}</p>
@@ -2426,6 +2650,11 @@ export default function ProductTable({
                                       batchTargetWarehouse
                                   )?.WarehouseName
                                 }
+                              </span>
+                            )}
+                            {exceedsAvailable && (
+                              <span className="text-danger font-medium">
+                                ⚠️ Quantità eccessiva
                               </span>
                             )}
                           </div>
@@ -2447,18 +2676,33 @@ export default function ProductTable({
                             startContent={
                               <Icon
                                 icon="solar:transfer-horizontal-bold"
-                                className="text-primary"
+                                className={
+                                  exceedsAvailable
+                                    ? "text-danger"
+                                    : "text-primary"
+                                }
                                 width={16}
                               />
+                            }
+                            isInvalid={exceedsAvailable}
+                            errorMessage={
+                              exceedsAvailable
+                                ? "Quantità troppo alta"
+                                : undefined
                             }
                           />
                         </div>
                         <div className="w-20 text-right">
                           {batchMoveData[productId] && (
                             <div className="text-sm">
-                              <p className="font-bold">
-                                {product.quantity -
-                                  parseInt(batchMoveData[productId])}
+                              <p
+                                className={`font-bold ${
+                                  exceedsAvailable
+                                    ? "text-danger"
+                                    : "text-default-700"
+                                }`}
+                              >
+                                {Math.max(0, product.quantity - inputAmount)}
                               </p>
                               <p className="text-xs text-default-500">
                                 Rimangono
@@ -2485,7 +2729,9 @@ export default function ProductTable({
               onPress={handleBatchMoveOperation}
               isLoading={isProcessingBatchMove}
               isDisabled={
-                !batchTargetWarehouse || Object.keys(batchMoveData).length === 0
+                !batchTargetWarehouse ||
+                Object.keys(batchMoveData).length === 0 ||
+                getBatchMoveValidationErrors().length > 0
               }
               startContent={<Icon icon="solar:transfer-horizontal-bold" />}
             >
@@ -2567,10 +2813,19 @@ export default function ProductTable({
                 <div className="space-y-3">
                   {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
+                    const inputAmount = parseInt(
+                      batchLoadData[productId] || "0"
+                    );
+                    const exceedsAvailable = inputAmount > product.quantity;
+
                     return (
                       <div
                         key={productId}
-                        className="flex items-center gap-4 p-3 bg-default-50 rounded-lg"
+                        className={`flex items-center gap-4 p-3 rounded-lg transition-all ${
+                          exceedsAvailable
+                            ? "bg-danger-50 border border-danger-200"
+                            : "bg-default-50"
+                        }`}
                       >
                         <div className="flex-1">
                           <p className="font-medium">{product.name}</p>
@@ -2586,6 +2841,11 @@ export default function ProductTable({
                                     (v) => v.id === batchTargetVehicle
                                   )?.name
                                 }
+                              </span>
+                            )}
+                            {exceedsAvailable && (
+                              <span className="text-danger font-medium">
+                                ⚠️ Quantità eccessiva
                               </span>
                             )}
                           </div>
@@ -2607,17 +2867,33 @@ export default function ProductTable({
                             startContent={
                               <Icon
                                 icon="solar:delivery-bold"
-                                className="text-secondary"
+                                className={
+                                  exceedsAvailable
+                                    ? "text-danger"
+                                    : "text-secondary"
+                                }
                                 width={16}
                               />
+                            }
+                            isInvalid={exceedsAvailable}
+                            errorMessage={
+                              exceedsAvailable
+                                ? "Quantità troppo alta"
+                                : undefined
                             }
                           />
                         </div>
                         <div className="w-20 text-right">
                           {batchLoadData[productId] && (
                             <div className="text-sm">
-                              <p className="font-bold text-secondary">
-                                {batchLoadData[productId]}
+                              <p
+                                className={`font-bold ${
+                                  exceedsAvailable
+                                    ? "text-danger"
+                                    : "text-secondary"
+                                }`}
+                              >
+                                {inputAmount}
                               </p>
                               <p className="text-xs text-default-500">
                                 Da caricare
@@ -2644,7 +2920,9 @@ export default function ProductTable({
               onPress={handleBatchLoadOperation}
               isLoading={isProcessingBatchLoad}
               isDisabled={
-                !batchTargetVehicle || Object.keys(batchLoadData).length === 0
+                !batchTargetVehicle ||
+                Object.keys(batchLoadData).length === 0 ||
+                getBatchLoadValidationErrors().length > 0
               }
               startContent={<Icon icon="solar:delivery-bold" />}
             >
