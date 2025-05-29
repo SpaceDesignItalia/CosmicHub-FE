@@ -263,6 +263,8 @@ export default function ProductTable({
   const [batchTargetVehicle, setBatchTargetVehicle] = useState('');
   const [isProcessingBatchLoad, setIsProcessingBatchLoad] = useState(false);
 
+  const [batchProducts, setBatchProducts] = useState<Product[]>([]);
+
   const filteredItems = useMemo(() => {
     let filteredProducts = [...products];
     return filteredProducts;
@@ -798,15 +800,18 @@ export default function ProductTable({
     if (selectedKeys === "all") {
       return products;
     } else if (typeof selectedKeys !== "string") {
-      return products.filter(product => 
-        selectedKeys.has(product.product_id || product.id || "")
-      );
+      const selectedSet = new Set(Array.from(selectedKeys).map(k => k.toString()));
+      return products.filter(product => {
+        const productKey = (product.product_id || product.id || "").toString();
+        return selectedSet.has(productKey);
+      });
     }
     return [];
   };
 
   // Funzioni per operazioni batch
   const openBatchStockModal = (type: 'increase' | 'decrease') => {
+    setBatchProducts(getSelectedProducts());
     setBatchStockType(type);
     setBatchStockReason('');
     setBatchStockData({});
@@ -814,24 +819,25 @@ export default function ProductTable({
   };
 
   const openBatchMoveModal = () => {
+    setBatchProducts(getSelectedProducts());
     setBatchMoveData({});
     setBatchTargetWarehouse('');
     setIsBatchMoveModalOpen(true);
   };
 
   const openBatchLoadModal = () => {
+    setBatchProducts(getSelectedProducts());
     setBatchLoadData({});
     setBatchTargetVehicle('');
     setIsBatchLoadModalOpen(true);
   };
 
   const handleBatchStockOperation = async () => {
-    const selectedProducts = getSelectedProducts();
-    if (selectedProducts.length === 0 || !batchStockReason) return;
+    if (batchProducts.length === 0 || !batchStockReason) return;
 
     setIsProcessingBatchStock(true);
     try {
-      for (const product of selectedProducts) {
+      for (const product of batchProducts) {
         const productId = product.product_id || product.id || "";
         const amount = parseInt(batchStockData[productId] || '0');
         
@@ -848,7 +854,7 @@ export default function ProductTable({
 
       console.log('Operazione batch completata:', {
         type: batchStockType,
-        products: selectedProducts.length,
+        products: batchProducts.length,
         reason: batchStockReason,
         timestamp: new Date()
       });
@@ -865,12 +871,10 @@ export default function ProductTable({
   };
 
   const handleBatchMoveOperation = async () => {
-    const selectedProducts = getSelectedProducts();
-    if (selectedProducts.length === 0 || !batchTargetWarehouse) return;
-
+    if (batchProducts.length === 0 || !batchTargetWarehouse) return;
     setIsProcessingBatchMove(true);
     try {
-      const operations = selectedProducts
+      const operations = batchProducts
         .filter(product => {
           const productId = product.product_id || product.id || "";
           const amount = parseInt(batchMoveData[productId] || '0');
@@ -901,12 +905,10 @@ export default function ProductTable({
   };
 
   const handleBatchLoadOperation = async () => {
-    const selectedProducts = getSelectedProducts();
-    if (selectedProducts.length === 0 || !batchTargetVehicle) return;
-
+    if (batchProducts.length === 0 || !batchTargetVehicle) return;
     setIsProcessingBatchLoad(true);
     try {
-      const operations = selectedProducts
+      const operations = batchProducts
         .filter(product => {
           const productId = product.product_id || product.id || "";
           const amount = parseInt(batchLoadData[productId] || '0');
@@ -943,6 +945,7 @@ export default function ProductTable({
         bottomContent={bottomContent}
         bottomContentPlacement="inside"
         selectedKeys={selectedKeys}
+        selectionMode="multiple"
         sortDescriptor={{
           column: sortBy?.field || "name",
           direction: sortBy?.direction === "asc" ? "ascending" : "descending",
@@ -1517,7 +1520,7 @@ export default function ProductTable({
               {batchStockType === 'increase' ? 'Aumenta Stock Multipli' : 'Diminuisci Stock Multipli'}
             </h3>
             <p className="text-sm text-default-500">
-              {getSelectedProducts().length} prodotti selezionati
+              {batchProducts.length} prodotti selezionati
             </p>
           </ModalHeader>
           <ModalBody>
@@ -1534,7 +1537,7 @@ export default function ProductTable({
               <div className="border rounded-lg p-4 max-h-96 overflow-y-auto">
                 <h4 className="font-semibold mb-4">Imposta quantità per ogni prodotto:</h4>
                 <div className="space-y-3">
-                  {getSelectedProducts().map((product) => {
+                  {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
                     return (
                       <div key={productId} className="flex items-center gap-4 p-3 bg-default-50 rounded-lg">
@@ -1592,7 +1595,7 @@ export default function ProductTable({
                   variant="flat"
                   onClick={() => {
                     const newData: {[key: string]: string} = {};
-                    getSelectedProducts().forEach(product => {
+                    batchProducts.forEach(product => {
                       const productId = product.product_id || product.id || "";
                       newData[productId] = '1';
                     });
@@ -1606,7 +1609,7 @@ export default function ProductTable({
                   variant="flat"
                   onClick={() => {
                     const newData: {[key: string]: string} = {};
-                    getSelectedProducts().forEach(product => {
+                    batchProducts.forEach(product => {
                       const productId = product.product_id || product.id || "";
                       newData[productId] = '5';
                     });
@@ -1620,7 +1623,7 @@ export default function ProductTable({
                   variant="flat"
                   onClick={() => {
                     const newData: {[key: string]: string} = {};
-                    getSelectedProducts().forEach(product => {
+                    batchProducts.forEach(product => {
                       const productId = product.product_id || product.id || "";
                       newData[productId] = '10';
                     });
@@ -1667,7 +1670,7 @@ export default function ProductTable({
           <ModalHeader className="flex flex-col gap-1">
             <h3 className="text-xl font-semibold">Sposta Prodotti tra Magazzini</h3>
             <p className="text-sm text-default-500">
-              {getSelectedProducts().length} prodotti selezionati
+              {batchProducts.length} prodotti selezionati
             </p>
           </ModalHeader>
           <ModalBody>
@@ -1689,7 +1692,7 @@ export default function ProductTable({
               <div className="border rounded-lg p-4 max-h-96 overflow-y-auto">
                 <h4 className="font-semibold mb-4">Imposta quantità da spostare per ogni prodotto:</h4>
                 <div className="space-y-3">
-                  {getSelectedProducts().map((product) => {
+                  {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
                     return (
                       <div key={productId} className="flex items-center gap-4 p-3 bg-default-50 rounded-lg">
@@ -1772,7 +1775,7 @@ export default function ProductTable({
           <ModalHeader className="flex flex-col gap-1">
             <h3 className="text-xl font-semibold">Carica Prodotti su Furgone</h3>
             <p className="text-sm text-default-500">
-              {getSelectedProducts().length} prodotti selezionati
+              {batchProducts.length} prodotti selezionati
             </p>
           </ModalHeader>
           <ModalBody>
@@ -1817,7 +1820,7 @@ export default function ProductTable({
               <div className="border rounded-lg p-4 max-h-96 overflow-y-auto">
                 <h4 className="font-semibold mb-4">Imposta quantità da caricare per ogni prodotto:</h4>
                 <div className="space-y-3">
-                  {getSelectedProducts().map((product) => {
+                  {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
                     return (
                       <div key={productId} className="flex items-center gap-4 p-3 bg-default-50 rounded-lg">
