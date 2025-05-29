@@ -43,6 +43,15 @@ interface Attribute {
   value: string;
 }
 
+interface Warehouse {
+  WarehouseID: number; // ID numerico per il database
+  WarehouseUUID: string;
+  WarehouseName: string;
+  WarehouseCode: string;
+  WarehouseCountry: string;
+  IsActive: boolean;
+}
+
 interface Product {
   product_id: string;
   id?: string; // Per compatibilità
@@ -213,54 +222,65 @@ export default function ProductTable({
 
   // Stati per i modali di inventario
   const [isStockModalOpen, setIsStockModalOpen] = useState(false);
-  const [stockModalType, setStockModalType] = useState<'increase' | 'decrease'>('increase');
-  const [selectedProductForStock, setSelectedProductForStock] = useState<Product | null>(null);
-  const [stockAmount, setStockAmount] = useState('');
-  const [stockReason, setStockReason] = useState('');
+  const [stockModalType, setStockModalType] = useState<"increase" | "decrease">(
+    "increase"
+  );
+  const [selectedProductForStock, setSelectedProductForStock] =
+    useState<Product | null>(null);
+  const [stockAmount, setStockAmount] = useState("");
+  const [stockReason, setStockReason] = useState("");
   const [isProcessingStock, setIsProcessingStock] = useState(false);
+  const [showSuccessMessage, setShowSuccessMessage] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
 
   const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
-  const [selectedProductForMove, setSelectedProductForMove] = useState<Product | null>(null);
-  const [moveQuantity, setMoveQuantity] = useState('');
-  const [targetWarehouse, setTargetWarehouse] = useState('');
+  const [selectedProductForMove, setSelectedProductForMove] =
+    useState<Product | null>(null);
+  const [moveQuantity, setMoveQuantity] = useState("");
+  const [targetWarehouse, setTargetWarehouse] = useState("");
   const [isProcessingMove, setIsProcessingMove] = useState(false);
 
   const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
-  const [selectedProductForLoad, setSelectedProductForLoad] = useState<Product | null>(null);
-  const [loadQuantity, setLoadQuantity] = useState('');
-  const [targetVehicle, setTargetVehicle] = useState('');
+  const [selectedProductForLoad, setSelectedProductForLoad] =
+    useState<Product | null>(null);
+  const [loadQuantity, setLoadQuantity] = useState("");
+  const [targetVehicle, setTargetVehicle] = useState("");
   const [isProcessingLoad, setIsProcessingLoad] = useState(false);
 
-  // Dati mock per magazzini e veicoli (in un'app reale vengono da API)
-  const warehouses = [
-    { id: 'WH001', name: 'Magazzino Centrale' },
-    { id: 'WH002', name: 'Magazzino Secondario' },
-    { id: 'WH003', name: 'Deposito Nord' },
-    { id: 'WH004', name: 'Deposito Sud' }
-  ];
+  // Dati reali per magazzini caricati dall'API
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
+  // Dati mock per veicoli (in un'app reale vengono da API)
   const vehicles = [
-    { id: 'VH001', name: 'Furgone 1 - AB123CD', available: true },
-    { id: 'VH002', name: 'Furgone 2 - EF456GH', available: true },
-    { id: 'VH003', name: 'Furgone 3 - IJ789KL', available: false },
-    { id: 'VH004', name: 'Camion 1 - MN012OP', available: true }
+    { id: "VH001", name: "Furgone 1 - AB123CD", available: true },
+    { id: "VH002", name: "Furgone 2 - EF456GH", available: true },
+    { id: "VH003", name: "Furgone 3 - IJ789KL", available: false },
+    { id: "VH004", name: "Camion 1 - MN012OP", available: true },
   ];
 
   // Stati per operazioni batch
   const [isBatchStockModalOpen, setIsBatchStockModalOpen] = useState(false);
-  const [batchStockType, setBatchStockType] = useState<'increase' | 'decrease'>('increase');
-  const [batchStockReason, setBatchStockReason] = useState('');
-  const [batchStockData, setBatchStockData] = useState<{[key: string]: string}>({});
+  const [batchStockType, setBatchStockType] = useState<"increase" | "decrease">(
+    "increase"
+  );
+  const [batchStockReason, setBatchStockReason] = useState("");
+  const [batchStockData, setBatchStockData] = useState<{
+    [key: string]: string;
+  }>({});
   const [isProcessingBatchStock, setIsProcessingBatchStock] = useState(false);
 
   const [isBatchMoveModalOpen, setIsBatchMoveModalOpen] = useState(false);
-  const [batchMoveData, setBatchMoveData] = useState<{[key: string]: string}>({});
-  const [batchTargetWarehouse, setBatchTargetWarehouse] = useState('');
+  const [batchMoveData, setBatchMoveData] = useState<{ [key: string]: string }>(
+    {}
+  );
+  const [batchTargetWarehouse, setBatchTargetWarehouse] = useState("");
   const [isProcessingBatchMove, setIsProcessingBatchMove] = useState(false);
 
   const [isBatchLoadModalOpen, setIsBatchLoadModalOpen] = useState(false);
-  const [batchLoadData, setBatchLoadData] = useState<{[key: string]: string}>({});
-  const [batchTargetVehicle, setBatchTargetVehicle] = useState('');
+  const [batchLoadData, setBatchLoadData] = useState<{ [key: string]: string }>(
+    {}
+  );
+  const [batchTargetVehicle, setBatchTargetVehicle] = useState("");
   const [isProcessingBatchLoad, setIsProcessingBatchLoad] = useState(false);
 
   const [batchProducts, setBatchProducts] = useState<Product[]>([]);
@@ -307,11 +327,11 @@ export default function ProductTable({
   };
 
   // Funzioni per gestire le operazioni di inventario
-  const openStockModal = (product: Product, type: 'increase' | 'decrease') => {
+  const openStockModal = (product: Product, type: "increase" | "decrease") => {
     setSelectedProductForStock(product);
     setStockModalType(type);
-    setStockAmount('');
-    setStockReason('');
+    setStockAmount("");
+    setStockReason("");
     setIsStockModalOpen(true);
   };
 
@@ -321,33 +341,164 @@ export default function ProductTable({
     setIsProcessingStock(true);
     try {
       const amount = parseInt(stockAmount);
-      const newQuantity = stockModalType === 'increase' 
-        ? selectedProductForStock.quantity + amount
-        : selectedProductForStock.quantity - amount;
+      const newQuantity =
+        stockModalType === "increase"
+          ? selectedProductForStock.quantity + amount
+          : selectedProductForStock.quantity - amount;
 
       if (newQuantity < 0) {
-        alert('La quantità non può essere negativa');
+        alert("La quantità non può essere negativa");
         return;
       }
 
-      // Chiamata API per aggiornare la quantità
-      if (onUpdateQuantity) {
-        onUpdateQuantity(selectedProductForStock.product_id, newQuantity);
+      console.log(
+        `Aggiornamento stock da ${selectedProductForStock.quantity} a ${newQuantity} per prodotto:`,
+        selectedProductForStock.product_id
+      );
+
+      // Usa lo stesso endpoint dell'InlineQuantityEditor che funziona
+      try {
+        const response = await axios.put(
+          `/Product/UPDATE/UpdateProductQuantity/`,
+          {
+            product_id: selectedProductForStock.product_id,
+            stock_unit: newQuantity.toString(),
+          }
+        );
+
+        if (response.status === 200) {
+          // Aggiorna la UI tramite la prop callback
+          if (onUpdateQuantity) {
+            onUpdateQuantity(selectedProductForStock.product_id, newQuantity);
+          }
+
+          // Mostra messaggio di successo
+          setShowSuccessMessage(true);
+          setSuccessMessage(
+            `Quantità ${
+              stockModalType === "increase" ? "aumentata" : "diminuita"
+            } con successo!`
+          );
+          setIsStockModalOpen(false);
+
+          // Dopo aver aggiornato la quantità, registra il movimento
+          try {
+            const movementEndpoint =
+              stockModalType === "increase"
+                ? "/Movement/POST/CreateLoadMovement"
+                : "/Movement/POST/CreateUnloadMovement";
+
+            const movementData = {
+              product_id: selectedProductForStock.product_id,
+              quantity: amount,
+              reason: stockReason,
+              warehouse_id: selectedProductForStock.warehouse_id,
+              timestamp: new Date().toISOString(),
+              movement_type: stockModalType === "increase" ? "LOAD" : "UNLOAD",
+              notes: stockReason,
+              user_id: "current_user", // TODO: Sostituire con l'ID utente reale
+              created_at: new Date().toISOString(),
+            };
+
+            await axios.post(movementEndpoint, movementData);
+            console.log(`Movimento ${stockModalType} registrato con successo`);
+          } catch (movementError) {
+            console.warn(
+              "Errore nella registrazione del movimento:",
+              movementError
+            );
+            // Non blocchiamo l'operazione se la registrazione del movimento fallisce
+            // L'aggiornamento della quantità è già avvenuto con successo
+          }
+        }
+      } catch (apiError: any) {
+        // Fallback con endpoint generico come fa InlineQuantityEditor
+        if (
+          apiError.response?.status === 404 ||
+          apiError.code === "ERR_NETWORK"
+        ) {
+          console.log(
+            "Endpoint specifico non trovato, provo con aggiornamento generico..."
+          );
+
+          const updateData = {
+            stock_unit: newQuantity.toString(),
+          };
+
+          await axios.put(
+            `/Product/PUT/UpdateProduct/${selectedProductForStock.product_id}`,
+            updateData
+          );
+
+          // Aggiorna la UI tramite la prop callback
+          if (onUpdateQuantity) {
+            onUpdateQuantity(selectedProductForStock.product_id, newQuantity);
+          }
+
+          // Mostra messaggio di successo
+          setShowSuccessMessage(true);
+          setSuccessMessage(
+            `Quantità ${
+              stockModalType === "increase" ? "aumentata" : "diminuita"
+            } con successo!`
+          );
+          setIsStockModalOpen(false);
+
+          // Reset dei campi
+          setStockAmount("");
+          setStockReason("");
+
+          // Dopo aver aggiornato la quantità, registra il movimento
+          try {
+            const movementEndpoint =
+              stockModalType === "increase"
+                ? "/Movement/POST/CreateLoadMovement"
+                : "/Movement/POST/CreateUnloadMovement";
+
+            const movementData = {
+              product_id: selectedProductForStock.product_id,
+              quantity: amount,
+              reason: stockReason,
+              warehouse_id: selectedProductForStock.warehouse_id,
+              timestamp: new Date().toISOString(),
+              movement_type: stockModalType === "increase" ? "LOAD" : "UNLOAD",
+              notes: stockReason,
+              user_id: "current_user", // TODO: Sostituire con l'ID utente reale
+              created_at: new Date().toISOString(),
+            };
+
+            await axios.post(movementEndpoint, movementData);
+            console.log(
+              `Movimento ${stockModalType} registrato con successo nel fallback`
+            );
+          } catch (movementError) {
+            console.warn(
+              "Errore nella registrazione del movimento (fallback):",
+              movementError
+            );
+            // Non blocchiamo l'operazione se la registrazione del movimento fallisce
+            // L'aggiornamento della quantità è già avvenuto con successo
+          }
+        } else {
+          throw apiError;
+        }
       }
 
-      // TODO: Salvare il movimento nell'audit log
-      console.log('Movimento inventario:', {
-        product: selectedProductForStock.name,
-        type: stockModalType,
-        amount,
-        reason: stockReason,
-        timestamp: new Date()
-      });
+      console.log("Quantità aggiornata con successo nel database");
+    } catch (error: any) {
+      console.error("Errore nell'operazione di stock:", error);
 
-      setIsStockModalOpen(false);
-    } catch (error) {
-      console.error('Errore nell\'operazione di stock:', error);
-      alert('Errore nell\'operazione. Riprova.');
+      // Gestione errori più specifica come InlineQuantityEditor
+      let errorMessage = "Errore nell'aggiornamento della quantità";
+      if (error.response?.status === 404) {
+        errorMessage = "Prodotto non trovato";
+      } else if (error.response?.status === 400) {
+        errorMessage = "Dati non validi";
+      } else if (error.code === "ERR_NETWORK") {
+        errorMessage = "Errore di connessione al server";
+      }
+
+      alert(`Errore nell'operazione: ${errorMessage}`);
     } finally {
       setIsProcessingStock(false);
     }
@@ -355,8 +506,8 @@ export default function ProductTable({
 
   const openMoveModal = (product: Product) => {
     setSelectedProductForMove(product);
-    setMoveQuantity('');
-    setTargetWarehouse('');
+    setMoveQuantity("");
+    setTargetWarehouse(""); // Reset esplicito per mostrare il placeholder
     setIsMoveModalOpen(true);
   };
 
@@ -366,26 +517,89 @@ export default function ProductTable({
     setIsProcessingMove(true);
     try {
       const amount = parseInt(moveQuantity);
-      
+
       if (amount > selectedProductForMove.quantity) {
-        alert('Quantità da spostare superiore alla disponibilità');
+        alert("Quantità da spostare superiore alla disponibilità");
         return;
       }
 
-      // TODO: Implementare chiamata API per spostamento tra magazzini
-      console.log('Spostamento tra magazzini:', {
-        product: selectedProductForMove.name,
-        amount,
-        from: selectedProductForMove.warehouse_id,
-        to: targetWarehouse,
-        timestamp: new Date()
+      // Trova il magazzino di destinazione per ottenere il WarehouseID numerico
+      const targetWarehouseData = warehouses.find(
+        (w) => (w.WarehouseUUID || w.WarehouseID.toString()) === targetWarehouse
+      );
+
+      // Trova il magazzino di origine per ottenere il WarehouseID numerico
+      const sourceWarehouseData = warehouses.find(
+        (w) =>
+          (w.WarehouseUUID || w.WarehouseID.toString()) ===
+            selectedProductForMove.warehouse_id ||
+          w.WarehouseName === selectedProductForMove.warehouse_id ||
+          w.WarehouseCode === selectedProductForMove.warehouse_id
+      );
+
+      if (!targetWarehouseData || !sourceWarehouseData) {
+        alert(
+          "Impossibile trovare i dati del magazzino. Verifica che i magazzini siano validi."
+        );
+        return;
+      }
+
+      // Chiamata API per il trasferimento usando gli ID numerici
+      const transferData = {
+        product_id: selectedProductForMove.product_id,
+        amount: amount,
+        from_warehouse_id: sourceWarehouseData.WarehouseID, // ID numerico
+        to_warehouse_id: targetWarehouseData.WarehouseID, // ID numerico
+        movement_date: new Date().toISOString(),
+        notes: `Trasferimento di ${amount} unità di ${selectedProductForMove.name}`,
+        reason: "Trasferimento tra magazzini",
+      };
+
+      console.log("Dati trasferimento:", {
+        ...transferData,
+        sourceWarehouse: sourceWarehouseData.WarehouseName,
+        targetWarehouse: targetWarehouseData.WarehouseName,
       });
 
-      alert(`${amount} unità di "${selectedProductForMove.name}" spostate con successo!`);
-      setIsMoveModalOpen(false);
-    } catch (error) {
-      console.error('Errore nello spostamento:', error);
-      alert('Errore nello spostamento. Riprova.');
+      const response = await axios.post(
+        "/Movement/POST/CreateTransferMovement",
+        transferData
+      );
+
+      if (response.status === 201) {
+        // Aggiorna la quantità del prodotto nel magazzino di origine
+        const newQuantity = selectedProductForMove.quantity - amount;
+        if (onUpdateQuantity) {
+          onUpdateQuantity(selectedProductForMove.product_id, newQuantity);
+        }
+
+        // Mostra messaggio di successo
+        setShowSuccessMessage(true);
+        setSuccessMessage(
+          `${amount} unità di "${selectedProductForMove.name}" spostate con successo da ${sourceWarehouseData.WarehouseName} a ${targetWarehouseData.WarehouseName}!`
+        );
+        setIsMoveModalOpen(false);
+
+        // Reset dei campi
+        setMoveQuantity("");
+        setTargetWarehouse("");
+
+        console.log("Trasferimento completato con successo:", response.data);
+      }
+    } catch (error: any) {
+      console.error("Errore nello spostamento:", error);
+
+      let errorMessage = "Errore nello spostamento. Riprova.";
+      if (error.response?.status === 400) {
+        errorMessage =
+          error.response.data?.error || "Dati non validi per il trasferimento";
+      } else if (error.response?.status === 404) {
+        errorMessage = "Endpoint di trasferimento non trovato";
+      } else if (error.code === "ERR_NETWORK") {
+        errorMessage = "Errore di connessione al server";
+      }
+
+      alert(`Errore: ${errorMessage}`);
     } finally {
       setIsProcessingMove(false);
     }
@@ -393,8 +607,8 @@ export default function ProductTable({
 
   const openLoadModal = (product: Product) => {
     setSelectedProductForLoad(product);
-    setLoadQuantity('');
-    setTargetVehicle('');
+    setLoadQuantity("");
+    setTargetVehicle("");
     setIsLoadModalOpen(true);
   };
 
@@ -404,26 +618,28 @@ export default function ProductTable({
     setIsProcessingLoad(true);
     try {
       const amount = parseInt(loadQuantity);
-      
+
       if (amount > selectedProductForLoad.quantity) {
-        alert('Quantità da caricare superiore alla disponibilità');
+        alert("Quantità da caricare superiore alla disponibilità");
         return;
       }
 
       // TODO: Implementare chiamata API per caricamento su furgone
-      console.log('Caricamento su furgone:', {
+      console.log("Caricamento su furgone:", {
         product: selectedProductForLoad.name,
         amount,
         warehouse: selectedProductForLoad.warehouse_id,
         vehicle: targetVehicle,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
-      alert(`${amount} unità di "${selectedProductForLoad.name}" caricate su furgone con successo!`);
+      alert(
+        `${amount} unità di "${selectedProductForLoad.name}" caricate su furgone con successo!`
+      );
       setIsLoadModalOpen(false);
     } catch (error) {
-      console.error('Errore nel caricamento:', error);
-      alert('Errore nel caricamento. Riprova.');
+      console.error("Errore nel caricamento:", error);
+      alert("Errore nel caricamento. Riprova.");
     } finally {
       setIsProcessingLoad(false);
     }
@@ -508,20 +724,20 @@ export default function ProductTable({
                 size="sm"
                 color="success"
                 variant="flat"
-                onClick={() => openStockModal(product, 'increase')}
+                onPress={() => openStockModal(product, "increase")}
                 className="min-w-8 h-8"
               >
                 <Icon icon="solar:add-circle-bold" width={16} />
               </Button>
             </Tooltip>
-            
+
             <Tooltip content="Diminuisci quantità">
               <Button
                 isIconOnly
                 size="sm"
                 color="warning"
                 variant="flat"
-                onClick={() => openStockModal(product, 'decrease')}
+                onPress={() => openStockModal(product, "decrease")}
                 className="min-w-8 h-8"
                 isDisabled={product.quantity <= 0}
               >
@@ -535,7 +751,7 @@ export default function ProductTable({
                 size="sm"
                 color="primary"
                 variant="flat"
-                onClick={() => openMoveModal(product)}
+                onPress={() => openMoveModal(product)}
                 className="min-w-8 h-8"
                 isDisabled={product.quantity <= 0}
               >
@@ -549,7 +765,7 @@ export default function ProductTable({
                 size="sm"
                 color="secondary"
                 variant="flat"
-                onClick={() => openLoadModal(product)}
+                onPress={() => openLoadModal(product)}
                 className="min-w-8 h-8"
                 isDisabled={product.quantity <= 0}
               >
@@ -664,18 +880,26 @@ export default function ProductTable({
                   color="success"
                   variant="flat"
                   startContent={<Icon icon="solar:add-circle-bold" />}
-                  onPress={() => openBatchStockModal('increase')}
+                  onPress={() => openBatchStockModal("increase")}
                 >
-                  Aumenta Stock ({typeof selectedKeys !== "string" ? selectedKeys.size : products.length})
+                  Aumenta Stock (
+                  {typeof selectedKeys !== "string"
+                    ? selectedKeys.size
+                    : products.length}
+                  )
                 </Button>
-                
+
                 <Button
                   color="warning"
                   variant="flat"
                   startContent={<Icon icon="solar:minus-circle-bold" />}
-                  onPress={() => openBatchStockModal('decrease')}
+                  onPress={() => openBatchStockModal("decrease")}
                 >
-                  Diminuisci Stock ({typeof selectedKeys !== "string" ? selectedKeys.size : products.length})
+                  Diminuisci Stock (
+                  {typeof selectedKeys !== "string"
+                    ? selectedKeys.size
+                    : products.length}
+                  )
                 </Button>
 
                 <Button
@@ -684,7 +908,11 @@ export default function ProductTable({
                   startContent={<Icon icon="solar:transfer-horizontal-bold" />}
                   onPress={() => openBatchMoveModal()}
                 >
-                  Sposta Prodotti ({typeof selectedKeys !== "string" ? selectedKeys.size : products.length})
+                  Sposta Prodotti (
+                  {typeof selectedKeys !== "string"
+                    ? selectedKeys.size
+                    : products.length}
+                  )
                 </Button>
 
                 <Button
@@ -693,7 +921,11 @@ export default function ProductTable({
                   startContent={<Icon icon="solar:delivery-bold" />}
                   onPress={() => openBatchLoadModal()}
                 >
-                  Carica su Furgone ({typeof selectedKeys !== "string" ? selectedKeys.size : products.length})
+                  Carica su Furgone (
+                  {typeof selectedKeys !== "string"
+                    ? selectedKeys.size
+                    : products.length}
+                  )
                 </Button>
 
                 <Button
@@ -795,13 +1027,26 @@ export default function ProductTable({
     return () => window.removeEventListener("keydown", handleKeyboardShortcuts);
   }, [handleKeyboardShortcuts]);
 
+  // Effetto per nascondere automaticamente il messaggio di successo
+  React.useEffect(() => {
+    if (showSuccessMessage) {
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false);
+        setSuccessMessage("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessMessage]);
+
   // Funzione per ottenere i prodotti selezionati
   const getSelectedProducts = () => {
     if (selectedKeys === "all") {
       return products;
     } else if (typeof selectedKeys !== "string") {
-      const selectedSet = new Set(Array.from(selectedKeys).map(k => k.toString()));
-      return products.filter(product => {
+      const selectedSet = new Set(
+        Array.from(selectedKeys).map((k) => k.toString())
+      );
+      return products.filter((product) => {
         const productKey = (product.product_id || product.id || "").toString();
         return selectedSet.has(productKey);
       });
@@ -810,10 +1055,10 @@ export default function ProductTable({
   };
 
   // Funzioni per operazioni batch
-  const openBatchStockModal = (type: 'increase' | 'decrease') => {
+  const openBatchStockModal = (type: "increase" | "decrease") => {
     setBatchProducts(getSelectedProducts());
     setBatchStockType(type);
-    setBatchStockReason('');
+    setBatchStockReason("");
     setBatchStockData({});
     setIsBatchStockModalOpen(true);
   };
@@ -821,14 +1066,14 @@ export default function ProductTable({
   const openBatchMoveModal = () => {
     setBatchProducts(getSelectedProducts());
     setBatchMoveData({});
-    setBatchTargetWarehouse('');
+    setBatchTargetWarehouse(""); // Reset esplicito per mostrare il placeholder
     setIsBatchMoveModalOpen(true);
   };
 
   const openBatchLoadModal = () => {
     setBatchProducts(getSelectedProducts());
     setBatchLoadData({});
-    setBatchTargetVehicle('');
+    setBatchTargetVehicle("");
     setIsBatchLoadModalOpen(true);
   };
 
@@ -839,12 +1084,13 @@ export default function ProductTable({
     try {
       for (const product of batchProducts) {
         const productId = product.product_id || product.id || "";
-        const amount = parseInt(batchStockData[productId] || '0');
-        
+        const amount = parseInt(batchStockData[productId] || "0");
+
         if (amount > 0) {
-          const newQuantity = batchStockType === 'increase' 
-            ? product.quantity + amount
-            : product.quantity - amount;
+          const newQuantity =
+            batchStockType === "increase"
+              ? product.quantity + amount
+              : product.quantity - amount;
 
           if (newQuantity >= 0 && onUpdateQuantity) {
             onUpdateQuantity(productId, newQuantity);
@@ -852,19 +1098,19 @@ export default function ProductTable({
         }
       }
 
-      console.log('Operazione batch completata:', {
+      console.log("Operazione batch completata:", {
         type: batchStockType,
         products: batchProducts.length,
         reason: batchStockReason,
-        timestamp: new Date()
+        timestamp: new Date(),
       });
 
       setIsBatchStockModalOpen(false);
       setSelectedKeys(new Set([]));
-      alert('Operazione completata con successo!');
+      alert("Operazione completata con successo!");
     } catch (error) {
-      console.error('Errore nell\'operazione batch:', error);
-      alert('Errore nell\'operazione. Riprova.');
+      console.error("Errore nell'operazione batch:", error);
+      alert("Errore nell'operazione. Riprova.");
     } finally {
       setIsProcessingBatchStock(false);
     }
@@ -874,31 +1120,95 @@ export default function ProductTable({
     if (batchProducts.length === 0 || !batchTargetWarehouse) return;
     setIsProcessingBatchMove(true);
     try {
-      const operations = batchProducts
-        .filter(product => {
-          const productId = product.product_id || product.id || "";
-          const amount = parseInt(batchMoveData[productId] || '0');
-          return amount > 0 && amount <= product.quantity;
-        })
-        .map(product => {
-          const productId = product.product_id || product.id || "";
-          const amount = parseInt(batchMoveData[productId]);
-          return {
-            product: product.name,
-            amount,
-            from: product.warehouse_id,
-            to: batchTargetWarehouse
-          };
-        });
+      const operations = batchProducts.filter((product) => {
+        const productId = product.product_id || product.id || "";
+        const amount = parseInt(batchMoveData[productId] || "0");
+        return amount > 0 && amount <= product.quantity;
+      });
 
-      console.log('Spostamenti batch:', operations);
-      
+      // Trova il magazzino di destinazione
+      const targetWarehouseData = warehouses.find(
+        (w) =>
+          (w.WarehouseUUID || w.WarehouseID.toString()) === batchTargetWarehouse
+      );
+
+      if (!targetWarehouseData) {
+        alert("Impossibile trovare i dati del magazzino di destinazione.");
+        return;
+      }
+
+      // Esegui i trasferimenti uno per uno
+      for (const product of operations) {
+        const productId = product.product_id || product.id || "";
+        const amount = parseInt(batchMoveData[productId]);
+
+        // Trova il magazzino di origine per questo prodotto
+        const sourceWarehouseData = warehouses.find(
+          (w) =>
+            (w.WarehouseUUID || w.WarehouseID.toString()) ===
+              product.warehouse_id ||
+            w.WarehouseName === product.warehouse_id ||
+            w.WarehouseCode === product.warehouse_id
+        );
+
+        if (!sourceWarehouseData) {
+          console.error(
+            `Magazzino di origine non trovato per prodotto ${product.name}`
+          );
+          continue; // Salta questo prodotto e continua con i prossimi
+        }
+
+        const transferData = {
+          product_id: productId,
+          amount: amount,
+          from_warehouse_id: sourceWarehouseData.WarehouseID, // ID numerico
+          to_warehouse_id: targetWarehouseData.WarehouseID, // ID numerico
+          movement_date: new Date().toISOString(),
+          notes: `Trasferimento batch di ${amount} unità di ${product.name}`,
+          reason: "Trasferimento batch tra magazzini",
+        };
+
+        try {
+          const response = await axios.post(
+            "/Movement/POST/CreateTransferMovement",
+            transferData
+          );
+
+          if (response.status === 201) {
+            // Aggiorna la quantità del prodotto nel magazzino di origine
+            const newQuantity = product.quantity - amount;
+            if (onUpdateQuantity) {
+              onUpdateQuantity(productId, newQuantity);
+            }
+          }
+        } catch (error) {
+          console.error(
+            `Errore nel trasferimento del prodotto ${product.name}:`,
+            error
+          );
+          // Continua con i prossimi prodotti anche se uno fallisce
+        }
+      }
+
+      // Mostra messaggio di successo
+      setShowSuccessMessage(true);
+      setSuccessMessage(
+        `${operations.length} prodotti trasferiti con successo a ${targetWarehouseData.WarehouseName}!`
+      );
+
       setIsBatchMoveModalOpen(false);
       setSelectedKeys(new Set([]));
-      alert(`${operations.length} prodotti spostati con successo!`);
+
+      // Reset dei dati
+      setBatchMoveData({});
+      setBatchTargetWarehouse("");
+
+      console.log("Trasferimenti batch completati:", operations.length);
     } catch (error) {
-      console.error('Errore nello spostamento batch:', error);
-      alert('Errore nello spostamento. Riprova.');
+      console.error("Errore nello spostamento batch:", error);
+      alert(
+        "Errore nello spostamento. Alcuni prodotti potrebbero non essere stati trasferiti."
+      );
     } finally {
       setIsProcessingBatchMove(false);
     }
@@ -909,37 +1219,85 @@ export default function ProductTable({
     setIsProcessingBatchLoad(true);
     try {
       const operations = batchProducts
-        .filter(product => {
+        .filter((product) => {
           const productId = product.product_id || product.id || "";
-          const amount = parseInt(batchLoadData[productId] || '0');
+          const amount = parseInt(batchLoadData[productId] || "0");
           return amount > 0 && amount <= product.quantity;
         })
-        .map(product => {
+        .map((product) => {
           const productId = product.product_id || product.id || "";
           const amount = parseInt(batchLoadData[productId]);
           return {
             product: product.name,
             amount,
             warehouse: product.warehouse_id,
-            vehicle: batchTargetVehicle
+            vehicle: batchTargetVehicle,
           };
         });
 
-      console.log('Caricamenti batch:', operations);
-      
+      console.log("Caricamenti batch:", operations);
+
       setIsBatchLoadModalOpen(false);
       setSelectedKeys(new Set([]));
       alert(`${operations.length} prodotti caricati su furgone con successo!`);
     } catch (error) {
-      console.error('Errore nel caricamento batch:', error);
-      alert('Errore nel caricamento. Riprova.');
+      console.error("Errore nel caricamento batch:", error);
+      alert("Errore nel caricamento. Riprova.");
     } finally {
       setIsProcessingBatchLoad(false);
     }
   };
 
+  // Funzione per caricare i magazzini dall'API
+  const loadWarehouses = async () => {
+    try {
+      const response = await axios.get("/Warehouse/GET/GetAllWarehouses");
+      // Filtra solo i magazzini attivi
+      const activeWarehouses = response.data.filter(
+        (warehouse: Warehouse) => warehouse.IsActive
+      );
+      setWarehouses(activeWarehouses);
+    } catch (error) {
+      console.error("Error loading warehouses:", error);
+    }
+  };
+
+  // Carica i magazzini all'avvio del componente
+  React.useEffect(() => {
+    loadWarehouses();
+  }, []);
+
   return (
     <>
+      {/* Notifica di successo */}
+      {showSuccessMessage && (
+        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right-full duration-300">
+          <div className="flex items-center gap-3 bg-success-50 border border-success-200 text-success-800 px-4 py-3 rounded-lg shadow-lg min-w-[300px]">
+            <div className="flex-shrink-0">
+              <Icon
+                icon="solar:check-circle-bold"
+                className="text-success-600 text-xl"
+              />
+            </div>
+            <div className="flex-1">
+              <p className="font-medium text-sm">{successMessage}</p>
+            </div>
+            <Button
+              isIconOnly
+              size="sm"
+              variant="light"
+              className="text-success-600 hover:bg-success-100"
+              onPress={() => {
+                setShowSuccessMessage(false);
+                setSuccessMessage("");
+              }}
+            >
+              <Icon icon="solar:close-circle-bold" className="text-lg" />
+            </Button>
+          </div>
+        </div>
+      )}
+
       <Table
         aria-label="Tabella prodotti"
         bottomContent={bottomContent}
@@ -1144,7 +1502,9 @@ export default function ProductTable({
                           .toLowerCase()
                           .replace(/\s+/g, "")} mr-2`}
                       />
-                      <p className="font-medium">{selectedProduct.warehouse_id}</p>
+                      <p className="font-medium">
+                        {selectedProduct.warehouse_id}
+                      </p>
                     </div>
                   </div>
                   <div>
@@ -1213,15 +1573,17 @@ export default function ProductTable({
       />
 
       {/* Modal Gestione Stock */}
-      <Modal 
-        isOpen={isStockModalOpen} 
+      <Modal
+        isOpen={isStockModalOpen}
         onClose={() => setIsStockModalOpen(false)}
         size="2xl"
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
             <h3 className="text-xl font-semibold">
-              {stockModalType === 'increase' ? 'Aumenta Quantità' : 'Diminuisci Quantità'}
+              {stockModalType === "increase"
+                ? "Aumenta Quantità"
+                : "Diminuisci Quantità"}
             </h3>
             <p className="text-sm text-default-500">
               {selectedProductForStock?.name}
@@ -1232,26 +1594,44 @@ export default function ProductTable({
               <div className="flex items-center justify-between p-4 bg-default-100 rounded-lg">
                 <div>
                   <p className="text-sm text-default-600">Quantità Attuale</p>
-                  <p className="text-2xl font-bold">{selectedProductForStock?.quantity || 0}</p>
+                  <p className="text-2xl font-bold">
+                    {selectedProductForStock?.quantity || 0}
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-default-600">Magazzino</p>
-                  <p className="font-medium">{selectedProductForStock?.warehouse_id}</p>
+                  <p className="font-medium">
+                    {selectedProductForStock?.warehouse_id}
+                  </p>
                 </div>
               </div>
 
               <Input
                 type="number"
-                label={`Quantità da ${stockModalType === 'increase' ? 'aggiungere' : 'rimuovere'}`}
+                label={`Quantità da ${
+                  stockModalType === "increase" ? "aggiungere" : "rimuovere"
+                }`}
                 placeholder="Inserisci la quantità"
                 value={stockAmount}
                 onChange={(e) => setStockAmount(e.target.value)}
                 min="1"
-                max={stockModalType === 'decrease' ? selectedProductForStock?.quantity : undefined}
+                max={
+                  stockModalType === "decrease"
+                    ? selectedProductForStock?.quantity
+                    : undefined
+                }
                 startContent={
-                  <Icon 
-                    icon={stockModalType === 'increase' ? 'solar:add-circle-bold' : 'solar:minus-circle-bold'}
-                    className={stockModalType === 'increase' ? 'text-success' : 'text-warning'}
+                  <Icon
+                    icon={
+                      stockModalType === "increase"
+                        ? "solar:add-circle-bold"
+                        : "solar:minus-circle-bold"
+                    }
+                    className={
+                      stockModalType === "increase"
+                        ? "text-success"
+                        : "text-warning"
+                    }
                   />
                 }
               />
@@ -1266,12 +1646,15 @@ export default function ProductTable({
 
               {stockAmount && selectedProductForStock && (
                 <div className="p-4 bg-primary/10 rounded-lg">
-                  <p className="text-sm text-default-600 mb-1">Nuova quantità:</p>
+                  <p className="text-sm text-default-600 mb-1">
+                    Nuova quantità:
+                  </p>
                   <p className="text-xl font-bold text-primary">
-                    {stockModalType === 'increase' 
-                      ? selectedProductForStock.quantity + parseInt(stockAmount || '0')
-                      : selectedProductForStock.quantity - parseInt(stockAmount || '0')
-                    }
+                    {stockModalType === "increase"
+                      ? selectedProductForStock.quantity +
+                        parseInt(stockAmount || "0")
+                      : selectedProductForStock.quantity -
+                        parseInt(stockAmount || "0")}
                   </p>
                 </div>
               )}
@@ -1281,21 +1664,23 @@ export default function ProductTable({
             <Button variant="light" onPress={() => setIsStockModalOpen(false)}>
               Annulla
             </Button>
-            <Button 
-              color={stockModalType === 'increase' ? 'success' : 'warning'}
+            <Button
+              color={stockModalType === "increase" ? "success" : "warning"}
               onPress={handleStockOperation}
               isLoading={isProcessingStock}
               isDisabled={!stockAmount || !stockReason}
             >
-              {stockModalType === 'increase' ? 'Aumenta Quantità' : 'Diminuisci Quantità'}
+              {stockModalType === "increase"
+                ? "Aumenta Quantità"
+                : "Diminuisci Quantità"}
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
 
       {/* Modal Spostamento tra Magazzini */}
-      <Modal 
-        isOpen={isMoveModalOpen} 
+      <Modal
+        isOpen={isMoveModalOpen}
         onClose={() => setIsMoveModalOpen(false)}
         size="2xl"
       >
@@ -1310,15 +1695,74 @@ export default function ProductTable({
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div className="p-4 bg-default-100 rounded-lg">
-                  <p className="text-sm text-default-600">Magazzino Attuale</p>
-                  <p className="font-medium">{selectedProductForMove?.warehouse_id}</p>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon icon="solar:home-bold" className="text-default-600" />
+                    <p className="text-sm text-default-600 font-medium">
+                      Magazzino Attuale
+                    </p>
+                  </div>
+                  <p className="font-medium text-lg">
+                    {selectedProductForMove?.warehouse_id}
+                  </p>
                   <p className="text-xs text-default-500">
                     Disponibili: {selectedProductForMove?.quantity} unità
                   </p>
                 </div>
-                <div className="p-4 border-2 border-dashed border-primary rounded-lg">
-                  <p className="text-sm text-primary">Magazzino Destinazione</p>
-                  <p className="font-medium text-primary">Da selezionare</p>
+                <div
+                  className={`p-4 rounded-lg border-2 transition-all ${
+                    targetWarehouse
+                      ? "border-success bg-success/10"
+                      : "border-dashed border-primary bg-primary/5"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <Icon
+                      icon={
+                        targetWarehouse
+                          ? "solar:home-bold"
+                          : "solar:home-linear"
+                      }
+                      className={
+                        targetWarehouse ? "text-success" : "text-primary"
+                      }
+                    />
+                    <p
+                      className={`text-sm font-medium ${
+                        targetWarehouse ? "text-success" : "text-primary"
+                      }`}
+                    >
+                      Magazzino Destinazione
+                    </p>
+                  </div>
+                  <p
+                    className={`font-medium text-lg ${
+                      targetWarehouse ? "text-success" : "text-primary"
+                    }`}
+                  >
+                    {targetWarehouse
+                      ? warehouses.find(
+                          (w) =>
+                            (w.WarehouseUUID || w.WarehouseID.toString()) ===
+                            targetWarehouse
+                        )?.WarehouseName
+                      : "Seleziona destinazione"}
+                  </p>
+                  {targetWarehouse && (
+                    <p className="text-xs text-success-600">
+                      Magazzino selezionato ✓
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Visual separator with arrow */}
+              <div className="flex items-center justify-center py-2">
+                <div className="flex items-center gap-2 px-4 py-2 bg-primary/10 rounded-full">
+                  <Icon icon="solar:arrow-down-bold" className="text-primary" />
+                  <span className="text-sm font-medium text-primary">
+                    Sposta prodotto
+                  </span>
+                  <Icon icon="solar:arrow-down-bold" className="text-primary" />
                 </div>
               </div>
 
@@ -1331,42 +1775,154 @@ export default function ProductTable({
                 min="1"
                 max={selectedProductForMove?.quantity}
                 startContent={
-                  <Icon 
+                  <Icon
                     icon="solar:transfer-horizontal-bold"
                     className="text-primary"
                   />
                 }
               />
 
-              <Select
-                label="Magazzino di destinazione"
-                placeholder="Seleziona il magazzino"
-                selectedKeys={targetWarehouse ? [targetWarehouse] : []}
-                onChange={(e) => setTargetWarehouse(e.target.value)}
-              >
-                {warehouses
-                  .filter(w => w.id !== selectedProductForMove?.warehouse_id)
-                  .map((warehouse) => (
-                  <SelectItem key={warehouse.id}>
-                    {warehouse.name}
-                  </SelectItem>
-                ))}
-              </Select>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-default-700 flex items-center gap-2">
+                  <Icon icon="solar:buildings-bold" className="text-primary" />
+                  Seleziona Magazzino di Destinazione
+                </label>
+                <Select
+                  placeholder="Scegli dove spostare il prodotto"
+                  selectedKeys={targetWarehouse ? [targetWarehouse] : undefined}
+                  onSelectionChange={(keys) => {
+                    const selectedKey = Array.from(keys)[0] as string;
+                    setTargetWarehouse(selectedKey || "");
+                  }}
+                  size="lg"
+                  variant="bordered"
+                  classNames={{
+                    trigger: targetWarehouse ? "border-success" : "",
+                  }}
+                  startContent={
+                    <Icon
+                      icon="solar:buildings-2-bold"
+                      className={
+                        targetWarehouse ? "text-success" : "text-default-400"
+                      }
+                    />
+                  }
+                  aria-label="Seleziona magazzino di destinazione"
+                >
+                  {warehouses
+                    .filter((warehouse) => {
+                      if (!selectedProductForMove) return true;
 
+                      const warehouseUUID = warehouse.WarehouseUUID;
+                      const warehouseID = warehouse.WarehouseID.toString();
+                      const warehouseCode = warehouse.WarehouseCode;
+                      const sourceWarehouseId =
+                        selectedProductForMove.warehouse_id;
+
+                      return (
+                        warehouseUUID !== sourceWarehouseId &&
+                        warehouseID !== sourceWarehouseId &&
+                        warehouseCode !== sourceWarehouseId &&
+                        warehouse.WarehouseName !== sourceWarehouseId
+                      );
+                    })
+                    .map((warehouse) => (
+                      <SelectItem
+                        key={
+                          warehouse.WarehouseUUID ||
+                          warehouse.WarehouseID.toString()
+                        }
+                        textValue={warehouse.WarehouseName}
+                        startContent={
+                          <Icon
+                            icon="solar:home-bold"
+                            className="text-primary"
+                          />
+                        }
+                      >
+                        <div className="flex flex-col">
+                          <span className="font-medium">
+                            {warehouse.WarehouseName}
+                          </span>
+                          <span className="text-xs text-default-500">
+                            {warehouse.WarehouseCode}
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))}
+                </Select>
+                {!targetWarehouse && (
+                  <p className="text-xs text-warning-600 flex items-center gap-1">
+                    <Icon icon="solar:info-circle-bold" width={12} />
+                    Devi selezionare un magazzino di destinazione
+                  </p>
+                )}
+              </div>
+
+              {/* Riepilogo operazione */}
               {moveQuantity && targetWarehouse && selectedProductForMove && (
-                <div className="p-4 bg-primary/10 rounded-lg">
+                <div className="p-4 bg-gradient-to-r from-primary/10 to-success/10 rounded-lg border border-primary/20">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Icon
+                      icon="solar:document-text-bold"
+                      className="text-primary"
+                    />
+                    <h4 className="font-semibold text-primary">
+                      Riepilogo Operazione
+                    </h4>
+                  </div>
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-default-600">Quantità rimanente:</p>
-                      <p className="font-bold">
-                        {selectedProductForMove.quantity - parseInt(moveQuantity || '0')} unità
-                      </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-default-600">Prodotto:</span>
+                        <span className="font-medium">
+                          {selectedProductForMove.name}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-default-600">
+                          Quantità da spostare:
+                        </span>
+                        <span className="font-bold text-primary">
+                          {moveQuantity} unità
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-default-600">
+                          Quantità rimanente:
+                        </span>
+                        <span className="font-bold text-default-700">
+                          {selectedProductForMove.quantity -
+                            parseInt(moveQuantity || "0")}{" "}
+                          unità
+                        </span>
+                      </div>
                     </div>
-                    <div>
-                      <p className="text-default-600">Verso:</p>
-                      <p className="font-bold text-primary">
-                        {warehouses.find(w => w.id === targetWarehouse)?.name}
-                      </p>
+                    <div className="space-y-2">
+                      <div className="flex justify-between">
+                        <span className="text-default-600">Da:</span>
+                        <span className="font-medium">
+                          {selectedProductForMove.warehouse_id}
+                        </span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-default-600">Verso:</span>
+                        <span className="font-bold text-success">
+                          {
+                            warehouses.find(
+                              (w) =>
+                                (w.WarehouseUUID ||
+                                  w.WarehouseID.toString()) === targetWarehouse
+                            )?.WarehouseName
+                          }
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1 text-success-600">
+                        <Icon icon="solar:check-circle-bold" width={14} />
+                        <span className="text-xs">
+                          Pronto per il trasferimento
+                        </span>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -1377,7 +1933,7 @@ export default function ProductTable({
             <Button variant="light" onPress={() => setIsMoveModalOpen(false)}>
               Annulla
             </Button>
-            <Button 
+            <Button
               color="primary"
               onPress={handleMoveOperation}
               isLoading={isProcessingMove}
@@ -1391,8 +1947,8 @@ export default function ProductTable({
       </Modal>
 
       {/* Modal Caricamento su Furgone */}
-      <Modal 
-        isOpen={isLoadModalOpen} 
+      <Modal
+        isOpen={isLoadModalOpen}
         onClose={() => setIsLoadModalOpen(false)}
         size="2xl"
       >
@@ -1409,11 +1965,15 @@ export default function ProductTable({
                 <div className="grid grid-cols-2 gap-4">
                   <div>
                     <p className="text-sm text-default-600">Magazzino</p>
-                    <p className="font-medium">{selectedProductForLoad?.warehouse_id}</p>
+                    <p className="font-medium">
+                      {selectedProductForLoad?.warehouse_id}
+                    </p>
                   </div>
                   <div>
                     <p className="text-sm text-default-600">Disponibili</p>
-                    <p className="font-medium">{selectedProductForLoad?.quantity} unità</p>
+                    <p className="font-medium">
+                      {selectedProductForLoad?.quantity} unità
+                    </p>
                   </div>
                 </div>
               </div>
@@ -1427,10 +1987,7 @@ export default function ProductTable({
                 min="1"
                 max={selectedProductForLoad?.quantity}
                 startContent={
-                  <Icon 
-                    icon="solar:delivery-bold"
-                    className="text-secondary"
-                  />
+                  <Icon icon="solar:delivery-bold" className="text-secondary" />
                 }
               />
 
@@ -1441,33 +1998,41 @@ export default function ProductTable({
                 onChange={(e) => setTargetVehicle(e.target.value)}
               >
                 {vehicles
-                  .filter(v => v.available)
+                  .filter((v) => v.available)
                   .map((vehicle) => (
-                  <SelectItem key={vehicle.id}>
-                    <div className="flex items-center gap-2">
-                      <Icon 
-                        icon="solar:delivery-bold" 
-                        className="text-secondary" 
-                        width={16} 
-                      />
-                      {vehicle.name}
-                    </div>
-                  </SelectItem>
-                ))}
+                    <SelectItem key={vehicle.id}>
+                      <div className="flex items-center gap-2">
+                        <Icon
+                          icon="solar:delivery-bold"
+                          className="text-secondary"
+                          width={16}
+                        />
+                        {vehicle.name}
+                      </div>
+                    </SelectItem>
+                  ))}
               </Select>
 
-              {vehicles.filter(v => !v.available).length > 0 && (
+              {vehicles.filter((v) => !v.available).length > 0 && (
                 <div className="p-3 bg-warning/10 rounded-lg">
                   <p className="text-sm text-warning-600 mb-2">
-                    <Icon icon="solar:info-circle-bold" className="inline mr-1" />
+                    <Icon
+                      icon="solar:info-circle-bold"
+                      className="inline mr-1"
+                    />
                     Furgoni non disponibili:
                   </p>
                   <div className="space-y-1">
-                    {vehicles.filter(v => !v.available).map(vehicle => (
-                      <p key={vehicle.id} className="text-xs text-warning-600">
-                        • {vehicle.name}
-                      </p>
-                    ))}
+                    {vehicles
+                      .filter((v) => !v.available)
+                      .map((vehicle) => (
+                        <p
+                          key={vehicle.id}
+                          className="text-xs text-warning-600"
+                        >
+                          • {vehicle.name}
+                        </p>
+                      ))}
                   </div>
                 </div>
               )}
@@ -1477,12 +2042,14 @@ export default function ProductTable({
                   <div className="grid grid-cols-2 gap-4 text-sm">
                     <div>
                       <p className="text-default-600">Quantità da caricare:</p>
-                      <p className="font-bold text-secondary">{loadQuantity} unità</p>
+                      <p className="font-bold text-secondary">
+                        {loadQuantity} unità
+                      </p>
                     </div>
                     <div>
                       <p className="text-default-600">Su furgone:</p>
                       <p className="font-bold">
-                        {vehicles.find(v => v.id === targetVehicle)?.name}
+                        {vehicles.find((v) => v.id === targetVehicle)?.name}
                       </p>
                     </div>
                   </div>
@@ -1494,7 +2061,7 @@ export default function ProductTable({
             <Button variant="light" onPress={() => setIsLoadModalOpen(false)}>
               Annulla
             </Button>
-            <Button 
+            <Button
               color="secondary"
               onPress={handleLoadOperation}
               isLoading={isProcessingLoad}
@@ -1508,8 +2075,8 @@ export default function ProductTable({
       </Modal>
 
       {/* Modal Operazioni Stock Batch */}
-      <Modal 
-        isOpen={isBatchStockModalOpen} 
+      <Modal
+        isOpen={isBatchStockModalOpen}
         onClose={() => setIsBatchStockModalOpen(false)}
         size="5xl"
         scrollBehavior="inside"
@@ -1517,7 +2084,9 @@ export default function ProductTable({
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
             <h3 className="text-xl font-semibold">
-              {batchStockType === 'increase' ? 'Aumenta Stock Multipli' : 'Diminuisci Stock Multipli'}
+              {batchStockType === "increase"
+                ? "Aumenta Stock Multipli"
+                : "Diminuisci Stock Multipli"}
             </h3>
             <p className="text-sm text-default-500">
               {batchProducts.length} prodotti selezionati
@@ -1535,12 +2104,17 @@ export default function ProductTable({
               />
 
               <div className="border rounded-lg p-4 max-h-96 overflow-y-auto">
-                <h4 className="font-semibold mb-4">Imposta quantità per ogni prodotto:</h4>
+                <h4 className="font-semibold mb-4">
+                  Imposta quantità per ogni prodotto:
+                </h4>
                 <div className="space-y-3">
                   {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
                     return (
-                      <div key={productId} className="flex items-center gap-4 p-3 bg-default-50 rounded-lg">
+                      <div
+                        key={productId}
+                        className="flex items-center gap-4 p-3 bg-default-50 rounded-lg"
+                      >
                         <div className="flex-1">
                           <p className="font-medium">{product.name}</p>
                           <div className="flex items-center gap-4 text-sm text-default-600">
@@ -1555,16 +2129,30 @@ export default function ProductTable({
                             size="sm"
                             placeholder="Qta"
                             min="1"
-                            max={batchStockType === 'decrease' ? product.quantity : undefined}
-                            value={batchStockData[productId] || ''}
-                            onChange={(e) => setBatchStockData(prev => ({
-                              ...prev,
-                              [productId]: e.target.value
-                            }))}
+                            max={
+                              batchStockType === "decrease"
+                                ? product.quantity
+                                : undefined
+                            }
+                            value={batchStockData[productId] || ""}
+                            onChange={(e) =>
+                              setBatchStockData((prev) => ({
+                                ...prev,
+                                [productId]: e.target.value,
+                              }))
+                            }
                             startContent={
-                              <Icon 
-                                icon={batchStockType === 'increase' ? 'solar:add-circle-bold' : 'solar:minus-circle-bold'}
-                                className={batchStockType === 'increase' ? 'text-success' : 'text-warning'}
+                              <Icon
+                                icon={
+                                  batchStockType === "increase"
+                                    ? "solar:add-circle-bold"
+                                    : "solar:minus-circle-bold"
+                                }
+                                className={
+                                  batchStockType === "increase"
+                                    ? "text-success"
+                                    : "text-warning"
+                                }
                                 width={16}
                               />
                             }
@@ -1574,10 +2162,11 @@ export default function ProductTable({
                           {batchStockData[productId] && (
                             <div className="text-sm">
                               <p className="font-bold text-primary">
-                                {batchStockType === 'increase' 
-                                  ? product.quantity + parseInt(batchStockData[productId])
-                                  : product.quantity - parseInt(batchStockData[productId])
-                                }
+                                {batchStockType === "increase"
+                                  ? product.quantity +
+                                    parseInt(batchStockData[productId])
+                                  : product.quantity -
+                                    parseInt(batchStockData[productId])}
                               </p>
                               <p className="text-xs text-default-500">Nuovo</p>
                             </div>
@@ -1594,10 +2183,10 @@ export default function ProductTable({
                   size="sm"
                   variant="flat"
                   onClick={() => {
-                    const newData: {[key: string]: string} = {};
-                    batchProducts.forEach(product => {
+                    const newData: { [key: string]: string } = {};
+                    batchProducts.forEach((product) => {
                       const productId = product.product_id || product.id || "";
-                      newData[productId] = '1';
+                      newData[productId] = "1";
                     });
                     setBatchStockData(newData);
                   }}
@@ -1608,10 +2197,10 @@ export default function ProductTable({
                   size="sm"
                   variant="flat"
                   onClick={() => {
-                    const newData: {[key: string]: string} = {};
-                    batchProducts.forEach(product => {
+                    const newData: { [key: string]: string } = {};
+                    batchProducts.forEach((product) => {
                       const productId = product.product_id || product.id || "";
-                      newData[productId] = '5';
+                      newData[productId] = "5";
                     });
                     setBatchStockData(newData);
                   }}
@@ -1622,10 +2211,10 @@ export default function ProductTable({
                   size="sm"
                   variant="flat"
                   onClick={() => {
-                    const newData: {[key: string]: string} = {};
-                    batchProducts.forEach(product => {
+                    const newData: { [key: string]: string } = {};
+                    batchProducts.forEach((product) => {
                       const productId = product.product_id || product.id || "";
-                      newData[productId] = '10';
+                      newData[productId] = "10";
                     });
                     setBatchStockData(newData);
                   }}
@@ -1644,31 +2233,40 @@ export default function ProductTable({
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="light" onPress={() => setIsBatchStockModalOpen(false)}>
+            <Button
+              variant="light"
+              onPress={() => setIsBatchStockModalOpen(false)}
+            >
               Annulla
             </Button>
-            <Button 
-              color={batchStockType === 'increase' ? 'success' : 'warning'}
+            <Button
+              color={batchStockType === "increase" ? "success" : "warning"}
               onPress={handleBatchStockOperation}
               isLoading={isProcessingBatchStock}
-              isDisabled={!batchStockReason || Object.keys(batchStockData).length === 0}
+              isDisabled={
+                !batchStockReason || Object.keys(batchStockData).length === 0
+              }
             >
-              {batchStockType === 'increase' ? 'Aumenta Stock' : 'Diminuisci Stock'}
+              {batchStockType === "increase"
+                ? "Aumenta Stock"
+                : "Diminuisci Stock"}
             </Button>
           </ModalFooter>
         </ModalContent>
       </Modal>
 
       {/* Modal Spostamento Batch */}
-      <Modal 
-        isOpen={isBatchMoveModalOpen} 
+      <Modal
+        isOpen={isBatchMoveModalOpen}
         onClose={() => setIsBatchMoveModalOpen(false)}
         size="5xl"
         scrollBehavior="inside"
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
-            <h3 className="text-xl font-semibold">Sposta Prodotti tra Magazzini</h3>
+            <h3 className="text-xl font-semibold">
+              Sposta Prodotti tra Magazzini
+            </h3>
             <p className="text-sm text-default-500">
               {batchProducts.length} prodotti selezionati
             </p>
@@ -1678,24 +2276,109 @@ export default function ProductTable({
               <Select
                 label="Magazzino di destinazione"
                 placeholder="Seleziona il magazzino di destinazione"
-                selectedKeys={batchTargetWarehouse ? [batchTargetWarehouse] : []}
-                onChange={(e) => setBatchTargetWarehouse(e.target.value)}
+                selectedKeys={
+                  batchTargetWarehouse ? [batchTargetWarehouse] : undefined
+                }
+                onSelectionChange={(keys) => {
+                  const selectedKey = Array.from(keys)[0] as string;
+                  setBatchTargetWarehouse(selectedKey || "");
+                }}
                 isRequired
+                aria-label="Seleziona magazzino di destinazione per trasferimento batch"
               >
-                {warehouses.map((warehouse) => (
-                  <SelectItem key={warehouse.id}>
-                    {warehouse.name}
-                  </SelectItem>
-                ))}
+                {warehouses
+                  .filter((warehouse) => {
+                    const sourceWarehouseIds = batchProducts.map(
+                      (p) => p.warehouse_id
+                    );
+                    const warehouseUUID = warehouse.WarehouseUUID;
+                    const warehouseID = warehouse.WarehouseID.toString();
+                    const warehouseCode = warehouse.WarehouseCode;
+                    const warehouseName = warehouse.WarehouseName;
+
+                    return !sourceWarehouseIds.some(
+                      (sourceId) =>
+                        sourceId === warehouseUUID ||
+                        sourceId === warehouseID ||
+                        sourceId === warehouseCode ||
+                        sourceId === warehouseName
+                    );
+                  })
+                  .map((warehouse) => (
+                    <SelectItem
+                      key={
+                        warehouse.WarehouseUUID ||
+                        warehouse.WarehouseID.toString()
+                      }
+                      textValue={warehouse.WarehouseName}
+                    >
+                      <div className="flex flex-col">
+                        <span className="font-medium">
+                          {warehouse.WarehouseName}
+                        </span>
+                        <span className="text-xs text-default-500">
+                          {warehouse.WarehouseCode}
+                        </span>
+                      </div>
+                    </SelectItem>
+                  ))}
               </Select>
 
+              {/* Riquadro informativo sui magazzini di origine */}
+              <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <Icon
+                    icon="solar:info-circle-bold"
+                    className="text-blue-600"
+                  />
+                  <h4 className="font-semibold text-blue-800">
+                    Magazzini di Origine
+                  </h4>
+                </div>
+                <p className="text-sm text-blue-700 mb-2">
+                  I prodotti selezionati provengono da questi magazzini (esclusi
+                  dalla destinazione):
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {Array.from(
+                    new Set(batchProducts.map((p) => p.warehouse_id))
+                  ).map((warehouseId) => {
+                    const warehouseInfo = warehouses.find(
+                      (w) =>
+                        (w.WarehouseUUID || w.WarehouseID.toString()) ===
+                        warehouseId
+                    );
+                    const productCount = batchProducts.filter(
+                      (p) => p.warehouse_id === warehouseId
+                    ).length;
+
+                    return (
+                      <Chip
+                        key={warehouseId}
+                        size="sm"
+                        variant="flat"
+                        color="primary"
+                      >
+                        {warehouseInfo?.WarehouseName || warehouseId} (
+                        {productCount} prodotti)
+                      </Chip>
+                    );
+                  })}
+                </div>
+              </div>
+
               <div className="border rounded-lg p-4 max-h-96 overflow-y-auto">
-                <h4 className="font-semibold mb-4">Imposta quantità da spostare per ogni prodotto:</h4>
+                <h4 className="font-semibold mb-4">
+                  Imposta quantità da spostare per ogni prodotto:
+                </h4>
                 <div className="space-y-3">
                   {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
                     return (
-                      <div key={productId} className="flex items-center gap-4 p-3 bg-default-50 rounded-lg">
+                      <div
+                        key={productId}
+                        className="flex items-center gap-4 p-3 bg-default-50 rounded-lg"
+                      >
                         <div className="flex-1">
                           <p className="font-medium">{product.name}</p>
                           <div className="flex items-center gap-4 text-sm text-default-600">
@@ -1704,7 +2387,15 @@ export default function ProductTable({
                             <span>Da: {product.warehouse_id}</span>
                             {batchTargetWarehouse && (
                               <span className="text-primary">
-                                → {warehouses.find(w => w.id === batchTargetWarehouse)?.name}
+                                →{" "}
+                                {
+                                  warehouses.find(
+                                    (w) =>
+                                      (w.WarehouseUUID ||
+                                        w.WarehouseID.toString()) ===
+                                      batchTargetWarehouse
+                                  )?.WarehouseName
+                                }
                               </span>
                             )}
                           </div>
@@ -1716,13 +2407,15 @@ export default function ProductTable({
                             placeholder="Qta"
                             min="1"
                             max={product.quantity}
-                            value={batchMoveData[productId] || ''}
-                            onChange={(e) => setBatchMoveData(prev => ({
-                              ...prev,
-                              [productId]: e.target.value
-                            }))}
+                            value={batchMoveData[productId] || ""}
+                            onChange={(e) =>
+                              setBatchMoveData((prev) => ({
+                                ...prev,
+                                [productId]: e.target.value,
+                              }))
+                            }
                             startContent={
-                              <Icon 
+                              <Icon
                                 icon="solar:transfer-horizontal-bold"
                                 className="text-primary"
                                 width={16}
@@ -1734,9 +2427,12 @@ export default function ProductTable({
                           {batchMoveData[productId] && (
                             <div className="text-sm">
                               <p className="font-bold">
-                                {product.quantity - parseInt(batchMoveData[productId])}
+                                {product.quantity -
+                                  parseInt(batchMoveData[productId])}
                               </p>
-                              <p className="text-xs text-default-500">Rimangono</p>
+                              <p className="text-xs text-default-500">
+                                Rimangono
+                              </p>
                             </div>
                           )}
                         </div>
@@ -1748,14 +2444,19 @@ export default function ProductTable({
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="light" onPress={() => setIsBatchMoveModalOpen(false)}>
+            <Button
+              variant="light"
+              onPress={() => setIsBatchMoveModalOpen(false)}
+            >
               Annulla
             </Button>
-            <Button 
+            <Button
               color="primary"
               onPress={handleBatchMoveOperation}
               isLoading={isProcessingBatchMove}
-              isDisabled={!batchTargetWarehouse || Object.keys(batchMoveData).length === 0}
+              isDisabled={
+                !batchTargetWarehouse || Object.keys(batchMoveData).length === 0
+              }
               startContent={<Icon icon="solar:transfer-horizontal-bold" />}
             >
               Sposta Prodotti
@@ -1765,15 +2466,17 @@ export default function ProductTable({
       </Modal>
 
       {/* Modal Caricamento Batch */}
-      <Modal 
-        isOpen={isBatchLoadModalOpen} 
+      <Modal
+        isOpen={isBatchLoadModalOpen}
         onClose={() => setIsBatchLoadModalOpen(false)}
         size="5xl"
         scrollBehavior="inside"
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
-            <h3 className="text-xl font-semibold">Carica Prodotti su Furgone</h3>
+            <h3 className="text-xl font-semibold">
+              Carica Prodotti su Furgone
+            </h3>
             <p className="text-sm text-default-500">
               {batchProducts.length} prodotti selezionati
             </p>
@@ -1787,43 +2490,58 @@ export default function ProductTable({
                 onChange={(e) => setBatchTargetVehicle(e.target.value)}
                 isRequired
               >
-                {vehicles.filter(v => v.available).map((vehicle) => (
-                  <SelectItem key={vehicle.id}>
-                    <div className="flex items-center gap-2">
-                      <Icon 
-                        icon="solar:delivery-bold" 
-                        className="text-secondary" 
-                        width={16} 
-                      />
-                      {vehicle.name}
-                    </div>
-                  </SelectItem>
-                ))}
+                {vehicles
+                  .filter((v) => v.available)
+                  .map((vehicle) => (
+                    <SelectItem key={vehicle.id}>
+                      <div className="flex items-center gap-2">
+                        <Icon
+                          icon="solar:delivery-bold"
+                          className="text-secondary"
+                          width={16}
+                        />
+                        {vehicle.name}
+                      </div>
+                    </SelectItem>
+                  ))}
               </Select>
 
-              {vehicles.filter(v => !v.available).length > 0 && (
+              {vehicles.filter((v) => !v.available).length > 0 && (
                 <div className="p-3 bg-warning/10 rounded-lg">
                   <p className="text-sm text-warning-600 mb-2">
-                    <Icon icon="solar:info-circle-bold" className="inline mr-1" />
+                    <Icon
+                      icon="solar:info-circle-bold"
+                      className="inline mr-1"
+                    />
                     Furgoni non disponibili:
                   </p>
                   <div className="space-y-1">
-                    {vehicles.filter(v => !v.available).map(vehicle => (
-                      <p key={vehicle.id} className="text-xs text-warning-600">
-                        • {vehicle.name}
-                      </p>
-                    ))}
+                    {vehicles
+                      .filter((v) => !v.available)
+                      .map((vehicle) => (
+                        <p
+                          key={vehicle.id}
+                          className="text-xs text-warning-600"
+                        >
+                          • {vehicle.name}
+                        </p>
+                      ))}
                   </div>
                 </div>
               )}
 
               <div className="border rounded-lg p-4 max-h-96 overflow-y-auto">
-                <h4 className="font-semibold mb-4">Imposta quantità da caricare per ogni prodotto:</h4>
+                <h4 className="font-semibold mb-4">
+                  Imposta quantità da caricare per ogni prodotto:
+                </h4>
                 <div className="space-y-3">
                   {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
                     return (
-                      <div key={productId} className="flex items-center gap-4 p-3 bg-default-50 rounded-lg">
+                      <div
+                        key={productId}
+                        className="flex items-center gap-4 p-3 bg-default-50 rounded-lg"
+                      >
                         <div className="flex-1">
                           <p className="font-medium">{product.name}</p>
                           <div className="flex items-center gap-4 text-sm text-default-600">
@@ -1832,7 +2550,12 @@ export default function ProductTable({
                             <span>Magazzino: {product.warehouse_id}</span>
                             {batchTargetVehicle && (
                               <span className="text-secondary">
-                                → {vehicles.find(v => v.id === batchTargetVehicle)?.name}
+                                →{" "}
+                                {
+                                  vehicles.find(
+                                    (v) => v.id === batchTargetVehicle
+                                  )?.name
+                                }
                               </span>
                             )}
                           </div>
@@ -1844,13 +2567,15 @@ export default function ProductTable({
                             placeholder="Qta"
                             min="1"
                             max={product.quantity}
-                            value={batchLoadData[productId] || ''}
-                            onChange={(e) => setBatchLoadData(prev => ({
-                              ...prev,
-                              [productId]: e.target.value
-                            }))}
+                            value={batchLoadData[productId] || ""}
+                            onChange={(e) =>
+                              setBatchLoadData((prev) => ({
+                                ...prev,
+                                [productId]: e.target.value,
+                              }))
+                            }
                             startContent={
-                              <Icon 
+                              <Icon
                                 icon="solar:delivery-bold"
                                 className="text-secondary"
                                 width={16}
@@ -1864,7 +2589,9 @@ export default function ProductTable({
                               <p className="font-bold text-secondary">
                                 {batchLoadData[productId]}
                               </p>
-                              <p className="text-xs text-default-500">Da caricare</p>
+                              <p className="text-xs text-default-500">
+                                Da caricare
+                              </p>
                             </div>
                           )}
                         </div>
@@ -1876,14 +2603,19 @@ export default function ProductTable({
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="light" onPress={() => setIsBatchLoadModalOpen(false)}>
+            <Button
+              variant="light"
+              onPress={() => setIsBatchLoadModalOpen(false)}
+            >
               Annulla
             </Button>
-            <Button 
+            <Button
               color="secondary"
               onPress={handleBatchLoadOperation}
               isLoading={isProcessingBatchLoad}
-              isDisabled={!batchTargetVehicle || Object.keys(batchLoadData).length === 0}
+              isDisabled={
+                !batchTargetVehicle || Object.keys(batchLoadData).length === 0
+              }
               startContent={<Icon icon="solar:delivery-bold" />}
             >
               Carica su Furgone
