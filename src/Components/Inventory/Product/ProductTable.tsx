@@ -677,12 +677,42 @@ export default function ProductTable({
       case "quantity":
         return (
           <InlineQuantityEditor
-            product={product}
+            product={{
+              product_id: product.product_id,
+              quantity: product.quantity,
+              min_stock_treshold: product.min_stock_treshold,
+              warehouse_id: product.warehouse_id,
+            }}
             onUpdate={(id, newQuantity) => {
               if (onUpdateQuantity) {
                 onUpdateQuantity(id, newQuantity);
               }
             }}
+            onStockOperation={(p, type) => {
+              openStockModal(product, type);
+            }}
+            onMoveOperation={() => {
+              openMoveModal(product);
+            }}
+            onBatchSelect={() => {
+              const productKey = product.product_id || product.id || "";
+              if (typeof selectedKeys === "string") {
+                setSelectedKeys(new Set([productKey]));
+              } else {
+                const newSelection = new Set(selectedKeys);
+                if (newSelection.has(productKey)) {
+                  newSelection.delete(productKey);
+                } else {
+                  newSelection.add(productKey);
+                }
+                setSelectedKeys(newSelection);
+              }
+            }}
+            isSelected={
+              typeof selectedKeys === "string"
+                ? selectedKeys === "all"
+                : selectedKeys.has(product.product_id || product.id || "")
+            }
           />
         );
       case "price":

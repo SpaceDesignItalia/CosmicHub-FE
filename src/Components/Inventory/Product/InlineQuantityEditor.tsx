@@ -8,6 +8,7 @@ import {
   Popover,
   PopoverTrigger,
   PopoverContent,
+  ButtonGroup,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import axios from "axios";
@@ -16,6 +17,7 @@ interface Product {
   product_id: string;
   quantity: number;
   min_stock_treshold: number;
+  warehouse_id: string;
 }
 
 interface InlineQuantityEditorProps {
@@ -23,6 +25,10 @@ interface InlineQuantityEditorProps {
   onUpdate: (productId: string, newQuantity: number) => void;
   isOpen?: boolean;
   onOpenChange?: (isOpen: boolean) => void;
+  onStockOperation?: (product: Product, type: "increase" | "decrease") => void;
+  onMoveOperation?: (product: Product) => void;
+  onBatchSelect?: (product: Product) => void;
+  isSelected?: boolean;
 }
 
 // Variabile globale per tracciare quale editor è attualmente aperto
@@ -33,6 +39,10 @@ export default function InlineQuantityEditor({
   onUpdate,
   isOpen: externalIsOpen,
   onOpenChange: externalOnOpenChange,
+  onStockOperation,
+  onMoveOperation,
+  onBatchSelect,
+  isSelected,
 }: InlineQuantityEditorProps) {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [editValue, setEditValue] = useState("");
@@ -141,6 +151,143 @@ export default function InlineQuantityEditor({
     setEditValue(adjustment);
     // Nascondi i suggerimenti dopo la selezione
     setShowSuggestions(false);
+  };
+
+  const handleStockOperation = async (
+    type: "increase" | "decrease",
+    amount: number
+  ) => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const currentQuantity = product.quantity || 0;
+      const newQuantity =
+        type === "increase"
+          ? currentQuantity + amount
+          : Math.max(0, currentQuantity - amount);
+
+      // Prima aggiorna la quantità
+      try {
+        await axios.put(`/Product/UPDATE/UpdateProductQuantity/`, {
+          product_id: product.product_id,
+          stock_unit: newQuantity.toString(),
+        });
+
+        // Dopo aver aggiornato la quantità, registra il movimento
+        const movementEndpoint =
+          type === "increase"
+            ? "/Movement/POST/CreateLoadMovement"
+            : "/Movement/POST/CreateUnloadMovement";
+
+        const movementData = {
+          product_id: product.product_id,
+          quantity: amount,
+          reason: `${type === "increase" ? "Carico" : "Scarico"} manuale`,
+          warehouse_id: product.warehouse_id,
+          timestamp: new Date().toISOString(),
+          movement_type: type === "increase" ? "LOAD" : "UNLOAD",
+          notes: `${
+            type === "increase" ? "Carico" : "Scarico"
+          } manuale da editor quantità`,
+          user_id: "current_user", // TODO: Sostituire con l'ID utente reale
+          created_at: new Date().toISOString(),
+        };
+
+        await axios.post(movementEndpoint, movementData);
+
+        // Aggiorna l'UI
+        onUpdate(product.product_id, newQuantity);
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2000);
+        handleOpenChange(false);
+      } catch (apiError: any) {
+        if (
+          apiError.response?.status === 404 ||
+          apiError.code === "ERR_NETWORK"
+        ) {
+          // Fallback con endpoint generico
+          await axios.put(`/Product/PUT/UpdateProduct/${product.product_id}`, {
+            stock_unit: newQuantity.toString(),
+          });
+          onUpdate(product.product_id, newQuantity);
+          setShowSuccess(true);
+          setTimeout(() => setShowSuccess(false), 2000);
+          handleOpenChange(false);
+        } else {
+          throw apiError;
+        }
+      }
+    } catch (error: any) {
+      console.error(`Errore nell'operazione di ${type}:`, error);
+      let errorMessage = `Errore nell'operazione di ${
+        type === "increase" ? "carico" : "scarico"
+      }`;
+      if (error.response?.status === 404) {
+        errorMessage = "Prodotto non trovato";
+      } else if (error.response?.status === 400) {
+        errorMessage = "Dati non validi";
+      } else if (error.code === "ERR_NETWORK") {
+        errorMessage = "Errore di connessione al server";
+      }
+      setErrorMessage(errorMessage);
+      setTimeout(() => setErrorMessage(null), 5000);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMoveOperation = async (
+    targetWarehouseId: string,
+    amount: number
+  ) => {
+    setIsLoading(true);
+    setErrorMessage(null);
+    try {
+      const currentQuantity = product.quantity || 0;
+      if (amount > currentQuantity) {
+        throw new Error("Quantità da spostare superiore alla disponibilità");
+      }
+
+      const transferData = {
+        product_id: product.product_id,
+        amount: amount,
+        from_warehouse_id: product.warehouse_id,
+        to_warehouse_id: targetWarehouseId,
+        movement_date: new Date().toISOString(),
+        notes: `Trasferimento di ${amount} unità`,
+        reason: "Trasferimento tra magazzini",
+      };
+
+      const response = await axios.post(
+        "/Movement/POST/CreateTransferMovement",
+        transferData
+      );
+
+      if (response.status === 201) {
+        // Aggiorna la quantità del prodotto nel magazzino di origine
+        const newQuantity = currentQuantity - amount;
+        onUpdate(product.product_id, newQuantity);
+        setShowSuccess(true);
+        setTimeout(() => setShowSuccess(false), 2000);
+        handleOpenChange(false);
+      }
+    } catch (error: any) {
+      console.error("Errore nel trasferimento:", error);
+      let errorMessage = "Errore nel trasferimento";
+      if (error.response?.status === 404) {
+        errorMessage = "Magazzino non trovato";
+      } else if (error.response?.status === 400) {
+        errorMessage = "Dati non validi";
+      } else if (error.code === "ERR_NETWORK") {
+        errorMessage = "Errore di connessione al server";
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+      setErrorMessage(errorMessage);
+      setTimeout(() => setErrorMessage(null), 5000);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSave = async () => {
@@ -270,7 +417,7 @@ export default function InlineQuantityEditor({
       difference > 0 ? `+${difference}` : difference < 0 ? `${difference}` : "";
 
     return (
-      <div className="flex flex-col gap-3 relative w-[250px] py-5">
+      <div className="flex flex-col gap-3 relative w-[300px] py-5">
         <div className="text-center mb-1">
           <p className="text-sm font-medium text-default-600">
             Modifica quantità
@@ -409,6 +556,69 @@ export default function InlineQuantityEditor({
           </div>
         )}
 
+        {/* Aggiungi pulsanti per operazioni di magazzino */}
+        <div className="border-t pt-3 mt-2">
+          <div className="flex flex-col gap-2">
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                color="success"
+                variant="flat"
+                startContent={<Icon icon="solar:add-circle-bold" />}
+                className="flex-1"
+                onClick={() => {
+                  handleOpenChange(false);
+                  onStockOperation?.(product, "increase");
+                }}
+                isDisabled={isLoading}
+              >
+                Aumenta
+              </Button>
+              <Button
+                size="sm"
+                color="warning"
+                variant="flat"
+                startContent={<Icon icon="solar:minus-circle-bold" />}
+                className="flex-1"
+                onClick={() => {
+                  handleOpenChange(false);
+                  onStockOperation?.(product, "decrease");
+                }}
+                isDisabled={isLoading || product.quantity <= 0}
+              >
+                Diminuisci
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                color="primary"
+                variant="flat"
+                startContent={<Icon icon="solar:transfer-horizontal-bold" />}
+                className="flex-1"
+                onClick={() => {
+                  handleOpenChange(false);
+                  onMoveOperation?.(product);
+                }}
+                isDisabled={isLoading || product.quantity <= 0}
+              >
+                Sposta
+              </Button>
+              <Button
+                size="sm"
+                color="secondary"
+                variant="flat"
+                startContent={<Icon icon="solar:checkbox-bold" />}
+                className="flex-1"
+                onClick={() => onBatchSelect?.(product)}
+                isDisabled={!onBatchSelect || isLoading}
+              >
+                {isSelected ? "Deseleziona" : "Seleziona"}
+              </Button>
+            </div>
+          </div>
+        </div>
+
         {/* Pulsanti azione */}
         <div className="flex justify-between gap-2 mt-1">
           <Button
@@ -463,7 +673,7 @@ export default function InlineQuantityEditor({
                   ? "text-warning"
                   : "text-success"
                 : "text-danger"
-            }`}
+            } ${isSelected ? "ring-2 ring-primary ring-offset-2" : ""}`}
           >
             <div className="flex items-center gap-1.5">
               <span className="text-default-500 text-xs">QTY:</span>
@@ -494,7 +704,30 @@ export default function InlineQuantityEditor({
             </div>
 
             {!showSuccess && (
-              <div className="ml-auto">
+              <div className="ml-auto flex items-center gap-1">
+                {onBatchSelect && (
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    className={`min-w-6 h-6 ${
+                      isSelected ? "text-primary" : "text-default-400"
+                    }`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onBatchSelect(product);
+                    }}
+                  >
+                    <Icon
+                      icon={
+                        isSelected
+                          ? "solar:checkbox-bold"
+                          : "solar:square-outline-bold"
+                      }
+                      className="text-sm"
+                    />
+                  </Button>
+                )}
                 <Icon
                   icon="solar:pen-bold"
                   className="text-default-400 text-sm opacity-50 group-hover:opacity-100"
