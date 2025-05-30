@@ -23,7 +23,6 @@ import {
   Select,
   SelectItem,
   Spinner,
-
 } from "@heroui/react";
 import type { Selection, ChipProps } from "@heroui/react";
 import { Icon } from "@iconify/react/dist/iconify.js";
@@ -32,13 +31,13 @@ import { Icon } from "@iconify/react/dist/iconify.js";
 interface Movement {
   id: string;
   date: string;
-  type: 'IN' | 'OUT' | 'TRANSFER';
+  type: "IN" | "OUT" | "TRANSFER";
   product: string;
   sku: string;
   quantity: number;
   source: string;
   destination: string;
-  status: 'PENDING' | 'COMPLETED';
+  status: "PENDING" | "COMPLETED";
   product_id: string;
   from_warehouse_id?: string;
   from_warehouse_name?: string;
@@ -60,7 +59,10 @@ interface Movement {
 interface MovementTableProps {
   movements: Movement[];
   onDeleteMovement?: (id: string) => Promise<void>;
-  onUpdateStatus?: (movementId: string, newStatus: 'PENDING' | 'COMPLETED') => void;
+  onUpdateStatus?: (
+    movementId: string,
+    newStatus: "PENDING" | "COMPLETED"
+  ) => void;
   sortBy?: {
     field: keyof Movement;
     direction: "asc" | "desc";
@@ -102,7 +104,6 @@ const columns = [
 
 // Empty State Component
 const EmptyState = ({ isLoading }: { isLoading?: boolean }) => {
-
   if (isLoading) {
     return (
       <div className="flex flex-col items-center justify-center py-12 px-4">
@@ -115,7 +116,10 @@ const EmptyState = ({ isLoading }: { isLoading?: boolean }) => {
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4">
       <div className="p-4 rounded-full mb-4 bg-zinc-100">
-        <Icon icon="solar:box-minimalistic-linear" className="w-12 h-12 text-zinc-500" />
+        <Icon
+          icon="solar:box-minimalistic-linear"
+          className="w-12 h-12 text-zinc-500"
+        />
       </div>
       <h3 className="text-xl font-semibold mb-2 text-zinc-800">
         Nessun movimento trovato
@@ -137,20 +141,23 @@ export default function MovementTable({
   onSort,
   isLoading = false,
 }: MovementTableProps) {
- 
-  const [selectedKeys, setSelectedKeys] = React.useState<Selection>(new Set([]));
+  const [selectedKeys, setSelectedKeys] = React.useState<Selection>(
+    new Set([])
+  );
   const [rowsPerPage, setRowsPerPage] = React.useState(20);
   const [page, setPage] = React.useState(1);
 
   // Modals
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [selectedMovement, setSelectedMovement] = React.useState<Movement | null>(null);
+  const [selectedMovement, setSelectedMovement] =
+    React.useState<Movement | null>(null);
   const {
     isOpen: isDeleteModalOpen,
     onOpen: openDeleteModal,
     onClose: closeDeleteModal,
   } = useDisclosure();
-  const [movementToDelete, setMovementToDelete] = React.useState<Movement | null>(null);
+  const [movementToDelete, setMovementToDelete] =
+    React.useState<Movement | null>(null);
 
   const filteredItems = useMemo(() => {
     if (!Array.isArray(movements)) {
@@ -193,163 +200,193 @@ export default function MovementTable({
 
   const getTypeIcon = (type: string) => {
     switch (type) {
-      case 'IN':
-        return <Icon icon="solar:arrow-down-bold" className="text-success" width={20} />;
-      case 'OUT':
-        return <Icon icon="solar:arrow-up-bold" className="text-danger" width={20} />;
-      case 'TRANSFER':
-        return <Icon icon="solar:arrow-right-bold" className="text-primary" width={20} />;
+      case "IN":
+        return (
+          <Icon
+            icon="solar:arrow-down-bold"
+            className="text-success"
+            width={20}
+          />
+        );
+      case "OUT":
+        return (
+          <Icon icon="solar:arrow-up-bold" className="text-danger" width={20} />
+        );
+      case "TRANSFER":
+        return (
+          <Icon
+            icon="solar:arrow-right-bold"
+            className="text-primary"
+            width={20}
+          />
+        );
       default:
         return null;
     }
   };
 
-  const renderCell = useCallback((movement: Movement, columnKey: React.Key) => {
-    switch (columnKey) {
-      case "date":
-        return movement.date;
-      case "type":
-        return (
-          <div className="flex items-center gap-2">
-            {getTypeIcon(movement.type)}
+  const renderCell = useCallback(
+    (movement: Movement, columnKey: React.Key) => {
+      switch (columnKey) {
+        case "date":
+          return movement.date;
+        case "type":
+          return (
+            <div className="flex items-center gap-2">
+              {getTypeIcon(movement.type)}
+              <Chip
+                className="capitalize"
+                color={typeColorMap[movement.type]}
+                size="sm"
+                variant="flat"
+              >
+                {movement.type}
+              </Chip>
+            </div>
+          );
+        case "product":
+          return (
+            <div className="flex flex-col">
+              <span className="font-medium">{movement.product}</span>
+              <span className="text-xs text-default-500">{movement.sku}</span>
+            </div>
+          );
+        case "quantity":
+          return (
+            <div
+              className={`font-medium ${
+                movement.quantity < 0 ? "text-danger" : "text-success"
+              }`}
+            >
+              {movement.quantity > 0 ? "+" : ""}
+              {movement.quantity}
+            </div>
+          );
+        case "source":
+          return (
+            <div className="flex flex-col">
+              <span className="font-medium">
+                {movement.source}
+                {movement.from_vehicle_license_plate
+                  ? ` (${movement.from_vehicle_license_plate})`
+                  : ""}
+              </span>
+            </div>
+          );
+        case "destination":
+          return (
+            <div className="flex flex-col">
+              <span className="font-medium">
+                {movement.destination}
+                {movement.to_vehicle_license_plate
+                  ? ` (${movement.to_vehicle_license_plate})`
+                  : ""}
+              </span>
+            </div>
+          );
+        case "user_name":
+          return (
+            <div className="flex items-center gap-2">
+              <User
+                name={movement.user_name || "N/A"}
+                avatarProps={{
+                  size: "sm",
+                  showFallback: true,
+                  name: movement.user_name || "N/A",
+                }}
+              />
+            </div>
+          );
+        case "status":
+          return (
             <Chip
               className="capitalize"
-              color={typeColorMap[movement.type]}
+              color={statusColorMap[movement.status]}
               size="sm"
               variant="flat"
             >
-              {movement.type}
+              {movement.status}
             </Chip>
-          </div>
-        );
-      case "product":
-        return (
-          <div className="flex flex-col">
-            <span className="font-medium">{movement.product}</span>
-            <span className="text-xs text-default-500">{movement.sku}</span>
-          </div>
-        );
-      case "quantity":
-        return (
-          <div className={`font-medium ${movement.quantity < 0 ? 'text-danger' : 'text-success'}`}>
-            {movement.quantity > 0 ? '+' : ''}{movement.quantity}
-          </div>
-        );
-      case "source":
-        return (
-          <div className="flex flex-col">
-            <span className="font-medium">{movement.source}</span>
-          </div>
-        );
-      case "destination":
-        return (
-          <div className="flex flex-col">
-            <span className="font-medium">{movement.destination}</span>
-          </div>
-        );
-      case "user_name":
-        return (
-          <div className="flex items-center gap-2">
-            <User
-              name={movement.user_name || 'N/A'}
-              avatarProps={{
-                size: "sm",
-                showFallback: true,
-                name: movement.user_name || 'N/A'
-              }}
-            />
-          </div>
-        );
-      case "status":
-        return (
-          <Chip
-            className="capitalize"
-            color={statusColorMap[movement.status]}
-            size="sm"
-            variant="flat"
-          >
-            {movement.status}
-          </Chip>
-        );
-      case "actions":
-        const dropdownItems: DropdownItem[] = [
-          {
-            key: "view",
-            label: "Visualizza",
-            icon: "solar:eye-bold",
-            className: "text-default-700 data-[hover=true]:text-default-900 data-[hover=true]:bg-default-100",
-            onClick: () => {
-              setSelectedMovement(movement);
-              onOpen();
-            }
+          );
+        case "actions":
+          const dropdownItems: DropdownItem[] = [
+            {
+              key: "view",
+              label: "Visualizza",
+              icon: "solar:eye-bold",
+              className:
+                "text-default-700 data-[hover=true]:text-default-900 data-[hover=true]:bg-default-100",
+              onClick: () => {
+                setSelectedMovement(movement);
+                onOpen();
+              },
+            },
+          ];
+
+          if (movement.status === "PENDING") {
+            dropdownItems.push({
+              key: "complete",
+              label: "Completa",
+              icon: "solar:check-circle-bold",
+              className:
+                "text-success-600 data-[hover=true]:text-success-700 data-[hover=true]:bg-success-50",
+              onClick: () => {
+                if (onUpdateStatus) {
+                  onUpdateStatus(movement.id, "COMPLETED");
+                }
+              },
+            });
           }
-        ];
 
-        if (movement.status === 'PENDING') {
           dropdownItems.push({
-            key: "complete",
-            label: "Completa",
-            icon: "solar:check-circle-bold",
-            className: "text-success-600 data-[hover=true]:text-success-700 data-[hover=true]:bg-success-50",
-            onClick: () => {
-              if (onUpdateStatus) {
-                onUpdateStatus(movement.id, 'COMPLETED');
-              }
-            }
+            key: "delete",
+            label: "Elimina",
+            icon: "solar:trash-bin-minimalistic-linear",
+            className:
+              "text-danger-600 data-[hover=true]:text-danger-700 data-[hover=true]:bg-danger-50",
+            onClick: () => confirmDeleteMovement(movement),
           });
-        }
 
-        dropdownItems.push({
-          key: "delete",
-          label: "Elimina",
-          icon: "solar:trash-bin-minimalistic-linear",
-          className: "text-danger-600 data-[hover=true]:text-danger-700 data-[hover=true]:bg-danger-50",
-          onClick: () => confirmDeleteMovement(movement)
-        });
-
-        return (
-          <div className="flex justify-start items-center gap-2">
-            <Dropdown showArrow placement="bottom-end">
-              <DropdownTrigger>
-                <Button
-                  isIconOnly
-                  size="sm"
-                  variant="light"
-                  className="hover:bg-default-100"
-                >
-                  <Icon icon="nimbus:ellipsis" />
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu
-                variant="bordered"
-                aria-label="Azioni movimento"
-                className="min-w-[180px]"
-              >
-                {dropdownItems.map((item) => (
-                  <DropdownItem
-                    key={item.key}
-                    onClick={item.onClick}
-                    className={item.className}
-                    startContent={
-                      <Icon
-                        icon={item.icon}
-                        className="text-lg"
-                      />
-                    }
+          return (
+            <div className="flex justify-start items-center gap-2">
+              <Dropdown showArrow placement="bottom-end">
+                <DropdownTrigger>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    className="hover:bg-default-100"
                   >
-                    {item.label}
-                  </DropdownItem>
-                ))}
-              </DropdownMenu>
-            </Dropdown>
-          </div>
-        );
-      default:
-        return null;
-    }
-  }, [onUpdateStatus, onOpen]);
-
-
+                    <Icon icon="nimbus:ellipsis" />
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  variant="bordered"
+                  aria-label="Azioni movimento"
+                  className="min-w-[180px]"
+                >
+                  {dropdownItems.map((item) => (
+                    <DropdownItem
+                      key={item.key}
+                      onClick={item.onClick}
+                      className={item.className}
+                      startContent={
+                        <Icon icon={item.icon} className="text-lg" />
+                      }
+                    >
+                      {item.label}
+                    </DropdownItem>
+                  ))}
+                </DropdownMenu>
+              </Dropdown>
+            </div>
+          );
+        default:
+          return null;
+      }
+    },
+    [onUpdateStatus, onOpen]
+  );
 
   const onRowsPerPageChange = useCallback(
     (e: React.ChangeEvent<HTMLSelectElement>) => {
@@ -497,12 +534,7 @@ export default function MovementTable({
       </Table>
 
       {/* Movement details modal */}
-      <Modal
-        isOpen={isOpen}
-        onClose={onClose}
-        backdrop="blur"
-        radius="lg"
-      >
+      <Modal isOpen={isOpen} onClose={onClose} backdrop="blur" radius="lg">
         <ModalContent>
           {selectedMovement && (
             <>
@@ -539,35 +571,64 @@ export default function MovementTable({
                   <div>
                     <p className="text-small text-zinc-500">Prodotto</p>
                     <p className="font-medium">{selectedMovement.product}</p>
-                    <p className="text-xs text-default-500">SKU: {selectedMovement.sku}</p>
+                    <p className="text-xs text-default-500">
+                      SKU: {selectedMovement.sku}
+                    </p>
                   </div>
                   <div>
                     <p className="text-small text-zinc-500">Quantità</p>
-                    <p className={`font-medium ${selectedMovement.quantity < 0 ? 'text-danger' : 'text-success'}`}>
-                      {selectedMovement.quantity > 0 ? '+' : ''}{selectedMovement.quantity}
+                    <p
+                      className={`font-medium ${
+                        selectedMovement.quantity < 0
+                          ? "text-danger"
+                          : "text-success"
+                      }`}
+                    >
+                      {selectedMovement.quantity > 0 ? "+" : ""}
+                      {selectedMovement.quantity}
                     </p>
                   </div>
                   <div>
                     <p className="text-small text-zinc-500">Origine</p>
-                    <p className="font-medium">{selectedMovement.source}</p>
+                    <p className="font-medium">
+                      {selectedMovement.source}
+                      {selectedMovement.from_vehicle_license_plate
+                        ? ` (${selectedMovement.from_vehicle_license_plate})`
+                        : ""}
+                    </p>
                     {selectedMovement.from_warehouse_id && (
-                      <p className="text-xs text-default-500">ID Magazzino: {selectedMovement.from_warehouse_id}</p>
+                      <p className="text-xs text-default-500">
+                        ID Magazzino: {selectedMovement.from_warehouse_id}
+                      </p>
                     )}
                     {selectedMovement.from_vehicle_id && (
-                      <p className="text-xs text-default-500">ID Veicolo: {selectedMovement.from_vehicle_id}</p>
+                      <p className="text-xs text-default-500">
+                        ID Veicolo: {selectedMovement.from_vehicle_id}
+                      </p>
                     )}
                     {selectedMovement.from_supplier && (
-                      <p className="text-xs text-default-500">ID Fornitore: {selectedMovement.from_supplier}</p>
+                      <p className="text-xs text-default-500">
+                        ID Fornitore: {selectedMovement.from_supplier}
+                      </p>
                     )}
                   </div>
                   <div>
                     <p className="text-small text-zinc-500">Destinazione</p>
-                    <p className="font-medium">{selectedMovement.destination}</p>
+                    <p className="font-medium">
+                      {selectedMovement.destination}
+                      {selectedMovement.to_vehicle_license_plate
+                        ? ` (${selectedMovement.to_vehicle_license_plate})`
+                        : ""}
+                    </p>
                     {selectedMovement.to_warehouse_id && (
-                      <p className="text-xs text-default-500">ID Magazzino: {selectedMovement.to_warehouse_id}</p>
+                      <p className="text-xs text-default-500">
+                        ID Magazzino: {selectedMovement.to_warehouse_id}
+                      </p>
                     )}
                     {selectedMovement.to_vehicle_id && (
-                      <p className="text-xs text-default-500">ID Veicolo: {selectedMovement.to_vehicle_id}</p>
+                      <p className="text-xs text-default-500">
+                        ID Veicolo: {selectedMovement.to_vehicle_id}
+                      </p>
                     )}
                   </div>
                   <div>
@@ -582,28 +643,30 @@ export default function MovementTable({
                   </div>
                   <div>
                     <p className="text-small text-zinc-500">Creato da</p>
-                    <p className="font-medium">{selectedMovement.user_name || selectedMovement.created_by || 'N/A'}</p>
+                    <p className="font-medium">
+                      {selectedMovement.user_name ||
+                        selectedMovement.created_by ||
+                        "N/A"}
+                    </p>
                   </div>
                   <div>
                     <p className="text-small text-zinc-500">Nome Movimento</p>
-                    <p className="font-medium">{selectedMovement.movement_name || 'N/A'}</p>
+                    <p className="font-medium">
+                      {selectedMovement.movement_name || "N/A"}
+                    </p>
                   </div>
                 </div>
               </ModalBody>
               <ModalFooter>
-                <Button
-                  color="danger"
-                  variant="light"
-                  onPress={onClose}
-                >
+                <Button color="danger" variant="light" onPress={onClose}>
                   Chiudi
                 </Button>
-                {selectedMovement.status === 'PENDING' && (
+                {selectedMovement.status === "PENDING" && (
                   <Button
                     color="success"
                     onPress={() => {
                       if (onUpdateStatus) {
-                        onUpdateStatus(selectedMovement.id, 'COMPLETED');
+                        onUpdateStatus(selectedMovement.id, "COMPLETED");
                       }
                       onClose();
                     }}
@@ -630,15 +693,12 @@ export default function MovementTable({
           </ModalHeader>
           <ModalBody>
             <p>
-              Sei sicuro di voler eliminare questo movimento? Questa azione non può essere annullata.
+              Sei sicuro di voler eliminare questo movimento? Questa azione non
+              può essere annullata.
             </p>
           </ModalBody>
           <ModalFooter>
-            <Button
-              color="danger"
-              variant="light"
-              onPress={closeDeleteModal}
-            >
+            <Button color="danger" variant="light" onPress={closeDeleteModal}>
               Annulla
             </Button>
             <Button
