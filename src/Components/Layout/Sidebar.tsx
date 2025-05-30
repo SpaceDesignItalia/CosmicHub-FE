@@ -101,6 +101,12 @@ export const sectionNestedItems = [
         icon: "solar:tag-linear",
         href: "/inventory/categories",
       },
+      {
+        key: "movements",
+        title: "Movimenti",
+        icon: "solar:refresh-circle-linear",
+        href: "/inventory/movements",
+      },
     ],
   },
   {

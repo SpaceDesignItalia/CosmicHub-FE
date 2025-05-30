@@ -18,6 +18,7 @@ import AddVehicle from "./Pages/Inventory/AddVehicle";
 import EditVehicle from "./Pages/Inventory/EditVehicle";
 import Vehicles from "./Pages/Inventory/Vehicles";
 import Suppliers from "./Pages/Suppliers/Suppliers";
+import WarehouseMovement from "./Pages/Inventory/WarehouseMovement";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_API_URL;
@@ -88,6 +89,7 @@ function App() {
             path="/inventory/warehouses/edit/:UUID"
             element={<EditWarehouse />}
           />
+          <Route path="/inventory/movements" element={<WarehouseMovement />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/warehouses/:UUID" element={<WarehouseDetail />} />
