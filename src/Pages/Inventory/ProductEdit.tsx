@@ -76,11 +76,7 @@ export default function ProductEdit() {
         </div>
       </div>
       <ProductThemeProvider>
-        <EditProduct
-          categories={categories.filter((cat) => cat !== "Tutti")}
-          onUpdateProduct={handleUpdateProduct}
-          getProduct={getProduct}
-        />
+        <EditProduct />
       </ProductThemeProvider>
     </div>
   );

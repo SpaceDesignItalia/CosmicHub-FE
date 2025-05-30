@@ -195,8 +195,8 @@ export default function Products() {
 
         const rawProducts = productsRes.data;
 
-        // Processa i prodotti con i dati ottenuti
-        const processedProducts = rawProducts.map((product: any) => {
+        // Trasforma i dati dal formato db al formato UI
+        const formattedProducts = rawProducts.map((product: any) => {
           // Calcola lo stato del prodotto
           // Usa stock_unit come quantità dal database
           const quantity = parseInt(product.stock_unit) || 0;
@@ -221,15 +221,16 @@ export default function Products() {
             quantity: quantity, // Usa stock_unit come quantità
             status,
             category: categoryName,
+            warehouse_id: warehouseDetails?.name || selectedWarehouse || "Magazzino Principale", // Aggiungi il nome del magazzino
           } as Product;
         });
 
         // Log per debug: controlla se ci sono prodotti senza quantità
-        const productsWithoutQuantity = processedProducts.filter(
+        const productsWithoutQuantity = formattedProducts.filter(
           (p: Product) => !p.quantity
         );
 
-        setProducts(processedProducts);
+        setProducts(formattedProducts);
       } catch (error) {
         console.error("Errore nel caricamento dei dati:", error);
       } finally {

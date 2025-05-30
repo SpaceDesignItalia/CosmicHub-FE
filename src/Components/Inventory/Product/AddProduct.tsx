@@ -822,7 +822,11 @@ export default function AddProduct() {
   // Effetto per cercare automaticamente informazioni quando viene inserito un barcode
   useEffect(() => {
     const searchTimeout = setTimeout(() => {
-      if (formData.barcode && formData.barcode.length >= 8 && !isBarcodeSearching) {
+      if (
+        formData.barcode &&
+        formData.barcode.length >= 8 &&
+        !isBarcodeSearching
+      ) {
         // Verifica che sia un barcode valido (solo numeri per EAN/UPC)
         const isValidBarcode = /^\d{8,14}$/.test(formData.barcode);
         if (isValidBarcode) {
@@ -1826,13 +1830,13 @@ export default function AddProduct() {
 
     try {
       console.log(`Ricerca barcode: ${barcode}`);
-      
+
       // Array di database da provare in ordine - OTTIMIZZATO PER TERMOIDRAULICA
       const searchMethods = [
         { name: "UPC Database", method: searchUPCDatabase },
         { name: "Barcode Lookup", method: searchBarcodeLookup },
         { name: "Product API", method: searchProductAPI },
-        { name: "Open Food Facts", method: searchOpenFoodFacts } // Ultimo per prodotti non alimentari
+        { name: "Open Food Facts", method: searchOpenFoodFacts }, // Ultimo per prodotti non alimentari
       ];
 
       let foundResult = null;
@@ -1861,23 +1865,23 @@ export default function AddProduct() {
         return foundResult;
       } else {
         // Nessun risultato trovato in nessun database
-        setBarcodeSearchResult({ 
+        setBarcodeSearchResult({
           notFound: true,
           barcode: barcode,
-          searchedDatabases: searchMethods.map(m => m.name),
-          suggestions: generateSearchSuggestions(barcode)
+          searchedDatabases: searchMethods.map((m) => m.name),
+          suggestions: generateSearchSuggestions(barcode),
         });
         setShowBarcodeInfo(true);
         return null;
       }
-
     } catch (error) {
       console.error("Errore generale nella ricerca barcode:", error);
-      const errorMessage = error instanceof Error ? error.message : "Errore di connessione";
-      setBarcodeSearchResult({ 
-        error: true, 
+      const errorMessage =
+        error instanceof Error ? error.message : "Errore di connessione";
+      setBarcodeSearchResult({
+        error: true,
         message: errorMessage,
-        barcode: barcode
+        barcode: barcode,
       });
       setShowBarcodeInfo(true);
       return null;
@@ -1889,24 +1893,32 @@ export default function AddProduct() {
   // Genera suggerimenti per l'utente quando il prodotto non viene trovato - SPECIFICO PER TERMOIDRAULICA
   const generateSearchSuggestions = (barcode: string): string[] => {
     const suggestions: string[] = [];
-    
+
     // Analizza il tipo di barcode
-    if (barcode.length === 13 && barcode.startsWith('77')) {
-      suggestions.push("Questo sembra essere un codice EAN-13 sudamericano (Colombia/Venezuela)");
-    } else if (barcode.length === 12 && barcode.startsWith('0')) {
+    if (barcode.length === 13 && barcode.startsWith("77")) {
+      suggestions.push(
+        "Questo sembra essere un codice EAN-13 sudamericano (Colombia/Venezuela)"
+      );
+    } else if (barcode.length === 12 && barcode.startsWith("0")) {
       suggestions.push("Questo è un codice UPC nordamericano");
-    } else if (barcode.length === 13 && barcode.startsWith('8')) {
+    } else if (barcode.length === 13 && barcode.startsWith("8")) {
       suggestions.push("Questo sembra essere un codice EAN-13 europeo");
     }
-    
+
     // Suggerimenti specifici per termoidraulica
     suggestions.push("Per prodotti termoidraulici, prova a cercare su:");
-    suggestions.push("• Siti web dei produttori (Vaillant, Bosch, Ariston, etc.)");
+    suggestions.push(
+      "• Siti web dei produttori (Vaillant, Bosch, Ariston, etc.)"
+    );
     suggestions.push("• Cataloghi online di distributori specializzati");
     suggestions.push("• Database di ricambi termoidraulici");
-    suggestions.push("Verifica che il codice sia stato scansionato correttamente");
-    suggestions.push("Molti prodotti termoidraulici hanno codici proprietari non presenti nei database pubblici");
-    
+    suggestions.push(
+      "Verifica che il codice sia stato scansionato correttamente"
+    );
+    suggestions.push(
+      "Molti prodotti termoidraulici hanno codici proprietari non presenti nei database pubblici"
+    );
+
     return suggestions;
   };
 
@@ -1914,16 +1926,19 @@ export default function AddProduct() {
   const searchOpenFoodFacts = async (barcode: string) => {
     try {
       console.log(`Ricerca Open Food Facts per ${barcode}`);
-      const response = await fetch(`https://world.openfoodfacts.org/api/v0/product/${barcode}.json`, {
-        headers: {
-          'User-Agent': 'CosmicHub-Inventory/1.0'
+      const response = await fetch(
+        `https://world.openfoodfacts.org/api/v0/product/${barcode}.json`,
+        {
+          headers: {
+            "User-Agent": "CosmicHub-Inventory/1.0",
+          },
         }
-      });
-      
+      );
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       const data = await response.json();
 
       if (data.status === 1 && data.product) {
@@ -1931,10 +1946,13 @@ export default function AddProduct() {
         return {
           source: "Open Food Facts",
           confidence: "high",
-          name: product.product_name || product.product_name_it || product.product_name_en,
+          name:
+            product.product_name ||
+            product.product_name_it ||
+            product.product_name_en,
           description: product.generic_name || product.ingredients_text,
-          brand: product.brands?.split(',')[0]?.trim(),
-          category: product.categories?.split(',')[0]?.trim(),
+          brand: product.brands?.split(",")[0]?.trim(),
+          category: product.categories?.split(",")[0]?.trim(),
           weight: product.quantity,
           image: product.image_url,
           ingredients: product.ingredients_text,
@@ -1944,7 +1962,7 @@ export default function AddProduct() {
           packaging: product.packaging,
           stores: product.stores,
           countries: product.countries,
-          raw: product
+          raw: product,
         };
       }
       return { notFound: true };
@@ -1958,16 +1976,19 @@ export default function AddProduct() {
   const searchUPCDatabase = async (barcode: string) => {
     try {
       console.log(`Ricerca UPC Database per ${barcode}`);
-      const response = await fetch(`https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`, {
-        headers: {
-          'User-Agent': 'CosmicHub-Inventory/1.0'
+      const response = await fetch(
+        `https://api.upcitemdb.com/prod/trial/lookup?upc=${barcode}`,
+        {
+          headers: {
+            "User-Agent": "CosmicHub-Inventory/1.0",
+          },
         }
-      });
-      
+      );
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       const data = await response.json();
 
       if (data.code === "OK" && data.items && data.items.length > 0) {
@@ -1981,7 +2002,7 @@ export default function AddProduct() {
           category: item.category,
           weight: item.size,
           image: item.images?.[0],
-          raw: item
+          raw: item,
         };
       }
       return { notFound: true };
@@ -1996,16 +2017,19 @@ export default function AddProduct() {
     try {
       console.log(`Ricerca Barcode Lookup per ${barcode}`);
       // Nota: Questo è un servizio di esempio, potrebbe richiedere API key
-      const response = await fetch(`https://api.barcodelookup.com/v3/products?barcode=${barcode}&formatted=y&key=YOUR_API_KEY`, {
-        headers: {
-          'User-Agent': 'CosmicHub-Inventory/1.0'
+      const response = await fetch(
+        `https://api.barcodelookup.com/v3/products?barcode=${barcode}&formatted=y&key=YOUR_API_KEY`,
+        {
+          headers: {
+            "User-Agent": "CosmicHub-Inventory/1.0",
+          },
         }
-      });
-      
+      );
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       const data = await response.json();
 
       if (data.products && data.products.length > 0) {
@@ -2019,7 +2043,7 @@ export default function AddProduct() {
           category: product.category,
           weight: product.size,
           image: product.images?.[0],
-          raw: product
+          raw: product,
         };
       }
       return { notFound: true };
@@ -2035,16 +2059,19 @@ export default function AddProduct() {
     try {
       console.log(`Ricerca Product API per ${barcode}`);
       // Questo potrebbe essere sostituito con un'API locale o aziendale
-      const response = await fetch(`https://api.ean-search.org/api?token=YOUR_TOKEN&op=barcode-lookup&ean=${barcode}&format=json`, {
-        headers: {
-          'User-Agent': 'CosmicHub-Inventory/1.0'
+      const response = await fetch(
+        `https://api.ean-search.org/api?token=YOUR_TOKEN&op=barcode-lookup&ean=${barcode}&format=json`,
+        {
+          headers: {
+            "User-Agent": "CosmicHub-Inventory/1.0",
+          },
         }
-      });
-      
+      );
+
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}`);
       }
-      
+
       const data = await response.json();
 
       if (data && data.product) {
@@ -2056,7 +2083,7 @@ export default function AddProduct() {
           brand: data.product.brand,
           category: data.product.category,
           image: data.product.image,
-          raw: data.product
+          raw: data.product,
         };
       }
       return { notFound: true };
@@ -2090,19 +2117,19 @@ export default function AddProduct() {
     if (productData.category && !formData.category) {
       // Mapping specifico per termoidraulica
       const thermoHydraulicMapping: { [key: string]: string } = {
-        'heating': 'Riscaldamento',
-        'plumbing': 'Idraulica',
-        'boiler': 'Caldaie',
-        'radiator': 'Radiatori',
-        'valve': 'Valvole',
-        'pipe': 'Tubazioni',
-        'fitting': 'Raccordi',
-        'pump': 'Pompe',
-        'thermostat': 'Termostati',
-        'heat exchanger': 'Scambiatori di Calore',
-        'insulation': 'Isolamento',
-        'tools': 'Utensili',
-        'hardware': 'Ferramenta'
+        heating: "Riscaldamento",
+        plumbing: "Idraulica",
+        boiler: "Caldaie",
+        radiator: "Radiatori",
+        valve: "Valvole",
+        pipe: "Tubazioni",
+        fitting: "Raccordi",
+        pump: "Pompe",
+        thermostat: "Termostati",
+        "heat exchanger": "Scambiatori di Calore",
+        insulation: "Isolamento",
+        tools: "Utensili",
+        hardware: "Ferramenta",
       };
 
       // Cerca prima nel mapping specifico
@@ -2116,9 +2143,12 @@ export default function AddProduct() {
 
       // Se non trova nel mapping specifico, cerca nelle categorie esistenti
       if (!mappedCategory) {
-        const matchingCategory = categories.find(cat => 
-          cat.name.toLowerCase().includes(productData.category.toLowerCase()) ||
-          productData.category.toLowerCase().includes(cat.name.toLowerCase())
+        const matchingCategory = categories.find(
+          (cat) =>
+            cat.name
+              .toLowerCase()
+              .includes(productData.category.toLowerCase()) ||
+            productData.category.toLowerCase().includes(cat.name.toLowerCase())
         );
         if (matchingCategory) {
           mappedCategory = matchingCategory.name;
@@ -2141,7 +2171,7 @@ export default function AddProduct() {
 
     // Applica gli aggiornamenti
     if (Object.keys(updates).length > 0) {
-      setFormData(prev => ({ ...prev, ...updates }));
+      setFormData((prev) => ({ ...prev, ...updates }));
     }
 
     setShowBarcodeInfo(false);
@@ -2527,7 +2557,7 @@ export default function AddProduct() {
                   />
                 </div>
 
-                {/* Aliquota IVA */}
+                {/* IVA */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
                     Aliquota IVA
@@ -2562,54 +2592,6 @@ export default function AddProduct() {
                   </Select>
                 </div>
 
-                {/* Magazzino */}
-                <div>
-                  <label className="block text-sm font-medium mb-2">
-                    Magazzino <span className="text-danger">*</span>
-                    {formData.warehouse && (
-                      <Chip
-                        size="sm"
-                        variant="flat"
-                        color="success"
-                        className="ml-2"
-                        startContent={
-                          <Icon icon="solar:check-circle-bold" width={14} />
-                        }
-                      >
-                        Preselezionato
-                      </Chip>
-                    )}
-                  </label>
-                  <Select
-                    variant="bordered"
-                    color={formData.warehouse ? "success" : "primary"}
-                    placeholder="Seleziona magazzino"
-                    selectedKeys={
-                      formData.warehouse ? [formData.warehouse] : []
-                    }
-                    onChange={(e) => handleChange("warehouse", e.target.value)}
-                    isRequired
-                    startContent={
-                      <Icon
-                        icon="solar:buildings-3-bold"
-                        className={
-                          formData.warehouse
-                            ? "text-success"
-                            : "text-default-400"
-                        }
-                      />
-                    }
-                  >
-                    {warehouses.map((warehouse) => (
-                      <SelectItem
-                        key={warehouse.WarehouseUUID || warehouse.WarehouseID}
-                        textValue={`${warehouse.WarehouseName} ${warehouse.WarehouseCode}`}
-                      >
-                        {warehouse.WarehouseName} {warehouse.WarehouseCode}
-                      </SelectItem>
-                    ))}
-                  </Select>
-                </div>
 
                 {/* Tempo di approvvigionamento */}
                 <div>
@@ -2659,10 +2641,10 @@ export default function AddProduct() {
                   />
                 </div>
 
-                {/* Quantità di riordino */}
+                {/* Quantità di riordino consigliata */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
-                    Quantità di Riordino
+                    Quantità di Riordino Consigliata
                   </label>
                   <Input
                     type="number"
@@ -2683,6 +2665,7 @@ export default function AddProduct() {
                       }
                     }}
                     onKeyDown={(e) => {
+                      // Impedisci l'inserimento del segno meno, punto decimale e caratteri non numerici
                       if (
                         e.key === "-" ||
                         e.key === "." ||
@@ -2703,6 +2686,14 @@ export default function AddProduct() {
                             : "text-default-400"
                         }
                       />
+                    }
+                    description={
+                      formData.reorderQuantity &&
+                      formData.minStockThreshold &&
+                      parseInt(formData.reorderQuantity) > 0 &&
+                      parseInt(formData.minStockThreshold) > 0
+                        ? `Punto di riordino: ${calculateReorderPoint()} unità`
+                        : undefined
                     }
                   />
                 </div>
@@ -2772,113 +2763,55 @@ export default function AddProduct() {
                   <label className="block text-sm font-medium mb-2">
                     Riepilogo Economico
                   </label>
-                  <Card
-                    className={`p-4 ${
-                      isDark ? "bg-zinc-800/50" : "bg-zinc-50/70"
-                    }`}
-                  >
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                      {/* Prezzo base */}
+                  <Card className="p-4 bg-default-50">
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div>
                         <p className="text-xs text-default-500 mb-1">
                           Prezzo Acquisto
                         </p>
                         <p className="text-lg font-semibold">
-                          {parseFloat(formData.costPrice?.toString() || "0") > 0
-                            ? `€${parseFloat(
-                                formData.costPrice?.toString() || "0"
-                              ).toFixed(2)}`
-                            : "€0.00"}
+                          €{parseFloat(formData.costPrice || "0").toFixed(2)}
                         </p>
                       </div>
-
-                      {/* Prezzo vendita */}
                       <div>
                         <p className="text-xs text-default-500 mb-1">
                           Prezzo Vendita
                         </p>
                         <p className="text-lg font-semibold">
-                          {parseFloat(formData.price) > 0
-                            ? `€${parseFloat(formData.price).toFixed(2)}`
-                            : "€0.00"}
+                          €{parseFloat(formData.price || "0").toFixed(2)}
                         </p>
                       </div>
-
-                      {/* Prezzo finale (con IVA) */}
-                      {calculateFinalPrice().finalPrice !== null && (
-                        <div>
-                          <p className="text-xs text-default-500 mb-1">
-                            Prezzo con IVA{" "}
-                            {formData.vatRate && `(${formData.vatRate}%)`}
-                          </p>
-                          <p className="text-lg font-semibold text-primary">
-                            €
-                            {(calculateFinalPrice().finalPrice || 0).toFixed(2)}
-                          </p>
-                        </div>
-                      )}
-
-                      {/* Punto di riordino calcolato */}
-                      <div className="col-span-2 md:col-span-1">
+                      <div>
+                        <p className="text-xs text-default-500 mb-1">Margine</p>
+                        <p
+                          className={`text-lg font-semibold ${
+                            calculateProfit() >= 0
+                              ? "text-success"
+                              : "text-danger"
+                          }`}
+                        >
+                          €{calculateProfit().toFixed(2)}
+                        </p>
+                      </div>
+                      <div>
                         <p className="text-xs text-default-500 mb-1">
-                          Punto di Riordino
+                          Margine %
                         </p>
-                        <div className="flex items-center gap-2">
-                          <p className="text-lg font-semibold">
-                            {calculateReorderPoint() || "-"}
-                          </p>
-                          <Tooltip content="Calcolato in base al consumo giornaliero e al tempo di approvvigionamento">
-                            <Icon
-                              icon="solar:info-circle-bold"
-                              className="text-default-400"
-                            />
-                          </Tooltip>
-                        </div>
+                        <p
+                          className={`text-lg font-semibold ${
+                            calculateProfit() >= 0
+                              ? "text-success"
+                              : "text-danger"
+                          }`}
+                        >
+                          {(
+                            (calculateProfit() /
+                              parseFloat(formData.price || "1")) *
+                            100
+                          ).toFixed(1)}
+                          %
+                        </p>
                       </div>
-
-                      {/* Margine */}
-                      {calculateFinalPrice().margin !== null && (
-                        <div className="col-span-2 md:col-span-2">
-                          <p className="text-xs text-default-500 mb-1">
-                            Margine e Profitto
-                          </p>
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge
-                              color={
-                                (calculateFinalPrice().margin || 0) > 30
-                                  ? "success"
-                                  : (calculateFinalPrice().margin || 0) > 15
-                                  ? "warning"
-                                  : "danger"
-                              }
-                              variant="flat"
-                              size="md"
-                            >
-                              <div className="flex items-center gap-1.5">
-                                <span>
-                                  Margine:{" "}
-                                  {(calculateFinalPrice().margin || 0).toFixed(
-                                    1
-                                  )}
-                                  %
-                                </span>
-                                <span>•</span>
-                                <span>
-                                  {(calculateFinalPrice().margin || 0) > 30
-                                    ? "Ottimo"
-                                    : (calculateFinalPrice().margin || 0) > 15
-                                    ? "Buono"
-                                    : "Basso"}
-                                </span>
-                              </div>
-                            </Badge>
-                            <p className="text-sm text-default-500">
-                              Profitto: €{calculateProfit().toFixed(2)} per
-                              unità
-                            </p>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   </Card>
                 </div>
@@ -2887,6 +2820,55 @@ export default function AddProduct() {
 
             <Tab key="warehouse" title={getTabIcon("warehouse")}>
               <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Magazzino */}
+                <div>
+                  <label className="block text-sm font-medium mb-2">
+                    Magazzino <span className="text-danger">*</span>
+                    {formData.warehouse && (
+                      <Chip
+                        size="sm"
+                        variant="flat"
+                        color="success"
+                        className="ml-2"
+                        startContent={
+                          <Icon icon="solar:check-circle-bold" width={14} />
+                        }
+                      >
+                        Preselezionato
+                      </Chip>
+                    )}
+                  </label>
+                  <Select
+                    variant="bordered"
+                    color={formData.warehouse ? "success" : "primary"}
+                    placeholder="Seleziona magazzino"
+                    selectedKeys={
+                      formData.warehouse ? [formData.warehouse] : []
+                    }
+                    onChange={(e) => handleChange("warehouse", e.target.value)}
+                    isRequired
+                    startContent={
+                      <Icon
+                        icon="solar:buildings-3-bold"
+                        className={
+                          formData.warehouse
+                            ? "text-success"
+                            : "text-default-400"
+                        }
+                      />
+                    }
+                  >
+                    {warehouses.map((warehouse) => (
+                      <SelectItem
+                        key={warehouse.WarehouseUUID || warehouse.WarehouseID}
+                        textValue={`${warehouse.WarehouseName} ${warehouse.WarehouseCode}`}
+                      >
+                        {warehouse.WarehouseName} {warehouse.WarehouseCode}
+                      </SelectItem>
+                    ))}
+                  </Select>
+                </div>
+
                 {/* Soglia minima stock */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
@@ -3050,9 +3032,9 @@ export default function AddProduct() {
                         endContent={
                           isBarcodeSearching && (
                             <div className="flex items-center">
-                              <Icon 
-                                icon="solar:refresh-bold" 
-                                className="text-primary animate-spin" 
+                              <Icon
+                                icon="solar:refresh-bold"
+                                className="text-primary animate-spin"
                                 width={16}
                               />
                             </div>
@@ -3060,10 +3042,10 @@ export default function AddProduct() {
                         }
                         isDisabled={formData.barcodeType === "auto"}
                         description={
-                          isBarcodeSearching 
-                            ? "🔍 Ricerca in corso nei database internazionali..." 
-                            : formData.barcode && formData.barcode.length >= 8 
-                            ? "✅ Ricerca automatica completata" 
+                          isBarcodeSearching
+                            ? "🔍 Ricerca in corso nei database internazionali..."
+                            : formData.barcode && formData.barcode.length >= 8
+                            ? "✅ Ricerca automatica completata"
                             : "💡 Inserisci un codice a barre (8-14 cifre) per cercare automaticamente le informazioni del prodotto. Ottimizzato per prodotti termoidraulici e industriali."
                         }
                       />
@@ -3132,49 +3114,78 @@ export default function AddProduct() {
                         {barcodeSearchResult.notFound ? (
                           <Card className="p-4 border border-warning/20 bg-warning/5">
                             <div className="flex items-start gap-3">
-                              <Icon 
-                                icon="solar:magnifer-zoom-out-bold" 
-                                className="text-warning text-xl mt-0.5" 
+                              <Icon
+                                icon="solar:magnifer-zoom-out-bold"
+                                className="text-warning text-xl mt-0.5"
                               />
                               <div className="flex-1">
                                 <h4 className="font-medium text-warning mb-2">
                                   Prodotto non trovato
                                 </h4>
                                 <p className="text-sm text-default-600 mb-3">
-                                  Non sono state trovate informazioni per il codice <code className="bg-warning/10 px-1 rounded">{barcodeSearchResult.barcode}</code> nei seguenti database:
+                                  Non sono state trovate informazioni per il
+                                  codice{" "}
+                                  <code className="bg-warning/10 px-1 rounded">
+                                    {barcodeSearchResult.barcode}
+                                  </code>{" "}
+                                  nei seguenti database:
                                 </p>
-                                
+
                                 {/* Database cercati */}
                                 {barcodeSearchResult.searchedDatabases && (
                                   <div className="mb-3">
-                                    <p className="text-xs text-default-500 mb-1">Database consultati:</p>
+                                    <p className="text-xs text-default-500 mb-1">
+                                      Database consultati:
+                                    </p>
                                     <div className="flex flex-wrap gap-1">
-                                      {barcodeSearchResult.searchedDatabases.map((db: string, index: number) => (
-                                        <Chip key={index} size="sm" variant="flat" color="default">
-                                          {db}
-                                        </Chip>
-                                      ))}
+                                      {barcodeSearchResult.searchedDatabases.map(
+                                        (db: string, index: number) => (
+                                          <Chip
+                                            key={index}
+                                            size="sm"
+                                            variant="flat"
+                                            color="default"
+                                          >
+                                            {db}
+                                          </Chip>
+                                        )
+                                      )}
                                     </div>
                                   </div>
                                 )}
-                                
+
                                 {/* Suggerimenti */}
-                                {barcodeSearchResult.suggestions && barcodeSearchResult.suggestions.length > 0 && (
-                                  <div className="mb-3">
-                                    <p className="text-xs text-default-500 mb-2">💡 Suggerimenti:</p>
-                                    <ul className="text-xs text-default-600 space-y-1">
-                                      {barcodeSearchResult.suggestions.map((suggestion: string, index: number) => (
-                                        <li key={index} className="flex items-start gap-2">
-                                          <span className="text-warning">•</span>
-                                          <span>{suggestion}</span>
-                                        </li>
-                                      ))}
-                                    </ul>
-                                  </div>
-                                )}
-                                
+                                {barcodeSearchResult.suggestions &&
+                                  barcodeSearchResult.suggestions.length >
+                                    0 && (
+                                    <div className="mb-3">
+                                      <p className="text-xs text-default-500 mb-2">
+                                        💡 Suggerimenti:
+                                      </p>
+                                      <ul className="text-xs text-default-600 space-y-1">
+                                        {barcodeSearchResult.suggestions.map(
+                                          (
+                                            suggestion: string,
+                                            index: number
+                                          ) => (
+                                            <li
+                                              key={index}
+                                              className="flex items-start gap-2"
+                                            >
+                                              <span className="text-warning">
+                                                •
+                                              </span>
+                                              <span>{suggestion}</span>
+                                            </li>
+                                          )
+                                        )}
+                                      </ul>
+                                    </div>
+                                  )}
+
                                 <p className="text-xs text-default-500">
-                                  Puoi comunque inserire manualmente le informazioni del prodotto.
+                                  Puoi comunque inserire manualmente le
+                                  informazioni del prodotto.
                                 </p>
                               </div>
                               <Button
@@ -3190,19 +3201,22 @@ export default function AddProduct() {
                         ) : barcodeSearchResult.error ? (
                           <Card className="p-4 border border-danger/20 bg-danger/5">
                             <div className="flex items-start gap-3">
-                              <Icon 
-                                icon="solar:danger-triangle-bold" 
-                                className="text-danger text-xl mt-0.5" 
+                              <Icon
+                                icon="solar:danger-triangle-bold"
+                                className="text-danger text-xl mt-0.5"
                               />
                               <div className="flex-1">
                                 <h4 className="font-medium text-danger mb-1">
                                   Errore di ricerca
                                 </h4>
                                 <p className="text-sm text-default-600 mb-2">
-                                  {barcodeSearchResult.message || "Si è verificato un errore durante la ricerca."}
+                                  {barcodeSearchResult.message ||
+                                    "Si è verificato un errore durante la ricerca."}
                                 </p>
                                 <p className="text-xs text-default-500">
-                                  Verifica la connessione internet e riprova, oppure inserisci manualmente le informazioni del prodotto.
+                                  Verifica la connessione internet e riprova,
+                                  oppure inserisci manualmente le informazioni
+                                  del prodotto.
                                 </p>
                               </div>
                               <Button
@@ -3218,9 +3232,9 @@ export default function AddProduct() {
                         ) : (
                           <Card className="p-4 border border-success/20 bg-success/5">
                             <div className="flex items-start gap-3">
-                              <Icon 
-                                icon="solar:check-circle-bold" 
-                                className="text-success text-xl mt-0.5" 
+                              <Icon
+                                icon="solar:check-circle-bold"
+                                className="text-success text-xl mt-0.5"
                               />
                               <div className="flex-1">
                                 <div className="flex items-center justify-between mb-3">
@@ -3228,16 +3242,20 @@ export default function AddProduct() {
                                     Prodotto trovato!
                                   </h4>
                                   <div className="flex items-center gap-2">
-                                    <Chip 
-                                      size="sm" 
-                                      variant="flat" 
+                                    <Chip
+                                      size="sm"
+                                      variant="flat"
                                       color="primary"
                                       startContent={
-                                        <Icon 
+                                        <Icon
                                           icon={
-                                            barcodeSearchResult.confidence === 'high' ? 'solar:shield-check-bold' :
-                                            barcodeSearchResult.confidence === 'medium' ? 'solar:shield-warning-bold' :
-                                            'solar:shield-minimalistic-bold'
+                                            barcodeSearchResult.confidence ===
+                                            "high"
+                                              ? "solar:shield-check-bold"
+                                              : barcodeSearchResult.confidence ===
+                                                "medium"
+                                              ? "solar:shield-warning-bold"
+                                              : "solar:shield-minimalistic-bold"
                                           }
                                           width={12}
                                         />
@@ -3246,18 +3264,26 @@ export default function AddProduct() {
                                       {barcodeSearchResult.source}
                                     </Chip>
                                     {barcodeSearchResult.confidence && (
-                                      <Chip 
-                                        size="sm" 
-                                        variant="flat" 
+                                      <Chip
+                                        size="sm"
+                                        variant="flat"
                                         color={
-                                          barcodeSearchResult.confidence === 'high' ? 'success' :
-                                          barcodeSearchResult.confidence === 'medium' ? 'warning' :
-                                          'default'
+                                          barcodeSearchResult.confidence ===
+                                          "high"
+                                            ? "success"
+                                            : barcodeSearchResult.confidence ===
+                                              "medium"
+                                            ? "warning"
+                                            : "default"
                                         }
                                       >
-                                        {barcodeSearchResult.confidence === 'high' ? 'Alta affidabilità' :
-                                         barcodeSearchResult.confidence === 'medium' ? 'Media affidabilità' :
-                                         'Bassa affidabilità'}
+                                        {barcodeSearchResult.confidence ===
+                                        "high"
+                                          ? "Alta affidabilità"
+                                          : barcodeSearchResult.confidence ===
+                                            "medium"
+                                          ? "Media affidabilità"
+                                          : "Bassa affidabilità"}
                                       </Chip>
                                     )}
                                     <Button
@@ -3270,86 +3296,119 @@ export default function AddProduct() {
                                     </Button>
                                   </div>
                                 </div>
-                                
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                   {barcodeSearchResult.image && (
                                     <div className="flex justify-center md:justify-start">
-                                      <img 
-                                        src={barcodeSearchResult.image} 
+                                      <img
+                                        src={barcodeSearchResult.image}
                                         alt="Prodotto"
                                         className="w-24 h-24 object-cover rounded-lg border"
                                         onError={(e) => {
-                                          e.currentTarget.style.display = 'none';
+                                          e.currentTarget.style.display =
+                                            "none";
                                         }}
                                       />
                                     </div>
                                   )}
-                                  
+
                                   <div className="space-y-2">
                                     {barcodeSearchResult.name && (
                                       <div>
-                                        <p className="text-xs text-default-500">Nome:</p>
-                                        <p className="text-sm font-medium">{barcodeSearchResult.name}</p>
+                                        <p className="text-xs text-default-500">
+                                          Nome:
+                                        </p>
+                                        <p className="text-sm font-medium">
+                                          {barcodeSearchResult.name}
+                                        </p>
                                       </div>
                                     )}
-                                    
+
                                     {barcodeSearchResult.brand && (
                                       <div>
-                                        <p className="text-xs text-default-500">Brand:</p>
-                                        <p className="text-sm">{barcodeSearchResult.brand}</p>
+                                        <p className="text-xs text-default-500">
+                                          Brand:
+                                        </p>
+                                        <p className="text-sm">
+                                          {barcodeSearchResult.brand}
+                                        </p>
                                       </div>
                                     )}
-                                    
+
                                     {barcodeSearchResult.category && (
                                       <div>
-                                        <p className="text-xs text-default-500">Categoria:</p>
-                                        <p className="text-sm">{barcodeSearchResult.category}</p>
+                                        <p className="text-xs text-default-500">
+                                          Categoria:
+                                        </p>
+                                        <p className="text-sm">
+                                          {barcodeSearchResult.category}
+                                        </p>
                                       </div>
                                     )}
-                                    
+
                                     {barcodeSearchResult.weight && (
                                       <div>
-                                        <p className="text-xs text-default-500">Peso/Dimensioni:</p>
-                                        <p className="text-sm">{barcodeSearchResult.weight}</p>
+                                        <p className="text-xs text-default-500">
+                                          Peso/Dimensioni:
+                                        </p>
+                                        <p className="text-sm">
+                                          {barcodeSearchResult.weight}
+                                        </p>
                                       </div>
                                     )}
                                   </div>
                                 </div>
-                                
+
                                 {barcodeSearchResult.description && (
                                   <div className="mt-3">
-                                    <p className="text-xs text-default-500 mb-1">Descrizione:</p>
+                                    <p className="text-xs text-default-500 mb-1">
+                                      Descrizione:
+                                    </p>
                                     <p className="text-sm text-default-600 line-clamp-3">
                                       {barcodeSearchResult.description}
                                     </p>
                                   </div>
                                 )}
-                                
+
                                 {/* Informazioni aggiuntive per Open Food Facts */}
-                                {barcodeSearchResult.source === "Open Food Facts" && (
+                                {barcodeSearchResult.source ===
+                                  "Open Food Facts" && (
                                   <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
                                     {barcodeSearchResult.nutritionGrade && (
                                       <div className="flex items-center gap-1">
-                                        <Icon icon="solar:heart-bold" className="text-red-500" />
-                                        <span>Nutri-Score: {barcodeSearchResult.nutritionGrade.toUpperCase()}</span>
+                                        <Icon
+                                          icon="solar:heart-bold"
+                                          className="text-red-500"
+                                        />
+                                        <span>
+                                          Nutri-Score:{" "}
+                                          {barcodeSearchResult.nutritionGrade.toUpperCase()}
+                                        </span>
                                       </div>
                                     )}
                                     {barcodeSearchResult.labels && (
                                       <div className="flex items-center gap-1">
-                                        <Icon icon="solar:medal-star-bold" className="text-green-500" />
+                                        <Icon
+                                          icon="solar:medal-star-bold"
+                                          className="text-green-500"
+                                        />
                                         <span>Certificazioni disponibili</span>
                                       </div>
                                     )}
                                   </div>
                                 )}
-                                
+
                                 <div className="flex gap-2 mt-4">
                                   <Button
                                     color="primary"
                                     variant="flat"
                                     size="sm"
-                                    startContent={<Icon icon="solar:download-bold" />}
-                                    onClick={() => applyBarcodeData(barcodeSearchResult)}
+                                    startContent={
+                                      <Icon icon="solar:download-bold" />
+                                    }
+                                    onClick={() =>
+                                      applyBarcodeData(barcodeSearchResult)
+                                    }
                                   >
                                     Applica dati al form
                                   </Button>
@@ -3357,23 +3416,34 @@ export default function AddProduct() {
                                     color="default"
                                     variant="light"
                                     size="sm"
-                                    startContent={<Icon icon="solar:eye-bold" />}
+                                    startContent={
+                                      <Icon icon="solar:eye-bold" />
+                                    }
                                     onClick={() => {
                                       // Mostra dettagli completi in un modal o console
-                                      console.log("Dati completi prodotto:", barcodeSearchResult.raw);
+                                      console.log(
+                                        "Dati completi prodotto:",
+                                        barcodeSearchResult.raw
+                                      );
                                       // Potresti aprire un modal qui per mostrare tutti i dettagli
                                     }}
                                   >
                                     Vedi dettagli completi
                                   </Button>
-                                  {barcodeSearchResult.source === "Open Food Facts" && (
+                                  {barcodeSearchResult.source ===
+                                    "Open Food Facts" && (
                                     <Button
                                       color="default"
                                       variant="light"
                                       size="sm"
-                                      startContent={<Icon icon="solar:link-bold" />}
+                                      startContent={
+                                        <Icon icon="solar:link-bold" />
+                                      }
                                       onClick={() => {
-                                        window.open(`https://world.openfoodfacts.org/product/${formData.barcode}`, '_blank');
+                                        window.open(
+                                          `https://world.openfoodfacts.org/product/${formData.barcode}`,
+                                          "_blank"
+                                        );
                                       }}
                                     >
                                       Vedi su Open Food Facts
