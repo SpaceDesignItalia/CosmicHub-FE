@@ -250,13 +250,22 @@ export default function ProductTable({
   // Dati reali per magazzini caricati dall'API
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
-  // Dati mock per veicoli (in un'app reale vengono da API)
-  const vehicles = [
-    { id: "VH001", name: "Furgone 1 - AB123CD", available: true },
-    { id: "VH002", name: "Furgone 2 - EF456GH", available: true },
-    { id: "VH003", name: "Furgone 3 - IJ789KL", available: false },
-    { id: "VH004", name: "Camion 1 - MN012OP", available: true },
-  ];
+  // Stato per veicoli caricati da API
+  const [vehicles, setVehicles] = useState<any[]>([]);
+
+  // Carica i veicoli all'avvio del componente
+  React.useEffect(() => {
+    const loadVehicles = async () => {
+      try {
+        const response = await axios.get("/Vehicle/GET/GetAllVehicles");
+        setVehicles(response.data || []);
+        console.log(response.data);
+      } catch (error) {
+        console.error("Errore nel caricamento dei veicoli:", error);
+      }
+    };
+    loadVehicles();
+  }, []);
 
   // Stati per operazioni batch
   const [isBatchStockModalOpen, setIsBatchStockModalOpen] = useState(false);
@@ -624,22 +633,35 @@ export default function ProductTable({
         return;
       }
 
-      // TODO: Implementare chiamata API per caricamento su furgone
-      console.log("Caricamento su furgone:", {
-        product: selectedProductForLoad.name,
-        amount,
-        warehouse: selectedProductForLoad.warehouse_id,
-        vehicle: targetVehicle,
-        timestamp: new Date(),
+      // Chiamata API per caricare su furgone
+      const warehouseObj = warehouses.find(
+        (w) =>
+          w.WarehouseUUID === selectedProductForLoad?.warehouse_id ||
+          w.WarehouseID.toString() === selectedProductForLoad?.warehouse_id ||
+          w.WarehouseName === selectedProductForLoad?.warehouse_id ||
+          w.WarehouseCode === selectedProductForLoad?.warehouse_id
+      );
+      const fromWarehouseId = warehouseObj
+        ? warehouseObj.WarehouseID
+        : selectedProductForLoad?.warehouse_id;
+      await axios.post("/Movement/POST/CreateLoadToVehicleMovement", {
+        product_id: selectedProductForLoad.product_id,
+        from_warehouse_id: fromWarehouseId,
+        to_vehicle_id: parseInt(targetVehicle),
+        amount: parseInt(loadQuantity),
       });
 
       alert(
         `${amount} unità di "${selectedProductForLoad.name}" caricate su furgone con successo!`
       );
       setIsLoadModalOpen(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Errore nel caricamento:", error);
-      alert("Errore nel caricamento. Riprova.");
+      let errorMessage = "Errore nel caricamento. Riprova.";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      alert(errorMessage);
     } finally {
       setIsProcessingLoad(false);
     }
@@ -1414,10 +1436,41 @@ export default function ProductTable({
         return;
       }
 
-      // TODO: Qui implementare la logica per caricare su furgone quando l'endpoint sarà disponibile
-      console.log("Caricamenti batch validi:", validOperations);
+      // Chiamata API per ogni prodotto valido
+      let successCount = 0;
+      let errorCount = 0;
+      for (const operation of validOperations) {
+        try {
+          const warehouseObj = warehouses.find(
+            (w) =>
+              w.WarehouseUUID === operation.product.warehouse_id ||
+              w.WarehouseID.toString() === operation.product.warehouse_id ||
+              w.WarehouseName === operation.product.warehouse_id ||
+              w.WarehouseCode === operation.product.warehouse_id
+          );
+          const fromWarehouseId = warehouseObj
+            ? warehouseObj.WarehouseID
+            : operation.product.warehouse_id;
+          await axios.post("/Movement/POST/CreateLoadToVehicleMovement", {
+            product_id: operation.productId,
+            from_warehouse_id: fromWarehouseId,
+            to_vehicle_id: parseInt(batchTargetVehicle),
+            amount: operation.amount,
+          });
+          successCount++;
+        } catch (error: any) {
+          console.error(
+            `Errore nel caricamento batch del prodotto ${operation.product.name}:`,
+            error
+          );
+          errorCount++;
+        }
+      }
 
-      let message = `${validOperations.length} prodotti pronti per il caricamento su furgone`;
+      let message = `${successCount} prodotti caricati su furgone con successo`;
+      if (errorCount > 0) {
+        message += `, ${errorCount} errori`;
+      }
 
       setShowSuccessMessage(true);
       setSuccessMessage(message);
@@ -2207,23 +2260,27 @@ export default function ProductTable({
                 selectedKeys={targetVehicle ? [targetVehicle] : []}
                 onChange={(e) => setTargetVehicle(e.target.value)}
               >
-                {vehicles
-                  .filter((v) => v.available)
-                  .map((vehicle) => (
-                    <SelectItem key={vehicle.id}>
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          icon="solar:delivery-bold"
-                          className="text-secondary"
-                          width={16}
-                        />
-                        {vehicle.name}
-                      </div>
-                    </SelectItem>
-                  ))}
+                {vehicles.map((vehicle) => (
+                  <SelectItem
+                    key={vehicle.vehicle_id}
+                    textValue={`${vehicle.name} ${vehicle.license_plate}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="solar:delivery-bold"
+                        className="text-secondary"
+                        width={16}
+                      />
+                      <span className="font-medium">{vehicle.name}</span>
+                      <span className="text-xs text-default-500">
+                        {vehicle.license_plate}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
               </Select>
 
-              {vehicles.filter((v) => !v.available).length > 0 && (
+              {vehicles.filter((v) => !v.IsAvailable).length > 0 && (
                 <div className="p-3 bg-warning/10 rounded-lg">
                   <p className="text-sm text-warning-600 mb-2">
                     <Icon
@@ -2234,13 +2291,13 @@ export default function ProductTable({
                   </p>
                   <div className="space-y-1">
                     {vehicles
-                      .filter((v) => !v.available)
-                      .map((vehicle) => (
+                      .filter((v) => !v.IsAvailable)
+                      .map((vehicle, idx) => (
                         <p
-                          key={vehicle.id}
+                          key={vehicle.VehicleID || idx}
                           className="text-xs text-warning-600"
                         >
-                          • {vehicle.name}
+                          • {vehicle.VehicleName} {vehicle.VehiclePlate}
                         </p>
                       ))}
                   </div>
@@ -2259,7 +2316,14 @@ export default function ProductTable({
                     <div>
                       <p className="text-default-600">Su furgone:</p>
                       <p className="font-bold">
-                        {vehicles.find((v) => v.id === targetVehicle)?.name}
+                        {(function () {
+                          const v = vehicles.find(
+                            (v) => v.vehicle_id === targetVehicle
+                          );
+                          return v
+                            ? `${v.name} ${v.license_plate}`
+                            : targetVehicle;
+                        })()}
                       </p>
                     </div>
                   </div>
@@ -2766,23 +2830,27 @@ export default function ProductTable({
                 onChange={(e) => setBatchTargetVehicle(e.target.value)}
                 isRequired
               >
-                {vehicles
-                  .filter((v) => v.available)
-                  .map((vehicle) => (
-                    <SelectItem key={vehicle.id}>
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          icon="solar:delivery-bold"
-                          className="text-secondary"
-                          width={16}
-                        />
-                        {vehicle.name}
-                      </div>
-                    </SelectItem>
-                  ))}
+                {vehicles.map((vehicle) => (
+                  <SelectItem
+                    key={vehicle.vehicle_id}
+                    textValue={`${vehicle.name} ${vehicle.license_plate}`}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="solar:delivery-bold"
+                        className="text-secondary"
+                        width={16}
+                      />
+                      <span className="font-medium">{vehicle.name}</span>
+                      <span className="text-xs text-default-500">
+                        {vehicle.license_plate}
+                      </span>
+                    </div>
+                  </SelectItem>
+                ))}
               </Select>
 
-              {vehicles.filter((v) => !v.available).length > 0 && (
+              {vehicles.filter((v) => !v.IsAvailable).length > 0 && (
                 <div className="p-3 bg-warning/10 rounded-lg">
                   <p className="text-sm text-warning-600 mb-2">
                     <Icon
@@ -2793,13 +2861,13 @@ export default function ProductTable({
                   </p>
                   <div className="space-y-1">
                     {vehicles
-                      .filter((v) => !v.available)
-                      .map((vehicle) => (
+                      .filter((v) => !v.IsAvailable)
+                      .map((vehicle, idx) => (
                         <p
-                          key={vehicle.id}
+                          key={vehicle.VehicleID || idx}
                           className="text-xs text-warning-600"
                         >
-                          • {vehicle.name}
+                          • {vehicle.VehicleName} {vehicle.VehiclePlate}
                         </p>
                       ))}
                   </div>
@@ -2898,6 +2966,19 @@ export default function ProductTable({
                               <p className="text-xs text-default-500">
                                 Da caricare
                               </p>
+                              {batchTargetVehicle && (
+                                <p className="text-xs text-secondary">
+                                  Su furgone:{" "}
+                                  {(function () {
+                                    const v = vehicles.find(
+                                      (v) => v.vehicle_id === batchTargetVehicle
+                                    );
+                                    return v
+                                      ? `${v.name} ${v.license_plate}`
+                                      : batchTargetVehicle;
+                                  })()}
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>
