@@ -1,4 +1,4 @@
-import React, { useCallback, useMemo, useState } from "react";
+import React, { useCallback, useMemo, useState, useEffect } from "react";
 import {
   Table,
   TableHeader,
@@ -27,12 +27,14 @@ import {
   Input,
   Tooltip,
   Textarea,
+  Alert,
 } from "@heroui/react";
 import type { Selection, ChipProps } from "@heroui/react";
 import { useNavigate } from "react-router-dom";
 import { useProductTheme } from "./ProductThemeWrapper";
 import DeleteProductModal from "./DeleteProductModal";
 import InlineQuantityEditor from "./InlineQuantityEditor";
+import LoadProductModal from "./LoadProductModal";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import axios from "axios";
 
@@ -44,7 +46,7 @@ interface Attribute {
 }
 
 interface Warehouse {
-  WarehouseID: number; // ID numerico per il database
+  WarehouseID: number;
   WarehouseUUID: string;
   WarehouseName: string;
   WarehouseCode: string;
@@ -52,9 +54,20 @@ interface Warehouse {
   IsActive: boolean;
 }
 
+interface Vehicle {
+  vehicle_id: string;
+  id?: string;
+  name: string;
+  license_plate: string;
+  VehicleID?: number;
+  VehicleName?: string;
+  VehiclePlate?: string;
+  IsAvailable?: boolean;
+}
+
 interface Product {
   product_id: string;
-  id?: string; // Per compatibilità
+  id?: string;
   name: string;
   category_id: string;
   sku: string;
@@ -76,9 +89,9 @@ interface Product {
   stock_unit: string;
   warehouse_id: string;
   attributes: Attribute[];
-  // Campi calcolati per UI
   status: "Disponibile" | "Esaurito" | "Bassa giacenza";
   category: string;
+  warehouse_name?: string;
   image?: string;
 }
 
@@ -87,6 +100,7 @@ interface ProductTableProps {
   categories: string[];
   onDeleteProduct?: (id: string) => Promise<void>;
   onUpdateQuantity?: (productId: string, newQuantity: number) => void;
+  onRefreshData?: () => void;
   sortBy?: {
     field: keyof Product;
     direction: "asc" | "desc";
@@ -95,6 +109,7 @@ interface ProductTableProps {
   isLoading?: boolean;
 }
 
+// Constants
 const statusColorMap: Record<string, ChipProps["color"]> = {
   Disponibile: "success",
   "Bassa giacenza": "warning",
@@ -128,9 +143,13 @@ const columns = [
 ];
 
 // Empty State Component
-const EmptyState = ({ isLoading }: { isLoading?: boolean }) => {
+const EmptyState = React.memo(({ isLoading }: { isLoading?: boolean }) => {
   const navigate = useNavigate();
   const { isDark } = useProductTheme();
+
+  const handleAddProduct = useCallback(() => {
+    navigate("/inventory/products/add");
+  }, [navigate]);
 
   if (isLoading) {
     return (
@@ -182,124 +201,122 @@ const EmptyState = ({ isLoading }: { isLoading?: boolean }) => {
         color="primary"
         variant="shadow"
         startContent={<Icon icon="solar:add-circle-bold" className="text-xl" />}
-        onPress={() => navigate("/inventory/products/add")}
+        onPress={handleAddProduct}
       >
         Aggiungi Prodotto
       </Button>
     </div>
   );
-};
+});
+
+EmptyState.displayName = "EmptyState";
 
 export default function ProductTable({
   products,
   onDeleteProduct,
   onUpdateQuantity,
+  onRefreshData,
   sortBy,
   onSort,
   isLoading = false,
 }: ProductTableProps) {
   const navigate = useNavigate();
-  const [selectedKeys, setSelectedKeys] = React.useState<Selection>(
-    new Set([])
-  );
-  const [rowsPerPage, setRowsPerPage] = React.useState(20);
-  const [page, setPage] = React.useState(1);
   const { isDark } = useProductTheme();
 
-  // Modals
+  // Table state
+  const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]));
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [page, setPage] = useState(1);
+
+  // Modal states
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [selectedProduct, setSelectedProduct] = React.useState<Product | null>(
-    null
-  );
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const {
     isOpen: isDeleteModalOpen,
     onOpen: openDeleteModal,
     onClose: closeDeleteModal,
   } = useDisclosure();
-  const [productToDelete, setProductToDelete] = React.useState<Product | null>(
-    null
-  );
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
-  // Stati per i modali di inventario
-  const [isStockModalOpen, setIsStockModalOpen] = useState(false);
-  const [stockModalType, setStockModalType] = useState<"increase" | "decrease">(
-    "increase"
-  );
-  const [selectedProductForStock, setSelectedProductForStock] =
-    useState<Product | null>(null);
-  const [stockAmount, setStockAmount] = useState("");
-  const [stockReason, setStockReason] = useState("");
-  const [isProcessingStock, setIsProcessingStock] = useState(false);
+  // Stock operation states
+  const [stockModalState, setStockModalState] = useState({
+    isOpen: false,
+    type: "increase" as "increase" | "decrease",
+    selectedProduct: null as Product | null,
+    amount: "",
+    reason: "",
+    isProcessing: false,
+  });
+
+  // Move operation states
+  const [moveModalState, setMoveModalState] = useState({
+    isOpen: false,
+    selectedProduct: null as Product | null,
+    quantity: "",
+    targetWarehouse: "",
+    isProcessing: false,
+  });
+
+  // Load operation states
+  const [loadModalState, setLoadModalState] = useState({
+    isOpen: false,
+    selectedProduct: null as Product | null,
+    quantity: "",
+    targetVehicle: "",
+    isProcessing: false,
+  });
+
+  // Batch operation states
+  const [batchStockState, setBatchStockState] = useState({
+    isOpen: false,
+    type: "increase" as "increase" | "decrease",
+    reason: "",
+    data: {} as Record<string, string>,
+    isProcessing: false,
+  });
+
+  const [batchMoveState, setBatchMoveState] = useState({
+    isOpen: false,
+    data: {} as Record<string, string>,
+    targetWarehouse: "",
+    isProcessing: false,
+  });
+
+  const [batchLoadState, setBatchLoadState] = useState({
+    isOpen: false,
+    data: {} as Record<string, string>,
+    targetVehicle: "",
+    isProcessing: false,
+  });
+
+  // Data states
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
+  const [batchProducts, setBatchProducts] = useState<Product[]>([]);
+
+  // Alert states
+  const [alerts, setAlerts] = useState({
+    success: { isVisible: false, title: "", description: "" },
+    error: { isVisible: false, title: "", description: "" },
+    load: {
+      isVisible: false,
+      type: "success" as "success" | "danger",
+      title: "",
+      description: "",
+    },
+  });
+
+  // Legacy states for compatibility (to be removed gradually)
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
 
-  const [isMoveModalOpen, setIsMoveModalOpen] = useState(false);
-  const [selectedProductForMove, setSelectedProductForMove] =
-    useState<Product | null>(null);
-  const [moveQuantity, setMoveQuantity] = useState("");
-  const [targetWarehouse, setTargetWarehouse] = useState("");
-  const [isProcessingMove, setIsProcessingMove] = useState(false);
+  // Memoized values
+  const filteredItems = useMemo(() => [...products], [products]);
 
-  const [isLoadModalOpen, setIsLoadModalOpen] = useState(false);
-  const [selectedProductForLoad, setSelectedProductForLoad] =
-    useState<Product | null>(null);
-  const [loadQuantity, setLoadQuantity] = useState("");
-  const [targetVehicle, setTargetVehicle] = useState("");
-  const [isProcessingLoad, setIsProcessingLoad] = useState(false);
-
-  // Dati reali per magazzini caricati dall'API
-  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-
-  // Stato per veicoli caricati da API
-  const [vehicles, setVehicles] = useState<any[]>([]);
-
-  // Carica i veicoli all'avvio del componente
-  React.useEffect(() => {
-    const loadVehicles = async () => {
-      try {
-        const response = await axios.get("/Vehicle/GET/GetAllVehicles");
-        setVehicles(response.data || []);
-        console.log(response.data);
-      } catch (error) {
-        console.error("Errore nel caricamento dei veicoli:", error);
-      }
-    };
-    loadVehicles();
-  }, []);
-
-  // Stati per operazioni batch
-  const [isBatchStockModalOpen, setIsBatchStockModalOpen] = useState(false);
-  const [batchStockType, setBatchStockType] = useState<"increase" | "decrease">(
-    "increase"
+  const pages = useMemo(
+    () => Math.ceil(filteredItems.length / rowsPerPage),
+    [filteredItems.length, rowsPerPage]
   );
-  const [batchStockReason, setBatchStockReason] = useState("");
-  const [batchStockData, setBatchStockData] = useState<{
-    [key: string]: string;
-  }>({});
-  const [isProcessingBatchStock, setIsProcessingBatchStock] = useState(false);
-
-  const [isBatchMoveModalOpen, setIsBatchMoveModalOpen] = useState(false);
-  const [batchMoveData, setBatchMoveData] = useState<{ [key: string]: string }>(
-    {}
-  );
-  const [batchTargetWarehouse, setBatchTargetWarehouse] = useState("");
-  const [isProcessingBatchMove, setIsProcessingBatchMove] = useState(false);
-
-  const [isBatchLoadModalOpen, setIsBatchLoadModalOpen] = useState(false);
-  const [batchLoadData, setBatchLoadData] = useState<{ [key: string]: string }>(
-    {}
-  );
-  const [batchTargetVehicle, setBatchTargetVehicle] = useState("");
-  const [isProcessingBatchLoad, setIsProcessingBatchLoad] = useState(false);
-
-  const [batchProducts, setBatchProducts] = useState<Product[]>([]);
-
-  const filteredItems = useMemo(() => {
-    let filteredProducts = [...products];
-    return filteredProducts;
-  }, [products]);
-
-  const pages = Math.ceil(filteredItems.length / rowsPerPage);
 
   const items = useMemo(() => {
     const start = (page - 1) * rowsPerPage;
@@ -320,585 +337,399 @@ export default function ProductTable({
     });
   }, [items, sortBy]);
 
-  const goToEditProduct = (productId: string) =>
-    navigate(`/inventory/products/edit/${productId}`);
+  // Memoized callbacks
+  const goToEditProduct = useCallback(
+    (productId: string) => {
+      navigate(`/inventory/products/edit/${productId}`);
+    },
+    [navigate]
+  );
 
-  // Delete functions
-  const confirmDeleteProduct = (product: Product) => {
-    setProductToDelete(product);
-    openDeleteModal();
-  };
+  const confirmDeleteProduct = useCallback(
+    (product: Product) => {
+      setProductToDelete(product);
+      openDeleteModal();
+    },
+    [openDeleteModal]
+  );
 
-  const handleDeleteProduct = async (id: string) => {
-    if (onDeleteProduct) {
-      await onDeleteProduct(id);
-    }
-  };
+  const handleDeleteProduct = useCallback(
+    async (id: string) => {
+      if (onDeleteProduct) {
+        await onDeleteProduct(id);
+      }
+    },
+    [onDeleteProduct]
+  );
 
-  // Funzioni per gestire le operazioni di inventario
-  const openStockModal = (product: Product, type: "increase" | "decrease") => {
-    setSelectedProductForStock(product);
-    setStockModalType(type);
-    setStockAmount("");
-    setStockReason("");
-    setIsStockModalOpen(true);
-  };
+  const showAlert = useCallback(
+    (type: "success" | "error" | "load", alertData: any) => {
+      setAlerts((prev) => ({
+        ...prev,
+        [type]: { ...alertData, isVisible: true },
+      }));
+    },
+    []
+  );
 
-  const handleStockOperation = async () => {
-    if (!selectedProductForStock || !stockAmount || !stockReason) return;
+  const hideAlert = useCallback((type: "success" | "error" | "load") => {
+    setAlerts((prev) => ({
+      ...prev,
+      [type]: { ...prev[type], isVisible: false },
+    }));
+  }, []);
 
-    setIsProcessingStock(true);
+  // Load data functions
+  const loadWarehouses = useCallback(async () => {
     try {
-      const amount = parseInt(stockAmount);
-      const newQuantity =
-        stockModalType === "increase"
-          ? selectedProductForStock.quantity + amount
-          : selectedProductForStock.quantity - amount;
-
-      if (newQuantity < 0) {
-        alert("La quantità non può essere negativa");
-        return;
-      }
-
-      console.log(
-        `Aggiornamento stock da ${selectedProductForStock.quantity} a ${newQuantity} per prodotto:`,
-        selectedProductForStock.product_id
+      const response = await axios.get("/Warehouse/GET/GetAllWarehouses");
+      const activeWarehouses = response.data.filter(
+        (warehouse: Warehouse) => warehouse.IsActive
       );
-
-      // Usa lo stesso endpoint dell'InlineQuantityEditor che funziona
-      try {
-        const response = await axios.put(
-          `/Product/UPDATE/UpdateProductQuantity/`,
-          {
-            product_id: selectedProductForStock.product_id,
-            stock_unit: newQuantity.toString(),
-          }
-        );
-
-        if (response.status === 200) {
-          // Aggiorna la UI tramite la prop callback
-          if (onUpdateQuantity) {
-            onUpdateQuantity(selectedProductForStock.product_id, newQuantity);
-          }
-
-          // Mostra messaggio di successo
-          setShowSuccessMessage(true);
-          setSuccessMessage(
-            `Quantità ${
-              stockModalType === "increase" ? "aumentata" : "diminuita"
-            } con successo!`
-          );
-          setIsStockModalOpen(false);
-
-          // Dopo aver aggiornato la quantità, registra il movimento
-          try {
-            const movementEndpoint =
-              stockModalType === "increase"
-                ? "/Movement/POST/CreateLoadMovement"
-                : "/Movement/POST/CreateUnloadMovement";
-
-            const movementData = {
-              product_id: selectedProductForStock.product_id,
-              quantity: amount,
-              reason: stockReason,
-              warehouse_id: selectedProductForStock.warehouse_id,
-              timestamp: new Date().toISOString(),
-              movement_type: stockModalType === "increase" ? "LOAD" : "UNLOAD",
-              notes: stockReason,
-              user_id: "current_user", // TODO: Sostituire con l'ID utente reale
-              created_at: new Date().toISOString(),
-            };
-
-            await axios.post(movementEndpoint, movementData);
-            console.log(`Movimento ${stockModalType} registrato con successo`);
-          } catch (movementError) {
-            console.warn(
-              "Errore nella registrazione del movimento:",
-              movementError
-            );
-            // Non blocchiamo l'operazione se la registrazione del movimento fallisce
-            // L'aggiornamento della quantità è già avvenuto con successo
-          }
-        }
-      } catch (apiError: any) {
-        // Fallback con endpoint generico come fa InlineQuantityEditor
-        if (
-          apiError.response?.status === 404 ||
-          apiError.code === "ERR_NETWORK"
-        ) {
-          console.log(
-            "Endpoint specifico non trovato, provo con aggiornamento generico..."
-          );
-
-          const updateData = {
-            stock_unit: newQuantity.toString(),
-          };
-
-          await axios.put(
-            `/Product/PUT/UpdateProduct/${selectedProductForStock.product_id}`,
-            updateData
-          );
-
-          // Aggiorna la UI tramite la prop callback
-          if (onUpdateQuantity) {
-            onUpdateQuantity(selectedProductForStock.product_id, newQuantity);
-          }
-
-          // Mostra messaggio di successo
-          setShowSuccessMessage(true);
-          setSuccessMessage(
-            `Quantità ${
-              stockModalType === "increase" ? "aumentata" : "diminuita"
-            } con successo!`
-          );
-          setIsStockModalOpen(false);
-
-          // Reset dei campi
-          setStockAmount("");
-          setStockReason("");
-
-          // Dopo aver aggiornato la quantità, registra il movimento
-          try {
-            const movementEndpoint =
-              stockModalType === "increase"
-                ? "/Movement/POST/CreateLoadMovement"
-                : "/Movement/POST/CreateUnloadMovement";
-
-            const movementData = {
-              product_id: selectedProductForStock.product_id,
-              quantity: amount,
-              reason: stockReason,
-              warehouse_id: selectedProductForStock.warehouse_id,
-              timestamp: new Date().toISOString(),
-              movement_type: stockModalType === "increase" ? "LOAD" : "UNLOAD",
-              notes: stockReason,
-              user_id: "current_user", // TODO: Sostituire con l'ID utente reale
-              created_at: new Date().toISOString(),
-            };
-
-            await axios.post(movementEndpoint, movementData);
-            console.log(
-              `Movimento ${stockModalType} registrato con successo nel fallback`
-            );
-          } catch (movementError) {
-            console.warn(
-              "Errore nella registrazione del movimento (fallback):",
-              movementError
-            );
-            // Non blocchiamo l'operazione se la registrazione del movimento fallisce
-            // L'aggiornamento della quantità è già avvenuto con successo
-          }
-        } else {
-          throw apiError;
-        }
-      }
-
-      console.log("Quantità aggiornata con successo nel database");
-    } catch (error: any) {
-      console.error("Errore nell'operazione di stock:", error);
-
-      // Gestione errori più specifica come InlineQuantityEditor
-      let errorMessage = "Errore nell'aggiornamento della quantità";
-      if (error.response?.status === 404) {
-        errorMessage = "Prodotto non trovato";
-      } else if (error.response?.status === 400) {
-        errorMessage = "Dati non validi";
-      } else if (error.code === "ERR_NETWORK") {
-        errorMessage = "Errore di connessione al server";
-      }
-
-      alert(`Errore nell'operazione: ${errorMessage}`);
-    } finally {
-      setIsProcessingStock(false);
+      setWarehouses(activeWarehouses);
+    } catch (error) {
+      console.error("Error loading warehouses:", error);
     }
-  };
+  }, []);
 
-  const openMoveModal = (product: Product) => {
-    setSelectedProductForMove(product);
-    setMoveQuantity("");
-    setTargetWarehouse(""); // Reset esplicito per mostrare il placeholder
-    setIsMoveModalOpen(true);
-  };
-
-  const handleMoveOperation = async () => {
-    if (!selectedProductForMove || !moveQuantity || !targetWarehouse) return;
-
-    setIsProcessingMove(true);
+  const loadVehicles = useCallback(async () => {
     try {
-      const amount = parseInt(moveQuantity);
-
-      if (amount > selectedProductForMove.quantity) {
-        alert("Quantità da spostare superiore alla disponibilità");
-        return;
-      }
-
-      // Trova il magazzino di destinazione per ottenere il WarehouseID numerico
-      const targetWarehouseData = warehouses.find(
-        (w) => (w.WarehouseUUID || w.WarehouseID.toString()) === targetWarehouse
-      );
-
-      // Trova il magazzino di origine per ottenere il WarehouseID numerico
-      const sourceWarehouseData = warehouses.find(
-        (w) =>
-          (w.WarehouseUUID || w.WarehouseID.toString()) ===
-            selectedProductForMove.warehouse_id ||
-          w.WarehouseName === selectedProductForMove.warehouse_id ||
-          w.WarehouseCode === selectedProductForMove.warehouse_id
-      );
-
-      if (!targetWarehouseData || !sourceWarehouseData) {
-        alert(
-          "Impossibile trovare i dati del magazzino. Verifica che i magazzini siano validi."
-        );
-        return;
-      }
-
-      // Chiamata API per il trasferimento usando gli ID numerici
-      const transferData = {
-        product_id: selectedProductForMove.product_id,
-        amount: amount,
-        from_warehouse_id: sourceWarehouseData.WarehouseID, // ID numerico
-        to_warehouse_id: targetWarehouseData.WarehouseID, // ID numerico
-        movement_date: new Date().toISOString(),
-        notes: `Trasferimento di ${amount} unità di ${selectedProductForMove.name}`,
-        reason: "Trasferimento tra magazzini",
-      };
-
-      console.log("Dati trasferimento:", {
-        ...transferData,
-        sourceWarehouse: sourceWarehouseData.WarehouseName,
-        targetWarehouse: targetWarehouseData.WarehouseName,
-      });
-
-      const response = await axios.post(
-        "/Movement/POST/CreateTransferMovement",
-        transferData
-      );
-
-      if (response.status === 201) {
-        // Aggiorna la quantità del prodotto nel magazzino di origine
-        const newQuantity = selectedProductForMove.quantity - amount;
-        if (onUpdateQuantity) {
-          onUpdateQuantity(selectedProductForMove.product_id, newQuantity);
-        }
-
-        // Mostra messaggio di successo
-        setShowSuccessMessage(true);
-        setSuccessMessage(
-          `${amount} unità di "${selectedProductForMove.name}" spostate con successo da ${sourceWarehouseData.WarehouseName} a ${targetWarehouseData.WarehouseName}!`
-        );
-        setIsMoveModalOpen(false);
-
-        // Reset dei campi
-        setMoveQuantity("");
-        setTargetWarehouse("");
-
-        console.log("Trasferimento completato con successo:", response.data);
-      }
-    } catch (error: any) {
-      console.error("Errore nello spostamento:", error);
-
-      let errorMessage = "Errore nello spostamento. Riprova.";
-      if (error.response?.status === 400) {
-        errorMessage =
-          error.response.data?.error || "Dati non validi per il trasferimento";
-      } else if (error.response?.status === 404) {
-        errorMessage = "Endpoint di trasferimento non trovato";
-      } else if (error.code === "ERR_NETWORK") {
-        errorMessage = "Errore di connessione al server";
-      }
-
-      alert(`Errore: ${errorMessage}`);
-    } finally {
-      setIsProcessingMove(false);
+      const response = await axios.get("/Vehicle/GET/GetAllVehicles");
+      setVehicles(response.data || []);
+    } catch (error) {
+      console.error("Errore nel caricamento dei veicoli:", error);
     }
-  };
+  }, []);
 
-  const openLoadModal = (product: Product) => {
-    setSelectedProductForLoad(product);
-    setLoadQuantity("");
-    setTargetVehicle("");
-    setIsLoadModalOpen(true);
-  };
+  // Effects
+  useEffect(() => {
+    loadWarehouses();
+    loadVehicles();
+  }, [loadWarehouses, loadVehicles]);
 
-  const handleLoadOperation = async () => {
-    if (!selectedProductForLoad || !loadQuantity || !targetVehicle) return;
-
-    setIsProcessingLoad(true);
-    try {
-      const amount = parseInt(loadQuantity);
-
-      if (amount > selectedProductForLoad.quantity) {
-        alert("Quantità da caricare superiore alla disponibilità");
-        return;
-      }
-
-      // Chiamata API per caricare su furgone
-      const warehouseObj = warehouses.find(
-        (w) =>
-          w.WarehouseUUID === selectedProductForLoad?.warehouse_id ||
-          w.WarehouseID.toString() === selectedProductForLoad?.warehouse_id ||
-          w.WarehouseName === selectedProductForLoad?.warehouse_id ||
-          w.WarehouseCode === selectedProductForLoad?.warehouse_id
-      );
-      const fromWarehouseId = warehouseObj
-        ? warehouseObj.WarehouseID
-        : selectedProductForLoad?.warehouse_id;
-      await axios.post("/Movement/POST/CreateLoadToVehicleMovement", {
-        product_id: selectedProductForLoad.product_id,
-        from_warehouse_id: fromWarehouseId,
-        to_vehicle_id: parseInt(targetVehicle),
-        amount: parseInt(loadQuantity),
-      });
-
-      alert(
-        `${amount} unità di "${selectedProductForLoad.name}" caricate su furgone con successo!`
-      );
-      setIsLoadModalOpen(false);
-    } catch (error: any) {
-      console.error("Errore nel caricamento:", error);
-      let errorMessage = "Errore nel caricamento. Riprova.";
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      }
-      alert(errorMessage);
-    } finally {
-      setIsProcessingLoad(false);
+  // Auto-hide alerts
+  useEffect(() => {
+    if (alerts.success.isVisible) {
+      const timer = setTimeout(() => hideAlert("success"), 4000);
+      return () => clearTimeout(timer);
     }
-  };
+  }, [alerts.success.isVisible, hideAlert]);
 
-  const renderCell = useCallback((product: Product, columnKey: React.Key) => {
-    const productId = product.product_id || product.id || "";
+  useEffect(() => {
+    if (alerts.error.isVisible) {
+      const timer = setTimeout(() => hideAlert("error"), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [alerts.error.isVisible, hideAlert]);
 
-    switch (columnKey) {
-      case "name":
-        return (
-          <User
-            avatarProps={{
-              radius: "lg",
-              src: product.image || "https://via.placeholder.com/40",
-              className: "hidden md:flex object-cover border-0",
-            }}
-            description={`SKU: ${product.sku || "N/A"}`}
-            name={product.name}
-          >
-            {product.name}
-          </User>
-        );
-      case "category":
-        return (
-          <div className="flex items-center gap-2">
-            <span
-              className={`w-2 h-2 rounded-full bg-${product.category
-                .toLowerCase()
-                .replace(/\s+/g, "")}`}
-            />
-            {product.category}
-          </div>
-        );
-      case "quantity":
-        return (
-          <InlineQuantityEditor
-            product={{
-              product_id: product.product_id,
-              quantity: product.quantity,
-              min_stock_treshold: product.min_stock_treshold,
-              warehouse_id: product.warehouse_id,
-            }}
-            onUpdate={(id, newQuantity) => {
-              if (onUpdateQuantity) {
-                onUpdateQuantity(id, newQuantity);
-              }
-            }}
-            onStockOperation={(p, type) => {
-              openStockModal(product, type);
-            }}
-            onMoveOperation={() => {
-              openMoveModal(product);
-            }}
-            onBatchSelect={() => {
-              const productKey = product.product_id || product.id || "";
-              if (typeof selectedKeys === "string") {
-                setSelectedKeys(new Set([productKey]));
-              } else {
-                const newSelection = new Set(selectedKeys);
-                if (newSelection.has(productKey)) {
-                  newSelection.delete(productKey);
-                } else {
-                  newSelection.add(productKey);
-                }
-                setSelectedKeys(newSelection);
-              }
-            }}
-            isSelected={
-              typeof selectedKeys === "string"
-                ? selectedKeys === "all"
-                : selectedKeys.has(product.product_id || product.id || "")
-            }
-          />
-        );
-      case "price":
-        return (
-          <div className="flex justify-start w-full">
-            <div className="font-medium">
-              €{parseFloat(product.price.toString()).toFixed(2)}
+  useEffect(() => {
+    if (alerts.load.isVisible) {
+      const timer = setTimeout(() => hideAlert("load"), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [alerts.load.isVisible, hideAlert]);
+
+  // Legacy effect for compatibility
+  useEffect(() => {
+    if (showSuccessMessage) {
+      const timer = setTimeout(() => {
+        setShowSuccessMessage(false);
+        setSuccessMessage("");
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessMessage]);
+
+  const renderCell = useCallback(
+    (product: Product, columnKey: React.Key) => {
+      const productId = product.product_id || product.id || "";
+
+      switch (columnKey) {
+        case "name":
+          return (
+            <User
+              avatarProps={{
+                radius: "lg",
+                src: product.image || "https://via.placeholder.com/40",
+                className: "hidden md:flex object-cover border-0",
+              }}
+              description={`SKU: ${product.sku || "N/A"}`}
+              name={product.name}
+            >
+              {product.name}
+            </User>
+          );
+        case "category":
+          return (
+            <div className="flex items-center gap-2">
+              <span
+                className={`w-2 h-2 rounded-full bg-${product.category
+                  .toLowerCase()
+                  .replace(/\s+/g, "")}`}
+              />
+              {product.category}
             </div>
-          </div>
-        );
-      case "warehouse":
-        return (
-          <div className="flex items-center gap-2">
-            <span
-              className={`w-2 h-2 rounded-full bg-${product.warehouse_id
-                .toLowerCase()
-                .replace(/\s+/g, "")}`}
+          );
+        case "quantity":
+          return (
+            <InlineQuantityEditor
+              product={{
+                product_id: product.product_id,
+                quantity: product.quantity,
+                min_stock_treshold: product.min_stock_treshold,
+                warehouse_id: product.warehouse_id,
+              }}
+              onUpdate={(id, newQuantity) => {
+                if (onUpdateQuantity) {
+                  onUpdateQuantity(id, newQuantity);
+                }
+              }}
+              onStockOperation={(_, type) => {
+                setStockModalState({
+                  isOpen: true,
+                  type,
+                  selectedProduct: product,
+                  amount: "",
+                  reason: "",
+                  isProcessing: false,
+                });
+              }}
+              onMoveOperation={() => {
+                setMoveModalState({
+                  isOpen: true,
+                  selectedProduct: product,
+                  quantity: "",
+                  targetWarehouse: "",
+                  isProcessing: false,
+                });
+              }}
+              onBatchSelect={() => {
+                const productKey = product.product_id || product.id || "";
+                if (typeof selectedKeys === "string") {
+                  setSelectedKeys(new Set([productKey]));
+                } else {
+                  const newSelection = new Set(selectedKeys);
+                  if (newSelection.has(productKey)) {
+                    newSelection.delete(productKey);
+                  } else {
+                    newSelection.add(productKey);
+                  }
+                  setSelectedKeys(newSelection);
+                }
+              }}
+              isSelected={
+                typeof selectedKeys === "string"
+                  ? selectedKeys === "all"
+                  : selectedKeys.has(product.product_id || product.id || "")
+              }
             />
-            {product.warehouse_id}
-          </div>
-        );
-      case "status":
-        return (
-          <Chip
-            className="capitalize"
-            color={statusColorMap[product.status]}
-            size="sm"
-            variant="flat"
-          >
-            {product.status}
-          </Chip>
-        );
-      case "inventory_actions":
-        return (
-          <div className="flex justify-start items-center gap-1">
-            <Tooltip content="Aumenta quantità">
-              <Button
-                isIconOnly
-                size="sm"
-                color="success"
-                variant="flat"
-                onPress={() => openStockModal(product, "increase")}
-                className="min-w-8 h-8"
-              >
-                <Icon icon="solar:add-circle-bold" width={16} />
-              </Button>
-            </Tooltip>
-
-            <Tooltip content="Diminuisci quantità">
-              <Button
-                isIconOnly
-                size="sm"
-                color="warning"
-                variant="flat"
-                onPress={() => openStockModal(product, "decrease")}
-                className="min-w-8 h-8"
-                isDisabled={product.quantity <= 0}
-              >
-                <Icon icon="solar:minus-circle-bold" width={16} />
-              </Button>
-            </Tooltip>
-
-            <Tooltip content="Sposta tra magazzini">
-              <Button
-                isIconOnly
-                size="sm"
-                color="primary"
-                variant="flat"
-                onPress={() => openMoveModal(product)}
-                className="min-w-8 h-8"
-                isDisabled={product.quantity <= 0}
-              >
-                <Icon icon="solar:transfer-horizontal-bold" width={16} />
-              </Button>
-            </Tooltip>
-
-            <Tooltip content="Carica su furgone">
-              <Button
-                isIconOnly
-                size="sm"
-                color="secondary"
-                variant="flat"
-                onPress={() => openLoadModal(product)}
-                className="min-w-8 h-8"
-                isDisabled={product.quantity <= 0}
-              >
-                <Icon icon="solar:delivery-bold" width={16} />
-              </Button>
-            </Tooltip>
-          </div>
-        );
-      case "actions":
-        return (
-          <div className="flex justify-start items-center gap-2">
-            <Dropdown showArrow placement="bottom-end">
-              <DropdownTrigger>
+          );
+        case "price":
+          return (
+            <div className="flex justify-start w-full">
+              <div className="font-medium">
+                €{parseFloat(product.price.toString()).toFixed(2)}
+              </div>
+            </div>
+          );
+        case "warehouse":
+          return (
+            <div className="flex items-center gap-2">
+              <span
+                className={`w-2 h-2 rounded-full bg-${(
+                  product.warehouse_name || product.warehouse_id
+                )
+                  .toLowerCase()
+                  .replace(/\s+/g, "")}`}
+              />
+              {product.warehouse_name || product.warehouse_id}
+            </div>
+          );
+        case "status":
+          return (
+            <Chip
+              className="capitalize"
+              color={statusColorMap[product.status]}
+              size="sm"
+              variant="flat"
+            >
+              {product.status}
+            </Chip>
+          );
+        case "inventory_actions":
+          return (
+            <div className="flex justify-start items-center gap-1">
+              <Tooltip content="Aumenta quantità">
                 <Button
                   isIconOnly
                   size="sm"
-                  variant="light"
-                  className="hover:bg-default-100"
+                  color="success"
+                  variant="flat"
+                  onPress={() =>
+                    setStockModalState({
+                      isOpen: true,
+                      type: "increase",
+                      selectedProduct: product,
+                      amount: "",
+                      reason: "",
+                      isProcessing: false,
+                    })
+                  }
+                  className="min-w-8 h-8"
                 >
-                  <Icon icon="nimbus:ellipsis" />
+                  <Icon icon="solar:add-circle-bold" width={16} />
                 </Button>
-              </DropdownTrigger>
-              <DropdownMenu
-                variant="bordered"
-                aria-label="Azioni prodotto"
-                className="min-w-[180px]"
-              >
-                <DropdownItem
-                  key="view"
-                  onClick={() => {
-                    setSelectedProduct(product);
-                    onOpen();
-                  }}
-                  className="text-default-700 data-[hover=true]:text-default-900 data-[hover=true]:bg-default-100"
-                  startContent={
-                    <Icon
-                      icon="solar:eye-bold"
-                      className="text-lg text-default-600"
-                    />
+              </Tooltip>
+
+              <Tooltip content="Diminuisci quantità">
+                <Button
+                  isIconOnly
+                  size="sm"
+                  color="warning"
+                  variant="flat"
+                  onPress={() =>
+                    setStockModalState({
+                      isOpen: true,
+                      type: "decrease",
+                      selectedProduct: product,
+                      amount: "",
+                      reason: "",
+                      isProcessing: false,
+                    })
                   }
+                  className="min-w-8 h-8"
+                  isDisabled={product.quantity <= 0}
                 >
-                  Visualizza
-                </DropdownItem>
-                <DropdownItem
-                  key="edit"
-                  onClick={() => goToEditProduct(productId)}
-                  className="text-primary-600 data-[hover=true]:text-primary-700 data-[hover=true]:bg-primary-50"
-                  startContent={
-                    <Icon
-                      icon="solar:pen-line-duotone"
-                      className="text-lg text-primary-500"
-                    />
+                  <Icon icon="solar:minus-circle-bold" width={16} />
+                </Button>
+              </Tooltip>
+
+              <Tooltip content="Sposta tra magazzini">
+                <Button
+                  isIconOnly
+                  size="sm"
+                  color="primary"
+                  variant="flat"
+                  onPress={() =>
+                    setMoveModalState({
+                      isOpen: true,
+                      selectedProduct: product,
+                      quantity: "",
+                      targetWarehouse: "",
+                      isProcessing: false,
+                    })
                   }
+                  className="min-w-8 h-8"
+                  isDisabled={product.quantity <= 0}
                 >
-                  Modifica
-                </DropdownItem>
-                <DropdownItem
-                  key="delete"
-                  onClick={() => confirmDeleteProduct(product)}
-                  className="text-danger-600 data-[hover=true]:text-danger-700 data-[hover=true]:bg-danger-50"
-                  startContent={
-                    <Icon
-                      icon="solar:trash-bin-minimalistic-linear"
-                      className="text-lg text-danger-500"
-                    />
-                  }
+                  <Icon icon="solar:transfer-horizontal-bold" width={16} />
+                </Button>
+              </Tooltip>
+
+              <LoadProductModal
+                selectedProduct={product}
+                onSuccess={(message) => {
+                  showAlert("load", {
+                    type: "success",
+                    title: "Caricamento completato!",
+                    description: message,
+                  });
+                }}
+                onError={(message) => {
+                  showAlert("load", {
+                    type: "danger",
+                    title: "Errore nel caricamento",
+                    description: message,
+                  });
+                }}
+                onRefreshData={onRefreshData}
+              />
+            </div>
+          );
+        case "actions":
+          return (
+            <div className="flex justify-start items-center gap-2">
+              <Dropdown showArrow placement="bottom-end">
+                <DropdownTrigger>
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    className="hover:bg-default-100"
+                  >
+                    <Icon icon="nimbus:ellipsis" />
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  variant="bordered"
+                  aria-label="Azioni prodotto"
+                  className="min-w-[180px]"
                 >
-                  Elimina
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
-          </div>
-        );
-      default:
-        const value = product[columnKey as keyof Product];
-        if (Array.isArray(value)) {
-          return value.map((item) => item.name || "").join(", ");
-        }
-        return value?.toString() || "";
-    }
-  }, []);
+                  <DropdownItem
+                    key="view"
+                    onClick={() => {
+                      setSelectedProduct(product);
+                      onOpen();
+                    }}
+                    className="text-default-700 data-[hover=true]:text-default-900 data-[hover=true]:bg-default-100"
+                    startContent={
+                      <Icon
+                        icon="solar:eye-bold"
+                        className="text-lg text-default-600"
+                      />
+                    }
+                  >
+                    Visualizza
+                  </DropdownItem>
+                  <DropdownItem
+                    key="edit"
+                    onClick={() => goToEditProduct(productId)}
+                    className="text-primary-600 data-[hover=true]:text-primary-700 data-[hover=true]:bg-primary-50"
+                    startContent={
+                      <Icon
+                        icon="solar:pen-line-duotone"
+                        className="text-lg text-primary-500"
+                      />
+                    }
+                  >
+                    Modifica
+                  </DropdownItem>
+                  <DropdownItem
+                    key="delete"
+                    onClick={() => confirmDeleteProduct(product)}
+                    className="text-danger-600 data-[hover=true]:text-danger-700 data-[hover=true]:bg-danger-50"
+                    startContent={
+                      <Icon
+                        icon="solar:trash-bin-minimalistic-linear"
+                        className="text-lg text-danger-500"
+                      />
+                    }
+                  >
+                    Elimina
+                  </DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
+            </div>
+          );
+        default:
+          const value = product[columnKey as keyof Product];
+          if (Array.isArray(value)) {
+            return value.map((item) => item.name || "").join(", ");
+          }
+          return value?.toString() || "";
+      }
+    },
+    [
+      selectedKeys,
+      setSelectedKeys,
+      showAlert,
+      onRefreshData,
+      onUpdateQuantity,
+      goToEditProduct,
+      confirmDeleteProduct,
+      onOpen,
+    ]
+  );
 
   const onNextPage = useCallback(() => {
     if (page < pages) {
@@ -932,7 +763,15 @@ export default function ProductTable({
                   color="success"
                   variant="flat"
                   startContent={<Icon icon="solar:add-circle-bold" />}
-                  onPress={() => openBatchStockModal("increase")}
+                  onPress={() =>
+                    setBatchStockState({
+                      isOpen: true,
+                      type: "increase",
+                      reason: "",
+                      data: {},
+                      isProcessing: false,
+                    })
+                  }
                 >
                   Aumenta Stock (
                   {typeof selectedKeys !== "string"
@@ -945,7 +784,15 @@ export default function ProductTable({
                   color="warning"
                   variant="flat"
                   startContent={<Icon icon="solar:minus-circle-bold" />}
-                  onPress={() => openBatchStockModal("decrease")}
+                  onPress={() =>
+                    setBatchStockState({
+                      isOpen: true,
+                      type: "decrease",
+                      reason: "",
+                      data: {},
+                      isProcessing: false,
+                    })
+                  }
                 >
                   Diminuisci Stock (
                   {typeof selectedKeys !== "string"
@@ -958,7 +805,14 @@ export default function ProductTable({
                   color="primary"
                   variant="flat"
                   startContent={<Icon icon="solar:transfer-horizontal-bold" />}
-                  onPress={() => openBatchMoveModal()}
+                  onPress={() =>
+                    setBatchMoveState({
+                      isOpen: true,
+                      data: {},
+                      targetWarehouse: "",
+                      isProcessing: false,
+                    })
+                  }
                 >
                   Sposta Prodotti (
                   {typeof selectedKeys !== "string"
@@ -971,7 +825,14 @@ export default function ProductTable({
                   color="secondary"
                   variant="flat"
                   startContent={<Icon icon="solar:delivery-bold" />}
-                  onPress={() => openBatchLoadModal()}
+                  onPress={() =>
+                    setBatchLoadState({
+                      isOpen: true,
+                      data: {},
+                      targetVehicle: "",
+                      isProcessing: false,
+                    })
+                  }
                 >
                   Carica su Furgone (
                   {typeof selectedKeys !== "string"
@@ -1074,21 +935,42 @@ export default function ProductTable({
   );
 
   // Add effect to handle keyboard shortcuts
-  React.useEffect(() => {
+  useEffect(() => {
     window.addEventListener("keydown", handleKeyboardShortcuts);
     return () => window.removeEventListener("keydown", handleKeyboardShortcuts);
   }, [handleKeyboardShortcuts]);
 
   // Effetto per nascondere automaticamente il messaggio di successo
-  React.useEffect(() => {
-    if (showSuccessMessage) {
-      const timer = setTimeout(() => {
-        setShowSuccessMessage(false);
-        setSuccessMessage("");
-      }, 3000);
+  useEffect(() => {
+    if (alerts.success.isVisible) {
+      const timer = setTimeout(() => hideAlert("success"), 4000);
       return () => clearTimeout(timer);
     }
-  }, [showSuccessMessage]);
+  }, [alerts.success.isVisible, hideAlert]);
+
+  // Effetto per nascondere automaticamente l'alert di caricamento
+  useEffect(() => {
+    if (alerts.load.isVisible) {
+      const timer = setTimeout(() => hideAlert("load"), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [alerts.load.isVisible, hideAlert]);
+
+  // Effetto per nascondere automaticamente l'alert di successo batch
+  useEffect(() => {
+    if (alerts.success.isVisible) {
+      const timer = setTimeout(() => hideAlert("success"), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [alerts.success.isVisible, hideAlert]);
+
+  // Effetto per nascondere automaticamente l'alert di errore batch
+  useEffect(() => {
+    if (alerts.error.isVisible) {
+      const timer = setTimeout(() => hideAlert("error"), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [alerts.error.isVisible, hideAlert]);
 
   // Funzione per ottenere i prodotti selezionati
   const getSelectedProducts = () => {
@@ -1106,33 +988,71 @@ export default function ProductTable({
     return [];
   };
 
+  // Validation functions for batch operations
+  const getBatchStockValidationErrors = () => {
+    return batchProducts.filter((product) => {
+      const productId = product.product_id || product.id || "";
+      const amount = parseInt(batchStockState.data[productId] || "0");
+      return (
+        amount > 0 &&
+        batchStockState.type === "decrease" &&
+        amount > product.quantity
+      );
+    });
+  };
+
+  const getBatchMoveValidationErrors = () => {
+    return batchProducts.filter((product) => {
+      const productId = product.product_id || product.id || "";
+      const amount = parseInt(batchMoveState.data[productId] || "0");
+      return amount > 0 && amount > product.quantity;
+    });
+  };
+
+  const getBatchLoadValidationErrors = () => {
+    return batchProducts.filter((product) => {
+      const productId = product.product_id || product.id || "";
+      const amount = parseInt(batchLoadState.data[productId] || "0");
+      return amount > 0 && amount > product.quantity;
+    });
+  };
+
   // Funzioni per operazioni batch
   const openBatchStockModal = (type: "increase" | "decrease") => {
     setBatchProducts(getSelectedProducts());
-    setBatchStockType(type);
-    setBatchStockReason("");
-    setBatchStockData({});
-    setIsBatchStockModalOpen(true);
+    setBatchStockState({
+      isOpen: true,
+      type,
+      reason: "",
+      data: {},
+      isProcessing: false,
+    });
   };
 
   const openBatchMoveModal = () => {
     setBatchProducts(getSelectedProducts());
-    setBatchMoveData({});
-    setBatchTargetWarehouse(""); // Reset esplicito per mostrare il placeholder
-    setIsBatchMoveModalOpen(true);
+    setBatchMoveState({
+      isOpen: true,
+      data: {},
+      targetWarehouse: "",
+      isProcessing: false,
+    });
   };
 
   const openBatchLoadModal = () => {
     setBatchProducts(getSelectedProducts());
-    setBatchLoadData({});
-    setBatchTargetVehicle("");
-    setIsBatchLoadModalOpen(true);
+    setBatchLoadState({
+      isOpen: true,
+      data: {},
+      targetVehicle: "",
+      isProcessing: false,
+    });
   };
 
   const handleBatchStockOperation = async () => {
-    if (batchProducts.length === 0 || !batchStockReason) return;
+    if (batchProducts.length === 0 || !batchStockState.reason) return;
 
-    setIsProcessingBatchStock(true);
+    setBatchStockState({ ...batchStockState, isProcessing: true });
     try {
       const validOperations = [];
       const invalidOperations = [];
@@ -1140,11 +1060,11 @@ export default function ProductTable({
       // Valida tutte le operazioni prima di eseguirle
       for (const product of batchProducts) {
         const productId = product.product_id || product.id || "";
-        const amount = parseInt(batchStockData[productId] || "0");
+        const amount = parseInt(batchStockState.data[productId] || "0");
 
         if (amount > 0) {
           const newQuantity =
-            batchStockType === "increase"
+            batchStockState.type === "increase"
               ? product.quantity + amount
               : product.quantity - amount;
 
@@ -1175,9 +1095,14 @@ export default function ProductTable({
           )
           .join("\n");
 
-        alert(
-          `Le seguenti operazioni non possono essere eseguite perché porterebbero a quantità negative:\n\n${errorMessages}\n\nCorreggi le quantità e riprova.`
-        );
+        setAlerts({
+          ...alerts,
+          error: {
+            isVisible: true,
+            title: "Operazioni non valide",
+            description: `Le seguenti operazioni non possono essere eseguite perché porterebbero a quantità negative:\n\n${errorMessages}\n\nCorreggi le quantità e riprova.`,
+          },
+        });
         return;
       }
 
@@ -1195,20 +1120,21 @@ export default function ProductTable({
 
           // Registra il movimento
           const movementEndpoint =
-            batchStockType === "increase"
+            batchStockState.type === "increase"
               ? "/Movement/POST/CreateLoadMovement"
               : "/Movement/POST/CreateUnloadMovement";
 
           const movementData = {
             product_id: operation.productId,
             quantity: operation.amount,
-            reason: batchStockReason,
+            reason: batchStockState.reason,
             warehouse_id: operation.product.warehouse_id,
             timestamp: new Date().toISOString(),
-            movement_type: batchStockType === "increase" ? "LOAD" : "UNLOAD",
+            movement_type:
+              batchStockState.type === "increase" ? "LOAD" : "UNLOAD",
             notes: `${
-              batchStockType === "increase" ? "Carico" : "Scarico"
-            } batch: ${batchStockReason}`,
+              batchStockState.type === "increase" ? "Carico" : "Scarico"
+            } batch: ${batchStockState.reason}`,
             user_id: "current_user",
             created_at: new Date().toISOString(),
           };
@@ -1242,22 +1168,35 @@ export default function ProductTable({
         message += `, ${errorCount} errori`;
       }
 
-      setShowSuccessMessage(true);
-      setSuccessMessage(message);
-      setIsBatchStockModalOpen(false);
+      setAlerts({
+        ...alerts,
+        success: {
+          isVisible: true,
+          title: "Operazione completata",
+          description: message,
+        },
+      });
+      setBatchStockState({ ...batchStockState, isOpen: false });
       setSelectedKeys(new Set([]));
     } catch (error) {
       console.error("Errore nell'operazione batch:", error);
-      alert("Errore nell'operazione. Riprova.");
+      setAlerts({
+        ...alerts,
+        error: {
+          isVisible: true,
+          title: "Errore nell'operazione",
+          description: "Errore nell'operazione. Riprova.",
+        },
+      });
     } finally {
-      setIsProcessingBatchStock(false);
+      setBatchStockState({ ...batchStockState, isProcessing: false });
     }
   };
 
   const handleBatchMoveOperation = async () => {
-    if (batchProducts.length === 0 || !batchTargetWarehouse) return;
+    if (batchProducts.length === 0 || !batchMoveState.targetWarehouse) return;
 
-    setIsProcessingBatchMove(true);
+    setBatchMoveState({ ...batchMoveState, isProcessing: true });
     try {
       const validOperations = [];
       const invalidOperations = [];
@@ -1265,7 +1204,7 @@ export default function ProductTable({
       // Valida tutte le operazioni prima di eseguirle
       for (const product of batchProducts) {
         const productId = product.product_id || product.id || "";
-        const amount = parseInt(batchMoveData[productId] || "0");
+        const amount = parseInt(batchMoveState.data[productId] || "0");
 
         if (amount > 0) {
           if (amount <= product.quantity) {
@@ -1294,20 +1233,34 @@ export default function ProductTable({
           )
           .join("\n");
 
-        alert(
-          `Le seguenti operazioni non possono essere eseguite perché la quantità richiesta supera quella disponibile:\n\n${errorMessages}\n\nCorreggi le quantità e riprova.`
-        );
+        setAlerts({
+          ...alerts,
+          error: {
+            isVisible: true,
+            title: "Operazioni non valide",
+            description: `Le seguenti operazioni non possono essere eseguite perché la quantità richiesta supera quella disponibile:\n\n${errorMessages}\n\nCorreggi le quantità e riprova.`,
+          },
+        });
         return;
       }
 
       // Trova il magazzino di destinazione
       const targetWarehouseData = warehouses.find(
         (w) =>
-          (w.WarehouseUUID || w.WarehouseID.toString()) === batchTargetWarehouse
+          (w.WarehouseUUID || w.WarehouseID.toString()) ===
+          batchMoveState.targetWarehouse
       );
 
       if (!targetWarehouseData) {
-        alert("Impossibile trovare i dati del magazzino di destinazione.");
+        setAlerts({
+          ...alerts,
+          error: {
+            isVisible: true,
+            title: "Errore",
+            description:
+              "Impossibile trovare i dati del magazzino di destinazione.",
+          },
+        });
         return;
       }
 
@@ -1372,28 +1325,40 @@ export default function ProductTable({
         message += `, ${errorCount} errori`;
       }
 
-      setShowSuccessMessage(true);
-      setSuccessMessage(message);
-      setIsBatchMoveModalOpen(false);
+      setAlerts({
+        ...alerts,
+        success: {
+          isVisible: true,
+          title: "Trasferimento completato",
+          description: message,
+        },
+      });
+      setBatchMoveState({ ...batchMoveState, isOpen: false });
       setSelectedKeys(new Set([]));
 
       // Reset dei dati
-      setBatchMoveData({});
-      setBatchTargetWarehouse("");
+      setBatchMoveState({ ...batchMoveState, data: {} });
+      setBatchMoveState({ ...batchMoveState, targetWarehouse: "" });
     } catch (error) {
       console.error("Errore nello spostamento batch:", error);
-      alert(
-        "Errore nello spostamento. Alcuni prodotti potrebbero non essere stati trasferiti."
-      );
+      setAlerts({
+        ...alerts,
+        error: {
+          isVisible: true,
+          title: "Errore nello spostamento",
+          description:
+            "Errore nello spostamento. Alcuni prodotti potrebbero non essere stati trasferiti.",
+        },
+      });
     } finally {
-      setIsProcessingBatchMove(false);
+      setBatchMoveState({ ...batchMoveState, isProcessing: false });
     }
   };
 
   const handleBatchLoadOperation = async () => {
-    if (batchProducts.length === 0 || !batchTargetVehicle) return;
+    if (batchProducts.length === 0 || !batchLoadState.targetVehicle) return;
 
-    setIsProcessingBatchLoad(true);
+    setBatchLoadState({ ...batchLoadState, isProcessing: true });
     try {
       const validOperations = [];
       const invalidOperations = [];
@@ -1401,7 +1366,7 @@ export default function ProductTable({
       // Valida tutte le operazioni prima di eseguirle
       for (const product of batchProducts) {
         const productId = product.product_id || product.id || "";
-        const amount = parseInt(batchLoadData[productId] || "0");
+        const amount = parseInt(batchLoadState.data[productId] || "0");
 
         if (amount > 0) {
           if (amount <= product.quantity) {
@@ -1430,9 +1395,14 @@ export default function ProductTable({
           )
           .join("\n");
 
-        alert(
-          `Le seguenti operazioni non possono essere eseguite perché la quantità richiesta supera quella disponibile:\n\n${errorMessages}\n\nCorreggi le quantità e riprova.`
-        );
+        setAlerts({
+          ...alerts,
+          error: {
+            isVisible: true,
+            title: "Operazioni non valide",
+            description: `Le seguenti operazioni non possono essere eseguite perché la quantità richiesta supera quella disponibile:\n\n${errorMessages}\n\nCorreggi le quantità e riprova.`,
+          },
+        });
         return;
       }
 
@@ -1454,7 +1424,7 @@ export default function ProductTable({
           await axios.post("/Movement/POST/CreateLoadToVehicleMovement", {
             product_id: operation.productId,
             from_warehouse_id: fromWarehouseId,
-            to_vehicle_id: parseInt(batchTargetVehicle),
+            to_vehicle_id: parseInt(batchLoadState.targetVehicle),
             amount: operation.amount,
           });
           successCount++;
@@ -1472,92 +1442,445 @@ export default function ProductTable({
         message += `, ${errorCount} errori`;
       }
 
-      setShowSuccessMessage(true);
-      setSuccessMessage(message);
-      setIsBatchLoadModalOpen(false);
+      setAlerts({
+        ...alerts,
+        success: {
+          isVisible: true,
+          title: "Caricamento completato!",
+          description: message,
+        },
+      });
+      setBatchLoadState({ ...batchLoadState, isOpen: false });
       setSelectedKeys(new Set([]));
     } catch (error) {
       console.error("Errore nel caricamento batch:", error);
-      alert("Errore nel caricamento. Riprova.");
+      setAlerts({
+        ...alerts,
+        error: {
+          isVisible: true,
+          title: "Errore nel caricamento",
+          description: "Errore nel caricamento. Riprova.",
+        },
+      });
     } finally {
-      setIsProcessingBatchLoad(false);
+      setBatchLoadState({ ...batchLoadState, isProcessing: false });
     }
   };
 
-  // Funzione per caricare i magazzini dall'API
-  const loadWarehouses = async () => {
+  // Stock operation functions
+  const handleStockOperation = async () => {
+    if (
+      !stockModalState.selectedProduct ||
+      !stockModalState.amount ||
+      !stockModalState.reason
+    )
+      return;
+
+    setStockModalState({ ...stockModalState, isProcessing: true });
     try {
-      const response = await axios.get("/Warehouse/GET/GetAllWarehouses");
-      // Filtra solo i magazzini attivi
-      const activeWarehouses = response.data.filter(
-        (warehouse: Warehouse) => warehouse.IsActive
+      const amount = parseInt(stockModalState.amount);
+      const newQuantity =
+        stockModalState.type === "increase"
+          ? stockModalState.selectedProduct.quantity + amount
+          : stockModalState.selectedProduct.quantity - amount;
+
+      if (newQuantity < 0) {
+        alert("La quantità non può essere negativa");
+        return;
+      }
+
+      console.log(
+        `Aggiornamento stock da ${stockModalState.selectedProduct.quantity} a ${newQuantity} per prodotto:`,
+        stockModalState.selectedProduct.product_id
       );
-      setWarehouses(activeWarehouses);
-    } catch (error) {
-      console.error("Error loading warehouses:", error);
+
+      // Usa lo stesso endpoint dell'InlineQuantityEditor che funziona
+      try {
+        const response = await axios.put(
+          `/Product/UPDATE/UpdateProductQuantity/`,
+          {
+            product_id: stockModalState.selectedProduct.product_id,
+            stock_unit: newQuantity.toString(),
+          }
+        );
+
+        if (response.status === 200) {
+          // Aggiorna la UI tramite la prop callback
+          if (onUpdateQuantity) {
+            onUpdateQuantity(
+              stockModalState.selectedProduct.product_id,
+              newQuantity
+            );
+          }
+
+          // Mostra messaggio di successo
+          showAlert("success", {
+            title: `Quantità ${
+              stockModalState.type === "increase" ? "aumentata" : "diminuita"
+            } con successo!`,
+            description: `Quantità aggiornata con successo nel database`,
+          });
+          setStockModalState({ ...stockModalState, isOpen: false });
+
+          // Dopo aver aggiornato la quantità, registra il movimento
+          try {
+            const movementEndpoint =
+              stockModalState.type === "increase"
+                ? "/Movement/POST/CreateLoadMovement"
+                : "/Movement/POST/CreateUnloadMovement";
+
+            const movementData = {
+              product_id: stockModalState.selectedProduct.product_id,
+              quantity: amount,
+              reason: stockModalState.reason,
+              warehouse_id: stockModalState.selectedProduct.warehouse_id,
+              timestamp: new Date().toISOString(),
+              movement_type:
+                stockModalState.type === "increase" ? "LOAD" : "UNLOAD",
+              notes: stockModalState.reason,
+              user_id: "current_user", // TODO: Sostituire con l'ID utente reale
+              created_at: new Date().toISOString(),
+            };
+
+            await axios.post(movementEndpoint, movementData);
+            console.log(
+              `Movimento ${stockModalState.type} registrato con successo`
+            );
+          } catch (movementError) {
+            console.warn(
+              "Errore nella registrazione del movimento:",
+              movementError
+            );
+            // Non blocchiamo l'operazione se la registrazione del movimento fallisce
+            // L'aggiornamento della quantità è già avvenuto con successo
+          }
+        }
+      } catch (apiError: any) {
+        // Fallback con endpoint generico come fa InlineQuantityEditor
+        if (
+          apiError.response?.status === 404 ||
+          apiError.code === "ERR_NETWORK"
+        ) {
+          console.log(
+            "Endpoint specifico non trovato, provo con aggiornamento generico..."
+          );
+
+          const updateData = {
+            stock_unit: newQuantity.toString(),
+          };
+
+          await axios.put(
+            `/Product/PUT/UpdateProduct/${stockModalState.selectedProduct.product_id}`,
+            updateData
+          );
+
+          // Aggiorna la UI tramite la prop callback
+          if (onUpdateQuantity) {
+            onUpdateQuantity(
+              stockModalState.selectedProduct.product_id,
+              newQuantity
+            );
+          }
+
+          // Mostra messaggio di successo
+          showAlert("success", {
+            title: `Quantità ${
+              stockModalState.type === "increase" ? "aumentata" : "diminuita"
+            } con successo!`,
+            description: `Quantità aggiornata con successo nel database`,
+          });
+          setStockModalState({ ...stockModalState, isOpen: false });
+
+          // Reset dei campi
+          setStockModalState({ ...stockModalState, amount: "" });
+          setStockModalState({ ...stockModalState, reason: "" });
+
+          // Dopo aver aggiornato la quantità, registra il movimento
+          try {
+            const movementEndpoint =
+              stockModalState.type === "increase"
+                ? "/Movement/POST/CreateLoadMovement"
+                : "/Movement/POST/CreateUnloadMovement";
+
+            const movementData = {
+              product_id: stockModalState.selectedProduct.product_id,
+              quantity: amount,
+              reason: stockModalState.reason,
+              warehouse_id: stockModalState.selectedProduct.warehouse_id,
+              timestamp: new Date().toISOString(),
+              movement_type:
+                stockModalState.type === "increase" ? "LOAD" : "UNLOAD",
+              notes: stockModalState.reason,
+              user_id: "current_user", // TODO: Sostituire con l'ID utente reale
+              created_at: new Date().toISOString(),
+            };
+
+            await axios.post(movementEndpoint, movementData);
+            console.log(
+              `Movimento ${stockModalState.type} registrato con successo nel fallback`
+            );
+          } catch (movementError) {
+            console.warn(
+              "Errore nella registrazione del movimento (fallback):",
+              movementError
+            );
+            // Non blocchiamo l'operazione se la registrazione del movimento fallisce
+            // L'aggiornamento della quantità è già avvenuto con successo
+          }
+        } else {
+          throw apiError;
+        }
+      }
+
+      console.log("Quantità aggiornata con successo nel database");
+    } catch (error: any) {
+      console.error("Errore nell'operazione di stock:", error);
+
+      // Gestione errori più specifica come InlineQuantityEditor
+      let errorMessage = "Errore nell'aggiornamento della quantità";
+      if (error.response?.status === 404) {
+        errorMessage = "Prodotto non trovato";
+      } else if (error.response?.status === 400) {
+        errorMessage = "Dati non validi";
+      } else if (error.code === "ERR_NETWORK") {
+        errorMessage = "Errore di connessione al server";
+      }
+
+      alert(`Errore nell'operazione: ${errorMessage}`);
+    } finally {
+      setStockModalState({ ...stockModalState, isProcessing: false });
     }
   };
 
-  // Carica i magazzini all'avvio del componente
-  React.useEffect(() => {
-    loadWarehouses();
-  }, []);
+  // Move operation functions
+  const handleMoveOperation = async () => {
+    if (
+      !moveModalState.selectedProduct ||
+      !moveModalState.quantity ||
+      !moveModalState.targetWarehouse
+    )
+      return;
 
-  // Funzioni di validazione per i modali batch
-  const getBatchStockValidationErrors = () => {
-    return batchProducts.filter((product) => {
-      const productId = product.product_id || product.id || "";
-      const amount = parseInt(batchStockData[productId] || "0");
-      return (
-        amount > 0 && batchStockType === "decrease" && amount > product.quantity
+    setMoveModalState({ ...moveModalState, isProcessing: true });
+    try {
+      const amount = parseInt(moveModalState.quantity);
+
+      if (amount > moveModalState.selectedProduct.quantity) {
+        alert("Quantità da spostare superiore alla disponibilità");
+        return;
+      }
+
+      // Trova il magazzino di destinazione per ottenere il WarehouseID numerico
+      const targetWarehouseData = warehouses.find(
+        (w) =>
+          (w.WarehouseUUID || w.WarehouseID.toString()) ===
+          moveModalState.targetWarehouse
       );
-    });
+
+      // Trova il magazzino di origine per ottenere il WarehouseID numerico
+      const sourceWarehouseData = warehouses.find(
+        (w) =>
+          (w.WarehouseUUID || w.WarehouseID.toString()) ===
+            moveModalState.selectedProduct!.warehouse_id ||
+          w.WarehouseName === moveModalState.selectedProduct!.warehouse_id ||
+          w.WarehouseCode === moveModalState.selectedProduct!.warehouse_id
+      );
+
+      if (!targetWarehouseData || !sourceWarehouseData) {
+        alert(
+          "Impossibile trovare i dati del magazzino. Verifica che i magazzini siano validi."
+        );
+        return;
+      }
+
+      // Chiamata API per il trasferimento usando gli ID numerici
+      const transferData = {
+        product_id: moveModalState.selectedProduct.product_id,
+        amount: amount,
+        from_warehouse_id: sourceWarehouseData.WarehouseID, // ID numerico
+        to_warehouse_id: targetWarehouseData.WarehouseID, // ID numerico
+        movement_date: new Date().toISOString(),
+        notes: `Trasferimento di ${amount} unità di ${moveModalState.selectedProduct.name}`,
+        reason: "Trasferimento tra magazzini",
+      };
+
+      console.log("Dati trasferimento:", {
+        ...transferData,
+        sourceWarehouse: sourceWarehouseData.WarehouseName,
+        targetWarehouse: targetWarehouseData.WarehouseName,
+      });
+
+      const response = await axios.post(
+        "/Movement/POST/CreateTransferMovement",
+        transferData
+      );
+
+      if (response.status === 201) {
+        // Aggiorna la quantità del prodotto nel magazzino di origine
+        const newQuantity = moveModalState.selectedProduct.quantity - amount;
+        if (onUpdateQuantity) {
+          onUpdateQuantity(
+            moveModalState.selectedProduct.product_id,
+            newQuantity
+          );
+        }
+
+        // Mostra messaggio di successo
+        showAlert("success", {
+          title: `${amount} unità di "${moveModalState.selectedProduct.name}" spostate con successo da ${sourceWarehouseData.WarehouseName} a ${targetWarehouseData.WarehouseName}!`,
+          description: `Trasferimento completato con successo`,
+        });
+        setMoveModalState({ ...moveModalState, isOpen: false });
+
+        // Reset dei campi
+        setMoveModalState({ ...moveModalState, quantity: "" });
+        setMoveModalState({ ...moveModalState, targetWarehouse: "" });
+
+        console.log("Trasferimento completato con successo:", response.data);
+      }
+    } catch (error: any) {
+      console.error("Errore nello spostamento:", error);
+
+      let errorMessage = "Errore nello spostamento. Riprova.";
+      if (error.response?.status === 400) {
+        errorMessage =
+          error.response.data?.error || "Dati non validi per il trasferimento";
+      } else if (error.response?.status === 404) {
+        errorMessage = "Endpoint di trasferimento non trovato";
+      } else if (error.code === "ERR_NETWORK") {
+        errorMessage = "Errore di connessione al server";
+      }
+
+      alert(`Errore: ${errorMessage}`);
+    } finally {
+      setMoveModalState({ ...moveModalState, isProcessing: false });
+    }
   };
 
-  const getBatchMoveValidationErrors = () => {
-    return batchProducts.filter((product) => {
-      const productId = product.product_id || product.id || "";
-      const amount = parseInt(batchMoveData[productId] || "0");
-      return amount > 0 && amount > product.quantity;
-    });
-  };
+  // Load operation functions
+  const handleLoadOperation = async () => {
+    if (
+      !loadModalState.selectedProduct ||
+      !loadModalState.quantity ||
+      !loadModalState.targetVehicle
+    )
+      return;
 
-  const getBatchLoadValidationErrors = () => {
-    return batchProducts.filter((product) => {
-      const productId = product.product_id || product.id || "";
-      const amount = parseInt(batchLoadData[productId] || "0");
-      return amount > 0 && amount > product.quantity;
-    });
+    setLoadModalState({ ...loadModalState, isProcessing: true });
+    try {
+      const amount = parseInt(loadModalState.quantity);
+
+      if (amount > loadModalState.selectedProduct.quantity) {
+        alert("Quantità da caricare superiore alla disponibilità");
+        return;
+      }
+
+      // Chiamata API per caricare su furgone
+      const warehouseObj = warehouses.find(
+        (w) =>
+          w.WarehouseUUID === loadModalState.selectedProduct?.warehouse_id ||
+          w.WarehouseID.toString() ===
+            loadModalState.selectedProduct?.warehouse_id ||
+          w.WarehouseName === loadModalState.selectedProduct?.warehouse_id ||
+          w.WarehouseCode === loadModalState.selectedProduct?.warehouse_id
+      );
+      const fromWarehouseId = warehouseObj
+        ? warehouseObj.WarehouseID
+        : loadModalState.selectedProduct?.warehouse_id;
+      await axios.post("/Movement/POST/CreateLoadToVehicleMovement", {
+        product_id: loadModalState.selectedProduct.product_id,
+        from_warehouse_id: fromWarehouseId,
+        to_vehicle_id: parseInt(loadModalState.targetVehicle),
+        amount: parseInt(loadModalState.quantity),
+      });
+
+      alert(
+        `${amount} unità di "${loadModalState.selectedProduct.name}" caricate su furgone con successo!`
+      );
+      setLoadModalState({ ...loadModalState, isOpen: false });
+    } catch (error: any) {
+      console.error("Errore nel caricamento:", error);
+      let errorMessage = "Errore nel caricamento. Riprova.";
+      if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      }
+      alert(errorMessage);
+    } finally {
+      setLoadModalState({ ...loadModalState, isProcessing: false });
+    }
   };
 
   return (
     <>
+      {/* Alert per LoadProductModal */}
+      {alerts.load.isVisible && (
+        <div
+          className="fixed top-4 right-4 z-[9999] w-96"
+          style={{ zIndex: 9999 }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <Alert
+            color={alerts.load.type}
+            description={alerts.load.description}
+            isVisible={alerts.load.isVisible}
+            title={alerts.load.title}
+            variant="solid"
+            onClose={() =>
+              setAlerts((prev) => ({
+                ...prev,
+                load: { ...prev.load, isVisible: false },
+              }))
+            }
+          />
+        </div>
+      )}
+
       {/* Notifica di successo */}
-      {showSuccessMessage && (
-        <div className="fixed top-4 right-4 z-50 animate-in slide-in-from-right-full duration-300">
-          <div className="flex items-center gap-3 bg-success-50 border border-success-200 text-success-800 px-4 py-3 rounded-lg shadow-lg min-w-[300px]">
-            <div className="flex-shrink-0">
-              <Icon
-                icon="solar:check-circle-bold"
-                className="text-success-600 text-xl"
-              />
-            </div>
-            <div className="flex-1">
-              <p className="font-medium text-sm">{successMessage}</p>
-            </div>
-            <Button
-              isIconOnly
-              size="sm"
-              variant="light"
-              className="text-success-600 hover:bg-success-100"
-              onPress={() => {
-                setShowSuccessMessage(false);
-                setSuccessMessage("");
-              }}
-            >
-              <Icon icon="solar:close-circle-bold" className="text-lg" />
-            </Button>
-          </div>
+      {alerts.success.isVisible && (
+        <div
+          className="fixed top-20 right-4 z-[9999] w-96"
+          style={{ zIndex: 9999 }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <Alert
+            color="success"
+            variant="solid"
+            description={alerts.success.description}
+            isVisible={alerts.success.isVisible}
+            title={alerts.success.title}
+            onClose={() =>
+              setAlerts((prev) => ({
+                ...prev,
+                success: { ...prev.success, isVisible: false },
+              }))
+            }
+          />
+        </div>
+      )}
+
+      {/* Notifica di errore */}
+      {alerts.error.isVisible && (
+        <div
+          className="fixed top-36 right-4 z-[9999] w-96"
+          style={{ zIndex: 9999 }}
+          onClick={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+        >
+          <Alert
+            color="danger"
+            description={alerts.error.description}
+            isVisible={alerts.error.isVisible}
+            title={alerts.error.title}
+            variant="faded"
+            onClose={() =>
+              setAlerts((prev) => ({
+                ...prev,
+                error: { ...prev.error, isVisible: false },
+              }))
+            }
+          />
         </div>
       )}
 
@@ -1761,12 +2084,16 @@ export default function ProductTable({
                     </p>
                     <div className="flex items-center">
                       <span
-                        className={`w-2 h-2 rounded-full bg-${selectedProduct.warehouse_id
+                        className={`w-2 h-2 rounded-full bg-${(
+                          selectedProduct.warehouse_name ||
+                          selectedProduct.warehouse_id
+                        )
                           .toLowerCase()
-                          .replace(/\s+/g, "")} mr-2`}
+                          .replace(/\s+/g, "")}`}
                       />
                       <p className="font-medium">
-                        {selectedProduct.warehouse_id}
+                        {selectedProduct.warehouse_name ||
+                          selectedProduct.warehouse_id}
                       </p>
                     </div>
                   </div>
@@ -1837,19 +2164,21 @@ export default function ProductTable({
 
       {/* Modal Gestione Stock */}
       <Modal
-        isOpen={isStockModalOpen}
-        onClose={() => setIsStockModalOpen(false)}
+        isOpen={stockModalState.isOpen}
+        onClose={() =>
+          setStockModalState({ ...stockModalState, isOpen: false })
+        }
         size="2xl"
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
             <h3 className="text-xl font-semibold">
-              {stockModalType === "increase"
+              {stockModalState.type === "increase"
                 ? "Aumenta Quantità"
                 : "Diminuisci Quantità"}
             </h3>
             <p className="text-sm text-default-500">
-              {selectedProductForStock?.name}
+              {stockModalState.selectedProduct?.name}
             </p>
           </ModalHeader>
           <ModalBody>
@@ -1858,13 +2187,14 @@ export default function ProductTable({
                 <div>
                   <p className="text-sm text-default-600">Quantità Attuale</p>
                   <p className="text-2xl font-bold">
-                    {selectedProductForStock?.quantity || 0}
+                    {stockModalState.selectedProduct?.quantity || 0}
                   </p>
                 </div>
                 <div>
                   <p className="text-sm text-default-600">Magazzino</p>
                   <p className="font-medium">
-                    {selectedProductForStock?.warehouse_id}
+                    {stockModalState.selectedProduct?.warehouse_name ||
+                      stockModalState.selectedProduct?.warehouse_id}
                   </p>
                 </div>
               </div>
@@ -1872,26 +2202,33 @@ export default function ProductTable({
               <Input
                 type="number"
                 label={`Quantità da ${
-                  stockModalType === "increase" ? "aggiungere" : "rimuovere"
+                  stockModalState.type === "increase"
+                    ? "aggiungere"
+                    : "rimuovere"
                 }`}
                 placeholder="Inserisci la quantità"
-                value={stockAmount}
-                onChange={(e) => setStockAmount(e.target.value)}
+                value={stockModalState.amount}
+                onChange={(e) =>
+                  setStockModalState({
+                    ...stockModalState,
+                    amount: e.target.value,
+                  })
+                }
                 min="1"
                 max={
-                  stockModalType === "decrease"
-                    ? selectedProductForStock?.quantity
+                  stockModalState.type === "decrease"
+                    ? stockModalState.selectedProduct?.quantity
                     : undefined
                 }
                 startContent={
                   <Icon
                     icon={
-                      stockModalType === "increase"
+                      stockModalState.type === "increase"
                         ? "solar:add-circle-bold"
                         : "solar:minus-circle-bold"
                     }
                     className={
-                      stockModalType === "increase"
+                      stockModalState.type === "increase"
                         ? "text-success"
                         : "text-warning"
                     }
@@ -1902,38 +2239,50 @@ export default function ProductTable({
               <Textarea
                 label="Motivo dell'operazione"
                 placeholder="Inserisci il motivo di questa operazione di inventario"
-                value={stockReason}
-                onChange={(e) => setStockReason(e.target.value)}
+                value={stockModalState.reason}
+                onChange={(e) =>
+                  setStockModalState({
+                    ...stockModalState,
+                    reason: e.target.value,
+                  })
+                }
                 minRows={2}
               />
 
-              {stockAmount && selectedProductForStock && (
+              {stockModalState.amount && stockModalState.selectedProduct && (
                 <div className="p-4 bg-primary/10 rounded-lg">
                   <p className="text-sm text-default-600 mb-1">
                     Nuova quantità:
                   </p>
                   <p className="text-xl font-bold text-primary">
-                    {stockModalType === "increase"
-                      ? selectedProductForStock.quantity +
-                        parseInt(stockAmount || "0")
-                      : selectedProductForStock.quantity -
-                        parseInt(stockAmount || "0")}
+                    {stockModalState.type === "increase"
+                      ? stockModalState.selectedProduct.quantity +
+                        parseInt(stockModalState.amount || "0")
+                      : stockModalState.selectedProduct.quantity -
+                        parseInt(stockModalState.amount || "0")}
                   </p>
                 </div>
               )}
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="light" onPress={() => setIsStockModalOpen(false)}>
+            <Button
+              variant="light"
+              onPress={() =>
+                setStockModalState({ ...stockModalState, isOpen: false })
+              }
+            >
               Annulla
             </Button>
             <Button
-              color={stockModalType === "increase" ? "success" : "warning"}
+              color={
+                stockModalState.type === "increase" ? "success" : "warning"
+              }
               onPress={handleStockOperation}
-              isLoading={isProcessingStock}
-              isDisabled={!stockAmount || !stockReason}
+              isLoading={stockModalState.isProcessing}
+              isDisabled={!stockModalState.amount || !stockModalState.reason}
             >
-              {stockModalType === "increase"
+              {stockModalState.type === "increase"
                 ? "Aumenta Quantità"
                 : "Diminuisci Quantità"}
             </Button>
@@ -1943,15 +2292,15 @@ export default function ProductTable({
 
       {/* Modal Spostamento tra Magazzini */}
       <Modal
-        isOpen={isMoveModalOpen}
-        onClose={() => setIsMoveModalOpen(false)}
+        isOpen={moveModalState.isOpen}
+        onClose={() => setMoveModalState({ ...moveModalState, isOpen: false })}
         size="2xl"
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
             <h3 className="text-xl font-semibold">Sposta tra Magazzini</h3>
             <p className="text-sm text-default-500">
-              {selectedProductForMove?.name}
+              {moveModalState.selectedProduct?.name}
             </p>
           </ModalHeader>
           <ModalBody>
@@ -1965,15 +2314,17 @@ export default function ProductTable({
                     </p>
                   </div>
                   <p className="font-medium text-lg">
-                    {selectedProductForMove?.warehouse_id}
+                    {moveModalState.selectedProduct?.warehouse_name ||
+                      moveModalState.selectedProduct?.warehouse_id}
                   </p>
                   <p className="text-xs text-default-500">
-                    Disponibili: {selectedProductForMove?.quantity} unità
+                    Disponibili: {moveModalState.selectedProduct?.quantity}{" "}
+                    unità
                   </p>
                 </div>
                 <div
                   className={`p-4 rounded-lg border-2 transition-all ${
-                    targetWarehouse
+                    moveModalState.targetWarehouse
                       ? "border-success bg-success/10"
                       : "border-dashed border-primary bg-primary/5"
                   }`}
@@ -1981,17 +2332,21 @@ export default function ProductTable({
                   <div className="flex items-center gap-2 mb-2">
                     <Icon
                       icon={
-                        targetWarehouse
+                        moveModalState.targetWarehouse
                           ? "solar:home-bold"
                           : "solar:home-linear"
                       }
                       className={
-                        targetWarehouse ? "text-success" : "text-primary"
+                        moveModalState.targetWarehouse
+                          ? "text-success"
+                          : "text-primary"
                       }
                     />
                     <p
                       className={`text-sm font-medium ${
-                        targetWarehouse ? "text-success" : "text-primary"
+                        moveModalState.targetWarehouse
+                          ? "text-success"
+                          : "text-primary"
                       }`}
                     >
                       Magazzino Destinazione
@@ -1999,18 +2354,20 @@ export default function ProductTable({
                   </div>
                   <p
                     className={`font-medium text-lg ${
-                      targetWarehouse ? "text-success" : "text-primary"
+                      moveModalState.targetWarehouse
+                        ? "text-success"
+                        : "text-primary"
                     }`}
                   >
-                    {targetWarehouse
+                    {moveModalState.targetWarehouse
                       ? warehouses.find(
                           (w) =>
                             (w.WarehouseUUID || w.WarehouseID.toString()) ===
-                            targetWarehouse
+                            moveModalState.targetWarehouse
                         )?.WarehouseName
                       : "Seleziona destinazione"}
                   </p>
-                  {targetWarehouse && (
+                  {moveModalState.targetWarehouse && (
                     <p className="text-xs text-success-600">
                       Magazzino selezionato ✓
                     </p>
@@ -2033,10 +2390,15 @@ export default function ProductTable({
                 type="number"
                 label="Quantità da spostare"
                 placeholder="Inserisci la quantità"
-                value={moveQuantity}
-                onChange={(e) => setMoveQuantity(e.target.value)}
+                value={moveModalState.quantity}
+                onChange={(e) =>
+                  setMoveModalState({
+                    ...moveModalState,
+                    quantity: e.target.value,
+                  })
+                }
                 min="1"
-                max={selectedProductForMove?.quantity}
+                max={moveModalState.selectedProduct?.quantity}
                 startContent={
                   <Icon
                     icon="solar:transfer-horizontal-bold"
@@ -2052,21 +2414,32 @@ export default function ProductTable({
                 </label>
                 <Select
                   placeholder="Scegli dove spostare il prodotto"
-                  selectedKeys={targetWarehouse ? [targetWarehouse] : undefined}
+                  selectedKeys={
+                    moveModalState.targetWarehouse
+                      ? [moveModalState.targetWarehouse]
+                      : undefined
+                  }
                   onSelectionChange={(keys) => {
                     const selectedKey = Array.from(keys)[0] as string;
-                    setTargetWarehouse(selectedKey || "");
+                    setMoveModalState({
+                      ...moveModalState,
+                      targetWarehouse: selectedKey || "",
+                    });
                   }}
                   size="lg"
                   variant="bordered"
                   classNames={{
-                    trigger: targetWarehouse ? "border-success" : "",
+                    trigger: moveModalState.targetWarehouse
+                      ? "border-success"
+                      : "",
                   }}
                   startContent={
                     <Icon
                       icon="solar:buildings-2-bold"
                       className={
-                        targetWarehouse ? "text-success" : "text-default-400"
+                        moveModalState.targetWarehouse
+                          ? "text-success"
+                          : "text-default-400"
                       }
                     />
                   }
@@ -2074,13 +2447,13 @@ export default function ProductTable({
                 >
                   {warehouses
                     .filter((warehouse) => {
-                      if (!selectedProductForMove) return true;
+                      if (!moveModalState.selectedProduct) return true;
 
                       const warehouseUUID = warehouse.WarehouseUUID;
                       const warehouseID = warehouse.WarehouseID.toString();
                       const warehouseCode = warehouse.WarehouseCode;
                       const sourceWarehouseId =
-                        selectedProductForMove.warehouse_id;
+                        moveModalState.selectedProduct.warehouse_id;
 
                       return (
                         warehouseUUID !== sourceWarehouseId &&
@@ -2114,7 +2487,7 @@ export default function ProductTable({
                       </SelectItem>
                     ))}
                 </Select>
-                {!targetWarehouse && (
+                {!moveModalState.targetWarehouse && (
                   <p className="text-xs text-warning-600 flex items-center gap-1">
                     <Icon icon="solar:info-circle-bold" width={12} />
                     Devi selezionare un magazzino di destinazione
@@ -2123,84 +2496,95 @@ export default function ProductTable({
               </div>
 
               {/* Riepilogo operazione */}
-              {moveQuantity && targetWarehouse && selectedProductForMove && (
-                <div className="p-4 bg-gradient-to-r from-primary/10 to-success/10 rounded-lg border border-primary/20">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Icon
-                      icon="solar:document-text-bold"
-                      className="text-primary"
-                    />
-                    <h4 className="font-semibold text-primary">
-                      Riepilogo Operazione
-                    </h4>
-                  </div>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-default-600">Prodotto:</span>
-                        <span className="font-medium">
-                          {selectedProductForMove.name}
-                        </span>
+              {moveModalState.quantity &&
+                moveModalState.targetWarehouse &&
+                moveModalState.selectedProduct && (
+                  <div className="p-4 bg-gradient-to-r from-primary/10 to-success/10 rounded-lg border border-primary/20">
+                    <div className="flex items-center gap-2 mb-3">
+                      <Icon
+                        icon="solar:document-text-bold"
+                        className="text-primary"
+                      />
+                      <h4 className="font-semibold text-primary">
+                        Riepilogo Operazione
+                      </h4>
+                    </div>
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-default-600">Prodotto:</span>
+                          <span className="font-medium">
+                            {moveModalState.selectedProduct.name}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-default-600">
+                            Quantità da spostare:
+                          </span>
+                          <span className="font-bold text-primary">
+                            {moveModalState.quantity} unità
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-default-600">
+                            Quantità rimanente:
+                          </span>
+                          <span className="font-bold text-default-700">
+                            {moveModalState.selectedProduct.quantity -
+                              parseInt(moveModalState.quantity || "0")}{" "}
+                            unità
+                          </span>
+                        </div>
                       </div>
-                      <div className="flex justify-between">
-                        <span className="text-default-600">
-                          Quantità da spostare:
-                        </span>
-                        <span className="font-bold text-primary">
-                          {moveQuantity} unità
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-default-600">
-                          Quantità rimanente:
-                        </span>
-                        <span className="font-bold text-default-700">
-                          {selectedProductForMove.quantity -
-                            parseInt(moveQuantity || "0")}{" "}
-                          unità
-                        </span>
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-default-600">Da:</span>
+                          <span className="font-medium">
+                            {moveModalState.selectedProduct.warehouse_name ||
+                              moveModalState.selectedProduct.warehouse_id}
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-default-600">Verso:</span>
+                          <span className="font-bold text-success">
+                            {
+                              warehouses.find(
+                                (w) =>
+                                  (w.WarehouseUUID ||
+                                    w.WarehouseID.toString()) ===
+                                  moveModalState.targetWarehouse
+                              )?.WarehouseName
+                            }
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-1 text-success-600">
+                          <Icon icon="solar:check-circle-bold" width={14} />
+                          <span className="text-xs">
+                            Pronto per il trasferimento
+                          </span>
+                        </div>
                       </div>
                     </div>
-                    <div className="space-y-2">
-                      <div className="flex justify-between">
-                        <span className="text-default-600">Da:</span>
-                        <span className="font-medium">
-                          {selectedProductForMove.warehouse_id}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-default-600">Verso:</span>
-                        <span className="font-bold text-success">
-                          {
-                            warehouses.find(
-                              (w) =>
-                                (w.WarehouseUUID ||
-                                  w.WarehouseID.toString()) === targetWarehouse
-                            )?.WarehouseName
-                          }
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1 text-success-600">
-                        <Icon icon="solar:check-circle-bold" width={14} />
-                        <span className="text-xs">
-                          Pronto per il trasferimento
-                        </span>
-                      </div>
-                    </div>
                   </div>
-                </div>
-              )}
+                )}
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="light" onPress={() => setIsMoveModalOpen(false)}>
+            <Button
+              variant="light"
+              onPress={() =>
+                setMoveModalState({ ...moveModalState, isOpen: false })
+              }
+            >
               Annulla
             </Button>
             <Button
               color="primary"
               onPress={handleMoveOperation}
-              isLoading={isProcessingMove}
-              isDisabled={!moveQuantity || !targetWarehouse}
+              isLoading={moveModalState.isProcessing}
+              isDisabled={
+                !moveModalState.quantity || !moveModalState.targetWarehouse
+              }
               startContent={<Icon icon="solar:transfer-horizontal-bold" />}
             >
               Sposta Prodotto
@@ -2209,156 +2593,19 @@ export default function ProductTable({
         </ModalContent>
       </Modal>
 
-      {/* Modal Caricamento su Furgone */}
-      <Modal
-        isOpen={isLoadModalOpen}
-        onClose={() => setIsLoadModalOpen(false)}
-        size="2xl"
-      >
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">
-            <h3 className="text-xl font-semibold">Carica su Furgone</h3>
-            <p className="text-sm text-default-500">
-              {selectedProductForLoad?.name}
-            </p>
-          </ModalHeader>
-          <ModalBody>
-            <div className="space-y-4">
-              <div className="p-4 bg-default-100 rounded-lg">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-default-600">Magazzino</p>
-                    <p className="font-medium">
-                      {selectedProductForLoad?.warehouse_id}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-default-600">Disponibili</p>
-                    <p className="font-medium">
-                      {selectedProductForLoad?.quantity} unità
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <Input
-                type="number"
-                label="Quantità da caricare"
-                placeholder="Inserisci la quantità"
-                value={loadQuantity}
-                onChange={(e) => setLoadQuantity(e.target.value)}
-                min="1"
-                max={selectedProductForLoad?.quantity}
-                startContent={
-                  <Icon icon="solar:delivery-bold" className="text-secondary" />
-                }
-              />
-
-              <Select
-                label="Furgone destinazione"
-                placeholder="Seleziona il furgone"
-                selectedKeys={targetVehicle ? [targetVehicle] : []}
-                onChange={(e) => setTargetVehicle(e.target.value)}
-              >
-                {vehicles.map((vehicle) => (
-                  <SelectItem
-                    key={vehicle.vehicle_id}
-                    textValue={`${vehicle.name} ${vehicle.license_plate}`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <Icon
-                        icon="solar:delivery-bold"
-                        className="text-secondary"
-                        width={16}
-                      />
-                      <span className="font-medium">{vehicle.name}</span>
-                      <span className="text-xs text-default-500">
-                        {vehicle.license_plate}
-                      </span>
-                    </div>
-                  </SelectItem>
-                ))}
-              </Select>
-
-              {vehicles.filter((v) => !v.IsAvailable).length > 0 && (
-                <div className="p-3 bg-warning/10 rounded-lg">
-                  <p className="text-sm text-warning-600 mb-2">
-                    <Icon
-                      icon="solar:info-circle-bold"
-                      className="inline mr-1"
-                    />
-                    Furgoni non disponibili:
-                  </p>
-                  <div className="space-y-1">
-                    {vehicles
-                      .filter((v) => !v.IsAvailable)
-                      .map((vehicle, idx) => (
-                        <p
-                          key={vehicle.VehicleID || idx}
-                          className="text-xs text-warning-600"
-                        >
-                          • {vehicle.VehicleName} {vehicle.VehiclePlate}
-                        </p>
-                      ))}
-                  </div>
-                </div>
-              )}
-
-              {loadQuantity && targetVehicle && selectedProductForLoad && (
-                <div className="p-4 bg-secondary/10 rounded-lg">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <p className="text-default-600">Quantità da caricare:</p>
-                      <p className="font-bold text-secondary">
-                        {loadQuantity} unità
-                      </p>
-                    </div>
-                    <div>
-                      <p className="text-default-600">Su furgone:</p>
-                      <p className="font-bold">
-                        {(function () {
-                          const v = vehicles.find(
-                            (v) => v.vehicle_id === targetVehicle
-                          );
-                          return v
-                            ? `${v.name} ${v.license_plate}`
-                            : targetVehicle;
-                        })()}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </ModalBody>
-          <ModalFooter>
-            <Button variant="light" onPress={() => setIsLoadModalOpen(false)}>
-              Annulla
-            </Button>
-            <Button
-              color="secondary"
-              onPress={handleLoadOperation}
-              isLoading={isProcessingLoad}
-              isDisabled={!loadQuantity || !targetVehicle}
-              startContent={<Icon icon="solar:delivery-bold" />}
-            >
-              Carica su Furgone
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
       {/* Modal Operazioni Stock Batch */}
       <Modal
-        isOpen={isBatchStockModalOpen}
-        onClose={() => setIsBatchStockModalOpen(false)}
+        isOpen={batchStockState.isOpen}
+        onClose={() =>
+          setBatchStockState({ ...batchStockState, isOpen: false })
+        }
         size="5xl"
         scrollBehavior="inside"
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
             <h3 className="text-xl font-semibold">
-              {batchStockType === "increase"
+              {batchStockState.type === "increase"
                 ? "Aumenta Stock Multipli"
                 : "Diminuisci Stock Multipli"}
             </h3>
@@ -2371,8 +2618,13 @@ export default function ProductTable({
               <Textarea
                 label="Motivo dell'operazione (obbligatorio)"
                 placeholder="Inserisci il motivo di questa operazione di inventario"
-                value={batchStockReason}
-                onChange={(e) => setBatchStockReason(e.target.value)}
+                value={batchStockState.reason}
+                onChange={(e) =>
+                  setBatchStockState({
+                    ...batchStockState,
+                    reason: e.target.value,
+                  })
+                }
                 minRows={2}
                 isRequired
               />
@@ -2385,14 +2637,14 @@ export default function ProductTable({
                   {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
                     const inputAmount = parseInt(
-                      batchStockData[productId] || "0"
+                      batchStockState.data[productId] || "0"
                     );
                     const isValidAmount =
-                      batchStockType === "increase"
+                      batchStockState.type === "increase"
                         ? true
                         : inputAmount <= product.quantity;
                     const wouldBeNegative =
-                      batchStockType === "decrease" &&
+                      batchStockState.type === "decrease" &&
                       inputAmount > product.quantity;
 
                     return (
@@ -2409,7 +2661,10 @@ export default function ProductTable({
                           <div className="flex items-center gap-4 text-sm text-default-600">
                             <span>SKU: {product.sku}</span>
                             <span>Attuale: {product.quantity}</span>
-                            <span>Magazzino: {product.warehouse_id}</span>
+                            <span>
+                              Magazzino:{" "}
+                              {product.warehouse_name || product.warehouse_id}
+                            </span>
                             {wouldBeNegative && (
                               <span className="text-danger font-medium">
                                 ⚠️ Quantità insufficiente
@@ -2424,28 +2679,31 @@ export default function ProductTable({
                             placeholder="Qta"
                             min="1"
                             max={
-                              batchStockType === "decrease"
+                              batchStockState.type === "decrease"
                                 ? product.quantity
                                 : undefined
                             }
-                            value={batchStockData[productId] || ""}
+                            value={batchStockState.data[productId] || ""}
                             onChange={(e) =>
-                              setBatchStockData((prev) => ({
-                                ...prev,
-                                [productId]: e.target.value,
-                              }))
+                              setBatchStockState({
+                                ...batchStockState,
+                                data: {
+                                  ...batchStockState.data,
+                                  [productId]: e.target.value,
+                                },
+                              })
                             }
                             startContent={
                               <Icon
                                 icon={
-                                  batchStockType === "increase"
+                                  batchStockState.type === "increase"
                                     ? "solar:add-circle-bold"
                                     : "solar:minus-circle-bold"
                                 }
                                 className={
                                   wouldBeNegative
                                     ? "text-danger"
-                                    : batchStockType === "increase"
+                                    : batchStockState.type === "increase"
                                     ? "text-success"
                                     : "text-warning"
                                 }
@@ -2461,7 +2719,7 @@ export default function ProductTable({
                           />
                         </div>
                         <div className="w-20 text-right">
-                          {batchStockData[productId] && (
+                          {batchStockState.data[productId] && (
                             <div className="text-sm">
                               <p
                                 className={`font-bold ${
@@ -2470,7 +2728,7 @@ export default function ProductTable({
                                     : "text-primary"
                                 }`}
                               >
-                                {batchStockType === "increase"
+                                {batchStockState.type === "increase"
                                   ? product.quantity + inputAmount
                                   : Math.max(0, product.quantity - inputAmount)}
                               </p>
@@ -2494,7 +2752,10 @@ export default function ProductTable({
                       const productId = product.product_id || product.id || "";
                       newData[productId] = "1";
                     });
-                    setBatchStockData(newData);
+                    setBatchStockState({
+                      ...batchStockState,
+                      data: newData,
+                    });
                   }}
                 >
                   Imposta tutto a 1
@@ -2508,7 +2769,10 @@ export default function ProductTable({
                       const productId = product.product_id || product.id || "";
                       newData[productId] = "5";
                     });
-                    setBatchStockData(newData);
+                    setBatchStockState({
+                      ...batchStockState,
+                      data: newData,
+                    });
                   }}
                 >
                   Imposta tutto a 5
@@ -2522,7 +2786,10 @@ export default function ProductTable({
                       const productId = product.product_id || product.id || "";
                       newData[productId] = "10";
                     });
-                    setBatchStockData(newData);
+                    setBatchStockState({
+                      ...batchStockState,
+                      data: newData,
+                    });
                   }}
                 >
                   Imposta tutto a 10
@@ -2531,7 +2798,9 @@ export default function ProductTable({
                   size="sm"
                   variant="flat"
                   color="warning"
-                  onClick={() => setBatchStockData({})}
+                  onClick={() =>
+                    setBatchStockState({ ...batchStockState, data: {} })
+                  }
                 >
                   Azzera tutto
                 </Button>
@@ -2541,21 +2810,25 @@ export default function ProductTable({
           <ModalFooter>
             <Button
               variant="light"
-              onPress={() => setIsBatchStockModalOpen(false)}
+              onPress={() =>
+                setBatchStockState({ ...batchStockState, isOpen: false })
+              }
             >
               Annulla
             </Button>
             <Button
-              color={batchStockType === "increase" ? "success" : "warning"}
+              color={
+                batchStockState.type === "increase" ? "success" : "warning"
+              }
               onPress={handleBatchStockOperation}
-              isLoading={isProcessingBatchStock}
+              isLoading={batchStockState.isProcessing}
               isDisabled={
-                !batchStockReason ||
-                Object.keys(batchStockData).length === 0 ||
+                !batchStockState.reason ||
+                Object.keys(batchStockState.data).length === 0 ||
                 getBatchStockValidationErrors().length > 0
               }
             >
-              {batchStockType === "increase"
+              {batchStockState.type === "increase"
                 ? "Aumenta Stock"
                 : "Diminuisci Stock"}
             </Button>
@@ -2565,8 +2838,8 @@ export default function ProductTable({
 
       {/* Modal Spostamento Batch */}
       <Modal
-        isOpen={isBatchMoveModalOpen}
-        onClose={() => setIsBatchMoveModalOpen(false)}
+        isOpen={batchMoveState.isOpen}
+        onClose={() => setBatchMoveState({ ...batchMoveState, isOpen: false })}
         size="5xl"
         scrollBehavior="inside"
       >
@@ -2585,11 +2858,16 @@ export default function ProductTable({
                 label="Magazzino di destinazione"
                 placeholder="Seleziona il magazzino di destinazione"
                 selectedKeys={
-                  batchTargetWarehouse ? [batchTargetWarehouse] : undefined
+                  batchMoveState.targetWarehouse
+                    ? [batchMoveState.targetWarehouse]
+                    : undefined
                 }
                 onSelectionChange={(keys) => {
                   const selectedKey = Array.from(keys)[0] as string;
-                  setBatchTargetWarehouse(selectedKey || "");
+                  setBatchMoveState({
+                    ...batchMoveState,
+                    targetWarehouse: selectedKey || "",
+                  });
                 }}
                 isRequired
                 aria-label="Seleziona magazzino di destinazione per trasferimento batch"
@@ -2683,7 +2961,7 @@ export default function ProductTable({
                   {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
                     const inputAmount = parseInt(
-                      batchMoveData[productId] || "0"
+                      batchMoveState.data[productId] || "0"
                     );
                     const isValidAmount = inputAmount <= product.quantity;
                     const exceedsAvailable = inputAmount > product.quantity;
@@ -2702,8 +2980,11 @@ export default function ProductTable({
                           <div className="flex items-center gap-4 text-sm text-default-600">
                             <span>SKU: {product.sku}</span>
                             <span>Disponibili: {product.quantity}</span>
-                            <span>Da: {product.warehouse_id}</span>
-                            {batchTargetWarehouse && (
+                            <span>
+                              Da:{" "}
+                              {product.warehouse_name || product.warehouse_id}
+                            </span>
+                            {batchMoveState.targetWarehouse && (
                               <span className="text-primary">
                                 →{" "}
                                 {
@@ -2711,7 +2992,7 @@ export default function ProductTable({
                                     (w) =>
                                       (w.WarehouseUUID ||
                                         w.WarehouseID.toString()) ===
-                                      batchTargetWarehouse
+                                      batchMoveState.targetWarehouse
                                   )?.WarehouseName
                                 }
                               </span>
@@ -2730,12 +3011,15 @@ export default function ProductTable({
                             placeholder="Qta"
                             min="1"
                             max={product.quantity}
-                            value={batchMoveData[productId] || ""}
+                            value={batchMoveState.data[productId] || ""}
                             onChange={(e) =>
-                              setBatchMoveData((prev) => ({
-                                ...prev,
-                                [productId]: e.target.value,
-                              }))
+                              setBatchMoveState({
+                                ...batchMoveState,
+                                data: {
+                                  ...batchMoveState.data,
+                                  [productId]: e.target.value,
+                                },
+                              })
                             }
                             startContent={
                               <Icon
@@ -2757,7 +3041,7 @@ export default function ProductTable({
                           />
                         </div>
                         <div className="w-20 text-right">
-                          {batchMoveData[productId] && (
+                          {batchMoveState.data[productId] && (
                             <div className="text-sm">
                               <p
                                 className={`font-bold ${
@@ -2784,17 +3068,19 @@ export default function ProductTable({
           <ModalFooter>
             <Button
               variant="light"
-              onPress={() => setIsBatchMoveModalOpen(false)}
+              onPress={() =>
+                setBatchMoveState({ ...batchMoveState, isOpen: false })
+              }
             >
               Annulla
             </Button>
             <Button
               color="primary"
               onPress={handleBatchMoveOperation}
-              isLoading={isProcessingBatchMove}
+              isLoading={batchMoveState.isProcessing}
               isDisabled={
-                !batchTargetWarehouse ||
-                Object.keys(batchMoveData).length === 0 ||
+                !batchMoveState.targetWarehouse ||
+                Object.keys(batchMoveState.data).length === 0 ||
                 getBatchMoveValidationErrors().length > 0
               }
               startContent={<Icon icon="solar:transfer-horizontal-bold" />}
@@ -2807,8 +3093,8 @@ export default function ProductTable({
 
       {/* Modal Caricamento Batch */}
       <Modal
-        isOpen={isBatchLoadModalOpen}
-        onClose={() => setIsBatchLoadModalOpen(false)}
+        isOpen={batchLoadState.isOpen}
+        onClose={() => setBatchLoadState({ ...batchLoadState, isOpen: false })}
         size="5xl"
         scrollBehavior="inside"
       >
@@ -2826,8 +3112,17 @@ export default function ProductTable({
               <Select
                 label="Furgone destinazione"
                 placeholder="Seleziona il furgone"
-                selectedKeys={batchTargetVehicle ? [batchTargetVehicle] : []}
-                onChange={(e) => setBatchTargetVehicle(e.target.value)}
+                selectedKeys={
+                  batchLoadState.targetVehicle
+                    ? [batchLoadState.targetVehicle]
+                    : []
+                }
+                onChange={(e) =>
+                  setBatchLoadState({
+                    ...batchLoadState,
+                    targetVehicle: e.target.value,
+                  })
+                }
                 isRequired
               >
                 {vehicles.map((vehicle) => (
@@ -2882,7 +3177,7 @@ export default function ProductTable({
                   {batchProducts.map((product) => {
                     const productId = product.product_id || product.id || "";
                     const inputAmount = parseInt(
-                      batchLoadData[productId] || "0"
+                      batchLoadState.data[productId] || "0"
                     );
                     const exceedsAvailable = inputAmount > product.quantity;
 
@@ -2900,13 +3195,16 @@ export default function ProductTable({
                           <div className="flex items-center gap-4 text-sm text-default-600">
                             <span>SKU: {product.sku}</span>
                             <span>Disponibili: {product.quantity}</span>
-                            <span>Magazzino: {product.warehouse_id}</span>
-                            {batchTargetVehicle && (
+                            <span>
+                              Magazzino:{" "}
+                              {product.warehouse_name || product.warehouse_id}
+                            </span>
+                            {batchLoadState.targetVehicle && (
                               <span className="text-secondary">
                                 →{" "}
                                 {
                                   vehicles.find(
-                                    (v) => v.id === batchTargetVehicle
+                                    (v) => v.id === batchLoadState.targetVehicle
                                   )?.name
                                 }
                               </span>
@@ -2925,12 +3223,15 @@ export default function ProductTable({
                             placeholder="Qta"
                             min="1"
                             max={product.quantity}
-                            value={batchLoadData[productId] || ""}
+                            value={batchLoadState.data[productId] || ""}
                             onChange={(e) =>
-                              setBatchLoadData((prev) => ({
-                                ...prev,
-                                [productId]: e.target.value,
-                              }))
+                              setBatchLoadState({
+                                ...batchLoadState,
+                                data: {
+                                  ...batchLoadState.data,
+                                  [productId]: e.target.value,
+                                },
+                              })
                             }
                             startContent={
                               <Icon
@@ -2952,7 +3253,7 @@ export default function ProductTable({
                           />
                         </div>
                         <div className="w-20 text-right">
-                          {batchLoadData[productId] && (
+                          {batchLoadState.data[productId] && (
                             <div className="text-sm">
                               <p
                                 className={`font-bold ${
@@ -2966,16 +3267,18 @@ export default function ProductTable({
                               <p className="text-xs text-default-500">
                                 Da caricare
                               </p>
-                              {batchTargetVehicle && (
+                              {batchLoadState.targetVehicle && (
                                 <p className="text-xs text-secondary">
                                   Su furgone:{" "}
                                   {(function () {
                                     const v = vehicles.find(
-                                      (v) => v.vehicle_id === batchTargetVehicle
+                                      (v) =>
+                                        v.vehicle_id ===
+                                        batchLoadState.targetVehicle
                                     );
                                     return v
                                       ? `${v.name} ${v.license_plate}`
-                                      : batchTargetVehicle;
+                                      : batchLoadState.targetVehicle;
                                   })()}
                                 </p>
                               )}
@@ -2992,22 +3295,11 @@ export default function ProductTable({
           <ModalFooter>
             <Button
               variant="light"
-              onPress={() => setIsBatchLoadModalOpen(false)}
+              onPress={() =>
+                setBatchLoadState({ ...batchLoadState, isOpen: false })
+              }
             >
               Annulla
-            </Button>
-            <Button
-              color="secondary"
-              onPress={handleBatchLoadOperation}
-              isLoading={isProcessingBatchLoad}
-              isDisabled={
-                !batchTargetVehicle ||
-                Object.keys(batchLoadData).length === 0 ||
-                getBatchLoadValidationErrors().length > 0
-              }
-              startContent={<Icon icon="solar:delivery-bold" />}
-            >
-              Carica su Furgone
             </Button>
           </ModalFooter>
         </ModalContent>

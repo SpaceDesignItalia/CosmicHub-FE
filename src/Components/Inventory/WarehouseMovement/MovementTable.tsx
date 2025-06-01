@@ -137,7 +137,7 @@ export default function MovementTable({
   movements = [],
   onDeleteMovement,
   onUpdateStatus,
-  sortBy,
+  sortBy = { field: "date", direction: "desc" },
   onSort,
   isLoading = false,
 }: MovementTableProps) {
@@ -170,13 +170,32 @@ export default function MovementTable({
 
   const sortedItems = useMemo(() => {
     return [...filteredItems].sort((a: Movement, b: Movement) => {
-      const first = a[sortBy?.field || "date"];
-      const second = b[sortBy?.field || "date"];
+      const field = sortBy?.field || "date";
       const direction = sortBy?.direction === "asc" ? 1 : -1;
 
+      let first = a[field];
+      let second = b[field];
+
+      // Special handling for date sorting
+      if (field === "date") {
+        // Convert dates to comparable format
+        const firstDate = new Date(first as string).getTime();
+        const secondDate = new Date(second as string).getTime();
+
+        // Handle invalid dates
+        if (isNaN(firstDate) && isNaN(secondDate)) return 0;
+        if (isNaN(firstDate)) return 1;
+        if (isNaN(secondDate)) return -1;
+
+        return direction * (firstDate - secondDate);
+      }
+
+      // Handle string sorting
       if (typeof first === "string" && typeof second === "string") {
         return direction * first.localeCompare(second);
       }
+
+      // Handle number sorting
       return direction * ((first as number) - (second as number));
     });
   }, [filteredItems, sortBy]);
@@ -473,7 +492,10 @@ export default function MovementTable({
         selectedKeys={selectedKeys}
         sortDescriptor={{
           column: sortBy?.field || "date",
-          direction: sortBy?.direction === "asc" ? "ascending" : "descending",
+          direction:
+            (sortBy?.direction || "desc") === "asc"
+              ? "ascending"
+              : "descending",
         }}
         topContent={topContent}
         topContentPlacement="inside"

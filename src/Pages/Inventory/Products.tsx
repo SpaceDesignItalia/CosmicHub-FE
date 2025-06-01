@@ -41,6 +41,7 @@ interface Product {
   // Campi calcolati per UI
   status: "Disponibile" | "Esaurito" | "Bassa giacenza";
   category: string;
+  warehouse_name?: string; // Nome del magazzino per visualizzazione
   image?: string;
 }
 
@@ -160,8 +161,7 @@ export default function Products() {
       try {
         // Ottieni le categorie prima (ne abbiamo bisogno per mappare i prodotti)
         const categoriesRes = await axios.get("/Product/GET/GetAllCategories");
-        const categoriesData = categoriesRes.data as CategoryAttribute[];
-        setCategoriesData(categoriesData);
+        setCategoriesData(categoriesRes.data);
 
         // Estrai i nomi unici delle categorie
         const uniqueCategories = ["Tutti"];
@@ -221,14 +221,12 @@ export default function Products() {
             quantity: quantity, // Usa stock_unit come quantità
             status,
             category: categoryName,
-            warehouse_id: warehouseDetails?.name || selectedWarehouse || "Magazzino Principale", // Aggiungi il nome del magazzino
+            warehouse_name:
+              warehouseDetails?.name ||
+              selectedWarehouse ||
+              "Magazzino Principale", // Aggiungi il nome del magazzino
           } as Product;
         });
-
-        // Log per debug: controlla se ci sono prodotti senza quantità
-        const productsWithoutQuantity = formattedProducts.filter(
-          (p: Product) => !p.quantity
-        );
 
         setProducts(formattedProducts);
       } catch (error) {
