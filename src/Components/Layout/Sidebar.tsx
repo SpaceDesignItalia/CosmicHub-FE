@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -10,6 +10,7 @@ import {
   Dropdown,
   DropdownItem,
   DropdownMenu,
+  DropdownSection,
   DropdownTrigger,
   Listbox,
   ListboxItem,
@@ -117,40 +118,30 @@ export const sectionNestedItems = [
   },
 ];
 
-interface ThemeSwitchProps {
-  onToggle: () => void;
-  isDark: boolean;
-}
+// Remove the ThemeSwitchProps interface since it's no longer needed
+// interface ThemeSwitchProps {
+//   onToggle: () => void;
+//   isDark: boolean;
+// }
 
-const ThemeSwitch = ({ onToggle, isDark }: ThemeSwitchProps) => {
-  return (
-    <Button
-      fullWidth
-      className={cn(
-        "justify-start",
-        isDark
-          ? "text-default-500 data-[hover=true]:text-foreground"
-          : "text-default-700 data-[hover=true]:text-foreground-900"
-      )}
-      startContent={
-        <Icon
-          className={isDark ? "text-default-500" : "text-default-700"}
-          icon={isDark ? "solar:moon-linear" : "solar:sun-2-linear"}
-          width={24}
-        />
-      }
-      variant="light"
-      onPress={onToggle}
-    >
-      {isDark ? "Dark Theme" : "Light Theme"}
-    </Button>
-  );
-};
+async function handleLogout() {
+  try {
+    const res = await axios.post("/Authentication/POST/Logout");
+    console.log(res);
+
+    if (res.status == 200) {
+      window.location.href = "/login";
+    }
+  } catch (error) {
+    console.log(error);
+  }
+}
 
 interface User {
   name: string;
   surname: string;
-  company: string;
+  email: string;
+  company?: string;
 }
 
 // Interfaccia per il tipo di magazzino
@@ -207,11 +198,31 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     React.useEffect(() => {
       const currentPath = location.pathname;
       const firstPathSegment = currentPath.split("/")[1];
-      
+
       if (firstPathSegment) {
-        setSelected(firstPathSegment);
+        // Prima cerco negli elementi di primo livello
+        const topLevelItem = sectionNestedItems.find(
+          (item) => item.key === firstPathSegment
+        );
+        if (topLevelItem) {
+          setSelected(firstPathSegment);
+        } else {
+          // Poi cerco negli elementi nidificati
+          for (const section of sectionNestedItems) {
+            if (section.items) {
+              const nestedItem = section.items.find(
+                (item) => item.href === currentPath
+              );
+              if (nestedItem) {
+                setSelected(nestedItem.key);
+                break;
+              }
+            }
+          }
+        }
       }
     }, [location.pathname]);
+
     // Stato per i magazzini
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
@@ -241,6 +252,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           setUser({
             name: userResponse.data.name,
             surname: userResponse.data.surname,
+            email: userResponse.data.email,
             company: companyResponse.data.name,
           });
         } catch (error) {
@@ -280,15 +292,17 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     }, [refreshWarehouses]); // Aggiungiamo refreshWarehouses come dipendenza per forzare il refresh
 
     // Stato per il magazzino selezionato
-    const [selectedWarehouse, setSelectedWarehouse] = React.useState<string | null>(() => {
+    const [selectedWarehouse, setSelectedWarehouse] = React.useState<
+      string | null
+    >(() => {
       // Recupero il magazzino selezionato dal localStorage
-      return localStorage.getItem('selectedWarehouse');
+      return localStorage.getItem("selectedWarehouse");
     });
 
     // Salvo il magazzino selezionato nel localStorage
     React.useEffect(() => {
       if (selectedWarehouse) {
-        localStorage.setItem('selectedWarehouse', selectedWarehouse);
+        localStorage.setItem("selectedWarehouse", selectedWarehouse);
       }
     }, [selectedWarehouse]);
 
@@ -537,17 +551,72 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               navigate("/settings");
             }}
           >
-            <Avatar
-              isBordered
-              size="sm"
-              src="https://i.pravatar.cc/150?u=a04258114e29026708c"
-            />
-            <div className="flex flex-col">
-              <p className="text-small font-medium text-foreground">
-                {user?.name} {user?.surname}
-              </p>
-              <p className="text-tiny text-default-500">{user?.company}</p>
-            </div>
+            <Dropdown showArrow>
+              <DropdownTrigger>
+                <Button
+                  fullWidth
+                  className="h-[60px] justify-start gap-3 rounded-[14px] border-1 border-default-300 bg-transparent px-3 py-[10px]"
+                >
+                  <div className="flex w-full items-center gap-3">
+                    <Avatar
+                      size="sm"
+                      src="https://nextuipro.nyc3.cdn.digitaloceanspaces.com/components-images/avatars/3a906b3de8eaa53e14582edf5c918b5d.jpg"
+                    />
+                    <div className="flex flex-col text-left">
+                      <p className="text-small font-semibold leading-5 text-foreground">
+                        {user?.name} {user?.surname}
+                      </p>
+                      <p className="text-tiny">{user?.email}</p>
+                    </div>
+                  </div>
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu
+                aria-label="Profile Actions"
+                className="w-[210px] bg-content1 px-[8px] py-[8px]"
+                variant="flat"
+              >
+                <DropdownSection showDivider aria-label="profile-section-1">
+                  <DropdownItem key="settings" href="/settings">
+                    <div className="flex flex-row gap-2 items-center">
+                      <Icon icon="solar:settings-bold" />
+                      Impostazioni
+                    </div>
+                  </DropdownItem>
+                  <DropdownItem
+                    key="theme-toggle"
+                    startContent={
+                      <Icon
+                        icon={
+                          isDark ? "solar:moon-linear" : "solar:sun-2-linear"
+                        }
+                        width={18}
+                        className=""
+                      />
+                    }
+                    onPress={toggleTheme}
+                  >
+                    {isDark ? "Tema Scuro" : "Tema Chiaro"}
+                  </DropdownItem>
+                </DropdownSection>
+
+                <DropdownSection
+                  aria-label="profile-section-3"
+                  className="mb-0"
+                >
+                  <DropdownItem
+                    key="logout"
+                    onPress={handleLogout}
+                    color="danger"
+                  >
+                    <div className="py-[4px] flex flex-row gap-2 items-center">
+                      <Icon icon="solar:logout-2-outline" />
+                      Esci
+                    </div>
+                  </DropdownItem>
+                </DropdownSection>
+              </DropdownMenu>
+            </Dropdown>
           </div>
 
           <ScrollShadow className="-mr-6 h-full max-h-full py-6 pr-6">
@@ -582,16 +651,25 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 const key = Array.from(keys)[0] as string;
                 setSelected(key as React.Key);
                 onSelect?.(key);
-                
-                // Gestisco la navigazione per gli elementi del menu
-                const selectedItem = sectionNestedItems
-                  .flatMap((section: SidebarItem) => section.items || [])
-                  .find((item: SidebarItem) => item.key === key);
-                
+
+                // Cerco prima negli elementi di primo livello
+                let selectedItem: SidebarItem | undefined =
+                  sectionNestedItems.find(
+                    (item: SidebarItem) => item.key === key
+                  );
+
+                // Se non lo trovo, cerco negli elementi nidificati
+                if (!selectedItem) {
+                  selectedItem = sectionNestedItems
+                    .flatMap((section: SidebarItem) => section.items || [])
+                    .find((item: SidebarItem) => item.key === key);
+                }
+
+                // Navigo se l'elemento ha un href
                 if (selectedItem?.href) {
                   navigate(selectedItem.href);
                 }
-                
+
                 if (isMobile) {
                   onClose();
                 }
@@ -623,29 +701,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           <Spacer y={8} />
 
           <div className="mt-auto flex flex-col gap-4">
-            <ThemeSwitch isDark={isDark} onToggle={toggleTheme} />
-
-            <Button
-              fullWidth
-              className={cn(
-                "justify-start",
-                isDark
-                  ? "text-default-500 data-[hover=true]:text-foreground"
-                  : "text-default-700 data-[hover=true]:text-foreground-900"
-              )}
-              startContent={
-                <Icon
-                  className={isDark ? "text-default-500" : "text-default-700"}
-                  icon="solar:info-circle-linear"
-                  width={24}
-                />
-              }
-              variant="light"
-            >
-              Aiuto & Informazioni
-            </Button>
-
-            {/* Dropdown Magazzini Migliorato */}
             <Dropdown placement="top-start">
               <DropdownTrigger>
                 <Button
@@ -654,15 +709,21 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   color={selectedWarehouse ? "primary" : "default"}
                   className={cn(
                     "justify-between transition-all duration-200",
-                    selectedWarehouse 
-                      ? "bg-primary text-primary-foreground shadow-lg" 
+                    selectedWarehouse
+                      ? "bg-primary text-primary-foreground shadow-lg"
                       : isDark
-                      ? "text-default-500 data-[hover=true]:text-foreground"
+                      ? " data-[hover=true]:text-foreground"
                       : "text-default-700 data-[hover=true]:text-foreground-900"
                   )}
                   endContent={
                     <Icon
-                      className={selectedWarehouse ? "text-primary-foreground" : isDark ? "text-default-500" : "text-default-700"}
+                      className={
+                        selectedWarehouse
+                          ? "text-primary-foreground"
+                          : isDark
+                          ? ""
+                          : "text-default-700"
+                      }
                       icon="solar:alt-arrow-down-linear"
                       width={16}
                     />
@@ -670,24 +731,37 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 >
                   <div className="flex items-center gap-2">
                     <Icon
-                      className={selectedWarehouse ? "text-primary-foreground" : isDark ? "text-default-500" : "text-default-700"}
+                      className={
+                        selectedWarehouse
+                          ? "text-primary-foreground"
+                          : isDark
+                          ? ""
+                          : "text-default-700"
+                      }
                       icon="mdi:warehouse"
                       width={24}
                     />
                     <span className="truncate">
-                      {selectedWarehouse 
+                      {selectedWarehouse
                         ? (() => {
-                            const warehouse = warehouses.find(w => 
-                              (w.WarehouseUUID || w.warehouse_id) === selectedWarehouse
+                            const warehouse = warehouses.find(
+                              (w) =>
+                                (w.WarehouseUUID || w.warehouse_id) ===
+                                selectedWarehouse
                             );
-                            return warehouse 
-                              ? `${warehouse.name || warehouse.WarehouseName || "Magazzino"}${
-                                  warehouse.WarehouseCode ? ` (${warehouse.WarehouseCode})` : ""
+                            return warehouse
+                              ? `${
+                                  warehouse.name ||
+                                  warehouse.WarehouseName ||
+                                  "Magazzino"
+                                }${
+                                  warehouse.WarehouseCode
+                                    ? ` (${warehouse.WarehouseCode})`
+                                    : ""
                                 }`
                               : "Magazzino Selezionato";
                           })()
-                        : "Magazzini"
-                      }
+                        : "Magazzini"}
                     </span>
                   </div>
                 </Button>
@@ -717,7 +791,11 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 ]}
                 onSelectionChange={(keys) => {
                   const selectedKey = Array.from(keys)[0] as string;
-                  if (selectedKey && selectedKey !== "no-warehouses" && selectedKey !== "add-warehouse") {
+                  if (
+                    selectedKey &&
+                    selectedKey !== "no-warehouses" &&
+                    selectedKey !== "add-warehouse"
+                  ) {
                     setSelectedWarehouse(selectedKey);
                   }
                 }}
@@ -730,7 +808,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                       dropdownItem.type === "add"
                         ? "text-warning font-medium data-[hover=true]:bg-warning/10"
                         : dropdownItem.type === "empty"
-                        ? "text-default-500"
+                        ? ""
                         : dropdownItem.warehouse?.IsActive === false
                         ? "text-default-400 opacity-60"
                         : selectedWarehouse === dropdownItem.key
@@ -764,7 +842,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                       )
                     }
                     endContent={
-                      selectedWarehouse === dropdownItem.key && dropdownItem.type === "warehouse" ? (
+                      selectedWarehouse === dropdownItem.key &&
+                      dropdownItem.type === "warehouse" ? (
                         <Icon
                           icon="solar:check-circle-bold"
                           width={16}
@@ -782,7 +861,10 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                       if (dropdownItem.type === "add") {
                         navigate("/inventory/warehouses/add");
                       } else if (dropdownItem.warehouse) {
-                        const warehouseId = dropdownItem.warehouse.WarehouseUUID || dropdownItem.warehouse.warehouse_id || "";
+                        const warehouseId =
+                          dropdownItem.warehouse.WarehouseUUID ||
+                          dropdownItem.warehouse.warehouse_id ||
+                          "";
                         setSelectedWarehouse(warehouseId);
                         navigate(`/warehouses/${warehouseId}`);
                       }
