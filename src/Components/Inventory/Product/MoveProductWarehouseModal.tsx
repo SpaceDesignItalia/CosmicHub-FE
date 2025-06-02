@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   Modal,
   ModalContent,
@@ -7,230 +7,279 @@ import {
   ModalFooter,
   Button,
   Input,
-  useDisclosure,
+  Select,
+  SelectItem,
   Tooltip,
   Chip,
   Divider,
   Card,
   CardBody,
   Slider,
+  useDisclosure,
 } from "@heroui/react";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import axios from "axios";
 
-interface Vehicle {
-  vehicle_id: string;
-  name: string;
-  license_plate: string;
-  IsAvailable: boolean;
-  VehicleID?: string;
-  VehicleName?: string;
-  VehiclePlate?: string;
-  is_available?: boolean;
-  available?: boolean;
-  status?:
-    | "Available"
-    | "In use"
-    | "Maintenance"
-    | "Disponibile"
-    | "In uso"
-    | "In manutenzione";
-  stato?:
-    | "Available"
-    | "In use"
-    | "Maintenance"
-    | "Disponibile"
-    | "In uso"
-    | "In manutenzione";
+interface Warehouse {
+  WarehouseID: number;
+  WarehouseUUID: string;
+  WarehouseName: string;
+  WarehouseCode: string;
+  WarehouseCountry: string;
+  IsActive: boolean;
 }
 
 interface Product {
   product_id: string;
+  id?: string;
   name: string;
   quantity: number;
   warehouse_id: string;
+  warehouse_name?: string;
 }
 
-interface LoadProductModalProps {
+interface MoveProductWarehouseModalProps {
   selectedProduct: Product | null;
+  onUpdateQuantity?: (productId: string, newQuantity: number) => void;
   onSuccess?: (message: string) => void;
   onError?: (message: string) => void;
-  onRefreshData?: () => void;
 }
 
-export default function LoadProductModal({
+export default function MoveProductWarehouseModal({
   selectedProduct,
+  onUpdateQuantity,
   onSuccess,
   onError,
-  onRefreshData,
-}: LoadProductModalProps) {
+}: MoveProductWarehouseModalProps) {
+  // Modal states
   const { isOpen, onOpen, onOpenChange } = useDisclosure();
-  const [loadQuantity, setLoadQuantity] = useState(1);
+  const [quantity, setQuantity] = useState(1);
   const [inputValue, setInputValue] = useState("1");
-  const [targetVehicle, setTargetVehicle] = useState("");
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [vehicleSearchQuery, setVehicleSearchQuery] = useState("");
-  const [isProcessingLoad, setIsProcessingLoad] = useState(false);
-  const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
+  const [targetWarehouse, setTargetWarehouse] = useState("");
+  const [isProcessing, setIsProcessing] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [warehouseSearchQuery, setWarehouseSearchQuery] = useState("");
 
-  // Carica i veicoli all'avvio del componente
+  // Data states
+  const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+  const [isLoadingWarehouses, setIsLoadingWarehouses] = useState(false);
+
+  // Load warehouses
+  const loadWarehouses = useCallback(async () => {
+    setIsLoadingWarehouses(true);
+    try {
+      const response = await axios.get("/Warehouse/GET/GetAllWarehouses");
+      // Load ALL warehouses first (not just active ones) for source warehouse lookup
+      const allWarehouses = response.data;
+      setWarehouses(allWarehouses);
+
+      console.log(
+        "All warehouses loaded:",
+        allWarehouses.map((w: Warehouse) => ({
+          id: w.WarehouseID,
+          uuid: w.WarehouseUUID,
+          name: w.WarehouseName,
+          code: w.WarehouseCode,
+          isActive: w.IsActive,
+        }))
+      );
+    } catch (error) {
+      console.error("Error loading warehouses:", error);
+    } finally {
+      setIsLoadingWarehouses(false);
+    }
+  }, []);
+
+  // Reset form when modal opens
   useEffect(() => {
     if (isOpen) {
-      fetchAllVehicles();
+      loadWarehouses();
       setCurrentStep(1);
-      setLoadQuantity(1);
+      setQuantity(1);
       setInputValue("1");
-      setTargetVehicle("");
-      setVehicleSearchQuery("");
+      setTargetWarehouse("");
+      setWarehouseSearchQuery("");
     }
-  }, [isOpen]);
+  }, [isOpen, loadWarehouses]);
 
-  // Sincronizza inputValue con loadQuantity quando cambia tramite slider o bottoni
+  // Sync inputValue with quantity when changed via slider or buttons
   useEffect(() => {
-    setInputValue(loadQuantity.toString());
-  }, [loadQuantity]);
+    setInputValue(quantity.toString());
+  }, [quantity]);
 
-  async function fetchAllVehicles() {
-    setIsLoadingVehicles(true);
-    try {
-      const response = await axios.get("/Vehicle/GET/GetAllVehicles");
-      const vehiclesData = response.data || [];
+  // Helper function to find warehouse by ID (more flexible)
+  const findWarehouseById = (warehouseId: string | number) => {
+    const idStr = warehouseId.toString();
+    const idNum = parseInt(idStr);
 
-      // Debug: Log per verificare la struttura dei dati
-      console.log("Raw vehicles data:", vehiclesData);
-      console.log("First vehicle structure:", vehiclesData[0]);
+    return warehouses.find((w: Warehouse) => {
+      // Try exact matches first
+      if (w.WarehouseUUID === idStr) return true;
+      if (w.WarehouseID === idNum) return true;
+      if (w.WarehouseID.toString() === idStr) return true;
+      if (w.WarehouseCode === idStr) return true;
+      if (w.WarehouseName === idStr) return true;
 
-      // Controlla i possibili nomi delle proprietà
-      if (vehiclesData.length > 0) {
-        const firstVehicle = vehiclesData[0];
-        console.log(
-          "Available properties in first vehicle:",
-          Object.keys(firstVehicle)
-        );
+      // Try case-insensitive matches
+      if (w.WarehouseCode.toLowerCase() === idStr.toLowerCase()) return true;
+      if (w.WarehouseName.toLowerCase() === idStr.toLowerCase()) return true;
 
-        // Controlla diverse possibili proprietà per lo stato
-        console.log("IsAvailable:", firstVehicle.IsAvailable);
-        console.log("is_available:", firstVehicle.is_available);
-        console.log("available:", firstVehicle.available);
-        console.log("status:", firstVehicle.status);
-        console.log("stato:", firstVehicle.stato);
-      }
-
-      setVehicles(vehiclesData);
-    } catch (error) {
-      console.error("Errore nel caricamento dei veicoli:", error);
-    } finally {
-      setIsLoadingVehicles(false);
-    }
-  }
-
-  const handleLoadOperation = async () => {
-    if (!selectedProduct || !loadQuantity || !targetVehicle) return;
-
-    setIsProcessingLoad(true);
-    try {
-      console.log(selectedProduct);
-      // Chiamata API per caricare su furgone
-      await axios.post("/Movement/POST/CreateLoadToVehicleMovement", {
-        product_id: selectedProduct.product_id,
-        from_warehouse_id: selectedProduct.warehouse_id,
-        to_vehicle_id: parseInt(targetVehicle),
-        amount: loadQuantity,
-      });
-
-      // Reset form e chiudi modal
-      setLoadQuantity(1);
-      setTargetVehicle("");
-      setCurrentStep(1);
-      setInputValue("1");
-      onOpenChange();
-
-      // Comunica successo al parent
-      if (onSuccess) {
-        onSuccess(
-          `${loadQuantity} unità di "${selectedProduct.name}" sono state caricate con successo sul furgone.`
-        );
-      }
-
-      // Refresh dei dati
-      if (onRefreshData) {
-        onRefreshData();
-      }
-    } catch (error: any) {
-      console.error("Errore nel caricamento:", error);
-      let errorMessage = "Errore nel caricamento. Riprova.";
-      if (error.response?.data?.error) {
-        errorMessage = error.response.data.error;
-      }
-
-      // Comunica errore al parent
-      if (onError) {
-        onError(errorMessage);
-      }
-    } finally {
-      setIsProcessingLoad(false);
-    }
-  };
-
-  // Funzione helper per determinare se un veicolo è disponibile
-  const isVehicleAvailable = (vehicle: Vehicle) => {
-    // Controlla diverse possibili proprietà e formati
-    if (typeof vehicle.IsAvailable === "boolean") {
-      return vehicle.IsAvailable;
-    }
-    if (typeof vehicle.is_available === "boolean") {
-      return vehicle.is_available;
-    }
-    if (typeof vehicle.available === "boolean") {
-      return vehicle.available;
-    }
-    if (vehicle.status) {
-      return vehicle.status === "Available" || vehicle.status === "Disponibile";
-    }
-    if (vehicle.stato) {
-      return vehicle.stato === "Available" || vehicle.stato === "Disponibile";
-    }
-
-    // Default: considera disponibile se non specificato diversamente
-    return true;
-  };
-
-  const availableVehicles = vehicles.filter(isVehicleAvailable);
-  const unavailableVehicles = vehicles.filter((v) => !isVehicleAvailable(v));
-
-  // Funzione per filtrare i veicoli in base alla ricerca
-  const filterVehicles = (vehicleList: Vehicle[]) => {
-    if (!vehicleSearchQuery.trim()) return vehicleList;
-
-    const searchLower = vehicleSearchQuery.toLowerCase().trim();
-    return vehicleList.filter((vehicle) => {
-      const name = (vehicle.name || vehicle.VehicleName || "").toLowerCase();
-      const plate = (
-        vehicle.license_plate ||
-        vehicle.VehiclePlate ||
-        ""
-      ).toLowerCase();
-      return name.includes(searchLower) || plate.includes(searchLower);
+      return false;
     });
   };
 
-  const filteredAvailableVehicles = filterVehicles(availableVehicles);
-  const filteredUnavailableVehicles = filterVehicles(unavailableVehicles);
+  // Handle move operation
+  const handleMoveOperation = async () => {
+    if (!selectedProduct || !quantity || !targetWarehouse) {
+      console.log("Missing required data:", {
+        selectedProduct,
+        quantity,
+        targetWarehouse,
+      });
+      onError?.("Dati mancanti per il trasferimento");
+      return;
+    }
 
-  const isFormValid =
-    loadQuantity > 0 &&
-    loadQuantity <= (selectedProduct?.quantity || 0) &&
-    targetVehicle;
-  const selectedVehicleInfo = vehicles.find(
-    (v) => v.vehicle_id === targetVehicle
-  );
+    console.log("Starting move operation with:", {
+      product: selectedProduct,
+      quantity,
+      targetWarehouse,
+      warehouses: warehouses.length,
+    });
+
+    setIsProcessing(true);
+    try {
+      const amount = quantity;
+
+      // Find target warehouse data
+      const targetWarehouseData = findWarehouseById(targetWarehouse);
+
+      // Find source warehouse data using improved logic
+      const sourceWarehouseData = findWarehouseById(
+        selectedProduct.warehouse_id
+      );
+
+      console.log("Warehouse lookup results:", {
+        selectedProductWarehouseId: selectedProduct.warehouse_id,
+        selectedProductWarehouseName: selectedProduct.warehouse_name,
+        targetWarehouseId: targetWarehouse,
+        targetWarehouseData,
+        sourceWarehouseData,
+        allWarehouses: warehouses.map((w: Warehouse) => ({
+          id: w.WarehouseID,
+          uuid: w.WarehouseUUID,
+          name: w.WarehouseName,
+          code: w.WarehouseCode,
+          isActive: w.IsActive,
+        })),
+      });
+
+      if (!targetWarehouseData) {
+        const errorMsg = `Magazzino di destinazione non trovato. ID cercato: ${targetWarehouse}`;
+        console.error(errorMsg);
+        onError?.(errorMsg);
+        return;
+      }
+
+      if (!sourceWarehouseData) {
+        const errorMsg = `Magazzino di origine non trovato. ID cercato: ${
+          selectedProduct.warehouse_id
+        }. Magazzini disponibili: ${warehouses
+          .map(
+            (w: Warehouse) =>
+              `${w.WarehouseName}(ID:${w.WarehouseID}, UUID:${w.WarehouseUUID}, Code:${w.WarehouseCode})`
+          )
+          .join(", ")}`;
+        console.error(errorMsg);
+        onError?.(errorMsg);
+        return;
+      }
+
+      // API call for transfer using numeric IDs
+      const transferData = {
+        product_id: selectedProduct.product_id,
+        amount: amount,
+        from_warehouse_id: sourceWarehouseData.WarehouseID,
+        to_warehouse_id: targetWarehouseData.WarehouseID,
+        movement_date: new Date().toISOString(),
+        notes: `Trasferimento di ${amount} unità di ${selectedProduct.name}`,
+        reason: "Trasferimento tra magazzini",
+      };
+
+      console.log("Transfer data to be sent:", transferData);
+
+      const response = await axios.post(
+        "/Movement/POST/CreateTransferMovement",
+        transferData
+      );
+
+      console.log("API Response:", response);
+
+      if (response.status === 201 || response.status === 200) {
+        // Update product quantity in source warehouse
+        const newQuantity = selectedProduct.quantity - amount;
+        if (onUpdateQuantity) {
+          onUpdateQuantity(selectedProduct.product_id, newQuantity);
+        }
+
+        // Show success message
+        onSuccess?.(
+          `${amount} unità di "${selectedProduct.name}" spostate con successo da ${sourceWarehouseData.WarehouseName} a ${targetWarehouseData.WarehouseName}!`
+        );
+
+        // Close modal and reset fields
+        handleClose();
+      } else {
+        throw new Error(`Unexpected response status: ${response.status}`);
+      }
+    } catch (error: any) {
+      console.error("Error in move operation:", error);
+      console.error("Error details:", {
+        message: error.message,
+        response: error.response?.data,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+      });
+
+      let errorMessage = "Errore nello spostamento. Riprova.";
+
+      if (error.response?.status === 400) {
+        errorMessage =
+          error.response.data?.error ||
+          error.response.data?.message ||
+          "Dati non validi per il trasferimento";
+      } else if (error.response?.status === 404) {
+        errorMessage = "Endpoint di trasferimento non trovato";
+      } else if (error.response?.status === 500) {
+        errorMessage = "Errore interno del server";
+      } else if (error.code === "ERR_NETWORK") {
+        errorMessage = "Errore di connessione al server";
+      } else if (error.response?.data?.error) {
+        errorMessage = error.response.data.error;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+
+      onError?.(errorMessage);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleClose = () => {
+    setQuantity(1);
+    setTargetWarehouse("");
+    setCurrentStep(1);
+    setInputValue("1");
+    setWarehouseSearchQuery("");
+    onOpenChange();
+  };
 
   const handleNext = () => {
     if (
       currentStep === 1 &&
-      loadQuantity > 0 &&
-      loadQuantity <= (selectedProduct?.quantity || 0)
+      quantity > 0 &&
+      quantity <= (selectedProduct?.quantity || 0)
     ) {
       setCurrentStep(2);
     }
@@ -242,45 +291,145 @@ export default function LoadProductModal({
     }
   };
 
+  // Available warehouses for destination
+  const availableWarehouses = warehouses.filter((warehouse: Warehouse) => {
+    if (!selectedProduct) return true;
+
+    // Only show active warehouses for destination selection
+    if (!warehouse.IsActive) return false;
+
+    const warehouseUUID = warehouse.WarehouseUUID;
+    const warehouseID = warehouse.WarehouseID.toString();
+    const warehouseCode = warehouse.WarehouseCode;
+    const sourceWarehouseId = selectedProduct.warehouse_id;
+
+    const isNotSameWarehouse =
+      warehouseUUID !== sourceWarehouseId &&
+      warehouseID !== sourceWarehouseId &&
+      warehouseCode !== sourceWarehouseId &&
+      warehouse.WarehouseName !== sourceWarehouseId;
+
+    console.log(`Warehouse ${warehouse.WarehouseName} filter check:`, {
+      warehouseUUID,
+      warehouseID,
+      warehouseCode,
+      warehouseName: warehouse.WarehouseName,
+      sourceWarehouseId,
+      isActive: warehouse.IsActive,
+      isNotSameWarehouse,
+    });
+
+    return isNotSameWarehouse;
+  });
+
+  // Debug available warehouses
+  useEffect(() => {
+    console.log("Available warehouses for selection:", {
+      totalWarehouses: warehouses.length,
+      availableWarehouses: availableWarehouses.length,
+      selectedProductWarehouseId: selectedProduct?.warehouse_id,
+      availableWarehousesList: availableWarehouses.map((w: Warehouse) => ({
+        id: w.WarehouseID,
+        uuid: w.WarehouseUUID,
+        name: w.WarehouseName,
+        code: w.WarehouseCode,
+      })),
+    });
+  }, [warehouses, availableWarehouses, selectedProduct]);
+
+  // Filter warehouses based on search
+  const filterWarehouses = (warehouseList: Warehouse[]) => {
+    if (!warehouseSearchQuery.trim()) return warehouseList;
+
+    const searchLower = warehouseSearchQuery.toLowerCase().trim();
+    return warehouseList.filter((warehouse) => {
+      const name = warehouse.WarehouseName.toLowerCase();
+      const code = warehouse.WarehouseCode.toLowerCase();
+      const country = (warehouse.WarehouseCountry || "").toLowerCase();
+      return (
+        name.includes(searchLower) ||
+        code.includes(searchLower) ||
+        country.includes(searchLower)
+      );
+    });
+  };
+
+  const filteredWarehouses = filterWarehouses(availableWarehouses);
+
+  // Get warehouse name by id
+  const getWarehouseName = (warehouseId: string) => {
+    return (
+      warehouses.find(
+        (w) => (w.WarehouseUUID || w.WarehouseID.toString()) === warehouseId
+      )?.WarehouseName || warehouseId
+    );
+  };
+
+  const isFormValid =
+    quantity > 0 &&
+    quantity <= (selectedProduct?.quantity || 0) &&
+    targetWarehouse;
+  const selectedWarehouseInfo = warehouses.find(
+    (w) => (w.WarehouseUUID || w.WarehouseID.toString()) === targetWarehouse
+  );
+
+  // Debug logging for form validation
+  useEffect(() => {
+    console.log("Form validation state:", {
+      quantity,
+      selectedProductQuantity: selectedProduct?.quantity,
+      targetWarehouse,
+      isFormValid,
+      quantityValid:
+        quantity > 0 && quantity <= (selectedProduct?.quantity || 0),
+      targetWarehouseValid: !!targetWarehouse,
+    });
+  }, [quantity, targetWarehouse, selectedProduct, isFormValid]);
+
+  // Trigger button component
+  const TriggerButton = () => (
+    <Tooltip content="Sposta tra magazzini">
+      <Button
+        isIconOnly
+        size="sm"
+        color="primary"
+        variant="flat"
+        onPress={onOpen}
+        className="min-w-8 h-8 hover:scale-105 transition-transform"
+        isDisabled={!selectedProduct || selectedProduct.quantity <= 0}
+      >
+        <Icon icon="solar:transfer-horizontal-bold" width={16} />
+      </Button>
+    </Tooltip>
+  );
+
   if (!selectedProduct) {
-    return null;
+    return <TriggerButton />;
   }
 
   return (
     <>
-      <Tooltip content="Carica il prodotto su un furgone" placement="top">
-        <Button
-          color="secondary"
-          onPress={onOpen}
-          isIconOnly
-          size="sm"
-          variant="flat"
-          className="min-w-8 h-8 hover:scale-105 transition-transform"
-          isDisabled={!selectedProduct || selectedProduct.quantity <= 0}
-        >
-          <Icon icon="solar:delivery-bold" width={16} />
-        </Button>
-      </Tooltip>
+      <TriggerButton />
 
       <Modal
         isOpen={isOpen}
         onOpenChange={onOpenChange}
         size="2xl"
-        isDismissable={!isProcessingLoad}
-        hideCloseButton={isProcessingLoad}
+        isDismissable={!isProcessing}
+        hideCloseButton={isProcessing}
       >
         <ModalContent className="p-5">
           <ModalHeader className="flex flex-col gap-2 pb-2">
             <div className="flex items-center gap-3">
               <div className="p-3 bg-primary/10 rounded-full">
                 <Icon
-                  icon="solar:delivery-bold"
+                  icon="solar:transfer-horizontal-bold"
                   className="text-primary"
                   width={24}
                 />
               </div>
               <div>
-                <h3 className="text-xl font-bold">Carica su Furgone</h3>
+                <h3 className="text-xl font-bold">Sposta tra Magazzini</h3>
                 <p className="text-sm text-default-500 font-normal">
                   {selectedProduct.name}
                 </p>
@@ -333,7 +482,7 @@ export default function LoadProductModal({
                       : "text-default-500"
                   }`}
                 >
-                  Furgone
+                  Magazzino
                 </span>
               </div>
             </div>
@@ -346,7 +495,9 @@ export default function LoadProductModal({
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-default-600">
-                      Magazzino {selectedProduct.warehouse_id}
+                      Da:{" "}
+                      {selectedProduct.warehouse_name ||
+                        selectedProduct.warehouse_id}
                     </p>
                     <p className="font-semibold text-lg">
                       {selectedProduct.name}
@@ -369,7 +520,7 @@ export default function LoadProductModal({
               <div className="space-y-6">
                 <div className="text-center">
                   <h4 className="text-lg font-semibold mb-2">
-                    Quante unità vuoi caricare?
+                    Quante unità vuoi spostare?
                   </h4>
                   <p className="text-sm text-default-600">
                     Usa lo slider o inserisci il numero direttamente
@@ -380,7 +531,7 @@ export default function LoadProductModal({
                   {/* Quantity Display */}
                   <div className="text-center">
                     <div className="text-4xl font-bold text-primary mb-2">
-                      {loadQuantity}
+                      {quantity}
                     </div>
                     <p className="text-sm text-default-600">
                       su {selectedProduct.quantity} disponibili
@@ -393,10 +544,10 @@ export default function LoadProductModal({
                     step={1}
                     minValue={1}
                     maxValue={selectedProduct.quantity}
-                    value={loadQuantity}
+                    value={quantity}
                     onChange={(value) => {
                       const newValue = Array.isArray(value) ? value[0] : value;
-                      setLoadQuantity(newValue);
+                      setQuantity(newValue);
                     }}
                     className="max-w-md mx-auto"
                     color="primary"
@@ -422,15 +573,13 @@ export default function LoadProductModal({
                         <Button
                           key={quickValue}
                           variant={
-                            loadQuantity === quickValue ? "solid" : "bordered"
+                            quantity === quickValue ? "solid" : "bordered"
                           }
                           color={
-                            loadQuantity === quickValue ? "primary" : "default"
+                            quantity === quickValue ? "primary" : "default"
                           }
                           size="sm"
-                          onPress={() => {
-                            setLoadQuantity(quickValue);
-                          }}
+                          onPress={() => setQuantity(quickValue)}
                           className="min-w-12"
                         >
                           {quickValue === selectedProduct.quantity
@@ -449,7 +598,6 @@ export default function LoadProductModal({
                       const inputVal = e.target.value;
                       setInputValue(inputVal);
 
-                      // Se l'input è vuoto, non aggiornare loadQuantity ancora
                       if (inputVal === "" || inputVal === "0") {
                         return;
                       }
@@ -460,18 +608,17 @@ export default function LoadProductModal({
                           Math.max(numericValue, 1),
                           selectedProduct.quantity
                         );
-                        setLoadQuantity(clampedValue);
+                        setQuantity(clampedValue);
                       }
                     }}
                     onBlur={() => {
-                      // Quando l'utente esce dall'input, assicurati che ci sia un valore valido
                       if (
                         inputValue === "" ||
                         inputValue === "0" ||
                         parseInt(inputValue) < 1
                       ) {
                         setInputValue("1");
-                        setLoadQuantity(1);
+                        setQuantity(1);
                       } else {
                         const numericValue = parseInt(inputValue);
                         if (!isNaN(numericValue)) {
@@ -479,7 +626,7 @@ export default function LoadProductModal({
                             Math.max(numericValue, 1),
                             selectedProduct.quantity
                           );
-                          setLoadQuantity(clampedValue);
+                          setQuantity(clampedValue);
                           setInputValue(clampedValue.toString());
                         }
                       }
@@ -494,55 +641,55 @@ export default function LoadProductModal({
               </div>
             )}
 
-            {/* Step 2: Vehicle Selection */}
+            {/* Step 2: Warehouse Selection */}
             {currentStep === 2 && (
               <div className="space-y-6">
                 <div className="text-center">
                   <h4 className="text-lg font-semibold mb-2">
-                    Su quale furgone?
+                    Verso quale magazzino?
                   </h4>
                   <p className="text-sm text-default-600">
-                    Seleziona un furgone disponibile per il caricamento
+                    Seleziona il magazzino di destinazione per il trasferimento
                   </p>
                 </div>
 
-                {isLoadingVehicles ? (
+                {isLoadingWarehouses ? (
                   <div className="flex items-center justify-center py-12">
                     <div className="flex items-center gap-3">
                       <div className="animate-spin">
                         <Icon icon="solar:refresh-bold" width={24} />
                       </div>
                       <span className="text-default-500">
-                        Caricamento furgoni...
+                        Caricamento magazzini...
                       </span>
                     </div>
                   </div>
-                ) : availableVehicles.length === 0 ? (
+                ) : availableWarehouses.length === 0 ? (
                   <div className="text-center py-12">
                     <Icon
-                      icon="solar:delivery-bold"
+                      icon="solar:buildings-bold"
                       className="text-default-300 mx-auto mb-4"
                       width={48}
                     />
                     <h4 className="font-semibold text-default-600 mb-2">
-                      Nessun furgone disponibile
+                      Nessun magazzino disponibile
                     </h4>
                     <p className="text-sm text-default-500">
-                      Al momento non ci sono furgoni disponibili per il
-                      caricamento
+                      Non ci sono altri magazzini disponibili per il
+                      trasferimento
                     </p>
                   </div>
                 ) : (
                   <>
-                    {/* Campo di ricerca furgoni */}
-                    {availableVehicles.length > 3 && (
+                    {/* Search field for warehouses */}
+                    {availableWarehouses.length > 3 && (
                       <div className="mb-4">
                         <Input
                           color="primary"
-                          placeholder="Cerca furgone per nome o targa..."
-                          value={vehicleSearchQuery}
+                          placeholder="Cerca magazzino per nome, codice o paese..."
+                          value={warehouseSearchQuery}
                           onChange={(e) =>
-                            setVehicleSearchQuery(e.target.value)
+                            setWarehouseSearchQuery(e.target.value)
                           }
                           startContent={
                             <Icon
@@ -552,12 +699,12 @@ export default function LoadProductModal({
                             />
                           }
                           endContent={
-                            vehicleSearchQuery && (
+                            warehouseSearchQuery && (
                               <Button
                                 isIconOnly
                                 variant="light"
                                 size="sm"
-                                onPress={() => setVehicleSearchQuery("")}
+                                onPress={() => setWarehouseSearchQuery("")}
                                 className="min-w-6 h-6"
                               >
                                 <Icon
@@ -570,20 +717,16 @@ export default function LoadProductModal({
                           }
                           variant="bordered"
                           className="w-full"
-                          classNames={{
-                            input: "text-sm",
-                            inputWrapper: "border-default-200",
-                          }}
                         />
 
-                        {/* Indicatore risultati ricerca */}
-                        {vehicleSearchQuery && (
+                        {/* Search results indicator */}
+                        {warehouseSearchQuery && (
                           <div className="flex justify-between items-center mt-2 px-1">
                             <p className="text-xs text-default-500">
-                              {filteredAvailableVehicles.length} di{" "}
-                              {availableVehicles.length} furgoni
+                              {filteredWarehouses.length} di{" "}
+                              {availableWarehouses.length} magazzini
                             </p>
-                            {filteredAvailableVehicles.length === 0 && (
+                            {filteredWarehouses.length === 0 && (
                               <p className="text-xs text-warning">
                                 Nessun risultato trovato
                               </p>
@@ -593,9 +736,8 @@ export default function LoadProductModal({
                       </div>
                     )}
 
-                    {/* Lista furgoni filtrati */}
-                    {filteredAvailableVehicles.length === 0 &&
-                    vehicleSearchQuery ? (
+                    {/* Filtered warehouse list */}
+                    {filteredWarehouses.length === 0 && warehouseSearchQuery ? (
                       <div className="text-center py-8">
                         <Icon
                           icon="solar:magnifer-bold"
@@ -603,7 +745,7 @@ export default function LoadProductModal({
                           width={32}
                         />
                         <h4 className="font-medium text-default-600 mb-2">
-                          Nessun furgone trovato
+                          Nessun magazzino trovato
                         </h4>
                         <p className="text-sm text-default-500 mb-4">
                           Prova a modificare i termini di ricerca
@@ -612,7 +754,7 @@ export default function LoadProductModal({
                           color="primary"
                           variant="flat"
                           size="sm"
-                          onPress={() => setVehicleSearchQuery("")}
+                          onPress={() => setWarehouseSearchQuery("")}
                           startContent={
                             <Icon icon="solar:refresh-bold" width={16} />
                           }
@@ -622,32 +764,46 @@ export default function LoadProductModal({
                       </div>
                     ) : (
                       <div className="space-y-3 w-full">
-                        {filteredAvailableVehicles.map((vehicle) => (
+                        {filteredWarehouses.map((warehouse) => (
                           <Card
-                            key={vehicle.vehicle_id}
+                            key={
+                              warehouse.WarehouseUUID ||
+                              warehouse.WarehouseID.toString()
+                            }
                             isPressable
                             isHoverable
                             className={`cursor-pointer transition-all w-full ${
-                              targetVehicle === vehicle.vehicle_id
+                              targetWarehouse ===
+                              (warehouse.WarehouseUUID ||
+                                warehouse.WarehouseID.toString())
                                 ? "bg-primary/10 border-primary border-2"
                                 : "hover:bg-default-50"
                             }`}
-                            onPress={() => setTargetVehicle(vehicle.vehicle_id)}
+                            onPress={() =>
+                              setTargetWarehouse(
+                                warehouse.WarehouseUUID ||
+                                  warehouse.WarehouseID.toString()
+                              )
+                            }
                           >
                             <CardBody className="p-4">
                               <div className="flex items-center justify-between">
                                 <div className="flex items-center gap-3">
                                   <div
                                     className={`p-2 rounded-lg ${
-                                      targetVehicle === vehicle.vehicle_id
+                                      targetWarehouse ===
+                                      (warehouse.WarehouseUUID ||
+                                        warehouse.WarehouseID.toString())
                                         ? "bg-primary/20"
                                         : "bg-success/10"
                                     }`}
                                   >
                                     <Icon
-                                      icon="solar:delivery-bold"
+                                      icon="solar:buildings-bold"
                                       className={
-                                        targetVehicle === vehicle.vehicle_id
+                                        targetWarehouse ===
+                                        (warehouse.WarehouseUUID ||
+                                          warehouse.WarehouseID.toString())
                                           ? "text-primary"
                                           : "text-success"
                                       }
@@ -656,19 +812,31 @@ export default function LoadProductModal({
                                   </div>
                                   <div>
                                     <p className="font-semibold">
-                                      {vehicle.name}
+                                      {warehouse.WarehouseName}
                                     </p>
-                                    <p className="text-sm text-default-600">
-                                      {vehicle.license_plate}
+                                    <p className="text-sm text-default-600 flex items-center gap-1">
+                                      <Icon icon="solar:code-bold" width={12} />
+                                      {warehouse.WarehouseCode}
+                                      {warehouse.WarehouseCountry && (
+                                        <>
+                                          <Icon
+                                            icon="solar:global-bold"
+                                            width={12}
+                                          />
+                                          {warehouse.WarehouseCountry}
+                                        </>
+                                      )}
                                     </p>
                                   </div>
                                 </div>
 
                                 <div className="flex items-center gap-2">
                                   <Chip color="success" size="sm" variant="dot">
-                                    Disponibile
+                                    Attivo
                                   </Chip>
-                                  {targetVehicle === vehicle.vehicle_id && (
+                                  {targetWarehouse ===
+                                    (warehouse.WarehouseUUID ||
+                                      warehouse.WarehouseID.toString()) && (
                                     <Icon
                                       icon="solar:check-circle-bold"
                                       className="text-primary"
@@ -684,64 +852,31 @@ export default function LoadProductModal({
                     )}
                   </>
                 )}
-
-                {unavailableVehicles.length > 0 && (
-                  <details className="cursor-pointer">
-                    <summary className="text-sm text-default-600 hover:text-default-800">
-                      {unavailableVehicles.length} furgoni non disponibili
-                      {vehicleSearchQuery &&
-                        filteredUnavailableVehicles.length !==
-                          unavailableVehicles.length && (
-                          <span className="ml-1">
-                            ({filteredUnavailableVehicles.length}{" "}
-                            corrispondenti)
-                          </span>
-                        )}
-                    </summary>
-                    <div className="mt-2 space-y-2">
-                      {(vehicleSearchQuery
-                        ? filteredUnavailableVehicles
-                        : unavailableVehicles
-                      ).map((vehicle, idx) => (
-                        <div
-                          key={vehicle.vehicle_id || vehicle.VehicleID || idx}
-                          className="flex items-center gap-2 text-xs text-default-500 p-2 bg-default-50 rounded-lg"
-                        >
-                          <Icon icon="solar:close-circle-bold" width={14} />
-                          <span>
-                            {vehicle.name || vehicle.VehicleName} (
-                            {vehicle.license_plate || vehicle.VehiclePlate})
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </details>
-                )}
               </div>
             )}
 
             {/* Summary */}
-            {currentStep === 2 && targetVehicle && selectedVehicleInfo && (
+            {currentStep === 2 && targetWarehouse && selectedWarehouseInfo && (
               <>
                 <Divider />
                 <Card className="bg-primary/5 border border-primary/20">
                   <CardBody className="p-4">
                     <h4 className="font-semibold text-primary mb-3 flex items-center gap-2">
                       <Icon icon="solar:check-circle-bold" width={20} />
-                      Pronto per il caricamento
+                      Pronto per il trasferimento
                     </h4>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                       <div>
                         <span className="text-default-600">Quantità:</span>
-                        <p className="font-bold text-lg">
-                          {loadQuantity} unità
-                        </p>
+                        <p className="font-bold text-lg">{quantity} unità</p>
                       </div>
                       <div>
-                        <span className="text-default-600">Su furgone:</span>
+                        <span className="text-default-600">
+                          Verso magazzino:
+                        </span>
                         <p className="font-medium">
-                          {selectedVehicleInfo.name} (
-                          {selectedVehicleInfo.license_plate})
+                          {selectedWarehouseInfo.WarehouseName} (
+                          {selectedWarehouseInfo.WarehouseCode})
                         </p>
                       </div>
                     </div>
@@ -756,14 +891,8 @@ export default function LoadProductModal({
               <>
                 <Button
                   variant="light"
-                  onPress={() => {
-                    setLoadQuantity(1);
-                    setTargetVehicle("");
-                    setCurrentStep(1);
-                    setInputValue("1");
-                    onOpenChange();
-                  }}
-                  isDisabled={isProcessingLoad}
+                  onPress={handleClose}
+                  isDisabled={isProcessing}
                 >
                   Annulla
                 </Button>
@@ -771,7 +900,7 @@ export default function LoadProductModal({
                   color="primary"
                   onPress={handleNext}
                   isDisabled={
-                    loadQuantity <= 0 || loadQuantity > selectedProduct.quantity
+                    quantity <= 0 || quantity > selectedProduct.quantity
                   }
                   endContent={<Icon icon="solar:arrow-right-bold" />}
                   className="font-medium"
@@ -784,7 +913,7 @@ export default function LoadProductModal({
                 <Button
                   variant="light"
                   onPress={handleBack}
-                  isDisabled={isProcessingLoad}
+                  isDisabled={isProcessing}
                   startContent={<Icon icon="solar:arrow-left-bold" />}
                 >
                   Indietro
@@ -792,16 +921,16 @@ export default function LoadProductModal({
                 <Button
                   color="primary"
                   isDisabled={!isFormValid}
-                  isLoading={isProcessingLoad}
-                  onPress={handleLoadOperation}
+                  isLoading={isProcessing}
+                  onPress={handleMoveOperation}
                   startContent={
-                    isProcessingLoad ? null : (
-                      <Icon icon="solar:delivery-bold" />
+                    isProcessing ? null : (
+                      <Icon icon="solar:transfer-horizontal-bold" />
                     )
                   }
                   className="font-medium min-w-[140px]"
                 >
-                  {isProcessingLoad ? "Caricamento..." : "Carica Prodotto"}
+                  {isProcessing ? "Trasferimento..." : "Sposta Prodotto"}
                 </Button>
               </>
             )}
