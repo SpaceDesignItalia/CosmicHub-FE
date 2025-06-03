@@ -11,9 +11,10 @@ import {
   Input,
   Switch,
   cn,
+  Progress,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import React from "react";
+import React, { useState } from "react";
 import { useCustomTheme } from "../../providers/ThemeProvider";
 
 // Interface for ThemeCustomRadio props
@@ -78,6 +79,87 @@ export default function Settings({
 }: SettingsProps) {
   // Get theme from provider
   const { theme, setTheme } = useCustomTheme();
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [validationErrors, setValidationErrors] = useState({
+    currentPassword: "",
+    newPassword: "",
+    confirmPassword: "",
+  });
+
+  const validatePassword = (password: string) => {
+    const errors = [];
+    if (password.length < 8) errors.push("Almeno 8 caratteri");
+    if (!/[A-Z]/.test(password)) errors.push("Una lettera maiuscola");
+    if (!/[a-z]/.test(password)) errors.push("Una lettera minuscola");
+    if (!/[0-9]/.test(password)) errors.push("Un numero");
+    if (!/[^A-Za-z0-9]/.test(password)) errors.push("Un carattere speciale");
+    return errors;
+  };
+
+  const calculatePasswordStrength = (password: string) => {
+    let strength = 0;
+    if (password.length >= 8) strength += 20;
+    if (/[A-Z]/.test(password)) strength += 20;
+    if (/[a-z]/.test(password)) strength += 20;
+    if (/[0-9]/.test(password)) strength += 20;
+    if (/[^A-Za-z0-9]/.test(password)) strength += 20;
+    return strength;
+  };
+
+  const getStrengthColor = (strength: number) => {
+    if (strength <= 20) return "danger";
+    if (strength <= 40) return "warning";
+    if (strength <= 60) return "primary";
+    if (strength <= 80) return "success";
+    return "success";
+  };
+
+  const getStrengthText = (strength: number) => {
+    if (strength <= 20) return "Molto Debole";
+    if (strength <= 40) return "Debole";
+    if (strength <= 60) return "Media";
+    if (strength <= 80) return "Buona";
+    return "Molto Forte";
+  };
+
+  const handleNewPasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setNewPassword(value);
+    setPasswordStrength(calculatePasswordStrength(value));
+
+    const errors = validatePassword(value);
+    setValidationErrors((prev) => ({
+      ...prev,
+      newPassword: errors.length > 0 ? errors.join(", ") : "",
+    }));
+
+    // Check if passwords match when confirm password is not empty
+    if (confirmPassword) {
+      setValidationErrors((prev) => ({
+        ...prev,
+        confirmPassword:
+          value !== confirmPassword ? "Le password non coincidono" : "",
+      }));
+    }
+  };
+
+  const handleConfirmPasswordChange = (
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const value = e.target.value;
+    setConfirmPassword(value);
+    setValidationErrors((prev) => ({
+      ...prev,
+      confirmPassword:
+        value !== newPassword ? "Le password non coincidono" : "",
+    }));
+  };
 
   const ThemeCustomRadio = (props: ThemeCustomRadioProps) => {
     const { variant } = props;
@@ -270,7 +352,7 @@ export default function Settings({
   };
 
   return (
-    <div className="w-full max-w-2xl flex-1 p-4">
+    <div className="w-full flex-1 p-4 overflow-y-auto">
       {/* Title */}
       <div className="flex items-center gap-x-3">
         <Button
@@ -290,81 +372,245 @@ export default function Settings({
           />
         </Button>
         <h1 className="text-3xl font-bold leading-9 text-default-foreground">
-          Settings
+          Impostazioni
         </h1>
       </div>
       <h2 className="mt-2 text-small text-default-500">
-        Customize settings, email preferences, and web appearance.
+        Personalizza le impostazioni, le preferenze email e l'aspetto del sito.
       </h2>
       {/*  Tabs */}
-      <Tabs color="primary" fullWidth>
+      <Tabs color="primary" fullWidth className="w-1/2">
         <Tab key="account" title="Account">
-          <div ref={ref} className={cn("p-2", className)} {...props}>
-            {/* Full name */}
+          <div
+            ref={ref}
+            className={cn("p-2 flex flex-col gap-3", className)}
+            {...props}
+          >
+            {/* First name */}
             <div>
-              <p className="text-base font-medium text-default-700">
-                Full name
-              </p>
+              <p className="text-base font-medium text-default-700">Nome</p>
               <p className="mt-1 text-sm font-normal text-default-400">
-                Name to be used for emails.
+                Il tuo nome.
               </p>
-              <Input className="mt-2" placeholder="e.g Kate Moore" />
+              <Input className="mt-2" placeholder="es. Mario" />
             </div>
             <Spacer y={2} />
-            {/* Username */}
+            {/* Last name */}
             <div>
-              <p className="text-base font-medium text-default-700">Username</p>
+              <p className="text-base font-medium text-default-700">Cognome</p>
               <p className="mt-1 text-sm font-normal text-default-400">
-                Nickname or first name.
+                Il tuo cognome.
               </p>
-              <Input className="mt-2" placeholder="kate.moore" />
+              <Input className="mt-2" placeholder="es. Rossi" />
             </div>
             <Spacer y={2} />
             {/* Email Address */}
             <div>
               <p className="text-base font-medium text-default-700">
-                Email Address
+                Indirizzo Email
               </p>
-              <p className="mt-1 text-sm font-normal text-default-400">
-                The email address associated with your account.
-              </p>
-              <Input className="mt-2" placeholder="e.g kate.moore@acme.com" />
+
+              <div className="mt-2">
+                <Input className="mt-2" placeholder="Nuovo indirizzo email" />
+              </div>
             </div>
+            <Button color="primary" size="sm" className="w-1/5">
+              Aggiorna Account
+            </Button>
             <Spacer y={2} />
-            {/* Timezone */}
-            <section>
-              <div>
+            {/* Password Change */}
+            <div>
+              <div className="flex items-center gap-2">
+                <Icon
+                  icon="solar:lock-password-linear"
+                  className="text-primary"
+                  width={24}
+                />
                 <p className="text-base font-medium text-default-700">
-                  Timezone
-                </p>
-                <p className="mt-1 text-sm font-normal text-default-400">
-                  Set your current timezone.
+                  Cambia Password
                 </p>
               </div>
-              <Select className="mt-2" defaultSelectedKeys={["utc-3"]}>
-                {timeZoneOptions.map((timeZoneOption) => (
-                  <SelectItem key={timeZoneOption.value}>
-                    {timeZoneOption.label}
-                  </SelectItem>
-                ))}
-              </Select>
-            </section>
-            <Spacer y={2} />
-            <Button
-              className="mt-4 bg-default-foreground text-background"
-              size="sm"
-            >
-              Update Account
-            </Button>
+              <p className="mt-1 text-sm font-normal text-default-400">
+                Aggiorna la password del tuo account per mantenere sicuro il tuo
+                profilo.
+              </p>
+              <div className="mt-4 space-y-4">
+                <div>
+                  <p className="text-sm font-medium text-default-600">
+                    Password Attuale
+                  </p>
+                  <Input
+                    className="mt-1"
+                    type={showCurrentPassword ? "text" : "password"}
+                    placeholder="Inserisci la password attuale"
+                    startContent={
+                      <Icon
+                        icon="solar:lock-linear"
+                        className="text-default-400"
+                        width={20}
+                      />
+                    }
+                    endContent={
+                      <button
+                        className="focus:outline-none"
+                        onClick={() =>
+                          setShowCurrentPassword(!showCurrentPassword)
+                        }
+                      >
+                        <Icon
+                          icon={
+                            showCurrentPassword
+                              ? "solar:eye-closed-linear"
+                              : "solar:eye-linear"
+                          }
+                          className="text-default-400"
+                          width={20}
+                        />
+                      </button>
+                    }
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                  />
+                  {validationErrors.currentPassword && (
+                    <p className="mt-1 text-xs text-danger">
+                      {validationErrors.currentPassword}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-default-600">
+                    Nuova Password
+                  </p>
+                  <Input
+                    className="mt-1"
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="Inserisci la nuova password"
+                    startContent={
+                      <Icon
+                        icon="solar:lock-linear"
+                        className="text-default-400"
+                        width={20}
+                      />
+                    }
+                    endContent={
+                      <button
+                        className="focus:outline-none"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                      >
+                        <Icon
+                          icon={
+                            showNewPassword
+                              ? "solar:eye-closed-linear"
+                              : "solar:eye-linear"
+                          }
+                          className="text-default-400"
+                          width={20}
+                        />
+                      </button>
+                    }
+                    value={newPassword}
+                    onChange={handleNewPasswordChange}
+                  />
+                  <div className="mt-2">
+                    <Progress
+                      value={passwordStrength}
+                      color={getStrengthColor(passwordStrength)}
+                      className="h-2"
+                    />
+                    <p className="mt-1 text-xs text-default-400">
+                      Forza password:{" "}
+                      <span
+                        className={cn("font-medium", {
+                          "text-danger": passwordStrength <= 20,
+                          "text-warning":
+                            passwordStrength > 20 && passwordStrength <= 40,
+                          "text-primary":
+                            passwordStrength > 40 && passwordStrength <= 60,
+                          "text-success": passwordStrength > 60,
+                        })}
+                      >
+                        {getStrengthText(passwordStrength)}
+                      </span>
+                    </p>
+                  </div>
+                  {validationErrors.newPassword && (
+                    <p className="mt-1 text-xs text-danger">
+                      La password deve contenere: {validationErrors.newPassword}
+                    </p>
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-default-600">
+                    Conferma Nuova Password
+                  </p>
+                  <Input
+                    className="mt-1"
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Reinserisci la nuova password"
+                    startContent={
+                      <Icon
+                        icon="solar:lock-linear"
+                        className="text-default-400"
+                        width={20}
+                      />
+                    }
+                    endContent={
+                      <button
+                        className="focus:outline-none"
+                        onClick={() =>
+                          setShowConfirmPassword(!showConfirmPassword)
+                        }
+                      >
+                        <Icon
+                          icon={
+                            showConfirmPassword
+                              ? "solar:eye-closed-linear"
+                              : "solar:eye-linear"
+                          }
+                          className="text-default-400"
+                          width={20}
+                        />
+                      </button>
+                    }
+                    value={confirmPassword}
+                    onChange={handleConfirmPasswordChange}
+                  />
+                  {validationErrors.confirmPassword && (
+                    <p className="mt-1 text-xs text-danger">
+                      {validationErrors.confirmPassword}
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="mt-4 flex justify-end">
+                <Button
+                  color="primary"
+                  size="sm"
+                  startContent={
+                    <Icon icon="solar:check-circle-linear" width={20} />
+                  }
+                  isDisabled={
+                    !currentPassword ||
+                    !newPassword ||
+                    !confirmPassword ||
+                    Object.values(validationErrors).some(
+                      (error) => error !== ""
+                    )
+                  }
+                >
+                  Aggiorna Password
+                </Button>
+              </div>
+            </div>
           </div>
         </Tab>
         <Tab key="theme" title="Tema">
           <div ref={ref} className={cn("p-2", className)} {...props}>
             {/* Theme */}
             <div>
-              <p className="text-base font-medium text-default-700">Theme</p>
+              <p className="text-base font-medium text-default-700">Tema</p>
               <p className="mt-1 text-sm font-normal text-default-400">
-                Change the appearance of the web.
+                Cambia l'aspetto del sito.
               </p>
               {/* Theme radio group */}
               <RadioGroup
@@ -374,10 +620,10 @@ export default function Settings({
                 onValueChange={(value) => setTheme(value as "light" | "dark")}
               >
                 <ThemeCustomRadio value="light" variant="light">
-                  Light
+                  Chiaro
                 </ThemeCustomRadio>
                 <ThemeCustomRadio value="dark" variant="dark">
-                  Dark
+                  Scuro
                 </ThemeCustomRadio>
               </RadioGroup>
             </div>
