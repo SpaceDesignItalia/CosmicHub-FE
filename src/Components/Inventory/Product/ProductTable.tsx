@@ -688,6 +688,17 @@ export default function ProductTable({
   }, [handleKeyboardShortcuts]);
 
   // Stock operation functions
+  const resetStockModal = useCallback(() => {
+    setStockModalState({
+      isOpen: false,
+      type: "increase",
+      selectedProduct: null,
+      amount: "",
+      reason: "",
+      isProcessing: false,
+    });
+  }, []);
+
   const handleStockOperation = async () => {
     if (
       !stockModalState.selectedProduct ||
@@ -740,40 +751,8 @@ export default function ProductTable({
             } con successo!`,
             description: `Quantità aggiornata con successo nel database`,
           });
-          setStockModalState({ ...stockModalState, isOpen: false });
 
-          // Dopo aver aggiornato la quantità, registra il movimento
-          try {
-            const movementEndpoint =
-              stockModalState.type === "increase"
-                ? "/Movement/POST/CreateLoadMovement"
-                : "/Movement/POST/CreateUnloadMovement";
-
-            const movementData = {
-              product_id: stockModalState.selectedProduct.product_id,
-              quantity: amount,
-              reason: stockModalState.reason,
-              warehouse_id: stockModalState.selectedProduct.warehouse_id,
-              timestamp: new Date().toISOString(),
-              movement_type:
-                stockModalState.type === "increase" ? "LOAD" : "UNLOAD",
-              notes: stockModalState.reason,
-              user_id: "current_user", // TODO: Sostituire con l'ID utente reale
-              created_at: new Date().toISOString(),
-            };
-
-            await axios.post(movementEndpoint, movementData);
-            console.log(
-              `Movimento ${stockModalState.type} registrato con successo`
-            );
-          } catch (movementError) {
-            console.warn(
-              "Errore nella registrazione del movimento:",
-              movementError
-            );
-            // Non blocchiamo l'operazione se la registrazione del movimento fallisce
-            // L'aggiornamento della quantità è già avvenuto con successo
-          }
+          // Il movimento viene creato automaticamente dal backend
         }
       } catch (apiError: any) {
         // Fallback con endpoint generico come fa InlineQuantityEditor
@@ -809,50 +788,17 @@ export default function ProductTable({
             } con successo!`,
             description: `Quantità aggiornata con successo nel database`,
           });
-          setStockModalState({ ...stockModalState, isOpen: false });
 
-          // Reset dei campi
-          setStockModalState({ ...stockModalState, amount: "" });
-          setStockModalState({ ...stockModalState, reason: "" });
-
-          // Dopo aver aggiornato la quantità, registra il movimento
-          try {
-            const movementEndpoint =
-              stockModalState.type === "increase"
-                ? "/Movement/POST/CreateLoadMovement"
-                : "/Movement/POST/CreateUnloadMovement";
-
-            const movementData = {
-              product_id: stockModalState.selectedProduct.product_id,
-              quantity: amount,
-              reason: stockModalState.reason,
-              warehouse_id: stockModalState.selectedProduct.warehouse_id,
-              timestamp: new Date().toISOString(),
-              movement_type:
-                stockModalState.type === "increase" ? "LOAD" : "UNLOAD",
-              notes: stockModalState.reason,
-              user_id: "current_user", // TODO: Sostituire con l'ID utente reale
-              created_at: new Date().toISOString(),
-            };
-
-            await axios.post(movementEndpoint, movementData);
-            console.log(
-              `Movimento ${stockModalState.type} registrato con successo nel fallback`
-            );
-          } catch (movementError) {
-            console.warn(
-              "Errore nella registrazione del movimento (fallback):",
-              movementError
-            );
-            // Non blocchiamo l'operazione se la registrazione del movimento fallisce
-            // L'aggiornamento della quantità è già avvenuto con successo
-          }
+          // Il movimento viene creato automaticamente dal backend
         } else {
           throw apiError;
         }
       }
 
       console.log("Quantità aggiornata con successo nel database");
+      
+      // Chiudi il modal e resetta lo stato dopo l'operazione completata
+      resetStockModal();
     } catch (error: any) {
       console.error("Errore nell'operazione di stock:", error);
 
@@ -868,7 +814,8 @@ export default function ProductTable({
 
       alert(`Errore nell'operazione: ${errorMessage}`);
     } finally {
-      setStockModalState({ ...stockModalState, isProcessing: false });
+      // Assicurati che isProcessing sia sempre resettato
+      setStockModalState(prev => ({ ...prev, isProcessing: false }));
     }
   };
 
@@ -1221,9 +1168,7 @@ export default function ProductTable({
       {/* Modal Gestione Stock */}
       <Modal
         isOpen={stockModalState.isOpen}
-        onClose={() =>
-          setStockModalState({ ...stockModalState, isOpen: false })
-        }
+        onClose={resetStockModal}
         size="2xl"
       >
         <ModalContent>
@@ -1324,9 +1269,7 @@ export default function ProductTable({
           <ModalFooter>
             <Button
               variant="light"
-              onPress={() =>
-                setStockModalState({ ...stockModalState, isOpen: false })
-              }
+              onPress={resetStockModal}
             >
               Annulla
             </Button>

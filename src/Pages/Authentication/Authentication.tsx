@@ -305,7 +305,7 @@ export default function Authentication() {
       if (res.status === 200) {
         setIsLoading(false);
         setIsSuccess(true);
-        setCountdown(3);
+        setCountdown(1);
       }
     } catch (error: any) {
       console.error("Authentication failed:", error);

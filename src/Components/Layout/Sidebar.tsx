@@ -194,30 +194,66 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const [isMobile, setIsMobile] = React.useState(false);
     const location = useLocation();
 
+    // Stato per controllare gli accordion aperti
+    const [expandedKeys, setExpandedKeys] = React.useState<Set<string>>(new Set());
+
     // Aggiorno la selezione basata sul percorso corrente
+    const currentSelection = React.useMemo(() => {
+      const currentPath = location.pathname;
+      const firstPathSegment = currentPath.split("/")[1];
+
+      if (!firstPathSegment) return "home";
+
+      // Prima cerco negli elementi di primo livello
+      const topLevelItem = sectionNestedItems.find(
+        (item) => item.key === firstPathSegment
+      );
+      
+      if (topLevelItem) {
+        return firstPathSegment;
+      } else {
+        // Poi cerco negli elementi nidificati
+        for (const section of sectionNestedItems) {
+          if (section.items) {
+            const nestedItem = section.items.find(
+              (item) => item.href === currentPath
+            );
+            if (nestedItem) {
+              return nestedItem.key;
+            }
+          }
+        }
+      }
+      
+      return "home";
+    }, [location.pathname]);
+
+    // Aggiorno lo stato solo quando necessario
+    React.useEffect(() => {
+      if (selected !== currentSelection) {
+        setSelected(currentSelection);
+      }
+    }, [currentSelection, selected]);
+
+    // Gestisco gli accordion aperti in modo stabile
     React.useEffect(() => {
       const currentPath = location.pathname;
       const firstPathSegment = currentPath.split("/")[1];
 
-      if (firstPathSegment) {
-        // Prima cerco negli elementi di primo livello
-        const topLevelItem = sectionNestedItems.find(
-          (item) => item.key === firstPathSegment
-        );
-        if (topLevelItem) {
-          setSelected(firstPathSegment);
-        } else {
-          // Poi cerco negli elementi nidificati
-          for (const section of sectionNestedItems) {
-            if (section.items) {
-              const nestedItem = section.items.find(
-                (item) => item.href === currentPath
-              );
-              if (nestedItem) {
-                setSelected(nestedItem.key);
-                break;
+      // Se siamo in una sezione nidificata, apri l'accordion del parent
+      for (const section of sectionNestedItems) {
+        if (section.items && section.type === SidebarItemType.Nest) {
+          const hasActiveChild = section.items.some(
+            (item) => item.href === currentPath
+          );
+          
+          if (hasActiveChild || section.key === firstPathSegment) {
+            setExpandedKeys(prev => {
+              if (!prev.has(section.key)) {
+                return new Set([...prev, section.key]);
               }
-            }
+              return prev;
+            });
           }
         }
       }
@@ -232,64 +268,55 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     // Usiamo la nuova API del tema
     const { isDark, toggleTheme } = useCustomTheme();
 
-    // Effetto per caricare i dati utente
+    // Combino gli effetti per magazzini e utente per ridurre i re-render
     React.useEffect(() => {
-      const fetchUser = async () => {
-        try {
-          const userResponse = await axios.get(
-            "/Authentication/GET/GetSessionData"
-          );
+      let isMounted = true;
 
-          const companyResponse = await axios.get(
-            "/Company/GET/GetCompanyByCompanyId",
-            {
-              params: {
-                company_id: userResponse.data.company_id,
-              },
+      const fetchData = async () => {
+        try {
+          // Fetch utente solo se non è già caricato
+          if (!user) {
+            const userResponse = await axios.get(
+              "/Authentication/GET/GetSessionData"
+            );
+
+            const companyResponse = await axios.get(
+              "/Company/GET/GetCompanyByCompanyId",
+              {
+                params: {
+                  company_id: userResponse.data.company_id,
+                },
+              }
+            );
+
+            if (isMounted) {
+              setUser({
+                name: userResponse.data.name,
+                surname: userResponse.data.surname,
+                email: userResponse.data.email,
+                company: companyResponse.data.name,
+              });
             }
-          );
+          }
 
-          setUser({
-            name: userResponse.data.name,
-            surname: userResponse.data.surname,
-            email: userResponse.data.email,
-            company: companyResponse.data.name,
-          });
-        } catch (error) {
-          console.error(error);
-        }
-      };
-
-      fetchUser();
-    }, []);
-
-    // Effetto per intercettare i cambiamenti di percorso e forzare l'aggiornamento dei magazzini
-    React.useEffect(() => {
-      // Se siamo appena tornati da una pagina di creazione magazzino, forziamo l'aggiornamento
-      if (
-        location.pathname === "/dashboard" &&
-        location.state?.warehouseCreated
-      ) {
-        setRefreshWarehouses((prev) => !prev);
-      }
-    }, [location]);
-
-    // Nuovo effetto per caricare i magazzini
-    React.useEffect(() => {
-      const fetchWarehouses = async () => {
-        try {
+          // Fetch magazzini
           const response = await axios.get("/Warehouse/GET/GetAllWarehouses");
-          // Rimuovo il filtro sul tipo di magazzino per mostrare tutti i magazzini
           const warehouseItems = response.data;
 
-          setWarehouses(warehouseItems);
+          if (isMounted) {
+            setWarehouses(warehouseItems);
+          }
         } catch (error) {
-          console.error("Errore nel caricamento dei magazzini:", error);
+          console.error("Errore nel caricamento dei dati:", error);
         }
       };
 
-      fetchWarehouses();
-    }, [refreshWarehouses]); // Aggiungiamo refreshWarehouses come dipendenza per forzare il refresh
+      fetchData();
+
+      return () => {
+        isMounted = false;
+      };
+    }, [refreshWarehouses, user]); // Dipende solo da refreshWarehouses e user
 
     // Stato per il magazzino selezionato
     const [selectedWarehouse, setSelectedWarehouse] = React.useState<
@@ -299,24 +326,31 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       return localStorage.getItem("selectedWarehouse");
     });
 
-    // Salvo il magazzino selezionato nel localStorage
+    // Salvo il magazzino selezionato nel localStorage e gestisco i cambiamenti di percorso
     React.useEffect(() => {
+      // Salva il magazzino selezionato nel localStorage
       if (selectedWarehouse) {
         localStorage.setItem("selectedWarehouse", selectedWarehouse);
       }
-    }, [selectedWarehouse]);
 
-    // Aggiorno il magazzino selezionato basandoci sul percorso corrente
-    React.useEffect(() => {
-      const currentPath = location.pathname;
-      if (currentPath.startsWith("/warehouses/")) {
-        const warehouseId = currentPath.split("/")[2];
-        if (warehouseId) {
+      // Gestisce il refresh dei magazzini quando si torna dalla pagina di creazione
+      if (
+        location.pathname === "/dashboard" &&
+        location.state?.warehouseCreated
+      ) {
+        setRefreshWarehouses((prev) => !prev);
+      }
+
+      // Aggiorna il magazzino selezionato basandosi sul percorso corrente
+      if (location.pathname.startsWith("/warehouses/")) {
+        const warehouseId = location.pathname.split("/")[2];
+        if (warehouseId && warehouseId !== selectedWarehouse) {
           setSelectedWarehouse(warehouseId);
         }
       }
-    }, [location.pathname]);
+    }, [selectedWarehouse, location.pathname, location.state]);
 
+    // Gestione mobile e overflow del body
     React.useEffect(() => {
       const checkMobile = () => {
         setIsMobile(window.innerWidth < 768);
@@ -362,10 +396,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const renderItem = React.useCallback(
       (item: SidebarItem) => {
         const currentPath = location.pathname;
-        // Prendi il primo segmento del path (es: da "/inventory/categories" prende "inventory")
         const firstPathSegment = currentPath.split("/")[1];
 
-        // Gestisce anche i percorsi dei magazzini
         const isSelected =
           item.type === SidebarItemType.Nest
             ? item.key === firstPathSegment
@@ -376,11 +408,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           item.items?.length > 0 &&
           item?.type === SidebarItemType.Nest;
 
-        // Verifica se l'elemento è disabilitato (magazzino inattivo)
-        const isDisabled = item.className?.includes("pointer-events-none");
-
         if (isNestType) {
-          // Is a nest type item , so we need to remove the href
           delete item.href;
         }
 
@@ -399,14 +427,14 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   "inline-block w-11": isCompact && isNestType,
                 },
                 "transition-colors",
-                isDisabled ? "" : "data-[hover=true]:bg-default-100",
+                "data-[hover=true]:bg-default-100",
                 isNestType
                   ? "px-0 rounded-large data-[hover=true]:bg-transparent"
                   : ""
               ),
               title: cn(
                 "whitespace-nowrap overflow-hidden text-ellipsis max-w-full transition-colors",
-                isDisabled ? "" : "data-[hover=true]:text-foreground-900"
+                "data-[hover=true]:text-foreground-900"
               ),
             }}
             endContent={
@@ -419,8 +447,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                 <Icon
                   className={cn(
                     "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0",
-                    iconClassName,
-                    isDisabled && "opacity-60"
+                    iconClassName
                   )}
                   icon={item.icon}
                   width={24}
@@ -450,7 +477,12 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               </Tooltip>
             ) : null}
             {!isCompact && isNestType ? (
-              <Accordion>
+              <Accordion
+                selectedKeys={expandedKeys}
+                onSelectionChange={(keys) => {
+                  setExpandedKeys(new Set(Array.from(keys).map(String)));
+                }}
+              >
                 <AccordionItem
                   key={item.key}
                   aria-label={item.title}
@@ -478,7 +510,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                     </div>
                   }
                 >
-                  {/* Per tutti gli accordion normali */}
                   {item.items && item.items?.length > 0 ? (
                     <Listbox
                       aria-label={`Sottomenu ${item.title}`}
@@ -502,7 +533,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         hideEndContent,
         iconClassName,
         location.pathname,
-        warehouses,
+        expandedKeys,
         navigate,
         isMobile,
         onClose,
@@ -514,8 +545,12 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         <div className="relative flex h-full w-full flex-1 flex-col border-r-small border-divider bg-background p-4 overflow-hidden">
           <div
             className="flex items-center justify-between gap-2 px-2 cursor-pointer hover:opacity-80"
-            onClick={() => {
-              navigate("/dashboard");
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              if (location.pathname !== "/dashboard") {
+                navigate("/dashboard");
+              }
             }}
           >
             <div className="flex items-center gap-2">
@@ -663,10 +698,32 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   selectedItem = sectionNestedItems
                     .flatMap((section: SidebarItem) => section.items || [])
                     .find((item: SidebarItem) => item.key === key);
+                  
+                  // Se ho trovato un elemento nidificato, apri il suo parent
+                  if (selectedItem) {
+                    const parentSection = sectionNestedItems.find(
+                      (section: SidebarItem) => 
+                        section.items?.some((item: SidebarItem) => item.key === key)
+                    );
+                    if (parentSection) {
+                      setExpandedKeys(prev => new Set([...prev, parentSection.key]));
+                    }
+                  }
+                } else if (selectedItem.type === SidebarItemType.Nest && selectedItem.items?.length) {
+                  // Se è un elemento con sottoelementi, apri/chiudi l'accordion
+                  setExpandedKeys(prev => {
+                    const newSet = new Set(prev);
+                    if (newSet.has(key)) {
+                      newSet.delete(key);
+                    } else {
+                      newSet.add(key);
+                    }
+                    return newSet;
+                  });
                 }
 
-                // Navigo se l'elemento ha un href
-                if (selectedItem?.href) {
+                // Navigo solo se l'elemento ha un href e non siamo già sulla pagina
+                if (selectedItem?.href && location.pathname !== selectedItem.href) {
                   navigate(selectedItem.href);
                 }
 
