@@ -1306,93 +1306,23 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Peso caricato</p>
-                    <p className="text-lg font-bold text-blue-600 dark:text-blue-300">
-                      {Math.round((vehicle.capacity * (capacityUsed / 100))).toLocaleString("it-IT")} kg
-                    </p>
-                  </div>
+                 
                   <div className="text-center">
                     <p className="text-xs text-zinc-500 dark:text-zinc-300">Articoli</p>
                     <p className="text-lg font-bold text-green-600 dark:text-green-300">
-                      {isOnRoute ? "18" : isAvailable ? "6" : "0"}
+                      {isOnRoute ? "18" : isAvailable ? "11" : "7"}
                     </p>
                   </div>
-                  <div className="text-center">
-                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Utilizzo</p>
-                    <p className="text-lg font-bold text-purple-600 dark:text-purple-300">
-                      {capacityUsed}%
-                    </p>
-                  </div>
+                 
                 </div>
               </div>
 
-              {/* Barra di capacità avanzata */}
-              <div className="mb-6 bg-gradient-to-r from-zinc-50 to-blue-50 dark:from-zinc-950 dark:to-blue-950 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800">
-                <div className="flex justify-between items-center mb-3">
-                  <span className="text-sm font-semibold text-zinc-700 dark:text-zinc-200">
-                    Capacità di carico
-                  </span>
-                  <span className="text-sm font-bold text-blue-600 dark:text-blue-300 bg-white dark:bg-zinc-800 px-3 py-1 rounded-full">
-                    {Math.round((vehicle.capacity * (capacityUsed / 100))).toLocaleString("it-IT")} / {vehicle.capacity.toLocaleString("it-IT")} kg
-                  </span>
-                </div>
-                <Progress
-                  value={capacityUsed}
-                  color={capacityUsed > 90 ? "danger" : capacityUsed > 75 ? "warning" : "primary"}
-                  size="lg"
-                  showValueLabel={true}
-                  classNames={{
-                    base: "bg-zinc-200 dark:bg-zinc-700",
-                    indicator: capacityUsed > 90 
-                      ? "bg-gradient-to-r from-red-500 to-red-600" 
-                      : capacityUsed > 75 
-                      ? "bg-gradient-to-r from-amber-500 to-orange-500"
-                      : "bg-gradient-to-r from-blue-500 to-blue-600",
-                  }}
-                />
-                <div className="flex justify-between mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                  <span>🟢 Vuoto</span>
-                  <span>🟡 Medio</span>
-                  <span>🔴 Pieno</span>
-                </div>
-              </div>
+             
 
               {/* Contenuto inventario */}
-              {isOnRoute || isAvailable ? (
+              {isOnRoute || isAvailable || true ? (
                 <div className="space-y-4">
-                  {/* Categorie prodotti */}
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-                    {[
-                      { name: "Elettronica", count: 5, icon: "mdi:chip", color: "blue" },
-                      { name: "Materiali", count: 8, icon: "mdi:cube-outline", color: "green" },
-                      { name: "Strumenti", count: 3, icon: "mdi:tools", color: "purple" },
-                      { name: "Energia", count: 2, icon: "mdi:solar-panel", color: "amber" }
-                    ].map((category, index) => (
-                      <div key={index} className={`p-4 rounded-xl border-2 border-dashed ${
-                        category.color === "blue" ? "border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950" :
-                        category.color === "green" ? "border-green-200 bg-green-50 dark:border-green-800 dark:bg-green-950" :
-                        category.color === "purple" ? "border-purple-200 bg-purple-50 dark:border-purple-800 dark:bg-purple-950" :
-                        "border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950"
-                      }`}>
-                        <div className="flex items-center gap-3">
-                          <Icon
-                            icon={category.icon}
-                            className={`text-2xl ${
-                              category.color === "blue" ? "text-blue-600 dark:text-blue-300" :
-                              category.color === "green" ? "text-green-600 dark:text-green-300" :
-                              category.color === "purple" ? "text-purple-600 dark:text-purple-300" :
-                              "text-amber-600 dark:text-amber-300"
-                            }`}
-                          />
-                          <div>
-                            <p className="font-semibold text-zinc-800 dark:text-zinc-50">{category.name}</p>
-                            <p className="text-sm text-zinc-500 dark:text-zinc-400">{category.count} articoli</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                  
 
                   {/* Lista dettagliata prodotti */}
                   <div className="space-y-3">
@@ -1407,11 +1337,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                         name: "Moduli Fotovoltaici Premium",
                         category: "Energia",
                         sku: "PV-2024-001",
-                        quantity: 12,
-                        weight: 180.5,
+                        quantity: isOnRoute ? 12 : isAvailable ? 8 : 4,
+                        weight: isOnRoute ? 180.5 : isAvailable ? 120.3 : 60.2,
                         destination: "Via Roma 123, Firenze",
-                        priority: "Alta",
-                        status: "Pronto per consegna",
                         icon: "mdi:solar-panel",
                         color: "amber"
                       },
@@ -1420,11 +1348,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                         name: "Componenti Elettronici Avanzati",
                         category: "Elettronica",
                         sku: "EL-2024-045",
-                        quantity: 85,
-                        weight: 45.2,
+                        quantity: isOnRoute ? 85 : isAvailable ? 45 : 25,
+                        weight: isOnRoute ? 45.2 : isAvailable ? 28.5 : 15.8,
                         destination: "Piazza del Duomo, Firenze",
-                        priority: "Alta",
-                        status: "In transito",
                         icon: "mdi:chip",
                         color: "blue"
                       },
@@ -1433,11 +1359,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                         name: "Materiali Isolanti Termici",
                         category: "Materiali",
                         sku: "MT-2024-012",
-                        quantity: 50,
-                        weight: 120.8,
+                        quantity: isOnRoute ? 50 : isAvailable ? 30 : 15,
+                        weight: isOnRoute ? 120.8 : isAvailable ? 75.4 : 38.2,
                         destination: "Viale dei Mille 45, Prato",
-                        priority: "Media",
-                        status: "In transito",
                         icon: "mdi:cube-outline",
                         color: "green"
                       },
@@ -1446,15 +1370,50 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                         name: "Kit Strumentazione Precisione",
                         category: "Strumenti",
                         sku: "ST-2024-008",
-                        quantity: 15,
-                        weight: 67.5,
+                        quantity: isOnRoute ? 15 : isAvailable ? 10 : 5,
+                        weight: isOnRoute ? 67.5 : isAvailable ? 45.0 : 22.5,
                         destination: "Via Nazionale 67, Pistoia",
-                        priority: "Bassa",
-                        status: "Programmato",
                         icon: "mdi:tools",
                         color: "purple"
+                      },
+                      {
+                        id: "5",
+                        name: "Cavi Elettrici Industriali",
+                        category: "Elettronica",
+                        sku: "EL-2024-078",
+                        quantity: isOnRoute ? 35 : isAvailable ? 20 : 10,
+                        weight: isOnRoute ? 89.3 : isAvailable ? 52.1 : 26.0,
+                        destination: "Via Pisana 234, Firenze",
+                        icon: "mdi:cable-data",
+                        color: "blue"
+                      },
+                      {
+                        id: "6",
+                        name: "Cemento Rapido Pro",
+                        category: "Materiali",
+                        sku: "MT-2024-089",
+                        quantity: isOnRoute ? 25 : isAvailable ? 15 : 8,
+                        weight: isOnRoute ? 156.7 : isAvailable ? 94.0 : 47.1,
+                        destination: "Borgo San Lorenzo, Firenze",
+                        icon: "mdi:sack",
+                        color: "green"
+                      },
+                      {
+                        id: "7",
+                        name: "Trapano Professionale",
+                        category: "Strumenti",
+                        sku: "ST-2024-034",
+                        quantity: isOnRoute ? 8 : isAvailable ? 5 : 3,
+                        weight: isOnRoute ? 24.8 : isAvailable ? 15.5 : 9.3,
+                        destination: "Via del Corso 12, Prato",
+                        icon: "mdi:drill",
+                        color: "purple"
                       }
-                    ].filter((_, index) => isOnRoute || index < 2).map((product) => (
+                    ].filter((_, index) => {
+                      if (isOnRoute) return true; // Mostra tutti i prodotti se in viaggio
+                      if (isAvailable) return index < 5; // Mostra 5 prodotti se disponibile
+                      return index < 3; // Mostra 3 prodotti se in manutenzione
+                    }).map((product) => (
                       <div key={product.id} className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all duration-200 hover:border-blue-300 dark:hover:border-blue-700">
                         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                           {/* Icona e info principale */}
@@ -1492,7 +1451,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                           </div>
 
                           {/* Dettagli prodotto */}
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 lg:gap-6">
+                          <div className="grid grid-cols-2 gap-4 lg:gap-6">
                             <div className="text-center">
                               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Quantità</p>
                               <p className="font-bold text-zinc-800 dark:text-zinc-50">
@@ -1504,32 +1463,6 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                               <p className="font-bold text-zinc-800 dark:text-zinc-50">
                                 {product.weight} kg
                               </p>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Priorità</p>
-                              <Chip
-                                size="sm"
-                                variant="flat"
-                                className={`font-medium ${
-                                  product.priority === "Alta"
-                                    ? "bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300"
-                                    : product.priority === "Media"
-                                    ? "bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300"
-                                    : "bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300"
-                                }`}
-                              >
-                                {product.priority}
-                              </Chip>
-                            </div>
-                            <div className="text-center">
-                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Stato</p>
-                              <Chip
-                                size="sm"
-                                variant="flat"
-                                className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 font-medium"
-                              >
-                                {product.status}
-                              </Chip>
                             </div>
                           </div>
                         </div>
@@ -1555,26 +1488,10 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                     ))}
                   </div>
                 </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="w-20 h-20 rounded-full bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center mb-6">
-                    <Icon
-                      icon="mdi:package-variant-closed"
-                      className="text-5xl text-zinc-400 dark:text-zinc-500"
-                    />
-                  </div>
-                  <h5 className="text-xl font-bold text-zinc-600 dark:text-zinc-300 mb-3">
-                    Furgone Vuoto
-                  </h5>
-                  <p className="text-zinc-500 dark:text-zinc-400 max-w-md">
-                    Il veicolo è attualmente in manutenzione e non contiene prodotti. 
-                    Una volta operativo, qui vedrai l'inventario completo.
-                  </p>
-                </div>
-              )}
+              ) : null}
 
               {/* Azioni inventario */}
-              {(isOnRoute || isAvailable) && (
+              {(isOnRoute || isAvailable || true) && (
                 <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-800">
                   <div className="flex flex-wrap gap-3">
                     <Button
@@ -1593,22 +1510,8 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                     >
                       Esporta Inventario
                     </Button>
-                    <Button
-                      variant="flat"
-                      size="md"
-                      startContent={<Icon icon="mdi:qrcode-scan" width={18} />}
-                      className="bg-purple-50 text-purple-700 hover:bg-purple-100 dark:bg-purple-950 dark:text-purple-300 dark:hover:bg-purple-900 font-medium"
-                    >
-                      Scansiona QR
-                    </Button>
-                    <Button
-                      variant="flat"
-                      size="md"
-                      startContent={<Icon icon="mdi:truck-fast" width={18} />}
-                      className="bg-orange-50 text-orange-700 hover:bg-orange-100 dark:bg-orange-950 dark:text-orange-300 dark:hover:bg-orange-900 font-medium"
-                    >
-                      Ottimizza Carico
-                    </Button>
+                  
+                 
                   </div>
                 </div>
               )}

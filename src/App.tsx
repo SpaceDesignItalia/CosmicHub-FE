@@ -84,11 +84,8 @@ function App() {
           <Route path="/inventory/vehicles" element={<Vehicles />} />
           <Route path="/inventory/vehicles/add" element={<AddVehicle />} />
           <Route path="/inventory/vehicles/edit/:id" element={<EditVehicle />} />
+          <Route path="/inventory/warehouses/edit/:UUID" element={<EditWarehouse />} />
           <Route path="/inventory/warehouses/add" element={<AddWarehouse />} />
-          <Route
-            path="/inventory/warehouses/edit/:UUID"
-            element={<EditWarehouse />}
-          />
           <Route path="/inventory/movements" element={<WarehouseMovement />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/suppliers" element={<Suppliers />} />
