@@ -118,12 +118,16 @@ export default function Vehicles() {
     return matchesSearch && matchesType;
   });
 
+
+
   // Carica i dati dei veicoli
   useEffect(() => {
     const fetchVehicles = async () => {
       setIsLoading(true);
       try {
         const response = await axios.get("/Warehouse/GET/GetAllVehicles");
+
+
 
         // Trasforma i dati dal formato db al formato UI
         const formattedVehicles: Vehicle[] = await Promise.all(
@@ -158,7 +162,7 @@ export default function Vehicles() {
             } catch (error) {
               // Se non c'è un utente assegnato o si verifica un errore, continuiamo senza assegnare utente
               console.log(
-                `Nessun utente assegnato al veicolo ${item.warehouse_id}`
+                `Nessun utente assegnato al veicolo ${item.vehicle_id}`
               );
             }
 
@@ -191,7 +195,7 @@ export default function Vehicles() {
             }
 
             return {
-              id: item.warehouse_id,
+              id: item.vehicle_id,
               plate: item.license_plate,
               model: item.name,
               type: item.type === "Furgone grande" ? "Large Van" : "Small Van",
@@ -271,7 +275,7 @@ export default function Vehicles() {
             } catch (error) {
               // Se non c'è un utente assegnato o si verifica un errore, continuiamo senza assegnare utente
               console.log(
-                `Nessun utente assegnato al veicolo ${item.warehouse_id}`
+                `Nessun utente assegnato al veicolo ${item.vehicle_id}`
               );
             }
 
@@ -309,7 +313,7 @@ export default function Vehicles() {
             }
 
             return {
-              id: item.warehouse_id,
+              id: item.vehicle_id,
               plate: item.license_plate,
               model: item.name,
               type: item.type === "Furgone grande" ? "Large Van" : "Small Van",
