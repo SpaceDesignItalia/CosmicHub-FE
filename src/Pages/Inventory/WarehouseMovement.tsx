@@ -1,19 +1,19 @@
-import { useState, useEffect } from 'react';
-import MovementData from '../../Components/Inventory/WarehouseMovement/MovementData';
-import MovementTable from '../../Components/Inventory/WarehouseMovement/MovementTable';
-import axios from 'axios';
+import { useState, useEffect } from "react";
+import MovementData from "../../Components/Inventory/WarehouseMovement/MovementData";
+import MovementTable from "../../Components/Inventory/WarehouseMovement/MovementTable";
+import axios from "axios";
 
 // Types
 interface Movement {
   id: string;
   date: string;
-  type: 'IN' | 'OUT' | 'TRANSFER';
+  type: "IN" | "OUT" | "INCREASE" | "DECREASE" | "TRANSFER";
   product: string;
   sku: string;
   quantity: number;
   source: string;
   destination: string;
-  status: 'PENDING' | 'COMPLETED';
+  status: "PENDING" | "COMPLETED";
   product_id: string;
   from_warehouse_id?: string;
   from_warehouse_name?: string;
@@ -34,34 +34,42 @@ interface Movement {
 
 // Utility functions
 const formatDate = (dateString: string) => {
-  return new Date(dateString).toLocaleDateString('it-IT');
+  return new Date(dateString).toLocaleDateString("it-IT");
 };
 
-const getMovementType = (movementName: string): 'IN' | 'OUT' | 'TRANSFER' => {
+const getMovementType = (
+  movementName: string
+): "IN" | "OUT" | "INCREASE" | "DECREASE" | "TRANSFER" => {
   switch (movementName) {
-    case 'Carico': return 'IN';
-    case 'Scarico': return 'OUT';
-    default: return 'TRANSFER';
+    case "Carico":
+      return "IN";
+    case "Scarico":
+      return "OUT";
+    case "Increase":
+      return "INCREASE";
+    case "Decrease":
+      return "DECREASE";
+    default:
+      return "TRANSFER";
   }
 };
 
-
 const mapApiMovementToMovement = (movement: any): Movement => {
   // Format source
-  const source = movement.from_warehouse_name 
+  const source = movement.from_warehouse_name
     ? movement.from_warehouse_name
-    : movement.from_vehicle_name 
+    : movement.from_vehicle_name
     ? movement.from_vehicle_name
-    : movement.from_supplier 
-    ? (movement.SupplierName || movement.from_supplier)
-    : 'N/A';
+    : movement.from_supplier
+    ? movement.SupplierName || movement.from_supplier
+    : "N/A";
 
   // Format destination
-  const destination = movement.to_warehouse_name 
+  const destination = movement.to_warehouse_name
     ? movement.to_warehouse_name
-    : movement.to_vehicle_name 
+    : movement.to_vehicle_name
     ? movement.to_vehicle_name
-    : 'N/A';
+    : "N/A";
 
   return {
     id: movement.movement_id,
@@ -72,7 +80,7 @@ const mapApiMovementToMovement = (movement: any): Movement => {
     quantity: parseInt(movement.amount),
     source,
     destination,
-    status: 'COMPLETED',
+    status: "COMPLETED",
     product_id: movement.product_id,
     from_warehouse_id: movement.from_warehouse_id,
     from_warehouse_name: movement.from_warehouse_name,
@@ -88,7 +96,7 @@ const mapApiMovementToMovement = (movement: any): Movement => {
     supplier_name: movement.SupplierName,
     created_by: movement.created_by,
     movement_name: movement.movement_name,
-    user_name: movement.user_name
+    user_name: movement.user_name,
   };
 };
 
@@ -100,11 +108,11 @@ export default function WarehouseMovement() {
     const fetchMovements = async () => {
       try {
         setIsLoading(true);
-        const response = await axios.get('/Product/GET/GetAllProductMovements');
+        const response = await axios.get("/Product/GET/GetAllProductMovements");
         const data = response.data.map(mapApiMovementToMovement);
         setMovements(data);
       } catch (error) {
-        console.error('Error fetching movements:', error);
+        console.error("Error fetching movements:", error);
         setMovements([]);
       } finally {
         setIsLoading(false);
@@ -117,22 +125,27 @@ export default function WarehouseMovement() {
   const handleDeleteMovement = async (id: string) => {
     try {
       // TODO: Implement delete API call
-      setMovements(prev => prev.filter(m => m.id !== id));
+      setMovements((prev) => prev.filter((m) => m.id !== id));
     } catch (error) {
-      console.error('Error deleting movement:', error);
+      console.error("Error deleting movement:", error);
     }
   };
 
-  const handleUpdateStatus = async (movementId: string, newStatus: 'PENDING' | 'COMPLETED') => {
+  const handleUpdateStatus = async (
+    movementId: string,
+    newStatus: "PENDING" | "COMPLETED"
+  ) => {
     try {
       // TODO: Implement status update API call
-      setMovements(prev => prev.map(m => 
-        m.id === movementId ? { ...m, status: newStatus } : m
-      ));
+      setMovements((prev) =>
+        prev.map((m) => (m.id === movementId ? { ...m, status: newStatus } : m))
+      );
     } catch (error) {
-      console.error('Error updating movement status:', error);
+      console.error("Error updating movement status:", error);
     }
   };
+
+  console.log(movements);
 
   return (
     <div className="min-h-screen h-full w-full flex-1 flex flex-col p-3 md:p-6 gap-6">
@@ -140,11 +153,13 @@ export default function WarehouseMovement() {
       <header className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold">Movimenti Magazzino</h1>
-          <p className="text-default-900">Gestione dei movimenti di carico, scarico e trasferimenti</p>
+          <p className="text-default-900">
+            Gestione dei movimenti di carico, scarico e trasferimenti
+          </p>
         </div>
       </header>
 
-      <MovementData/>
+      <MovementData />
 
       <MovementTable
         movements={movements}
