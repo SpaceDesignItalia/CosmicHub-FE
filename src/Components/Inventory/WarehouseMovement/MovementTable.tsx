@@ -31,7 +31,7 @@ import { Icon } from "@iconify/react/dist/iconify.js";
 interface Movement {
   id: string;
   date: string;
-  type: "IN" | "OUT" | "TRANSFER";
+  type: "IN" | "OUT" | "INCREASE" | "DECREASE" | "TRANSFER";
   product: string;
   sku: string;
   quantity: number;
@@ -88,6 +88,8 @@ const typeColorMap: Record<string, ChipProps["color"]> = {
   IN: "success",
   OUT: "danger",
   TRANSFER: "primary",
+  INCREASE: "success",
+  DECREASE: "danger",
 };
 
 const columns = [
@@ -201,7 +203,7 @@ export default function MovementTable({
   }, [filteredItems, sortBy]);
 
   const items = useMemo(() => {
-    const start = (page - 1) * rowsPerPage;
+    const start = page * rowsPerPage;
     const end = start + rowsPerPage;
     return sortedItems.slice(start, end);
   }, [page, sortedItems, rowsPerPage]);
