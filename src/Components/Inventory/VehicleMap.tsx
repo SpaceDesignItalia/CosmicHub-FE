@@ -18,6 +18,7 @@ import {
   useDisclosure,
   Autocomplete,
   AutocompleteItem,
+  Input,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useVehicleTheme } from "./VehicleThemeWrapper";
@@ -241,6 +242,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
   );
   const [currentAddress, setCurrentAddress] = useState<string>("");
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const [isDeleteProductModalOpen, setIsDeleteProductModalOpen] = useState(false);
+  const [productToDelete, setProductToDelete] = useState<{id: string, name: string, quantity: number} | null>(null);
+  const [quantityToRemove, setQuantityToRemove] = useState(1);
 
   // Stato per la mappa Google Maps
   const [map, setMap] = useState<google.maps.Map | null>(null);
@@ -616,6 +620,37 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
   // Funzione per aggiornare manualmente la posizione (per test)
   const refreshPosition = () => {
     updateCoordinates(true); // Forza l'aggiornamento
+  };
+
+  // Funzioni per gestire l'eliminazione dei prodotti
+  const handleDeleteProduct = (productId: string, productName: string, productQuantity: number) => {
+    setProductToDelete({ id: productId, name: productName, quantity: productQuantity });
+    setQuantityToRemove(productQuantity === 1 ? 1 : Math.min(1, productQuantity)); // Default: 1 pezzo o tutto se c'è solo 1
+    setIsDeleteProductModalOpen(true);
+  };
+
+  const confirmDeleteProduct = () => {
+    if (productToDelete) {
+      const isRemovingAll = quantityToRemove >= productToDelete.quantity;
+      
+      // Qui andrà la logica per rimuovere la quantità specificata dal carico del veicolo
+      console.log(`${isRemovingAll ? 'Prodotto completamente rimosso' : 'Quantità parziale rimossa'}: ${productToDelete.name} (ID: ${productToDelete.id})`);
+      console.log(`Quantità rimossa: ${quantityToRemove}/${productToDelete.quantity}`);
+      
+      // TODO: Chiamata API per rimuovere la quantità specificata dal carico
+      // Se quantityToRemove >= productToDelete.quantity: rimuovi completamente il prodotto
+      // Altrimenti: aggiorna la quantità rimanente nel carico
+      
+      setIsDeleteProductModalOpen(false);
+      setProductToDelete(null);
+      setQuantityToRemove(1);
+    }
+  };
+
+  const cancelDeleteProduct = () => {
+    setIsDeleteProductModalOpen(false);
+    setProductToDelete(null);
+    setQuantityToRemove(1);
   };
 
   // Determina il centro della mappa
@@ -1465,6 +1500,24 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                               </p>
                             </div>
                           </div>
+
+                          {/* Pulsante Elimina */}
+                          <div className="flex items-center">
+                            <Button
+                              isIconOnly
+                              size="sm"
+                              variant="flat"
+                              color="danger"
+                              className="bg-red-50 hover:bg-red-100 dark:bg-red-950 dark:hover:bg-red-900 transition-colors"
+                              onPress={() => handleDeleteProduct(product.id, product.name, product.quantity)}
+                            >
+                              <Icon 
+                                icon="mdi:trash-can-outline" 
+                                className="text-red-600 dark:text-red-400" 
+                                width={16} 
+                              />
+                            </Button>
+                          </div>
                         </div>
 
                         {/* Destinazione (solo per veicoli in movimento) */}
@@ -1487,34 +1540,42 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                       </div>
                     ))}
                   </div>
-                </div>
-              ) : null}
 
-              {/* Azioni inventario */}
-              {(isOnRoute || isAvailable || true) && (
-                <div className="mt-8 pt-6 border-t border-zinc-200 dark:border-zinc-800">
-                  <div className="flex flex-wrap gap-3">
-                    <Button
-                      variant="flat"
-                      size="md"
-                      startContent={<Icon icon="mdi:plus" width={18} />}
-                      className="bg-green-50 text-green-700 hover:bg-green-100 dark:bg-green-950 dark:text-green-300 dark:hover:bg-green-900 font-medium"
-                    >
-                      Aggiungi Prodotto
-                    </Button>
-                    <Button
-                      variant="flat"
-                      size="md"
-                      startContent={<Icon icon="mdi:file-export" width={18} />}
-                      className="bg-blue-50 text-blue-700 hover:bg-blue-100 dark:bg-blue-950 dark:text-blue-300 dark:hover:bg-blue-900 font-medium"
-                    >
-                      Esporta Inventario
-                    </Button>
-                  
-                 
+                  {/* Riepilogo totali */}
+                  <div className="mt-6 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
+                    <h6 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
+                      <Icon icon="mdi:calculator" className="text-blue-600 dark:text-blue-300" />
+                      Riepilogo Carico
+                    </h6>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      <div className="text-center">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Articoli Totali</p>
+                        <p className="font-bold text-lg text-zinc-800 dark:text-zinc-50">
+                          {isOnRoute ? "18" : isAvailable ? "11" : "7"}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Peso Totale</p>
+                        <p className="font-bold text-lg text-zinc-800 dark:text-zinc-50">
+                          {isOnRoute ? "684.8" : isAvailable ? "430.8" : "218.2"} kg
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Categorie</p>
+                        <p className="font-bold text-lg text-zinc-800 dark:text-zinc-50">
+                          {isOnRoute ? "4" : isAvailable ? "4" : "3"}
+                        </p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Capacità Usata</p>
+                        <p className="font-bold text-lg text-blue-600 dark:text-blue-300">
+                          {Math.round((parseFloat(isOnRoute ? "684.8" : isAvailable ? "430.8" : "218.2") / vehicle.capacity) * 100)}%
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
-              )}
+              ) : null}
             </div>
           </Tab>
         </Tabs>
@@ -1550,7 +1611,88 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
         </div>
       </CardFooter>
 
-      {/* Modale di conferma eliminazione */}
+      {/* Modale di conferma eliminazione prodotto */}
+      <Modal isOpen={isDeleteProductModalOpen} onClose={cancelDeleteProduct}>
+        <ModalContent>
+          <>
+            <ModalHeader className="flex flex-col gap-1">
+              Conferma Eliminazione Prodotto
+            </ModalHeader>
+            <ModalBody>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col items-center text-center gap-3">
+                  <div className="w-16 h-16 rounded-full bg-danger-100 dark:bg-danger-900 flex items-center justify-center mb-2">
+                    <Icon
+                      icon="mdi:package-variant-remove"
+                      className="text-4xl text-danger-500"
+                    />
+                  </div>
+                  <p className="text-lg font-medium">
+                    Rimuovi prodotto dal carico
+                  </p>
+                  {productToDelete && (
+                    <p className="font-semibold text-zinc-700 dark:text-zinc-300">
+                      {productToDelete.name}
+                    </p>
+                  )}
+                </div>
+                
+                {productToDelete && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
+                      <span className="text-sm text-zinc-600 dark:text-zinc-400">Quantità attualmente caricata:</span>
+                      <span className="font-semibold">{productToDelete.quantity} pz</span>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        Quantità da rimuovere:
+                      </label>
+                      <Input
+                        type="number"
+                        min="1"
+                        max={productToDelete.quantity}
+                        value={quantityToRemove.toString()}
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
+                          const value = parseInt(e.target.value) || 1;
+                          setQuantityToRemove(Math.min(Math.max(1, value), productToDelete.quantity));
+                        }}
+                        endContent={<span className="text-sm text-zinc-500">pz</span>}
+                      />
+                      <div className="flex justify-between text-xs text-zinc-500">
+                        <span>Min: 1</span>
+                        <span>Max: {productToDelete.quantity}</span>
+                      </div>
+                    </div>
+                    
+                    <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
+                      <p className="text-sm text-blue-700 dark:text-blue-300">
+                        {quantityToRemove >= productToDelete.quantity 
+                          ? "Il prodotto verrà completamente rimosso dal carico."
+                          : `Rimarranno ${productToDelete.quantity - quantityToRemove} pezzi nel carico.`
+                        }
+                      </p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <Button variant="flat" onPress={cancelDeleteProduct}>
+                Annulla
+              </Button>
+              <Button color="danger" onPress={confirmDeleteProduct}>
+                {productToDelete && quantityToRemove >= productToDelete.quantity 
+                  ? "Rimuovi Tutto" 
+                  : `Rimuovi ${quantityToRemove} pz`
+                }
+              </Button>
+            </ModalFooter>
+          </>
+        </ModalContent>
+      </Modal>
+
+      {/* Modale di conferma eliminazione veicolo */}
       <Modal isOpen={isOpen} onClose={onClose}>
         <ModalContent>
           <>
