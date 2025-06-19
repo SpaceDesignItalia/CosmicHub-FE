@@ -450,8 +450,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     // Memoizzo il contenuto della sidebar per evitare re-render
     const SidebarContent = useMemo(
       () => (
-        <div className="h-screen w-64 max-w-64 bg-background text-foreground">
-          <div className="relative flex h-full w-full flex-1 flex-col border-r-small border-divider bg-background p-4 overflow-hidden">
+        <div className="fixed left-0 top-0 z-40 h-screen w-64 max-w-64 bg-background text-foreground border-r border-divider">
+          <div className="relative flex h-full w-full flex-1 flex-col bg-background p-4 overflow-hidden">
             <div
               className="flex items-center justify-between gap-2 px-2 cursor-pointer hover:opacity-80"
               onClick={(e) => {

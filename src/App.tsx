@@ -109,25 +109,27 @@ function App() {
         <Sidebar defaultSelectedKey="home" items={sectionNestedItems} />
       )}
 
-      <Routes>
-        {!isAuth ? (
-          <>
-            <Route path="*" element={<Navigate to="/login" replace />} />
-            <Route path="/" element={<Authentication />} />
-            <Route path="/login" element={<Authentication />} />
-          </>
-        ) : (
-          <>
-            <Route path="/" element={<Navigate to="/dashboard" replace />} />
-            <Route
-              path="/login"
-              element={<Navigate to="/dashboard" replace />}
-            />
-            <Route path="/*" element={<EmployeeProtectedRoutes />} />
-            <Route path="/settings" element={<Settings />} />
-          </>
-        )}
-      </Routes>
+      <div className={`flex-1 ${isAuth ? "ml-64" : ""}`}>
+        <Routes>
+          {!isAuth ? (
+            <>
+              <Route path="*" element={<Navigate to="/login" replace />} />
+              <Route path="/" element={<Authentication />} />
+              <Route path="/login" element={<Authentication />} />
+            </>
+          ) : (
+            <>
+              <Route path="/" element={<Navigate to="/dashboard" replace />} />
+              <Route
+                path="/login"
+                element={<Navigate to="/dashboard" replace />}
+              />
+              <Route path="/*" element={<EmployeeProtectedRoutes />} />
+              <Route path="/settings" element={<Settings />} />
+            </>
+          )}
+        </Routes>
+      </div>
     </div>
   );
 }
