@@ -1,22 +1,17 @@
 "use client";
 
 import { Icon } from "@iconify/react";
+import PageHeader from "../../Components/Layout/PageHeader";
 
 export default function Dashboard() {
   return (
     <div className="w-full flex-1 flex flex-col p-4 gap-6">
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Icon
-              icon="solar:home-2-linear"
-              className="text-primary"
-              width={28}
-            />
-          </div>
-          <h1 className="text-2xl font-bold">Dashboard</h1>
-        </div>
-      </div>
+      <PageHeader
+        title="Dashboard"
+        description="Panoramica generale del sistema"
+        icon="solar:home-2-bold-duotone"
+        size="md"
+      />
 
       <div className="flex-1 flex items-center justify-center">
         <div className="text-center">

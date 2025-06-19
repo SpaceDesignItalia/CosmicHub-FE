@@ -32,6 +32,7 @@ import { Icon } from "@iconify/react";
 import React, { useState, useEffect } from "react";
 import { useCustomTheme } from "../../providers/ThemeProvider";
 import Bowser from "bowser";
+import PageHeader from "../../Components/Layout/PageHeader";
 
 // Interface for ThemeCustomRadio props
 interface ThemeCustomRadioProps {
@@ -347,40 +348,21 @@ export default function Settings({
 
   return (
     <div className="w-full flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <div className="flex items-center gap-4">
-          <Button
-            isIconOnly
-            className="sm:hidden"
-            size="sm"
-            variant="flat"
-            onPress={() => {
-              setIsCollapsed?.(false);
-              onOpenChange?.();
-            }}
-          >
-            <Icon
-              className="text-default-500"
-              icon="solar:sidebar-minimalistic-linear"
-              width={20}
-            />
-          </Button>
-          <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Icon icon="solar:settings-bold-duotone" className="text-primary text-2xl" />
-            </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-                Impostazioni
-              </h1>
-              <p className="text-sm text-foreground-500 mt-1">
-                Gestisci il tuo account e le preferenze dell'applicazione
-              </p>
-            </div>
-          </div>
-        </div>
-        
+      <PageHeader
+        title="Impostazioni"
+        description="Gestisci il tuo account e le preferenze dell'applicazione"
+        icon="solar:settings-bold-duotone"
+        size="md"
+        actions={[
+          {
+            label: "Esporta Dati",
+            icon: "solar:export-linear",
+            color: "primary",
+            variant: "flat",
+          },
+        ]}
+      >
+        {/* Quick Status Indicators */}
         <div className="flex items-center gap-3">
           <Chip
             startContent={<Icon icon="solar:check-circle-bold" width={16} />}
@@ -390,16 +372,8 @@ export default function Settings({
           >
             Account Verificato
           </Chip>
-          <Button
-            color="primary"
-            variant="flat"
-            size="sm"
-            startContent={<Icon icon="solar:export-linear" width={16} />}
-          >
-            Esporta Dati
-          </Button>
         </div>
-      </div>
+      </PageHeader>
 
       {/* Tabs */}
       <Tabs 

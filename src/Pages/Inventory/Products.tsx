@@ -6,6 +6,7 @@ import QuickStats from "../../Components/Inventory/Product/QuickStats";
 import { Button, Card, Input, Select, SelectItem } from "@heroui/react";
 import { Link } from "react-router";
 import axios from "axios";
+import PageHeader from "../../Components/Layout/PageHeader";
 
 // Data types
 interface Attribute {
@@ -323,58 +324,43 @@ export default function Products() {
 
   return (
     <div className="w-full flex flex-col p-2 sm:p-4 gap-4 sm:gap-6 min-h-screen h-full overflow-auto">
-      {/* Header Section */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
-        <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Icon
-                icon="solar:box-bold-duotone"
-                className="text-primary text-xl sm:text-2xl"
-              />
-            </div>
-            <h1 className="text-xl sm:text-2xl font-bold">
-              Inventario Prodotti
-            </h1>
-          </div>
-          {/* Indicatore magazzino selezionato */}
-          {selectedWarehouse && warehouseDetails && (
-            <div className="flex items-center gap-2 ml-12 sm:ml-15">
-              <Icon
-                icon="solar:warehouse-bold"
-                className="text-primary text-sm"
-              />
-              <span className="text-sm text-default-600">
-                Magazzino:{" "}
-                <span className="font-medium text-primary">
-                  {warehouseDetails.name}
-                  {warehouseDetails.code && ` (${warehouseDetails.code})`}
-                </span>
-              </span>
-            </div>
-          )}
-          {!selectedWarehouse && (
-            <div className="flex items-center gap-2 ml-12 sm:ml-15">
-              <Icon
-                icon="solar:info-circle-bold"
-                className="text-warning text-sm"
-              />
-              <span className="text-sm text-warning">
-                Nessun magazzino selezionato - Mostrando tutti i prodotti
-              </span>
-            </div>
-          )}
-        </div>
-        <Button
-          variant="solid"
-          color="primary"
-          as={Link}
-          to="/inventory/products/add"
-        >
-          <Icon icon="proicons:box-add" width={20} />
-          Nuovo prodotto
-        </Button>
-      </div>
+      <PageHeader
+        title="Inventario Prodotti"
+        description="Gestisci i prodotti del tuo inventario"
+        icon="solar:box-bold-duotone"
+        size="md"
+        indicators={
+          selectedWarehouse && warehouseDetails
+            ? [
+                {
+                  label: "Magazzino",
+                  value: `${warehouseDetails.name}${warehouseDetails.code ? ` (${warehouseDetails.code})` : ""}`,
+                  icon: "solar:warehouse-bold",
+                  color: "primary",
+                },
+              ]
+            : !selectedWarehouse
+            ? [
+                {
+                  label: "Attenzione",
+                  value: "Nessun magazzino selezionato - Mostrando tutti i prodotti",
+                  icon: "solar:info-circle-bold",
+                  color: "warning",
+                },
+              ]
+            : []
+        }
+        actions={[
+          {
+            label: "Nuovo prodotto",
+            icon: "proicons:box-add",
+            color: "primary",
+            variant: "solid",
+            as: Link,
+            href: "/inventory/products/add",
+          },
+        ]}
+      />
 
       {/* Quick Stats Section */}
       <QuickStats products={products} />
