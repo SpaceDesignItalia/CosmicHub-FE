@@ -1,7 +1,30 @@
-import { Button, Card, Spinner, Input } from "@heroui/react";
+import { 
+  Button, 
+  Card, 
+  CardBody, 
+  CardHeader, 
+  Spinner, 
+  Input, 
+  Chip,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
+  Divider,
+  Progress,
+  Tabs,
+  Tab
+} from "@heroui/react";
 import { Icon } from "@iconify/react/dist/iconify.js";
 import axios from "axios";
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import CategoryTable from "../../Components/Inventory/Category/CategoryTable";
 
 interface Attribute {
@@ -24,6 +47,13 @@ interface GroupedCategory {
   attributes: Attribute[];
 }
 
+interface CategoryStats {
+  totalCategories: number;
+  totalAttributes: number;
+  averageAttributesPerCategory: number;
+  mostUsedAttributeType: string;
+}
+
 const getFieldTypeIcon = (type: string) => {
   switch (type) {
     case "text":
@@ -39,13 +69,33 @@ const getFieldTypeIcon = (type: string) => {
   }
 };
 
+const getFieldTypeColor = (type: string) => {
+  switch (type) {
+    case "text":
+      return "primary";
+    case "number":
+      return "success";
+    case "boolean":
+      return "warning";
+    case "date":
+      return "secondary";
+    default:
+      return "default";
+  }
+};
+
 export default function Categories() {
-  const [groupedCategories, setGroupedCategories] = useState<GroupedCategory[]>(
-    []
-  );
+  const navigate = useNavigate();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  
+  const [groupedCategories, setGroupedCategories] = useState<GroupedCategory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<GroupedCategory | null>(null);
+  const [activeTab, setActiveTab] = useState("grid");
+  const [sortBy, setSortBy] = useState<"name" | "attributes">("name");
+  const [filterType, setFilterType] = useState<string>("all");
 
   const fetchCategories = async () => {
     try {
@@ -53,8 +103,6 @@ export default function Categories() {
       setError(null);
       const res = await axios.get("/Product/GET/GetAllCategories");
       const rawData: CategoryAttribute[] = res.data;
-
-      console.log("Raw data from API:", rawData);
 
       const grouped = rawData.reduce((acc: GroupedCategory[], curr) => {
         const existingCategory = acc.find(
@@ -85,80 +133,461 @@ export default function Categories() {
       }, []);
 
       setGroupedCategories(grouped);
-      console.log("Grouped categories:", grouped);
     } catch (err) {
-      setError("Failed to load categories. Please try again later.");
+      setError("Errore nel caricamento delle categorie. Riprova più tardi.");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleDeleteCategory = async (categoryId: number) => {
-    if (!confirm("Are you sure you want to delete this category?")) return;
-
     try {
       await axios.delete(`/Product/DELETE/DeleteCategory/${categoryId}`);
-
-      fetchCategories();
-    } catch (err) {}
+      await fetchCategories();
+    } catch (err) {
+      console.error("Errore nell'eliminazione della categoria:", err);
+    }
   };
 
   useEffect(() => {
     fetchCategories();
   }, []);
 
-  const filteredCategories = groupedCategories.filter((category) =>
-    category.category_name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Calculate statistics
+  const stats: CategoryStats = {
+    totalCategories: groupedCategories.length,
+    totalAttributes: groupedCategories.reduce((sum, cat) => sum + cat.attributes.length, 0),
+    averageAttributesPerCategory: groupedCategories.length > 0 
+      ? Math.round((groupedCategories.reduce((sum, cat) => sum + cat.attributes.length, 0) / groupedCategories.length) * 10) / 10
+      : 0,
+    mostUsedAttributeType: (() => {
+      const typeCounts: Record<string, number> = {};
+      groupedCategories.forEach(cat => {
+        cat.attributes.forEach(attr => {
+          typeCounts[attr.type] = (typeCounts[attr.type] || 0) + 1;
+        });
+      });
+      return Object.entries(typeCounts).sort(([,a], [,b]) => b - a)[0]?.[0] || "text";
+    })()
+  };
+
+  // Filter and sort categories
+  const filteredCategories = groupedCategories
+    .filter((category) => {
+      const matchesSearch = category.category_name.toLowerCase().includes(searchQuery.toLowerCase());
+      const matchesType = filterType === "all" || category.attributes.some(attr => attr.type === filterType);
+      return matchesSearch && matchesType;
+    })
+    .sort((a, b) => {
+      if (sortBy === "name") {
+        return a.category_name.localeCompare(b.category_name);
+      } else {
+        return b.attributes.length - a.attributes.length;
+      }
+    });
+
+  const handleCategoryClick = (category: GroupedCategory) => {
+    setSelectedCategory(category);
+    onOpen();
+  };
 
   if (isLoading) {
     return (
-      <div className="w-full flex-1 flex items-center justify-center">
-        <Spinner size="lg" className="text-primary" />
+      <div className="w-full flex-1 flex items-center justify-center min-h-screen bg-background">
+        <div className="flex flex-col items-center gap-4">
+          <Spinner size="lg" className="text-primary" />
+          <p className="text-foreground-500">Caricamento categorie...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="w-full flex-1 flex items-center justify-center min-h-screen bg-background">
+        <Card className="max-w-md">
+          <CardBody className="text-center">
+            <Icon icon="solar:danger-triangle-bold-duotone" className="text-4xl text-danger mb-4" />
+            <h3 className="text-lg font-semibold mb-2">Errore di Caricamento</h3>
+            <p className="text-foreground-500 mb-4">{error}</p>
+            <Button color="primary" onPress={fetchCategories}>
+              Riprova
+            </Button>
+          </CardBody>
+        </Card>
       </div>
     );
   }
 
   return (
-    <div className="w-full flex-1 p-6">
-      <div className="flex justify-between items-center mb-8">
-        <div className="flex items-center gap-2">
-          <Icon
-            icon="solar:folder-with-files-bold-duotone"
-            className="text-xl text-primary"
-          />
-          <h1 className="text-2xl font-medium text-gray-900">Categorie</h1>
-        </div>
+    <div className="w-full flex-1 p-4 sm:p-6 lg:p-8 bg-background min-h-screen">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
         <div className="flex items-center gap-4">
-          <Input
-            type="text"
-            placeholder="Cerca categoria..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-64"
-            startContent={
-              <Icon
-                icon="solar:magnifer-bold-duotone"
-                className="text-gray-400"
-              />
-            }
-          />
+          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Icon icon="solar:folder-with-files-bold-duotone" className="text-primary text-2xl" />
+          </div>
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
+              Gestione Categorie
+            </h1>
+            <p className="text-sm text-foreground-500 mt-1">
+              Organizza e gestisci le categorie dei tuoi prodotti
+            </p>
+          </div>
+        </div>
+        
+        <div className="flex items-center gap-3">
+          <Chip
+            startContent={<Icon icon="solar:folder-bold" width={16} />}
+            color="primary"
+            variant="flat"
+            size="sm"
+          >
+            {stats.totalCategories} Categorie
+          </Chip>
           <Button
             color="primary"
-            onPress={() => {
-              window.location.href = "/inventory/categories/add";
-            }}
+            startContent={<Icon icon="solar:add-circle-bold-duotone" width={20} />}
+            onPress={() => navigate("/inventory/categories/add")}
           >
-            <Icon icon="solar:add-circle-bold-duotone" className="text-lg" />
             Nuova Categoria
           </Button>
         </div>
       </div>
 
-      <CategoryTable
-        categories={filteredCategories}
-        onDeleteCategory={handleDeleteCategory}
-      />
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Card className="shadow-sm">
+          <CardBody className="flex flex-row items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Icon icon="solar:folder-bold-duotone" className="text-primary text-xl" />
+            </div>
+            <div>
+              <p className="text-sm text-foreground-500">Totale Categorie</p>
+              <p className="text-2xl font-bold text-foreground">{stats.totalCategories}</p>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardBody className="flex flex-row items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
+              <Icon icon="solar:settings-bold-duotone" className="text-success text-xl" />
+            </div>
+            <div>
+              <p className="text-sm text-foreground-500">Totale Attributi</p>
+              <p className="text-2xl font-bold text-foreground">{stats.totalAttributes}</p>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardBody className="flex flex-row items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
+              <Icon icon="solar:chart-bold-duotone" className="text-warning text-xl" />
+            </div>
+            <div>
+              <p className="text-sm text-foreground-500">Media Attributi</p>
+              <p className="text-2xl font-bold text-foreground">{stats.averageAttributesPerCategory}</p>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardBody className="flex flex-row items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center">
+              <Icon icon={getFieldTypeIcon(stats.mostUsedAttributeType)} className="text-secondary text-xl" />
+            </div>
+            <div>
+              <p className="text-sm text-foreground-500">Tipo Più Usato</p>
+              <p className="text-2xl font-bold text-foreground capitalize">{stats.mostUsedAttributeType}</p>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* Filters and Search */}
+      <Card className="shadow-sm mb-6">
+        <CardBody>
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex-1">
+              <Input
+                placeholder="Cerca categorie..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                startContent={<Icon icon="solar:magnifer-bold-duotone" className="text-foreground-400" />}
+                isClearable
+                onClear={() => setSearchQuery("")}
+              />
+            </div>
+            
+            <div className="flex gap-2">
+              <Dropdown>
+                <DropdownTrigger>
+                  <Button variant="flat" startContent={<Icon icon="solar:filter-bold-duotone" />}>
+                    Tipo: {filterType === "all" ? "Tutti" : filterType}
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  selectedKeys={[filterType]}
+                  onAction={(key) => setFilterType(key as string)}
+                >
+                  <DropdownItem key="all">Tutti i tipi</DropdownItem>
+                  <DropdownItem key="text">Testo</DropdownItem>
+                  <DropdownItem key="number">Numero</DropdownItem>
+                  <DropdownItem key="boolean">Booleano</DropdownItem>
+                  <DropdownItem key="date">Data</DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
+
+              <Dropdown>
+                <DropdownTrigger>
+                  <Button variant="flat" startContent={<Icon icon="solar:sort-bold-duotone" />}>
+                    Ordina: {sortBy === "name" ? "Nome" : "Attributi"}
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  selectedKeys={[sortBy]}
+                  onAction={(key) => setSortBy(key as "name" | "attributes")}
+                >
+                  <DropdownItem key="name">Per Nome</DropdownItem>
+                  <DropdownItem key="attributes">Per Numero Attributi</DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
+            </div>
+          </div>
+        </CardBody>
+      </Card>
+
+      {/* View Toggle */}
+      <div className="flex justify-between items-center mb-6">
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-foreground-500">
+            {filteredCategories.length} di {groupedCategories.length} categorie
+          </span>
+          {searchQuery && (
+            <Chip size="sm" variant="flat" color="primary">
+              Filtrate per: "{searchQuery}"
+            </Chip>
+          )}
+        </div>
+        
+        <Tabs
+          selectedKey={activeTab}
+          onSelectionChange={(key) => setActiveTab(key as string)}
+          color="primary"
+          variant="bordered"
+          size="sm"
+        >
+          <Tab key="grid" title={
+            <div className="flex items-center gap-2">
+              <Icon icon="solar:widget-2-linear" />
+              <span className="hidden sm:inline">Griglia</span>
+            </div>
+          } />
+          <Tab key="table" title={
+            <div className="flex items-center gap-2">
+              <Icon icon="solar:list-linear" />
+              <span className="hidden sm:inline">Tabella</span>
+            </div>
+          } />
+        </Tabs>
+      </div>
+
+      {/* Content */}
+      {activeTab === "grid" ? (
+        // Grid View
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {filteredCategories.length > 0 ? (
+            filteredCategories.map((category) => (
+              <Card 
+                key={category.category_id} 
+                className="shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                isPressable
+                onPress={() => handleCategoryClick(category)}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-center justify-between w-full">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                        <Icon icon="solar:folder-bold-duotone" className="text-primary text-lg" />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold text-foreground">{category.category_name}</h3>
+                        <p className="text-xs text-foreground-500">ID: {category.category_id}</p>
+                      </div>
+                    </div>
+                    <Dropdown>
+                      <DropdownTrigger>
+                        <Button isIconOnly size="sm" variant="light">
+                          <Icon icon="solar:menu-dots-bold" />
+                        </Button>
+                      </DropdownTrigger>
+                      <DropdownMenu>
+                        <DropdownItem
+                          key="edit"
+                          startContent={<Icon icon="solar:pen-bold-duotone" />}
+                          onPress={() => navigate(`/inventory/categories/edit/${category.category_id}`)}
+                        >
+                          Modifica
+                        </DropdownItem>
+                        <DropdownItem
+                          key="delete"
+                          className="text-danger"
+                          color="danger"
+                          startContent={<Icon icon="solar:trash-bin-trash-bold-duotone" />}
+                          onPress={() => handleDeleteCategory(category.category_id)}
+                        >
+                          Elimina
+                        </DropdownItem>
+                      </DropdownMenu>
+                    </Dropdown>
+                  </div>
+                </CardHeader>
+                <CardBody className="pt-0">
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm text-foreground-500">Attributi</span>
+                      <Chip size="sm" color="primary" variant="flat">
+                        {category.attributes.length}
+                      </Chip>
+                    </div>
+                    
+                    {category.attributes.length > 0 && (
+                      <div className="space-y-2">
+                        <Progress 
+                          value={(category.attributes.length / Math.max(...groupedCategories.map(c => c.attributes.length))) * 100}
+                          color="primary"
+                          size="sm"
+                        />
+                        <div className="flex flex-wrap gap-1">
+                          {category.attributes.slice(0, 3).map((attr) => (
+                            <Chip
+                              key={attr.attribute_id}
+                              size="sm"
+                              color={getFieldTypeColor(attr.type) as any}
+                              variant="flat"
+                              startContent={<Icon icon={getFieldTypeIcon(attr.type)} width={12} />}
+                            >
+                              {attr.name}
+                            </Chip>
+                          ))}
+                          {category.attributes.length > 3 && (
+                            <Chip size="sm" variant="flat">
+                              +{category.attributes.length - 3}
+                            </Chip>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </CardBody>
+              </Card>
+            ))
+          ) : (
+            <div className="col-span-full flex flex-col items-center justify-center py-12">
+              <div className="w-16 h-16 rounded-full bg-default-100 flex items-center justify-center mb-4">
+                <Icon icon="solar:folder-with-files-bold-duotone" className="text-default-400 text-2xl" />
+              </div>
+              <h3 className="text-lg font-semibold mb-2">Nessuna categoria trovata</h3>
+              <p className="text-foreground-500 mb-4 text-center">
+                {searchQuery ? "Nessuna categoria corrisponde ai criteri di ricerca" : "Non ci sono ancora categorie"}
+              </p>
+              <Button
+                color="primary"
+                startContent={<Icon icon="solar:add-circle-bold-duotone" />}
+                onPress={() => navigate("/inventory/categories/add")}
+              >
+                Crea Prima Categoria
+              </Button>
+            </div>
+          )}
+        </div>
+      ) : (
+        // Table View
+        <CategoryTable
+          categories={filteredCategories}
+          onDeleteCategory={handleDeleteCategory}
+        />
+      )}
+
+      {/* Category Details Modal */}
+      <Modal isOpen={isOpen} onClose={onClose} size="2xl">
+        <ModalContent>
+          {selectedCategory && (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                <div className="flex items-center gap-3">
+                  <Icon icon="solar:folder-with-files-bold-duotone" className="text-primary text-2xl" />
+                  <div>
+                    <h3 className="text-xl font-semibold">{selectedCategory.category_name}</h3>
+                    <p className="text-sm text-foreground-500">Dettagli categoria</p>
+                  </div>
+                </div>
+              </ModalHeader>
+              <ModalBody>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-foreground-500 mb-1">ID Categoria</p>
+                      <p className="font-medium">{selectedCategory.category_id}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-foreground-500 mb-1">Numero Attributi</p>
+                      <p className="font-medium">{selectedCategory.attributes.length}</p>
+                    </div>
+                  </div>
+
+                  <Divider />
+
+                  <div>
+                    <h4 className="font-semibold mb-3 flex items-center gap-2">
+                      <Icon icon="solar:settings-bold-duotone" className="text-primary" />
+                      Attributi della Categoria
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {selectedCategory.attributes.map((attr) => (
+                        <Card key={attr.attribute_id} className="shadow-sm">
+                          <CardBody className="p-3">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-${getFieldTypeColor(attr.type)}/10`}>
+                                <Icon 
+                                  icon={getFieldTypeIcon(attr.type)} 
+                                  className={`text-${getFieldTypeColor(attr.type)} text-sm`} 
+                                />
+                              </div>
+                              <div>
+                                <p className="font-medium text-sm">{attr.name}</p>
+                                <p className="text-xs text-foreground-500 capitalize">{attr.type}</p>
+                              </div>
+                            </div>
+                          </CardBody>
+                        </Card>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </ModalBody>
+              <ModalFooter>
+                <Button variant="flat" onPress={onClose}>
+                  Chiudi
+                </Button>
+                <Button
+                  color="primary"
+                  startContent={<Icon icon="solar:pen-bold-duotone" />}
+                  onPress={() => {
+                    onClose();
+                    navigate(`/inventory/categories/edit/${selectedCategory.category_id}`);
+                  }}
+                >
+                  Modifica Categoria
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Card, CardBody, Chip, Badge } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useVehicleTheme } from "./VehicleThemeWrapper";

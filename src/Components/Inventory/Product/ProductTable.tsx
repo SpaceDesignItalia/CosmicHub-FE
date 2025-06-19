@@ -753,6 +753,26 @@ export default function ProductTable({
           });
 
           // Il movimento viene creato automaticamente dal backend
+          try {
+            const response = await axios.post(
+              `/Movement/POST/CreateMovement/`,
+              {
+                stockModalState,
+              }
+            );
+            if (response.status === 200) {
+              showAlert("success", {
+                title: "Movimento creato con successo!",
+                description:
+                  "Il movimento è stato creato con successo nel database",
+              });
+            }
+          } catch (apiError: any) {
+            showAlert("error", {
+              title: "Errore nella creazione del movimento",
+              description: apiError.response.data.message,
+            });
+          }
         }
       } catch (apiError: any) {
         // Fallback con endpoint generico come fa InlineQuantityEditor
@@ -796,7 +816,7 @@ export default function ProductTable({
       }
 
       console.log("Quantità aggiornata con successo nel database");
-      
+
       // Chiudi il modal e resetta lo stato dopo l'operazione completata
       resetStockModal();
     } catch (error: any) {
@@ -815,7 +835,7 @@ export default function ProductTable({
       alert(`Errore nell'operazione: ${errorMessage}`);
     } finally {
       // Assicurati che isProcessing sia sempre resettato
-      setStockModalState(prev => ({ ...prev, isProcessing: false }));
+      setStockModalState((prev) => ({ ...prev, isProcessing: false }));
     }
   };
 
@@ -1267,10 +1287,7 @@ export default function ProductTable({
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button
-              variant="light"
-              onPress={resetStockModal}
-            >
+            <Button variant="light" onPress={resetStockModal}>
               Annulla
             </Button>
             <Button
