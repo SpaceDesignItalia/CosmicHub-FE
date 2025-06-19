@@ -140,6 +140,10 @@ const ErrorMessage: React.FC<{
 }> = ({ error, onRetry, onClearError }) => {
   const getErrorDetails = (errorMsg: string) => {
     const errorMap: Record<string, { icon: string; suggestion: string }> = {
+      "Password o email errate": {
+        icon: "mdi:key-alert",
+        suggestion: "Verifica che email e password siano corretti.",
+      },
       "Credenziali non valide": {
         icon: "mdi:key-alert",
         suggestion: "Verifica che email e password siano corretti.",
@@ -235,16 +239,6 @@ const ErrorMessage: React.FC<{
           >
             <Button
               size="sm"
-              color="danger"
-              variant="flat"
-              onPress={onRetry}
-              className="text-xs px-3 py-1"
-              startContent={<Icon icon="mdi:refresh" className="text-sm" />}
-            >
-              Riprova
-            </Button>
-            <Button
-              size="sm"
               variant="light"
               onPress={onClearError}
               className="text-xs px-3 py-1 text-red-600 dark:text-red-400"
@@ -305,19 +299,30 @@ export default function Authentication() {
       if (res.status === 200) {
         setIsLoading(false);
         setIsSuccess(true);
-        setCountdown(1);
+        setCountdown(2);
       }
     } catch (error: any) {
       console.error("Authentication failed:", error);
+      console.log("Error status:", error.response?.status); // Log per debug
+      console.log("Error data:", error.response?.data); // Log per debug
       setIsLoading(false);
+
+      // Controlla il contenuto della response per messaggi specifici
+      const errorMessage =
+        error.response?.data?.error || error.response?.data || "";
+      const isCredentialsError =
+        errorMessage.includes("Credenziali non valide") ||
+        errorMessage.includes("Recupero dell'account fallito") ||
+        error.response?.status === 401 ||
+        error.response?.status === 403;
 
       // Gestione errori più specifica
       if (error.code === "ECONNABORTED" || error.code === "ERR_NETWORK") {
         setAuthError(
           "Errore di connessione. Verifica la tua connessione internet e riprova."
         );
-      } else if (error.response?.status === 401) {
-        setAuthError("Credenziali non valide. Controlla email e password.");
+      } else if (isCredentialsError) {
+        setAuthError("Password o email errate. Controlla i dati inseriti.");
       } else if (error.response?.status === 400) {
         setAuthError(
           "Dati non validi. Controlla che tutti i campi siano compilati correttamente."
@@ -412,56 +417,66 @@ export default function Authentication() {
   return (
     <div className="flex h-screen min-h-[700px] w-full items-center justify-center p-4 bg-gradient-to-br from-slate-100 to-slate-200 dark:from-neutral-900 dark:to-black selection:bg-primary selection:text-white">
       <div className="flex flex-col items-center">
-        {/* Messaggi di errore e successo fuori dalla box */}
-        <div className="w-full max-w-md mb-4">
-          <AnimatePresence>
-            {authError && (
-              <ErrorMessage
-                error={authError}
-                onRetry={handleRetry}
-                onClearError={handleClearError}
-              />
-            )}
-          </AnimatePresence>
+        {/* Messaggi di errore fuori dalla box - solo quando non c'è successo */}
+        {!isSuccess && (
+          <div className="w-full max-w-md mb-4">
+            <AnimatePresence>
+              {authError && (
+                <ErrorMessage
+                  error={authError}
+                  onRetry={handleRetry}
+                  onClearError={handleClearError}
+                />
+              )}
+            </AnimatePresence>
+          </div>
+        )}
 
-          <AnimatePresence>
-            {isSuccess && <SuccessMessage countdown={countdown} />}
-          </AnimatePresence>
-        </div>
+        {/* Mostra solo il messaggio di successo quando il login è riuscito */}
+        {isSuccess ? (
+          <motion.div
+            className="w-full max-w-md"
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, ease: "easeOut" }}
+          >
+            <SuccessMessage countdown={countdown} />
+          </motion.div>
+        ) : (
+          <motion.div
+            className="relative flex w-full max-w-md flex-col gap-6 rounded-xl bg-white dark:bg-neutral-900 px-8 py-10 shadow-2xl border border-zinc-200 dark:border-neutral-800/70 overflow-hidden"
+            initial={{ opacity: 0, y: 30, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
+            style={{
+              filter: isLoading ? "saturate(0.8)" : "saturate(1)",
+              transition: "filter 0.3s ease",
+            }}
+          >
+            {/* Elemento decorativo ispirato al design */}
+            <div className="absolute -top-1/4 -left-1/4 w-72 h-72 bg-primary/10 dark:bg-primary/5 rounded-full filter blur-3xl opacity-70 dark:opacity-50 animate-pulse-slow"></div>
+            <div className="absolute -bottom-1/4 -right-1/4 w-60 h-60 bg-sky-500/10 dark:bg-sky-500/5 rounded-full filter blur-3xl opacity-60 dark:opacity-40 animate-pulse-slower animation-delay-2000"></div>
 
-        <motion.div
-          className="relative flex w-full max-w-md flex-col gap-6 rounded-xl bg-white dark:bg-neutral-900 px-8 py-10 shadow-2xl border border-zinc-200 dark:border-neutral-800/70 overflow-hidden"
-          initial={{ opacity: 0, y: 30, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
-          style={{
-            filter: isLoading ? "saturate(0.8)" : "saturate(1)",
-            transition: "filter 0.3s ease",
-          }}
-        >
-          {/* Elemento decorativo ispirato al design */}
-          <div className="absolute -top-1/4 -left-1/4 w-72 h-72 bg-primary/10 dark:bg-primary/5 rounded-full filter blur-3xl opacity-70 dark:opacity-50 animate-pulse-slow"></div>
-          <div className="absolute -bottom-1/4 -right-1/4 w-60 h-60 bg-sky-500/10 dark:bg-sky-500/5 rounded-full filter blur-3xl opacity-60 dark:opacity-40 animate-pulse-slower animation-delay-2000"></div>
-
-          <div className="text-center z-10">
-            <div className="mb-6 inline-flex items-center justify-center p-3 bg-primary/10 dark:bg-primary-900/30 rounded-full">
-              <Icon
-                icon="mdi:rocket-launch-outline"
-                className="text-5xl text-primary dark:text-primary"
-              />
+            <div className="text-center z-10">
+              <div className="mb-6 inline-flex items-center justify-center p-3 bg-primary/10 dark:bg-primary-900/30 rounded-full">
+                <Icon
+                  icon="mdi:rocket-launch-outline"
+                  className="text-5xl text-primary dark:text-primary"
+                />
+              </div>
+              <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-neutral-100">
+                Bentornato su CosmicHub
+              </h1>
+              <p className="mt-2 text-sm text-zinc-600 dark:text-neutral-400">
+                Accedi per esplorare nuove frontiere.
+              </p>
             </div>
-            <h1 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-neutral-100">
-              Bentornato su CosmicHub
-            </h1>
-            <p className="mt-2 text-sm text-zinc-600 dark:text-neutral-400">
-              Accedi per esplorare nuove frontiere.
-            </p>
-          </div>
 
-          <div className="z-10">
-            <LoginForm />
-          </div>
-        </motion.div>
+            <div className="z-10">
+              <LoginForm />
+            </div>
+          </motion.div>
+        )}
       </div>
     </div>
   );

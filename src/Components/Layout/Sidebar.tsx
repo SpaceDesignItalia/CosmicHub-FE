@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useCallback, useMemo } from "react";
 import {
   Accordion,
   AccordionItem,
@@ -28,6 +28,7 @@ import {
 import { Icon } from "@iconify/react";
 import axios from "axios";
 import { useLocation, useNavigate } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Sostituisco l'import della chiave del localStorage con l'import del custom hook
 import { useCustomTheme } from "../../providers/ThemeProvider";
@@ -59,6 +60,7 @@ export type SidebarProps = Omit<ListboxProps<SidebarItem>, "children"> & {
   onSelect?: (key: string) => void;
 };
 
+// Memoizzo i dati degli elementi della sidebar per evitare re-render
 export const sectionNestedItems = [
   {
     key: "home",
@@ -116,15 +118,16 @@ export const sectionNestedItems = [
     icon: "majesticons:puzzle-line",
     href: "/automations",
   },
+  {
+    key: "team",
+    title: "Team Tecnico",
+    icon: "mingcute:tool-line",
+    href: "/team",
+  },
 ];
 
-// Remove the ThemeSwitchProps interface since it's no longer needed
-// interface ThemeSwitchProps {
-//   onToggle: () => void;
-//   isDark: boolean;
-// }
-
-async function handleLogout() {
+// Memoizzo la funzione di logout
+const handleLogout = async () => {
   try {
     const res = await axios.post("/Authentication/POST/Logout");
     console.log(res);
@@ -135,7 +138,7 @@ async function handleLogout() {
   } catch (error) {
     console.log(error);
   }
-}
+};
 
 interface User {
   name: string;
@@ -187,18 +190,29 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     ref
   ) => {
     const navigate = useNavigate();
+    const location = useLocation();
     const [user, setUser] = useState<User | null>(null);
     const [selected, setSelected] =
       React.useState<React.Key>(defaultSelectedKey);
     const { isOpen, onOpen, onClose } = useDisclosure();
     const [isMobile, setIsMobile] = React.useState(false);
-    const location = useLocation();
 
     // Stato per controllare gli accordion aperti
-    const [expandedKeys, setExpandedKeys] = React.useState<Set<string>>(new Set());
+    const [expandedKeys, setExpandedKeys] = React.useState<Set<string>>(
+      new Set()
+    );
 
-    // Aggiorno la selezione basata sul percorso corrente
-    const currentSelection = React.useMemo(() => {
+    // Stato per i magazzini
+    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
+
+    // Flag per forzare il refresh dei magazzini - memoizzato
+    const [refreshWarehouses, setRefreshWarehouses] = useState(false);
+
+    // Usiamo la nuova API del tema
+    const { isDark, toggleTheme } = useCustomTheme();
+
+    // Memoizzo la selezione corrente per evitare ricalcoli non necessari
+    const currentSelection = useMemo(() => {
       const currentPath = location.pathname;
       const firstPathSegment = currentPath.split("/")[1];
 
@@ -208,7 +222,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       const topLevelItem = sectionNestedItems.find(
         (item) => item.key === firstPathSegment
       );
-      
+
       if (topLevelItem) {
         return firstPathSegment;
       } else {
@@ -224,18 +238,18 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           }
         }
       }
-      
+
       return "home";
     }, [location.pathname]);
 
-    // Aggiorno lo stato solo quando necessario
+    // Ottimizzazione: aggiorno lo stato solo quando necessario
     React.useEffect(() => {
       if (selected !== currentSelection) {
         setSelected(currentSelection);
       }
     }, [currentSelection, selected]);
 
-    // Gestisco gli accordion aperti in modo stabile
+    // Ottimizzazione: gestisco gli accordion aperti in modo più efficiente
     React.useEffect(() => {
       const currentPath = location.pathname;
       const firstPathSegment = currentPath.split("/")[1];
@@ -246,9 +260,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           const hasActiveChild = section.items.some(
             (item) => item.href === currentPath
           );
-          
+
           if (hasActiveChild || section.key === firstPathSegment) {
-            setExpandedKeys(prev => {
+            setExpandedKeys((prev) => {
               if (!prev.has(section.key)) {
                 return new Set([...prev, section.key]);
               }
@@ -259,16 +273,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       }
     }, [location.pathname]);
 
-    // Stato per i magazzini
-    const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
-
-    // Flag per forzare il refresh dei magazzini
-    const [refreshWarehouses, setRefreshWarehouses] = useState(false);
-
-    // Usiamo la nuova API del tema
-    const { isDark, toggleTheme } = useCustomTheme();
-
-    // Combino gli effetti per magazzini e utente per ridurre i re-render
+    // Ottimizzazione: riduco le dipendenze dell'effect per il caricamento dati
     React.useEffect(() => {
       let isMounted = true;
 
@@ -279,7 +284,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
             const userResponse = await axios.get(
               "/Authentication/GET/GetSessionData"
             );
-
             const companyResponse = await axios.get(
               "/Company/GET/GetCompanyByCompanyId",
               {
@@ -316,23 +320,24 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       return () => {
         isMounted = false;
       };
-    }, [refreshWarehouses, user]); // Dipende solo da refreshWarehouses e user
+    }, [refreshWarehouses]); // Rimosso user dalle dipendenze
 
-    // Stato per il magazzino selezionato
+    // Stato per il magazzino selezionato - memoizzato
     const [selectedWarehouse, setSelectedWarehouse] = React.useState<
       string | null
     >(() => {
-      // Recupero il magazzino selezionato dal localStorage
       return localStorage.getItem("selectedWarehouse");
     });
 
-    // Salvo il magazzino selezionato nel localStorage e gestisco i cambiamenti di percorso
+    // Ottimizzazione: split dell'useEffect per il magazzino selezionato
     React.useEffect(() => {
-      // Salva il magazzino selezionato nel localStorage
       if (selectedWarehouse) {
         localStorage.setItem("selectedWarehouse", selectedWarehouse);
       }
+    }, [selectedWarehouse]);
 
+    // Ottimizzazione: effect separato per la gestione della navigazione
+    React.useEffect(() => {
       // Gestisce il refresh dei magazzini quando si torna dalla pagina di creazione
       if (
         location.pathname === "/dashboard" &&
@@ -348,9 +353,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
           setSelectedWarehouse(warehouseId);
         }
       }
-    }, [selectedWarehouse, location.pathname, location.state]);
+    }, [location.pathname, location.state, selectedWarehouse]);
 
-    // Gestione mobile e overflow del body
+    // Ottimizzazione: gestione mobile e overflow del body - ridotte dipendenze
     React.useEffect(() => {
       const checkMobile = () => {
         setIsMobile(window.innerWidth < 768);
@@ -373,581 +378,606 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       };
     }, [isOpen]);
 
-    const sectionClasses = {
-      ...sectionClassesProp,
-      base: cn(sectionClassesProp?.base, "w-full", {
-        "p-0 max-w-[44px]": isCompact,
+    // Memoizzo le classi per evitare ricreazione ad ogni render
+    const sectionClasses = useMemo(
+      () => ({
+        ...sectionClassesProp,
+        base: cn(sectionClassesProp?.base, "w-full", {
+          "p-0 max-w-[44px]": isCompact,
+        }),
+        group: cn(sectionClassesProp?.group, {
+          "flex flex-col gap-1": isCompact,
+        }),
+        heading: cn(sectionClassesProp?.heading, {
+          hidden: isCompact,
+        }),
       }),
-      group: cn(sectionClassesProp?.group, {
-        "flex flex-col gap-1": isCompact,
-      }),
-      heading: cn(sectionClassesProp?.heading, {
-        hidden: isCompact,
-      }),
-    };
-
-    const itemClasses = {
-      ...itemClassesProp,
-      base: cn(itemClassesProp?.base, {
-        "w-11 h-11 gap-0 p-0": isCompact,
-      }),
-    };
-
-    const renderItem = React.useCallback(
-      (item: SidebarItem) => {
-        const currentPath = location.pathname;
-        const firstPathSegment = currentPath.split("/")[1];
-
-        const isSelected =
-          item.type === SidebarItemType.Nest
-            ? item.key === firstPathSegment
-            : item.href === currentPath;
-
-        const isNestType =
-          item.items &&
-          item.items?.length > 0 &&
-          item?.type === SidebarItemType.Nest;
-
-        if (isNestType) {
-          delete item.href;
-        }
-
-        return (
-          <ListboxItem
-            {...item}
-            key={item.key}
-            textValue={item.title}
-            aria-label={item.title}
-            classNames={{
-              base: cn(
-                {
-                  "h-auto": !isCompact && isNestType,
-                },
-                {
-                  "inline-block w-11": isCompact && isNestType,
-                },
-                "transition-colors",
-                "data-[hover=true]:bg-default-100",
-                isNestType
-                  ? "px-0 rounded-large data-[hover=true]:bg-transparent"
-                  : ""
-              ),
-              title: cn(
-                "whitespace-nowrap overflow-hidden text-ellipsis max-w-full transition-colors",
-                "data-[hover=true]:text-foreground-900"
-              ),
-            }}
-            endContent={
-              isCompact || isNestType || hideEndContent
-                ? null
-                : item.endContent ?? null
-            }
-            startContent={
-              isCompact || isNestType ? null : item.icon ? (
-                <Icon
-                  className={cn(
-                    "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0",
-                    iconClassName
-                  )}
-                  icon={item.icon}
-                  width={24}
-                />
-              ) : (
-                item.startContent ?? null
-              )
-            }
-            title={isCompact || isNestType ? null : item.title}
-          >
-            {isCompact ? (
-              <Tooltip content={item.title} placement="right">
-                <div className="flex w-full items-center justify-center">
-                  {item.icon ? (
-                    <Icon
-                      className={cn(
-                        "text-default-700 group-data-[selected=true]:text-foreground-900",
-                        iconClassName
-                      )}
-                      icon={item.icon}
-                      width={24}
-                    />
-                  ) : (
-                    item.startContent ?? null
-                  )}
-                </div>
-              </Tooltip>
-            ) : null}
-            {!isCompact && isNestType ? (
-              <Accordion
-                selectedKeys={expandedKeys}
-                onSelectionChange={(keys) => {
-                  setExpandedKeys(new Set(Array.from(keys).map(String)));
-                }}
-              >
-                <AccordionItem
-                  key={item.key}
-                  aria-label={item.title}
-                  classNames={{
-                    base: "px-0",
-                    trigger:
-                      "px-0 min-h-11 h-[44px] data-[hover=true]:bg-transparent transition-colors",
-                    content: "px-0 pb-0",
-                  }}
-                  title={
-                    <div className="flex items-center gap-2">
-                      {item.icon && (
-                        <Icon
-                          className={cn(
-                            "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0",
-                            iconClassName
-                          )}
-                          icon={item.icon ?? ""}
-                          width={24}
-                        />
-                      )}
-                      <span className="text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 data-[hover=true]:text-foreground-900 transition-colors whitespace-nowrap overflow-hidden text-ellipsis">
-                        {item.title}
-                      </span>
-                    </div>
-                  }
-                >
-                  {item.items && item.items?.length > 0 ? (
-                    <Listbox
-                      aria-label={`Sottomenu ${item.title}`}
-                      items={item.items}
-                      variant="flat"
-                      classNames={{
-                        list: "gap-1 pl-6 pt-1",
-                      }}
-                    >
-                      {item.items.map(renderItem)}
-                    </Listbox>
-                  ) : null}
-                </AccordionItem>
-              </Accordion>
-            ) : null}
-          </ListboxItem>
-        );
-      },
-      [
-        isCompact,
-        hideEndContent,
-        iconClassName,
-        location.pathname,
-        expandedKeys,
-        navigate,
-        isMobile,
-        onClose,
-      ]
+      [sectionClassesProp, isCompact]
     );
 
-    const SidebarContent = () => (
-      <div className="h-screen w-64 max-w-64 bg-background text-foreground">
-        <div className="relative flex h-full w-full flex-1 flex-col border-r-small border-divider bg-background p-4 overflow-hidden">
-          <div
-            className="flex items-center justify-between gap-2 px-2 cursor-pointer hover:opacity-80"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (location.pathname !== "/dashboard") {
-                navigate("/dashboard");
-              }
-            }}
-          >
-            <div className="flex items-center gap-2">
-              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground">
-                <Icon
-                  className="text-background"
-                  icon="solar:rocket-2-linear"
-                  width={24}
-                />
-              </div>
-              <span className="text-small font-bold uppercase text-foreground">
-                CosmicHub
-              </span>
-            </div>
-            {isMobile && (
-              <Button
-                isIconOnly
-                variant="light"
-                size="sm"
-                onPress={onClose}
-                className="md:hidden"
-              >
-                <Icon icon="solar:close-circle-line-linear" width={24} />
-              </Button>
-            )}
-          </div>
+    const itemClasses = useMemo(
+      () => ({
+        ...itemClassesProp,
+        base: cn(itemClassesProp?.base, {
+          "w-11 h-11 gap-0 p-0": isCompact,
+        }),
+      }),
+      [itemClassesProp, isCompact]
+    );
 
-          <Spacer y={8} />
+    // Memoizzo le azioni di selezione per evitare ricreazioni
+    const handleSelectionChange = useCallback(
+      (keys: Selection) => {
+        const key = Array.from(keys)[0] as string;
+        setSelected(key as React.Key);
+        onSelect?.(key);
 
-          <div
-            className="flex cursor-pointer items-center gap-3 px-2 transition-opacity hover:opacity-80"
-            onClick={() => {
-              navigate("/settings");
-            }}
-          >
-            <Dropdown showArrow>
-              <DropdownTrigger>
-                <Button
-                  fullWidth
-                  className="h-[60px] justify-start gap-3 rounded-[14px] border-1 border-default-300 bg-transparent px-3 py-[10px]"
-                >
-                  <div className="flex w-full items-center gap-3">
-                    <Avatar
-                      size="sm"
-                      src="https://nextuipro.nyc3.cdn.digitaloceanspaces.com/components-images/avatars/3a906b3de8eaa53e14582edf5c918b5d.jpg"
-                    />
-                    <div className="flex flex-col text-left">
-                      <p className="text-small font-semibold leading-5 text-foreground">
-                        {user?.name} {user?.surname}
-                      </p>
-                      <p className="text-tiny">{user?.email}</p>
-                    </div>
-                  </div>
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu
-                aria-label="Profile Actions"
-                className="w-[210px] bg-content1 px-[8px] py-[8px]"
-                variant="flat"
-              >
-                <DropdownSection showDivider aria-label="profile-section-1">
-                  <DropdownItem key="settings" href="/settings">
-                    <div className="flex flex-row gap-2 items-center">
-                      <Icon icon="solar:settings-bold" />
-                      Impostazioni
-                    </div>
-                  </DropdownItem>
-                  <DropdownItem
-                    key="theme-toggle"
-                    startContent={
-                      <Icon
-                        icon={
-                          isDark ? "solar:moon-linear" : "solar:sun-2-linear"
-                        }
-                        width={18}
-                        className=""
-                      />
-                    }
-                    onPress={toggleTheme}
-                  >
-                    {isDark ? "Tema Scuro" : "Tema Chiaro"}
-                  </DropdownItem>
-                </DropdownSection>
+        // Cerco prima negli elementi di primo livello
+        let selectedItem: SidebarItem | undefined = sectionNestedItems.find(
+          (item: SidebarItem) => item.key === key
+        );
 
-                <DropdownSection
-                  aria-label="profile-section-3"
-                  className="mb-0"
-                >
-                  <DropdownItem
-                    key="logout"
-                    onPress={handleLogout}
-                    color="danger"
-                  >
-                    <div className="py-[4px] flex flex-row gap-2 items-center">
-                      <Icon icon="solar:logout-2-outline" />
-                      Esci
-                    </div>
-                  </DropdownItem>
-                </DropdownSection>
-              </DropdownMenu>
-            </Dropdown>
-          </div>
+        // Se non lo trovo, cerco negli elementi nidificati
+        if (!selectedItem) {
+          selectedItem = sectionNestedItems
+            .flatMap((section: SidebarItem) => section.items || [])
+            .find((item: SidebarItem) => item.key === key);
 
-          <ScrollShadow className="-mr-6 h-full max-h-full py-6 pr-6">
-            <Listbox
-              key={isCompact ? "compact" : "default"}
-              ref={ref}
-              hideSelectedIcon
-              as="nav"
-              aria-label="Menu principale di navigazione"
-              className={cn("list-none", className)}
-              classNames={{
-                ...classNames,
-                list: cn("items-center", classNames?.list),
-              }}
-              color="default"
-              itemClasses={{
-                ...itemClasses,
-                base: cn(
-                  "flex items-center px-3 min-h-11 rounded-large h-[44px] data-[selected=true]:bg-default-100 data-[selected=true]:text-foreground-900 data-[hover=true]:bg-default-100 transition-colors",
-                  itemClasses?.base
-                ),
-                title: cn(
-                  "text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 data-[hover=true]:text-foreground-900 transition-colors whitespace-nowrap overflow-hidden text-ellipsis",
-                  itemClasses?.title
-                ),
-              }}
-              items={sectionNestedItems}
-              selectedKeys={[selected] as unknown as Selection}
-              selectionMode="single"
-              variant="flat"
-              onSelectionChange={(keys) => {
-                const key = Array.from(keys)[0] as string;
-                setSelected(key as React.Key);
-                onSelect?.(key);
+          // Se ho trovato un elemento nidificato, apri il suo parent
+          if (selectedItem) {
+            const parentSection = sectionNestedItems.find(
+              (section: SidebarItem) =>
+                section.items?.some((item: SidebarItem) => item.key === key)
+            );
+            if (parentSection) {
+              setExpandedKeys((prev) => new Set([...prev, parentSection.key]));
+            }
+          }
+        }
 
-                // Cerco prima negli elementi di primo livello
-                let selectedItem: SidebarItem | undefined =
-                  sectionNestedItems.find(
-                    (item: SidebarItem) => item.key === key
-                  );
+        // Navigo solo se l'elemento ha un href e non siamo già sulla pagina
+        if (selectedItem?.href && location.pathname !== selectedItem.href) {
+          navigate(selectedItem.href);
+        }
 
-                // Se non lo trovo, cerco negli elementi nidificati
-                if (!selectedItem) {
-                  selectedItem = sectionNestedItems
-                    .flatMap((section: SidebarItem) => section.items || [])
-                    .find((item: SidebarItem) => item.key === key);
-                  
-                  // Se ho trovato un elemento nidificato, apri il suo parent
-                  if (selectedItem) {
-                    const parentSection = sectionNestedItems.find(
-                      (section: SidebarItem) => 
-                        section.items?.some((item: SidebarItem) => item.key === key)
-                    );
-                    if (parentSection) {
-                      setExpandedKeys(prev => new Set([...prev, parentSection.key]));
-                    }
-                  }
-                } else if (selectedItem.type === SidebarItemType.Nest && selectedItem.items?.length) {
-                  // Se è un elemento con sottoelementi, apri/chiudi l'accordion
-                  setExpandedKeys(prev => {
-                    const newSet = new Set(prev);
-                    if (newSet.has(key)) {
-                      newSet.delete(key);
-                    } else {
-                      newSet.add(key);
-                    }
-                    return newSet;
-                  });
-                }
+        if (isMobile) {
+          onClose();
+        }
+      },
+      [onSelect, location.pathname, navigate, isMobile, onClose]
+    );
 
-                // Navigo solo se l'elemento ha un href e non siamo già sulla pagina
-                if (selectedItem?.href && location.pathname !== selectedItem.href) {
-                  navigate(selectedItem.href);
-                }
-
-                if (isMobile) {
-                  onClose();
+    // Memoizzo il contenuto della sidebar per evitare re-render
+    const SidebarContent = useMemo(
+      () => (
+        <div className="h-screen w-64 max-w-64 bg-background text-foreground">
+          <div className="relative flex h-full w-full flex-1 flex-col border-r-small border-divider bg-background p-4 overflow-hidden">
+            <div
+              className="flex items-center justify-between gap-2 px-2 cursor-pointer hover:opacity-80"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (location.pathname !== "/dashboard") {
+                  navigate("/dashboard");
                 }
               }}
-              {...props}
             >
-              {(item) => {
-                return item.items &&
-                  item.items?.length > 0 &&
-                  item?.type === SidebarItemType.Nest ? (
-                  renderItem(item)
-                ) : item.items && item.items?.length > 0 ? (
-                  <ListboxSection
-                    key={item.key}
-                    classNames={sectionClasses}
-                    showDivider={isCompact}
-                    title={item.title}
-                    aria-label={`Sezione ${item.title}`}
-                  >
-                    {item.items.map(renderItem)}
-                  </ListboxSection>
-                ) : (
-                  renderItem(item)
-                );
-              }}
-            </Listbox>
-          </ScrollShadow>
-
-          <Spacer y={8} />
-
-          <div className="mt-auto flex flex-col gap-4">
-            <Dropdown placement="top-start">
-              <DropdownTrigger>
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground">
+                  <Icon
+                    className="text-background"
+                    icon="solar:rocket-2-linear"
+                    width={24}
+                  />
+                </div>
+                <span className="text-small font-bold uppercase text-foreground">
+                  CosmicHub
+                </span>
+              </div>
+              {isMobile && (
                 <Button
-                  fullWidth
-                  variant={selectedWarehouse ? "solid" : "bordered"}
-                  color={selectedWarehouse ? "primary" : "default"}
-                  className={cn(
-                    "justify-between transition-all duration-200",
-                    selectedWarehouse
-                      ? "bg-primary text-primary-foreground shadow-lg"
-                      : isDark
-                      ? " data-[hover=true]:text-foreground"
-                      : "text-default-700 data-[hover=true]:text-foreground-900"
-                  )}
-                  endContent={
-                    <Icon
-                      className={
-                        selectedWarehouse
-                          ? "text-primary-foreground"
-                          : isDark
-                          ? ""
-                          : "text-default-700"
-                      }
-                      icon="solar:alt-arrow-down-linear"
-                      width={16}
-                    />
-                  }
+                  isIconOnly
+                  variant="light"
+                  size="sm"
+                  onPress={onClose}
+                  className="md:hidden"
                 >
-                  <div className="flex items-center gap-2">
-                    <Icon
-                      className={
-                        selectedWarehouse
-                          ? "text-primary-foreground"
-                          : isDark
-                          ? ""
-                          : "text-default-700"
-                      }
-                      icon="mdi:warehouse"
-                      width={24}
-                    />
-                    <span className="truncate">
-                      {selectedWarehouse
-                        ? (() => {
-                            const warehouse = warehouses.find(
-                              (w) =>
-                                (w.WarehouseUUID || w.warehouse_id) ===
-                                selectedWarehouse
-                            );
-                            return warehouse
-                              ? `${
-                                  warehouse.name ||
-                                  warehouse.WarehouseName ||
-                                  "Magazzino"
-                                }${
-                                  warehouse.WarehouseCode
-                                    ? ` (${warehouse.WarehouseCode})`
-                                    : ""
-                                }`
-                              : "Magazzino Selezionato";
-                          })()
-                        : "Magazzini"}
-                    </span>
-                  </div>
+                  <Icon icon="solar:close-circle-line-linear" width={24} />
                 </Button>
-              </DropdownTrigger>
-              <DropdownMenu
-                aria-label="Lista Magazzini"
-                className="py-2 min-w-[280px]"
-                variant="flat"
-                selectedKeys={selectedWarehouse ? [selectedWarehouse] : []}
-                selectionMode="single"
-                items={[
-                  ...warehouses.map((warehouse) => ({
-                    key: String(
-                      warehouse.WarehouseUUID ||
-                        warehouse.warehouse_id ||
-                        warehouse.WarehouseID ||
-                        warehouse.name ||
-                        Math.random()
-                    ),
-                    warehouse,
-                    type: "warehouse",
-                  })),
-                  ...(warehouses.length === 0
-                    ? [{ key: "no-warehouses", type: "empty" }]
-                    : []),
-                  { key: "add-warehouse", type: "add" },
-                ]}
-                onSelectionChange={(keys) => {
-                  const selectedKey = Array.from(keys)[0] as string;
-                  if (
-                    selectedKey &&
-                    selectedKey !== "no-warehouses" &&
-                    selectedKey !== "add-warehouse"
-                  ) {
-                    setSelectedWarehouse(selectedKey);
-                  }
-                }}
-              >
-                {(dropdownItem: any) => (
-                  <DropdownItem
-                    key={dropdownItem.key}
-                    className={cn(
-                      "transition-all duration-200",
-                      dropdownItem.type === "add"
-                        ? "text-warning font-medium data-[hover=true]:bg-warning/10"
-                        : dropdownItem.type === "empty"
-                        ? ""
-                        : dropdownItem.warehouse?.IsActive === false
-                        ? "text-default-400 opacity-60"
-                        : selectedWarehouse === dropdownItem.key
-                        ? "bg-primary/10 text-primary font-medium"
-                        : "data-[hover=true]:bg-default-100"
-                    )}
-                    isDisabled={dropdownItem.type === "empty"}
-                    startContent={
-                      dropdownItem.type === "add" ? (
-                        <Icon
-                          icon="solar:add-circle-bold"
-                          width={20}
-                          className="text-warning"
-                        />
-                      ) : dropdownItem.type === "empty" ? null : (
+              )}
+            </div>
+
+            <Spacer y={8} />
+
+            <div
+              className="flex cursor-pointer items-center gap-3 px-2 transition-opacity hover:opacity-80"
+              onClick={() => {
+                navigate("/settings");
+              }}
+            >
+              <Dropdown showArrow>
+                <DropdownTrigger>
+                  <Button
+                    fullWidth
+                    className="h-[60px] justify-start gap-3 rounded-[14px] border-1 border-default-300 bg-transparent px-3 py-[10px]"
+                  >
+                    <div className="flex w-full items-center gap-3">
+                      <Avatar
+                        size="sm"
+                        src="https://nextuipro.nyc3.cdn.digitaloceanspaces.com/components-images/avatars/3a906b3de8eaa53e14582edf5c918b5d.jpg"
+                      />
+                      <div className="flex flex-col text-left">
+                        <p className="text-small font-semibold leading-5 text-foreground">
+                          {user?.name} {user?.surname}
+                        </p>
+                        <p className="text-tiny">{user?.email}</p>
+                      </div>
+                    </div>
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  aria-label="Profile Actions"
+                  className="w-[210px] bg-content1 px-[8px] py-[8px]"
+                  variant="flat"
+                >
+                  <DropdownSection showDivider aria-label="profile-section-1">
+                    <DropdownItem key="settings" href="/settings">
+                      <div className="flex flex-row gap-2 items-center">
+                        <Icon icon="solar:settings-bold" />
+                        Impostazioni
+                      </div>
+                    </DropdownItem>
+                    <DropdownItem
+                      key="theme-toggle"
+                      startContent={
                         <Icon
                           icon={
-                            dropdownItem.warehouse?.IsActive === false
-                              ? "solar:warehouse-minimalistic-broken"
-                              : "solar:warehouse-bold"
+                            isDark ? "solar:moon-linear" : "solar:sun-2-linear"
                           }
-                          width={20}
-                          className={cn(
-                            selectedWarehouse === dropdownItem.key
-                              ? "text-primary"
-                              : dropdownItem.warehouse?.IsActive === false
-                              ? "text-default-400"
-                              : "text-default-700"
-                          )}
+                          width={18}
+                          className=""
                         />
-                      )
-                    }
-                    endContent={
-                      selectedWarehouse === dropdownItem.key &&
-                      dropdownItem.type === "warehouse" ? (
-                        <Icon
-                          icon="solar:check-circle-bold"
-                          width={16}
-                          className="text-primary"
-                        />
-                      ) : dropdownItem.warehouse?.IsActive === false ? (
-                        <Icon
-                          icon="solar:eye-closed-linear"
-                          width={16}
-                          className="text-default-400"
-                        />
-                      ) : null
-                    }
-                    onPress={() => {
-                      if (dropdownItem.type === "add") {
-                        navigate("/inventory/warehouses/add");
-                      } else if (dropdownItem.warehouse) {
-                        const warehouseId =
-                          dropdownItem.warehouse.WarehouseUUID ||
-                          dropdownItem.warehouse.warehouse_id ||
-                          "";
-                        setSelectedWarehouse(warehouseId);
-                        navigate(`/warehouses/${warehouseId}`);
                       }
-                      if (isMobile) onClose();
-                    }}
+                      onPress={toggleTheme}
+                    >
+                      {isDark ? "Tema Scuro" : "Tema Chiaro"}
+                    </DropdownItem>
+                  </DropdownSection>
+
+                  <DropdownSection
+                    aria-label="profile-section-3"
+                    className="mb-0"
                   >
-                    {dropdownItem.type === "add"
-                      ? "Aggiungi magazzino"
-                      : dropdownItem.type === "empty"
-                      ? "Nessun magazzino disponibile"
-                      : `${
-                          dropdownItem.warehouse?.name ||
-                          dropdownItem.warehouse?.WarehouseName ||
-                          "Magazzino senza nome"
-                        }${
-                          dropdownItem.warehouse?.WarehouseCode
-                            ? ` (${dropdownItem.warehouse.WarehouseCode})`
-                            : ""
-                        }`}
-                  </DropdownItem>
-                )}
-              </DropdownMenu>
-            </Dropdown>
+                    <DropdownItem
+                      key="logout"
+                      onPress={handleLogout}
+                      color="danger"
+                    >
+                      <div className="py-[4px] flex flex-row gap-2 items-center">
+                        <Icon icon="solar:logout-2-outline" />
+                        Esci
+                      </div>
+                    </DropdownItem>
+                  </DropdownSection>
+                </DropdownMenu>
+              </Dropdown>
+            </div>
+
+            <ScrollShadow className="-mr-6 h-full max-h-full py-6 pr-6">
+              <div className="flex flex-col -space-y-1">
+                {sectionNestedItems.map((item) => {
+                  // Se è un accordion (tipo Nest), renderizzalo direttamente
+                  if (
+                    !isCompact &&
+                    item.type === SidebarItemType.Nest &&
+                    item.items?.length
+                  ) {
+                    return (
+                      <div key={item.key} className="w-full">
+                        <Accordion
+                          selectedKeys={expandedKeys}
+                          onSelectionChange={(keys) => {
+                            setExpandedKeys(
+                              new Set(Array.from(keys).map(String))
+                            );
+                          }}
+                        >
+                          <AccordionItem
+                            key={item.key}
+                            aria-label={item.title}
+                            classNames={{
+                              base: "px-0 my-0",
+                              trigger:
+                                "px-0 min-h-11 h-[44px] data-[hover=true]:bg-default-100 hover:bg-default-100 transition-colors rounded-large",
+                              content: "px-0 pb-0",
+                            }}
+                            title={
+                              <div className="flex items-center gap-5 pl-1 pr-3">
+                                {item.icon && (
+                                  <Icon
+                                    className={cn(
+                                      "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0",
+                                      iconClassName
+                                    )}
+                                    icon={item.icon ?? ""}
+                                    width={24}
+                                  />
+                                )}
+                                <span className="text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 data-[hover=true]:text-foreground-900 transition-colors whitespace-nowrap overflow-hidden text-ellipsis">
+                                  {item.title}
+                                </span>
+                              </div>
+                            }
+                          >
+                            <AnimatePresence initial={false}>
+                              {expandedKeys.has(item.key) && (
+                                <motion.div
+                                  key="accordion-content"
+                                  initial={{ height: 0, opacity: 0 }}
+                                  animate={{ height: "auto", opacity: 1 }}
+                                  exit={{ height: 0, opacity: 0 }}
+                                  transition={{
+                                    duration: 0.25,
+                                    ease: "easeInOut",
+                                  }}
+                                  style={{ overflow: "hidden" }}
+                                >
+                                  {item.items && item.items?.length > 0 ? (
+                                    <div
+                                      className={`flex flex-col -space-y-1 mt-1 pl-3 border-l-1 ml-3 ${
+                                        isDark
+                                          ? "border-default-400"
+                                          : "border-default-500"
+                                      }`}
+                                    >
+                                      {item.items.map((subItem) => (
+                                        <div
+                                          key={`${item.key}-${subItem.key}`}
+                                          className={cn(
+                                            "flex items-center px-3 min-h-11 h-[44px] transition-colors cursor-pointer rounded-large",
+                                            "hover:bg-default-100",
+                                            subItem.href === location.pathname
+                                              ? "bg-default-100 text-foreground-900"
+                                              : "text-default-700 hover:text-foreground-900"
+                                          )}
+                                          onClick={() => {
+                                            if (
+                                              subItem.href &&
+                                              location.pathname !== subItem.href
+                                            ) {
+                                              navigate(subItem.href);
+                                            }
+                                            if (isMobile) {
+                                              onClose();
+                                            }
+                                          }}
+                                        >
+                                          {subItem.icon && (
+                                            <Icon
+                                              className={cn(
+                                                "mr-3 flex-shrink-0",
+                                                subItem.href ===
+                                                  location.pathname
+                                                  ? "text-foreground-900"
+                                                  : "text-default-700"
+                                              )}
+                                              icon={subItem.icon}
+                                              width={24}
+                                            />
+                                          )}
+                                          <span className="text-small font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                                            {subItem.title}
+                                          </span>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  ) : null}
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </AccordionItem>
+                        </Accordion>
+                      </div>
+                    );
+                  }
+
+                  // Per gli elementi normali, usa un singolo ListboxItem
+                  return (
+                    <div key={`listbox-${item.key}`} className="w-full">
+                      <Listbox
+                        hideSelectedIcon
+                        aria-label={`Elemento ${item.title}`}
+                        className="list-none"
+                        classNames={{
+                          list: "items-center gap-0",
+                        }}
+                        color="default"
+                        selectedKeys={
+                          item.href === location.pathname ? [item.key] : []
+                        }
+                        selectionMode="single"
+                        variant="flat"
+                        onSelectionChange={(keys) => {
+                          const key = Array.from(keys)[0] as string;
+                          if (key === item.key) {
+                            setSelected(key as React.Key);
+                            onSelect?.(key);
+                            if (item.href && location.pathname !== item.href) {
+                              navigate(item.href);
+                            }
+                            if (isMobile) {
+                              onClose();
+                            }
+                          }
+                        }}
+                      >
+                        <ListboxItem
+                          key={item.key}
+                          textValue={item.title}
+                          aria-label={item.title}
+                          classNames={{
+                            base: cn(
+                              "flex items-center pl-2 pr-3 min-h-11 rounded-large h-[44px] data-[selected=true]:bg-default-100 data-[selected=true]:text-foreground-900 data-[hover=true]:bg-default-100 transition-colors"
+                            ),
+                            title: cn(
+                              "text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 data-[hover=true]:text-foreground-900 transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
+                            ),
+                          }}
+                          startContent={
+                            isCompact ? null : item.icon ? (
+                              <Icon
+                                className={cn(
+                                  "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0 mr-3",
+                                  iconClassName
+                                )}
+                                icon={item.icon}
+                                width={24}
+                              />
+                            ) : (
+                              (item as SidebarItem).startContent ?? null
+                            )
+                          }
+                          title={isCompact ? null : item.title}
+                        >
+                          {isCompact ? (
+                            <Tooltip content={item.title} placement="right">
+                              <div className="flex w-full items-center justify-center">
+                                {item.icon ? (
+                                  <Icon
+                                    className={cn(
+                                      "text-default-700 group-data-[selected=true]:text-foreground-900",
+                                      iconClassName
+                                    )}
+                                    icon={item.icon}
+                                    width={24}
+                                  />
+                                ) : (
+                                  (item as SidebarItem).startContent ?? null
+                                )}
+                              </div>
+                            </Tooltip>
+                          ) : null}
+                        </ListboxItem>
+                      </Listbox>
+                    </div>
+                  );
+                })}
+              </div>
+            </ScrollShadow>
+
+            <Spacer y={8} />
+
+            <div className="mt-auto flex flex-col gap-4">
+              <Dropdown placement="top-start">
+                <DropdownTrigger>
+                  <Button
+                    fullWidth
+                    variant={selectedWarehouse ? "solid" : "bordered"}
+                    color={selectedWarehouse ? "primary" : "default"}
+                    className={cn(
+                      "justify-between transition-all duration-200",
+                      selectedWarehouse
+                        ? "bg-primary text-primary-foreground shadow-lg"
+                        : isDark
+                        ? " data-[hover=true]:text-foreground"
+                        : "text-default-700 data-[hover=true]:text-foreground-900"
+                    )}
+                    endContent={
+                      <Icon
+                        className={
+                          selectedWarehouse
+                            ? "text-primary-foreground"
+                            : isDark
+                            ? ""
+                            : "text-default-700"
+                        }
+                        icon="solar:alt-arrow-down-linear"
+                        width={16}
+                      />
+                    }
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        className={
+                          selectedWarehouse
+                            ? "text-primary-foreground"
+                            : isDark
+                            ? ""
+                            : "text-default-700"
+                        }
+                        icon="mdi:warehouse"
+                        width={24}
+                      />
+                      <span className="truncate">
+                        {selectedWarehouse
+                          ? (() => {
+                              const warehouse = warehouses.find(
+                                (w) =>
+                                  (w.WarehouseUUID || w.warehouse_id) ===
+                                  selectedWarehouse
+                              );
+                              return warehouse
+                                ? `${
+                                    warehouse.name ||
+                                    warehouse.WarehouseName ||
+                                    "Magazzino"
+                                  }${
+                                    warehouse.WarehouseCode
+                                      ? ` (${warehouse.WarehouseCode})`
+                                      : ""
+                                  }`
+                                : "Magazzino Selezionato";
+                            })()
+                          : "Magazzini"}
+                      </span>
+                    </div>
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu
+                  aria-label="Lista Magazzini"
+                  className="py-2 min-w-[280px]"
+                  variant="flat"
+                  selectedKeys={selectedWarehouse ? [selectedWarehouse] : []}
+                  selectionMode="single"
+                  items={[
+                    ...warehouses.map((warehouse) => ({
+                      key: String(
+                        warehouse.WarehouseUUID ||
+                          warehouse.warehouse_id ||
+                          warehouse.WarehouseID ||
+                          warehouse.name ||
+                          Math.random()
+                      ),
+                      warehouse,
+                      type: "warehouse",
+                    })),
+                    ...(warehouses.length === 0
+                      ? [{ key: "no-warehouses", type: "empty" }]
+                      : []),
+                    { key: "add-warehouse", type: "add" },
+                  ]}
+                  onSelectionChange={(keys) => {
+                    const selectedKey = Array.from(keys)[0] as string;
+                    if (
+                      selectedKey &&
+                      selectedKey !== "no-warehouses" &&
+                      selectedKey !== "add-warehouse"
+                    ) {
+                      setSelectedWarehouse(selectedKey);
+                    }
+                  }}
+                >
+                  {(dropdownItem: any) => (
+                    <DropdownItem
+                      key={dropdownItem.key}
+                      className={cn(
+                        "transition-all duration-200",
+                        dropdownItem.type === "add"
+                          ? "text-warning font-medium data-[hover=true]:bg-warning/10"
+                          : dropdownItem.type === "empty"
+                          ? ""
+                          : dropdownItem.warehouse?.IsActive === false
+                          ? "text-default-400 opacity-60"
+                          : selectedWarehouse === dropdownItem.key
+                          ? "bg-primary/10 text-primary font-medium"
+                          : "data-[hover=true]:bg-default-100"
+                      )}
+                      isDisabled={dropdownItem.type === "empty"}
+                      startContent={
+                        dropdownItem.type === "add" ? (
+                          <Icon
+                            icon="solar:add-circle-bold"
+                            width={20}
+                            className="text-warning"
+                          />
+                        ) : dropdownItem.type === "empty" ? null : (
+                          <Icon
+                            icon={
+                              dropdownItem.warehouse?.IsActive === false
+                                ? "solar:warehouse-minimalistic-broken"
+                                : "solar:warehouse-bold"
+                            }
+                            width={20}
+                            className={cn(
+                              selectedWarehouse === dropdownItem.key
+                                ? "text-primary"
+                                : dropdownItem.warehouse?.IsActive === false
+                                ? "text-default-400"
+                                : "text-default-700"
+                            )}
+                          />
+                        )
+                      }
+                      endContent={
+                        selectedWarehouse === dropdownItem.key &&
+                        dropdownItem.type === "warehouse" ? (
+                          <Icon
+                            icon="solar:check-circle-bold"
+                            width={16}
+                            className="text-primary"
+                          />
+                        ) : dropdownItem.warehouse?.IsActive === false ? (
+                          <Icon
+                            icon="solar:eye-closed-linear"
+                            width={16}
+                            className="text-default-400"
+                          />
+                        ) : null
+                      }
+                      onPress={() => {
+                        if (dropdownItem.type === "add") {
+                          navigate("/inventory/warehouses/add");
+                        } else if (dropdownItem.warehouse) {
+                          const warehouseId =
+                            dropdownItem.warehouse.WarehouseUUID ||
+                            dropdownItem.warehouse.warehouse_id ||
+                            "";
+                          setSelectedWarehouse(warehouseId);
+                          navigate(`/warehouses/${warehouseId}`);
+                        }
+                        if (isMobile) onClose();
+                      }}
+                    >
+                      {dropdownItem.type === "add"
+                        ? "Aggiungi magazzino"
+                        : dropdownItem.type === "empty"
+                        ? "Nessun magazzino disponibile"
+                        : `${
+                            dropdownItem.warehouse?.name ||
+                            dropdownItem.warehouse?.WarehouseName ||
+                            "Magazzino senza nome"
+                          }${
+                            dropdownItem.warehouse?.WarehouseCode
+                              ? ` (${dropdownItem.warehouse.WarehouseCode})`
+                              : ""
+                          }`}
+                    </DropdownItem>
+                  )}
+                </DropdownMenu>
+              </Dropdown>
+            </div>
           </div>
         </div>
-      </div>
+      ),
+      [
+        isMobile,
+        onClose,
+        location.pathname,
+        navigate,
+        user,
+        isDark,
+        toggleTheme,
+        ref,
+        className,
+        classNames,
+        itemClasses,
+        sectionClasses,
+        selected,
+        handleSelectionChange,
+        selectedWarehouse,
+        warehouses,
+        setSelectedWarehouse,
+      ]
     );
 
     if (isMobile) {
@@ -993,14 +1023,14 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
             }}
           >
             <ModalContent className=" bg-background text-foreground">
-              <SidebarContent />
+              {SidebarContent}
             </ModalContent>
           </Modal>
         </>
       );
     }
 
-    return <SidebarContent />;
+    return SidebarContent;
   }
 );
 
