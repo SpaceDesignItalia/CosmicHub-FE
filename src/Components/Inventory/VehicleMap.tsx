@@ -31,6 +31,18 @@ import {
 } from "@react-google-maps/api";
 import type { Employee } from "../../types/Employee";
 
+interface VehicleInventory {
+  id: string;
+  name: string;
+  quantity: number;
+  weight: number;
+  destination: string;
+  color: string;
+  icon: string;
+  sku: string;
+  category: string;
+}
+
 // Stili personalizzati per la mappa
 const mapStyles = [
   {
@@ -242,8 +254,13 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
   );
   const [currentAddress, setCurrentAddress] = useState<string>("");
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [isDeleteProductModalOpen, setIsDeleteProductModalOpen] = useState(false);
-  const [productToDelete, setProductToDelete] = useState<{id: string, name: string, quantity: number} | null>(null);
+  const [isDeleteProductModalOpen, setIsDeleteProductModalOpen] =
+    useState(false);
+  const [productToDelete, setProductToDelete] = useState<{
+    id: string;
+    name: string;
+    quantity: number;
+  } | null>(null);
   const [quantityToRemove, setQuantityToRemove] = useState(1);
 
   // Stato per la mappa Google Maps
@@ -623,29 +640,58 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
   };
 
   // Funzioni per gestire l'eliminazione dei prodotti
-  const handleDeleteProduct = (productId: string, productName: string, productQuantity: number) => {
-    setProductToDelete({ id: productId, name: productName, quantity: productQuantity });
-    setQuantityToRemove(productQuantity === 1 ? 1 : Math.min(1, productQuantity)); // Default: 1 pezzo o tutto se c'è solo 1
+  const handleDeleteProduct = (
+    productId: string,
+    productName: string,
+    productQuantity: number
+  ) => {
+    setProductToDelete({
+      id: productId,
+      name: productName,
+      quantity: productQuantity,
+    });
+    setQuantityToRemove(
+      productQuantity === 1 ? 1 : Math.min(1, productQuantity)
+    ); // Default: 1 pezzo o tutto se c'è solo 1
     setIsDeleteProductModalOpen(true);
   };
 
-  const confirmDeleteProduct = () => {
+  async function confirmDeleteProduct() {
     if (productToDelete) {
       const isRemovingAll = quantityToRemove >= productToDelete.quantity;
-      
+
       // Qui andrà la logica per rimuovere la quantità specificata dal carico del veicolo
-      console.log(`${isRemovingAll ? 'Prodotto completamente rimosso' : 'Quantità parziale rimossa'}: ${productToDelete.name} (ID: ${productToDelete.id})`);
-      console.log(`Quantità rimossa: ${quantityToRemove}/${productToDelete.quantity}`);
-      
-      // TODO: Chiamata API per rimuovere la quantità specificata dal carico
-      // Se quantityToRemove >= productToDelete.quantity: rimuovi completamente il prodotto
-      // Altrimenti: aggiorna la quantità rimanente nel carico
-      
+      console.log(
+        `${
+          isRemovingAll
+            ? "Prodotto completamente rimosso"
+            : "Quantità parziale rimossa"
+        }: ${productToDelete.name} (ID: ${productToDelete.id})`
+      );
+      console.log(
+        `Quantità rimossa: ${quantityToRemove}/${productToDelete.quantity}`
+      );
+
+      const response = await axios.delete(
+        "/Vehicle/DELETE/DeleteFromVehicleInventory",
+        {
+          params: {
+            product_id: productToDelete.id,
+            vehicle_id: vehicle.id,
+            amount: quantityToRemove,
+          },
+        }
+      );
+      if (response.status === 200) {
+        setUpdate(true);
+      }
+
       setIsDeleteProductModalOpen(false);
       setProductToDelete(null);
       setQuantityToRemove(1);
+      fetchVehicleInventory();
     }
-  };
+  }
 
   const cancelDeleteProduct = () => {
     setIsDeleteProductModalOpen(false);
@@ -679,6 +725,35 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
       setUpdate(true);
     }
   }
+
+  const [VehicleInventory, setVehicleInventory] = useState<VehicleInventory[]>(
+    []
+  );
+
+  const fetchVehicleInventory = async () => {
+    const response = await axios.get("/Vehicle/GET/GetVehicleInventory", {
+      params: {
+        vehicle_id: vehicle.id,
+      },
+    });
+    setVehicleInventory(
+      response.data.map((item: any) => ({
+        id: item.vehicle_inventory_id,
+        name: item.name,
+        quantity: item.amount,
+        weight: item.weight / 1000,
+        destination: item.destination,
+        color: item.color_code,
+        icon: item.icon,
+        sku: item.stock_unit,
+        category: item.category_name,
+      }))
+    );
+  };
+
+  useEffect(() => {
+    fetchVehicleInventory();
+  }, [vehicle.id]);
 
   return (
     <Card className="h-full border-none bg-transparent">
@@ -1047,7 +1122,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
             <div className="p-5 bg-white dark:bg-zinc-900">
               {/* Vehicle info */}
               <div className="grid grid-cols-2 gap-4 mb-5">
-                <div 
+                <div
                   className="col-span-2 bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1075,7 +1150,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </div>
                 </div>
 
-                <div 
+                <div
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1088,7 +1163,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div 
+                <div
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1101,7 +1176,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div 
+                <div
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1114,7 +1189,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
 
-                <div 
+                <div
                   className="bg-zinc-50 dark:bg-zinc-950 p-4 rounded-xl border border-zinc-200 dark:border-zinc-800 cursor-pointer hover:bg-zinc-100 dark:hover:bg-zinc-900 transition-colors"
                   onDoubleClick={() => onEdit && onEdit()}
                   title="Doppio click per modificare"
@@ -1341,131 +1416,63 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   </p>
                 </div>
                 <div className="flex items-center gap-4">
-                 
                   <div className="text-center">
-                    <p className="text-xs text-zinc-500 dark:text-zinc-300">Articoli</p>
+                    <p className="text-xs text-zinc-500 dark:text-zinc-300">
+                      Articoli
+                    </p>
                     <p className="text-lg font-bold text-green-600 dark:text-green-300">
-                      {isOnRoute ? "18" : isAvailable ? "11" : "7"}
+                      {VehicleInventory.length}
                     </p>
                   </div>
-                 
                 </div>
               </div>
-
-             
 
               {/* Contenuto inventario */}
               {isOnRoute || isAvailable || true ? (
                 <div className="space-y-4">
-                  
-
                   {/* Lista dettagliata prodotti */}
                   <div className="space-y-3">
                     <h5 className="text-lg font-semibold text-zinc-800 dark:text-zinc-50 flex items-center gap-2">
-                      <Icon icon="mdi:format-list-bulleted" className="text-blue-600 dark:text-blue-300" />
+                      <Icon
+                        icon="mdi:format-list-bulleted"
+                        className="text-blue-600 dark:text-blue-300"
+                      />
                       Lista Prodotti Caricati
                     </h5>
-                    
-                    {[
-                      {
-                        id: "1",
-                        name: "Moduli Fotovoltaici Premium",
-                        category: "Energia",
-                        sku: "PV-2024-001",
-                        quantity: isOnRoute ? 12 : isAvailable ? 8 : 4,
-                        weight: isOnRoute ? 180.5 : isAvailable ? 120.3 : 60.2,
-                        destination: "Via Roma 123, Firenze",
-                        icon: "mdi:solar-panel",
-                        color: "amber"
-                      },
-                      {
-                        id: "2",
-                        name: "Componenti Elettronici Avanzati",
-                        category: "Elettronica",
-                        sku: "EL-2024-045",
-                        quantity: isOnRoute ? 85 : isAvailable ? 45 : 25,
-                        weight: isOnRoute ? 45.2 : isAvailable ? 28.5 : 15.8,
-                        destination: "Piazza del Duomo, Firenze",
-                        icon: "mdi:chip",
-                        color: "blue"
-                      },
-                      {
-                        id: "3",
-                        name: "Materiali Isolanti Termici",
-                        category: "Materiali",
-                        sku: "MT-2024-012",
-                        quantity: isOnRoute ? 50 : isAvailable ? 30 : 15,
-                        weight: isOnRoute ? 120.8 : isAvailable ? 75.4 : 38.2,
-                        destination: "Viale dei Mille 45, Prato",
-                        icon: "mdi:cube-outline",
-                        color: "green"
-                      },
-                      {
-                        id: "4",
-                        name: "Kit Strumentazione Precisione",
-                        category: "Strumenti",
-                        sku: "ST-2024-008",
-                        quantity: isOnRoute ? 15 : isAvailable ? 10 : 5,
-                        weight: isOnRoute ? 67.5 : isAvailable ? 45.0 : 22.5,
-                        destination: "Via Nazionale 67, Pistoia",
-                        icon: "mdi:tools",
-                        color: "purple"
-                      },
-                      {
-                        id: "5",
-                        name: "Cavi Elettrici Industriali",
-                        category: "Elettronica",
-                        sku: "EL-2024-078",
-                        quantity: isOnRoute ? 35 : isAvailable ? 20 : 10,
-                        weight: isOnRoute ? 89.3 : isAvailable ? 52.1 : 26.0,
-                        destination: "Via Pisana 234, Firenze",
-                        icon: "mdi:cable-data",
-                        color: "blue"
-                      },
-                      {
-                        id: "6",
-                        name: "Cemento Rapido Pro",
-                        category: "Materiali",
-                        sku: "MT-2024-089",
-                        quantity: isOnRoute ? 25 : isAvailable ? 15 : 8,
-                        weight: isOnRoute ? 156.7 : isAvailable ? 94.0 : 47.1,
-                        destination: "Borgo San Lorenzo, Firenze",
-                        icon: "mdi:sack",
-                        color: "green"
-                      },
-                      {
-                        id: "7",
-                        name: "Trapano Professionale",
-                        category: "Strumenti",
-                        sku: "ST-2024-034",
-                        quantity: isOnRoute ? 8 : isAvailable ? 5 : 3,
-                        weight: isOnRoute ? 24.8 : isAvailable ? 15.5 : 9.3,
-                        destination: "Via del Corso 12, Prato",
-                        icon: "mdi:drill",
-                        color: "purple"
-                      }
-                    ].filter((_, index) => {
+
+                    {VehicleInventory.filter((_, index) => {
                       if (isOnRoute) return true; // Mostra tutti i prodotti se in viaggio
                       if (isAvailable) return index < 5; // Mostra 5 prodotti se disponibile
                       return index < 3; // Mostra 3 prodotti se in manutenzione
                     }).map((product) => (
-                      <div key={product.id} className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all duration-200 hover:border-blue-300 dark:hover:border-blue-700">
+                      <div
+                        key={product.id}
+                        className="bg-white dark:bg-zinc-900 p-5 rounded-xl border border-zinc-200 dark:border-zinc-800 hover:shadow-md transition-all duration-200 hover:border-blue-300 dark:hover:border-blue-700"
+                      >
                         <div className="flex flex-col lg:flex-row lg:items-center gap-4">
                           {/* Icona e info principale */}
                           <div className="flex items-center gap-4 flex-1">
-                            <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                              product.color === "blue" ? "bg-blue-100 dark:bg-blue-900" :
-                              product.color === "green" ? "bg-green-100 dark:bg-green-900" :
-                              product.color === "purple" ? "bg-purple-100 dark:bg-purple-900" :
-                              "bg-amber-100 dark:bg-amber-900"
-                            }`}>
+                            <div
+                              className={`w-12 h-12 rounded-xl flex items-center justify-center ${
+                                product.color === "blue"
+                                  ? "bg-blue-100 dark:bg-blue-900"
+                                  : product.color === "green"
+                                  ? "bg-green-100 dark:bg-green-900"
+                                  : product.color === "purple"
+                                  ? "bg-purple-100 dark:bg-purple-900"
+                                  : "bg-amber-100 dark:bg-amber-900"
+                              }`}
+                            >
                               <Icon
                                 icon={product.icon}
                                 className={`text-2xl ${
-                                  product.color === "blue" ? "text-blue-600 dark:text-blue-300" :
-                                  product.color === "green" ? "text-green-600 dark:text-green-300" :
-                                  product.color === "purple" ? "text-purple-600 dark:text-purple-300" :
-                                  "text-amber-600 dark:text-amber-300"
+                                  product.color === "blue"
+                                    ? "text-blue-600 dark:text-blue-300"
+                                    : product.color === "green"
+                                    ? "text-green-600 dark:text-green-300"
+                                    : product.color === "purple"
+                                    ? "text-purple-600 dark:text-purple-300"
+                                    : "text-amber-600 dark:text-amber-300"
                                 }`}
                               />
                             </div>
@@ -1477,7 +1484,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                                 <span className="text-sm text-zinc-500 dark:text-zinc-400">
                                   SKU: {product.sku}
                                 </span>
-                                <span className="text-sm text-zinc-500 dark:text-zinc-400">•</span>
+                                <span className="text-sm text-zinc-500 dark:text-zinc-400">
+                                  •
+                                </span>
                                 <span className="text-sm text-zinc-500 dark:text-zinc-400">
                                   {product.category}
                                 </span>
@@ -1488,13 +1497,17 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                           {/* Dettagli prodotto */}
                           <div className="grid grid-cols-2 gap-4 lg:gap-6">
                             <div className="text-center">
-                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Quantità</p>
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                                Quantità
+                              </p>
                               <p className="font-bold text-zinc-800 dark:text-zinc-50">
                                 {product.quantity} pz
                               </p>
                             </div>
                             <div className="text-center">
-                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Peso</p>
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                                Peso
+                              </p>
                               <p className="font-bold text-zinc-800 dark:text-zinc-50">
                                 {product.weight} kg
                               </p>
@@ -1509,12 +1522,18 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                               variant="flat"
                               color="danger"
                               className="bg-red-50 hover:bg-red-100 dark:bg-red-950 dark:hover:bg-red-900 transition-colors"
-                              onPress={() => handleDeleteProduct(product.id, product.name, product.quantity)}
+                              onPress={() =>
+                                handleDeleteProduct(
+                                  product.id,
+                                  product.name,
+                                  product.quantity
+                                )
+                              }
                             >
-                              <Icon 
-                                icon="mdi:trash-can-outline" 
-                                className="text-red-600 dark:text-red-400" 
-                                width={16} 
+                              <Icon
+                                icon="mdi:trash-can-outline"
+                                className="text-red-600 dark:text-red-400"
+                                width={16}
                               />
                             </Button>
                           </div>
@@ -1544,32 +1563,59 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                   {/* Riepilogo totali */}
                   <div className="mt-6 p-4 bg-zinc-50 dark:bg-zinc-900 rounded-xl border border-zinc-200 dark:border-zinc-800">
                     <h6 className="text-sm font-semibold text-zinc-700 dark:text-zinc-300 mb-3 flex items-center gap-2">
-                      <Icon icon="mdi:calculator" className="text-blue-600 dark:text-blue-300" />
+                      <Icon
+                        icon="mdi:calculator"
+                        className="text-blue-600 dark:text-blue-300"
+                      />
                       Riepilogo Carico
                     </h6>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="text-center">
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Articoli Totali</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                          Articoli Totali
+                        </p>
                         <p className="font-bold text-lg text-zinc-800 dark:text-zinc-50">
-                          {isOnRoute ? "18" : isAvailable ? "11" : "7"}
+                          {VehicleInventory.length}
                         </p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Peso Totale</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                          Peso Totale
+                        </p>
                         <p className="font-bold text-lg text-zinc-800 dark:text-zinc-50">
-                          {isOnRoute ? "684.8" : isAvailable ? "430.8" : "218.2"} kg
+                          {VehicleInventory.reduce(
+                            (acc, item) => acc + item.weight,
+                            0
+                          )}
+                          kg
                         </p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Categorie</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                          Categorie
+                        </p>
                         <p className="font-bold text-lg text-zinc-800 dark:text-zinc-50">
-                          {isOnRoute ? "4" : isAvailable ? "4" : "3"}
+                          {
+                            new Set(
+                              VehicleInventory.map((item) => item.category)
+                            ).size
+                          }
                         </p>
                       </div>
                       <div className="text-center">
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">Capacità Usata</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                          Capacità Usata
+                        </p>
                         <p className="font-bold text-lg text-blue-600 dark:text-blue-300">
-                          {Math.round((parseFloat(isOnRoute ? "684.8" : isAvailable ? "430.8" : "218.2") / vehicle.capacity) * 100)}%
+                          {Math.round(
+                            (VehicleInventory.reduce(
+                              (acc, item) => acc + item.weight,
+                              0
+                            ) /
+                              vehicle.capacity) *
+                              100
+                          )}
+                          %
                         </p>
                       </div>
                     </div>
@@ -1636,14 +1682,18 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                     </p>
                   )}
                 </div>
-                
+
                 {productToDelete && (
                   <div className="space-y-4">
                     <div className="flex items-center justify-between p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg">
-                      <span className="text-sm text-zinc-600 dark:text-zinc-400">Quantità attualmente caricata:</span>
-                      <span className="font-semibold">{productToDelete.quantity} pz</span>
+                      <span className="text-sm text-zinc-600 dark:text-zinc-400">
+                        Quantità attualmente caricata:
+                      </span>
+                      <span className="font-semibold">
+                        {productToDelete.quantity} pz
+                      </span>
                     </div>
-                    
+
                     <div className="space-y-2">
                       <label className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
                         Quantità da rimuovere:
@@ -1655,22 +1705,30 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                         value={quantityToRemove.toString()}
                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
                           const value = parseInt(e.target.value) || 1;
-                          setQuantityToRemove(Math.min(Math.max(1, value), productToDelete.quantity));
+                          setQuantityToRemove(
+                            Math.min(
+                              Math.max(1, value),
+                              productToDelete.quantity
+                            )
+                          );
                         }}
-                        endContent={<span className="text-sm text-zinc-500">pz</span>}
+                        endContent={
+                          <span className="text-sm text-zinc-500">pz</span>
+                        }
                       />
                       <div className="flex justify-between text-xs text-zinc-500">
                         <span>Min: 1</span>
                         <span>Max: {productToDelete.quantity}</span>
                       </div>
                     </div>
-                    
+
                     <div className="p-3 bg-blue-50 dark:bg-blue-950 rounded-lg">
                       <p className="text-sm text-blue-700 dark:text-blue-300">
-                        {quantityToRemove >= productToDelete.quantity 
+                        {quantityToRemove >= productToDelete.quantity
                           ? "Il prodotto verrà completamente rimosso dal carico."
-                          : `Rimarranno ${productToDelete.quantity - quantityToRemove} pezzi nel carico.`
-                        }
+                          : `Rimarranno ${
+                              productToDelete.quantity - quantityToRemove
+                            } pezzi nel carico.`}
                       </p>
                     </div>
                   </div>
@@ -1682,10 +1740,9 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                 Annulla
               </Button>
               <Button color="danger" onPress={confirmDeleteProduct}>
-                {productToDelete && quantityToRemove >= productToDelete.quantity 
-                  ? "Rimuovi Tutto" 
-                  : `Rimuovi ${quantityToRemove} pz`
-                }
+                {productToDelete && quantityToRemove >= productToDelete.quantity
+                  ? "Rimuovi Tutto"
+                  : `Rimuovi ${quantityToRemove} pz`}
               </Button>
             </ModalFooter>
           </>
