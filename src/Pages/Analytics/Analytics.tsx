@@ -16,19 +16,17 @@ import {
 import { Icon } from "@iconify/react";
 import AnalyticsChart from "../../Components/Analytics/AnalyticsChart";
 import CircleCharts from "../../Components/Analytics/CircleCharts";
+import PageHeader from "../../Components/Layout/PageHeader";
 
 export default function Dashboard() {
   return (
     <div className="min-h-screen h-full w-full flex-1 flex flex-col p-3 md:p-6 gap-6">
-      {/* Header */}
-      <header className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Dashboard Magazzino</h1>
-          <p className="text-default-900">
-            Panoramica delle performance e delle disponibilità
-          </p>
-        </div>
-      </header>
+      <PageHeader
+        title="Dashboard Magazzino"
+        description="Panoramica delle performance e delle disponibilità"
+        icon="solar:chart-2-bold-duotone"
+        size="md"
+      />
 
       {/* Contenuto principale con scroll */}
       <div className="flex-1 overflow-y-auto pr-2">

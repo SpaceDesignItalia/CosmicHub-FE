@@ -13,6 +13,7 @@ import {
 } from "@heroui/react";
 import { Link } from "react-router";
 import axios from "axios";
+import PageHeader from "../../Components/Layout/PageHeader";
 
 // Data types
 interface Attribute {
@@ -354,6 +355,82 @@ export default function Products() {
 
   return (
     <div className="w-full flex flex-col p-2 sm:p-4 gap-4 sm:gap-6 min-h-screen h-full overflow-auto">
+      <PageHeader
+        title="Inventario Prodotti"
+        description="Gestisci i prodotti del tuo inventario"
+        icon="solar:box-bold-duotone"
+        size="md"
+        indicators={
+          selectedWarehouse && warehouseDetails
+            ? [
+                {
+                  label: "Magazzino",
+                  value: `${warehouseDetails.name}${warehouseDetails.code ? ` (${warehouseDetails.code})` : ""}`,
+                  icon: "solar:warehouse-bold",
+                  color: "primary",
+                },
+              ]
+            : !selectedWarehouse
+            ? [
+                {
+                  label: "Attenzione",
+                  value: "Nessun magazzino selezionato - Mostrando tutti i prodotti",
+                  icon: "solar:info-circle-bold",
+                  color: "warning",
+                },
+              ]
+            : []
+        }
+        actions={[
+          {
+            label: "Nuovo prodotto",
+            icon: "proicons:box-add",
+            color: "primary",
+            variant: "solid",
+            as: Link,
+            href: "/inventory/products/add",
+          },
+        ]}
+      />
+
+      {/* Quick Stats Section */}
+      <QuickStats products={products} />
+
+      {/* Search and Filters */}
+      <Card className="min-h-min p-4 transition-all duration-300 ease-in-out">
+        <div className="flex flex-col gap-4">
+          {/* Search Bar with enhanced design */}
+          <div className="w-full relative group">
+            <Input
+              color="primary"
+              type="text"
+              placeholder="Cerca prodotti per nome..."
+              value={searchQuery}
+              startContent={
+                <Icon
+                  icon="line-md:search"
+                  className="text-default-400 text-lg pointer-events-none flex-shrink-0 group-hover:text-primary transition-colors"
+                />
+              }
+              onChange={(e) => setSearchQuery(e.target.value)}
+              variant="bordered"
+              radius="lg"
+              className="transition-all duration-200 hover:border-primary/50"
+            />
+          </div>
+
+          {/* Enhanced Filters with better mobile layout */}
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1 group">
+              <Select
+                variant="bordered"
+                selectedKeys={[selectedCategory]}
+                onSelectionChange={(keys) => {
+                  const selected = Array.from(keys)[0] as string;
+                  setSelectedCategory(selected || "Tutti");
+                }}
+                placeholder="Seleziona categoria"
+                startContent={
       {isLoading ? (
         <div className="flex flex-col items-center justify-center min-h-screen gap-4">
           <Spinner
