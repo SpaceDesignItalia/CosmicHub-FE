@@ -50,7 +50,8 @@ export default function EditVehicle() {
   const [availableUsers, setAvailableUsers] = useState<Employee[]>([]);
   const [allUsers, setAllUsers] = useState<Employee[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(false);
-  const [currentAssignedUser, setCurrentAssignedUser] = useState<Employee | null>(null);
+  const [currentAssignedUser, setCurrentAssignedUser] =
+    useState<Employee | null>(null);
 
   // Tipi di veicolo disponibili
   const vehicleTypes = [
@@ -62,38 +63,22 @@ export default function EditVehicle() {
   useEffect(() => {
     const fetchVehicleData = async () => {
       if (!id) return;
-      
+
       setIsLoadingData(true);
       try {
         const response = await axios.get("/Warehouse/GET/GetAllVehicles");
-        const vehicle = response.data.find((v: any) => v.warehouse_id === id);
-        
-        if (vehicle) {
-          // Recupera l'utente assegnato al veicolo se presente
-          let assignedUserId = "";
-          try {
-            const userIdResponse = await axios.get(
-              `/Warehouse/GET/GetUserByVehicleId`,
-              {
-                params: {
-                  vehicleId: id,
-                },
-              }
-            );
-            if (userIdResponse.data && userIdResponse.data.user_id) {
-              assignedUserId = userIdResponse.data.user_id;
-            }
-          } catch (error) {
-            console.log("Nessun utente assegnato al veicolo");
-          }
+        const vehicle = response.data.find((v: any) => v.vehicle_id === id);
 
+        if (vehicle) {
           setFormData({
             name: vehicle.name || "",
             license_plate: vehicle.license_plate || "",
             capacity: vehicle.capacity?.toString() || "",
             type: vehicle.type || "",
-            assignedUser: assignedUserId,
-            last_inspection_date: vehicle.last_inspection || new Date().toISOString().split("T")[0],
+            assignedUser: vehicle.assigned_user_id || "",
+            last_inspection_date:
+              vehicle.last_inspection.split("T")[0] ||
+              new Date().toISOString().split("T")[0],
           });
         } else {
           setFormError("Veicolo non trovato");
@@ -115,18 +100,25 @@ export default function EditVehicle() {
       setIsLoadingUsers(true);
       try {
         // Carica tutti gli utenti
-        const allUsersResponse = await axios.get("/Employee/GET/GetAllEmployees");
+        const allUsersResponse = await axios.get(
+          "/Employee/GET/GetAllEmployees"
+        );
         const allUsersData = allUsersResponse.data || [];
         setAllUsers(allUsersData);
 
         // Carica gli utenti senza veicolo assegnato
-        const availableUsersResponse = await axios.get("/Employee/GET/GetEmplyeesWithoutVehicle");
+        const availableUsersResponse = await axios.get(
+          "/Employee/GET/GetEmployeesWithoutVehicle"
+        );
+        console.log(availableUsersResponse.data);
         const availableUsersData = availableUsersResponse.data || [];
         setAvailableUsers(availableUsersData);
 
         // Se c'è un utente assegnato al veicolo, trovalo
         if (formData.assignedUser) {
-          const currentUser = allUsersData.find((user: Employee) => user.id === formData.assignedUser);
+          const currentUser = allUsersData.find(
+            (user: Employee) => user.user_id === formData.assignedUser
+          );
           setCurrentAssignedUser(currentUser || null);
         }
       } catch (error) {
@@ -140,6 +132,8 @@ export default function EditVehicle() {
 
     fetchUsers();
   }, [formData.assignedUser]);
+
+  console.log(currentAssignedUser);
 
   // Gestisce i cambiamenti nei campi del form
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -203,42 +197,17 @@ export default function EditVehicle() {
     try {
       // Prepara i dati per l'API
       const vehicleData = {
-        warehouse_id: id,
+        vehicle_id: id,
         name: formData.name,
         license_plate: formData.license_plate,
         capacity: parseInt(formData.capacity),
         type: formData.type,
         last_inspection_date: formData.last_inspection_date,
+        assigned_user_id: formData.assignedUser,
       };
 
       // Chiamata API per aggiornare il veicolo
-      await axios.put("/Warehouse/UPDATE/UpdateVehicle", vehicleData);
-
-      // Gestisci l'assegnazione utente
-      const originalAssignedUser = currentAssignedUser?.id || "";
-      const newAssignedUser = formData.assignedUser;
-
-      if (originalAssignedUser !== newAssignedUser) {
-        try {
-          if (newAssignedUser) {
-            // Assegna il veicolo al nuovo utente
-            await axios.put("/Employee/UPDATE/UpdateEmployeeVan", {
-              van_id: id,
-              employee_id: newAssignedUser,
-            });
-          } else if (originalAssignedUser) {
-            // Rimuovi l'assegnazione del veicolo dall'utente precedente
-            await axios.put("/Employee/UPDATE/UpdateEmployeeVan", {
-              van_id: null,
-              employee_id: originalAssignedUser,
-            });
-          }
-        } catch (assignmentError) {
-          console.error("Errore nell'aggiornamento dell'assegnazione:", assignmentError);
-          // Il veicolo è stato aggiornato ma l'assegnazione è fallita
-          // Potresti voler mostrare un messaggio di avviso all'utente
-        }
-      }
+      await axios.put("/Vehicle/UPDATE/UpdateVehicle", vehicleData);
 
       // Apri il modal di successo
       onOpen();
@@ -275,7 +244,7 @@ export default function EditVehicle() {
         <div className="flex items-center gap-3">
           <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
             <Icon
-              icon="mdi:truck-edit"
+              icon="mdi:truck"
               className="text-2xl text-blue-700 dark:text-blue-300"
               width={28}
             />
@@ -369,9 +338,7 @@ export default function EditVehicle() {
                   className="w-full"
                 >
                   {vehicleTypes.map((type) => (
-                    <SelectItem key={type.key}>
-                      {type.label}
-                    </SelectItem>
+                    <SelectItem key={type.key}>{type.label}</SelectItem>
                   ))}
                 </Select>
               </div>
@@ -425,7 +392,11 @@ export default function EditVehicle() {
                 </label>
                 <Autocomplete
                   id="assignedUser"
-                  placeholder={isLoadingUsers ? "Caricamento utenti..." : "Seleziona un utente"}
+                  placeholder={
+                    isLoadingUsers
+                      ? "Caricamento utenti..."
+                      : "Seleziona un utente"
+                  }
                   selectedKey={formData.assignedUser}
                   onSelectionChange={handleUserAssignment}
                   isLoading={isLoadingUsers}
@@ -433,18 +404,23 @@ export default function EditVehicle() {
                   allowsCustomValue={false}
                   items={[
                     ...availableUsers,
-                    ...(currentAssignedUser && !availableUsers.find(u => u.id === currentAssignedUser.id) 
-                      ? [currentAssignedUser] 
-                      : [])
+                    ...(currentAssignedUser &&
+                    !availableUsers.find(
+                      (u) => u.user_id === currentAssignedUser.user_id
+                    )
+                      ? [currentAssignedUser]
+                      : []),
                   ]}
                 >
                   {(user) => (
-                    <AutocompleteItem key={user.id} textValue={user.name}>
+                    <AutocompleteItem key={user.user_id} textValue={user.name}>
                       <div className="flex flex-col">
                         <span className="font-medium">{user.name}</span>
                         <span className="text-xs text-gray-500">
                           {user.role}
-                          {user.id === formData.assignedUser ? " (Attualmente assegnato)" : ""}
+                          {user.user_id === formData.assignedUser
+                            ? " (Attualmente assegnato)"
+                            : ""}
                         </span>
                       </div>
                     </AutocompleteItem>
@@ -455,11 +431,14 @@ export default function EditVehicle() {
                     Attualmente assegnato a: {currentAssignedUser.name}
                   </p>
                 )}
-                {availableUsers.length === 0 && !currentAssignedUser && !isLoadingUsers && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    Nessun utente disponibile (tutti gli utenti hanno già un veicolo assegnato)
-                  </p>
-                )}
+                {availableUsers.length === 0 &&
+                  !currentAssignedUser &&
+                  !isLoadingUsers && (
+                    <p className="text-xs text-gray-500 mt-1">
+                      Nessun utente disponibile (tutti gli utenti hanno già un
+                      veicolo assegnato)
+                    </p>
+                  )}
               </div>
             </div>
 
