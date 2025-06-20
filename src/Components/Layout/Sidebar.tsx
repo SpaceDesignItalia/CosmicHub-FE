@@ -17,6 +17,9 @@ import {
   ListboxSection,
   Modal,
   ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
   ScrollShadow,
   Spacer,
   Tooltip,
@@ -195,7 +198,14 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const [selected, setSelected] =
       React.useState<React.Key>(defaultSelectedKey);
     const { isOpen, onOpen, onClose } = useDisclosure();
+    const {
+      isOpen: isDeleteModalOpen,
+      onOpen: onDeleteModalOpen,
+      onClose: onDeleteModalClose,
+    } = useDisclosure();
     const [isMobile, setIsMobile] = React.useState(false);
+    const [warehouseToDelete, setWarehouseToDelete] =
+      useState<Warehouse | null>(null);
 
     // Stato per controllare gli accordion aperti
     const [expandedKeys, setExpandedKeys] = React.useState<Set<string>>(
@@ -446,6 +456,38 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       },
       [onSelect, location.pathname, navigate, isMobile, onClose]
     );
+
+    // Funzione per eliminare il magazzino
+    const handleDeleteWarehouse = async () => {
+      if (!warehouseToDelete) return;
+
+      try {
+        await axios.delete(
+          `/Warehouse/DELETE/DeleteWarehouse/${
+            warehouseToDelete.WarehouseID || warehouseToDelete.warehouse_id
+          }`
+        );
+
+        // Se il magazzino eliminato era quello selezionato, deselezionalo
+        if (
+          selectedWarehouse ===
+          (warehouseToDelete.WarehouseUUID || warehouseToDelete.warehouse_id)
+        ) {
+          setSelectedWarehouse(null);
+          localStorage.removeItem("selectedWarehouse");
+        }
+
+        // Refresh dei magazzini
+        setRefreshWarehouses((prev) => !prev);
+
+        // Chiudi il modal
+        onDeleteModalClose();
+        setWarehouseToDelete(null);
+      } catch (error) {
+        console.error("Errore nell'eliminazione del magazzino:", error);
+        // Qui potresti aggiungere una notifica di errore
+      }
+    };
 
     // Memoizzo il contenuto della sidebar per evitare re-render
     const SidebarContent = useMemo(
@@ -871,7 +913,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                     <DropdownItem
                       key={dropdownItem.key}
                       className={cn(
-                        "transition-all duration-200",
+                        "transition-all duration-200 relative group",
                         dropdownItem.type === "add"
                           ? "text-warning font-medium data-[hover=true]:bg-warning/10"
                           : dropdownItem.type === "empty"
@@ -909,14 +951,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                         )
                       }
                       endContent={
-                        selectedWarehouse === dropdownItem.key &&
-                        dropdownItem.type === "warehouse" ? (
-                          <Icon
-                            icon="solar:check-circle-bold"
-                            width={16}
-                            className="text-primary"
-                          />
-                        ) : dropdownItem.warehouse?.IsActive === false ? (
+                        dropdownItem.warehouse?.IsActive === false ? (
                           <Icon
                             icon="solar:eye-closed-linear"
                             width={16}
@@ -933,7 +968,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                             dropdownItem.warehouse.warehouse_id ||
                             "";
                           setSelectedWarehouse(warehouseId);
-                          navigate(`/warehouses/${warehouseId}`);
                         }
                         if (isMobile) onClose();
                       }}
@@ -977,6 +1011,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         selectedWarehouse,
         warehouses,
         setSelectedWarehouse,
+        isDeleteModalOpen,
+        onDeleteModalOpen,
+        onDeleteModalClose,
       ]
     );
 
@@ -1030,7 +1067,65 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       );
     }
 
-    return SidebarContent;
+    return (
+      <>
+        {SidebarContent}
+        {/* Modal per conferma eliminazione magazzino */}
+        <Modal
+          isOpen={isDeleteModalOpen}
+          onClose={onDeleteModalClose}
+          placement="center"
+          backdrop="blur"
+        >
+          <ModalContent>
+            {(onClose) => (
+              <>
+                <ModalHeader className="flex flex-col gap-1">
+                  <div className="flex items-center gap-2">
+                    <Icon
+                      icon="solar:danger-triangle-bold"
+                      width={24}
+                      className="text-danger"
+                    />
+                    <span>Conferma eliminazione</span>
+                  </div>
+                </ModalHeader>
+                <ModalBody>
+                  <p>
+                    Sei sicuro di voler eliminare il magazzino{" "}
+                    <span className="font-semibold text-danger">
+                      {warehouseToDelete?.name ||
+                        warehouseToDelete?.WarehouseName}
+                      {warehouseToDelete?.WarehouseCode &&
+                        ` (${warehouseToDelete.WarehouseCode})`}
+                    </span>
+                    ?
+                  </p>
+                  <p className="text-small text-default-500">
+                    Questa azione non può essere annullata e tutti i dati
+                    associati al magazzino verranno eliminati definitivamente.
+                  </p>
+                </ModalBody>
+                <ModalFooter>
+                  <Button color="default" variant="light" onPress={onClose}>
+                    Annulla
+                  </Button>
+                  <Button
+                    color="danger"
+                    onPress={handleDeleteWarehouse}
+                    startContent={
+                      <Icon icon="solar:trash-bin-2-bold" width={16} />
+                    }
+                  >
+                    Elimina magazzino
+                  </Button>
+                </ModalFooter>
+              </>
+            )}
+          </ModalContent>
+        </Modal>
+      </>
+    );
   }
 );
 
