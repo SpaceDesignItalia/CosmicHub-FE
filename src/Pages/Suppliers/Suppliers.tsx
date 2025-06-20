@@ -38,6 +38,7 @@ interface Supplier {
   phone: string;
   address: string;
   contact_person: string;
+  pec: string;
   notes: string;
   created_at: string;
   updated_at: string;
@@ -162,6 +163,7 @@ const Suppliers: React.FC = () => {
     phone: "",
     address: "",
     contact_person: "",
+    pec: "",
     notes: "",
   });
   
@@ -541,6 +543,7 @@ Cordiali saluti,
         phone: "",
         address: "",
         contact_person: "",
+        pec: "",
         notes: "",
       });
       
@@ -1086,6 +1089,7 @@ Cordiali saluti,
                 <TableColumn>NOME</TableColumn>
                 <TableColumn>CONTATTO</TableColumn>
                 <TableColumn>EMAIL</TableColumn>
+                <TableColumn>PEC</TableColumn>
                 <TableColumn>TELEFONO</TableColumn>
                 <TableColumn>INDIRIZZO</TableColumn>
                 <TableColumn>AZIONI</TableColumn>
@@ -1108,6 +1112,7 @@ Cordiali saluti,
                       </TableCell>
                       <TableCell>{supplier.contact_person || "-"}</TableCell>
                       <TableCell>{supplier.email}</TableCell>
+                      <TableCell>{supplier.pec || "-"}</TableCell>
                       <TableCell>{supplier.phone || "-"}</TableCell>
                       <TableCell className="max-w-xs truncate">
                         <Tooltip content={supplier.address || "-"}>
@@ -1164,7 +1169,7 @@ Cordiali saluti,
                   ))
                 ) : (
                   <TableRow>
-                    <TableCell colSpan={6}>
+                    <TableCell colSpan={7}>
                       <div className="flex flex-col items-center justify-center py-6">
                         <Icon
                           icon="solar:user-question-outline"
@@ -1691,7 +1696,7 @@ Cordiali saluti,
                   ) : (
                     <TableRow>
                       <TableCell colSpan={7}>
-                        <div className="flex flex-col items-center justify-center py-12">
+                        <div className="flex flex-col items-center justify-center py-6">
                           <div className="rounded-full bg-default-100 p-6 mb-4">
                             <Icon
                               icon="solar:notebook-minimalistic-linear"
@@ -2048,6 +2053,18 @@ Cordiali saluti,
                 />
               </div>
               <div className="md:col-span-2">
+                <p className="mb-2 text-sm font-medium">PEC:</p>
+                <Input
+                  value={newSupplier.pec || ""}
+                  onChange={(e) =>
+                    handleNewSupplierChange("pec", e.target.value)
+                  }
+                  placeholder="PEC del fornitore"
+                  type="email"
+                  isRequired
+                />
+              </div>
+              <div className="md:col-span-2">
                 <p className="mb-2 text-sm font-medium">Note:</p>
                 <Textarea
                   value={newSupplier.notes || ""}
@@ -2067,7 +2084,7 @@ Cordiali saluti,
             <Button 
               color="primary" 
               onPress={handleAddSupplier}
-              isDisabled={!newSupplier.name || !newSupplier.email}
+              isDisabled={!newSupplier.name || !newSupplier.email || !newSupplier.pec}
             >
               Salva Fornitore
             </Button>

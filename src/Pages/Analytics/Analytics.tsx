@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Select,
   SelectItem,
@@ -12,13 +12,134 @@ import {
   TableRow,
   TableCell,
   Chip,
+  Spinner,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import AnalyticsChart from "../../Components/Analytics/AnalyticsChart";
 import CircleCharts from "../../Components/Analytics/CircleCharts";
 import PageHeader from "../../Components/Layout/PageHeader";
+import axios from "axios";
+
+// Types
+interface Movement {
+  id: string;
+  date: string;
+  type: "IN" | "OUT" | "INCREASE" | "DECREASE" | "TRANSFER";
+  product: string;
+  sku: string;
+  quantity: number;
+  source: string;
+  destination: string;
+  status: "PENDING" | "COMPLETED";
+  product_id: string;
+  from_warehouse_id?: string;
+  from_warehouse_name?: string;
+  from_vehicle_id?: string;
+  from_vehicle_name?: string;
+  from_vehicle_license_plate?: string;
+  to_warehouse_id?: string;
+  to_warehouse_name?: string;
+  to_vehicle_id?: string;
+  to_vehicle_name?: string;
+  to_vehicle_license_plate?: string;
+  from_supplier?: string;
+  supplier_name?: string;
+  created_by?: string;
+  movement_name?: string;
+  user_name?: string;
+}
+
+// Utility functions
+const formatDate = (dateString: string) => {
+  return new Date(dateString).toLocaleDateString("it-IT");
+};
+
+const getMovementType = (
+  movementName: string
+): "IN" | "OUT" | "INCREASE" | "DECREASE" | "TRANSFER" => {
+  switch (movementName) {
+    case "Carico":
+      return "IN";
+    case "Scarico":
+      return "OUT";
+    case "Increase":
+      return "INCREASE";
+    case "Decrease":
+      return "DECREASE";
+    default:
+      return "TRANSFER";
+  }
+};
+
+const mapApiMovementToMovement = (movement: any): Movement => {
+  // Format source
+  const source = movement.from_warehouse_name
+    ? movement.from_warehouse_name
+    : movement.from_vehicle_name
+    ? movement.from_vehicle_name
+    : movement.from_supplier
+    ? movement.SupplierName || movement.from_supplier
+    : "N/A";
+
+  // Format destination
+  const destination = movement.to_warehouse_name
+    ? movement.to_warehouse_name
+    : movement.to_vehicle_name
+    ? movement.to_vehicle_name
+    : "N/A";
+
+  return {
+    id: movement.movement_id,
+    date: formatDate(movement.movement_date),
+    type: getMovementType(movement.movement_name),
+    product: movement.product_name,
+    sku: movement.sku,
+    quantity: parseInt(movement.amount),
+    source,
+    destination,
+    status: "COMPLETED",
+    product_id: movement.product_id,
+    from_warehouse_id: movement.from_warehouse_id,
+    from_warehouse_name: movement.from_warehouse_name,
+    from_vehicle_id: movement.from_vehicle_id,
+    from_vehicle_name: movement.from_vehicle_name,
+    from_vehicle_license_plate: movement.from_vehicle_license_plate,
+    to_warehouse_id: movement.to_warehouse_id,
+    to_warehouse_name: movement.to_warehouse_name,
+    to_vehicle_id: movement.to_vehicle_id,
+    to_vehicle_name: movement.to_vehicle_name,
+    to_vehicle_license_plate: movement.to_vehicle_license_plate,
+    from_supplier: movement.from_supplier,
+    supplier_name: movement.SupplierName,
+    created_by: movement.created_by,
+    movement_name: movement.movement_name,
+    user_name: movement.user_name,
+  };
+};
 
 export default function Dashboard() {
+  const [isLoading, setIsLoading] = useState(false);
+  const [movements, setMovements] = useState<Movement[]>([]);
+
+  useEffect(() => {
+    const fetchMovements = async () => {
+      try {
+        setIsLoading(true);
+        const response = await axios.get("/Product/GET/GetAllProductMovements");
+        const data = response.data.map(mapApiMovementToMovement);
+        // Prendi solo gli ultimi 10 movimenti per la dashboard
+        setMovements(data.slice(0, 5));
+      } catch (error) {
+        console.error("Error fetching movements:", error);
+        setMovements([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchMovements();
+  }, []);
+
   return (
     <div className="min-h-screen h-full w-full flex-1 flex flex-col p-3 md:p-6 gap-6">
       <PageHeader
@@ -140,91 +261,71 @@ export default function Dashboard() {
               <h3 className="text-lg font-semibold">Ultimi Movimenti</h3>
             </CardHeader>
             <div className="overflow-x-auto">
-              <Table
-                aria-label="Ultimi movimenti magazzino"
-                classNames={{
-                  wrapper: "min-w-[800px]",
-                  th: "text-left text-sm text-default-600",
-                  td: "text-left text-sm",
-                }}
-              >
-                <TableHeader>
-                  <TableColumn>Codice</TableColumn>
-                  <TableColumn>Articolo</TableColumn>
-                  <TableColumn>Quantità</TableColumn>
-                  <TableColumn>Tipo</TableColumn>
-                  <TableColumn>Data</TableColumn>
-                  <TableColumn>Operatore</TableColumn>
-                </TableHeader>
-                <TableBody>
-                  {[
-                    {
-                      codice: "R45892",
-                      articolo: "Scheda elettronica Riello",
-                      quantita: -2,
-                      tipo: "Uscita",
-                      data: "24/10/2023",
-                      operatore: "Marco Rossi",
-                    },
-                    {
-                      codice: "V78301",
-                      articolo: "Valvola a 3 vie Vaillant",
-                      quantita: 10,
-                      tipo: "Entrata",
-                      data: "23/10/2023",
-                      operatore: "Laura Bianchi",
-                    },
-                    {
-                      codice: "D90123",
-                      articolo: "Compressore Daikin 2.5kW",
-                      quantita: 5,
-                      tipo: "Entrata",
-                      data: "22/10/2023",
-                      operatore: "Antonio Verdi",
-                    },
-                    {
-                      codice: "R12385",
-                      articolo: "Ventilatore tangenziale",
-                      quantita: -1,
-                      tipo: "Uscita",
-                      data: "22/10/2023",
-                      operatore: "Marco Rossi",
-                    },
-                    {
-                      codice: "V30156",
-                      articolo: "Sonda NTC Vaillant",
-                      quantita: -3,
-                      tipo: "Uscita",
-                      data: "21/10/2023",
-                      operatore: "Paolo Neri",
-                    },
-                  ].map((row, i) => (
-                    <TableRow key={i}>
-                      <TableCell>{row.codice}</TableCell>
-                      <TableCell>{row.articolo}</TableCell>
-                      <TableCell
-                        className={
-                          row.quantita < 0
-                            ? "text-danger font-medium"
-                            : "text-success font-medium"
-                        }
-                      >
-                        {row.quantita > 0 ? `+${row.quantita}` : row.quantita}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          color={row.tipo === "Entrata" ? "success" : "danger"}
-                          size="sm"
-                        >
-                          {row.tipo}
-                        </Chip>
-                      </TableCell>
-                      <TableCell>{row.data}</TableCell>
-                      <TableCell>{row.operatore}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
+              {isLoading ? (
+                <div className="flex justify-center items-center py-8">
+                  <Spinner size="lg" color="primary" label="Caricamento movimenti..." />
+                </div>
+              ) : (
+                <Table
+                  aria-label="Ultimi movimenti magazzino"
+                  classNames={{
+                    wrapper: "min-w-[800px]",
+                    th: "text-left text-sm text-default-600",
+                    td: "text-left text-sm",
+                  }}
+                >
+                  <TableHeader>
+                    <TableColumn>Codice</TableColumn>
+                    <TableColumn>Articolo</TableColumn>
+                    <TableColumn>Quantità</TableColumn>
+                    <TableColumn>Tipo</TableColumn>
+                    <TableColumn>Data</TableColumn>
+                    <TableColumn>Operatore</TableColumn>
+                  </TableHeader>
+                  <TableBody>
+                    {movements.length > 0 ? (
+                      movements.map((movement) => (
+                        <TableRow key={movement.id}>
+                          <TableCell>{movement.sku}</TableCell>
+                          <TableCell>{movement.product}</TableCell>
+                          <TableCell
+                            className={
+                              movement.quantity < 0
+                                ? "text-danger font-medium"
+                                : "text-success font-medium"
+                            }
+                          >
+                            {movement.quantity > 0 ? `+${movement.quantity}` : movement.quantity}
+                          </TableCell>
+                          <TableCell>
+                            <Chip
+                              color={movement.type === "IN" || movement.type === "INCREASE" ? "success" : "danger"}
+                              size="sm"
+                            >
+                              {movement.type === "IN" || movement.type === "INCREASE" ? "Entrata" : "Uscita"}
+                            </Chip>
+                          </TableCell>
+                          <TableCell>{movement.date}</TableCell>
+                          <TableCell>{movement.user_name || movement.created_by || "N/A"}</TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={6}>
+                          <div className="flex flex-col items-center justify-center py-6">
+                            <Icon
+                              icon="solar:double-alt-arrow-right-outline"
+                              className="text-default-400 mb-2"
+                              width={36}
+                            />
+                            <p>Nessun movimento trovato</p>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
+              )}
             </div>
           </Card>
         </div>
