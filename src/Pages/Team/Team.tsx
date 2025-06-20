@@ -2,33 +2,30 @@
 
 import {
   Avatar,
+  Badge,
   Button,
   Card,
   CardBody,
   CardHeader,
+  Chip,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
   Input,
   Modal,
   ModalBody,
   ModalContent,
   ModalFooter,
   ModalHeader,
-  useDisclosure,
-  Chip,
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-  Badge,
   Progress,
-  Tabs,
-  Tab,
-  Divider,
   Select,
   SelectItem,
+  useDisclosure,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import axios from "axios";
-import { createContext, useContext, useEffect, useState, useMemo } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 import PageHeader from "../../Components/Layout/PageHeader";
 
 // Interface for Employee type
@@ -63,7 +60,7 @@ const UpdateContext = createContext<{
 function EmployeeCard({ employee }: { employee: Employee }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [selectedVehicle, setSelectedVehicle] = useState<string>("");
+  const [selectedVehicle, setSelectedVehicle] = useState<number | null>(null);
   const [isAssigning, setIsAssigning] = useState(false);
   const { triggerUpdate } = useContext(UpdateContext);
 
@@ -72,30 +69,59 @@ function EmployeeCard({ employee }: { employee: Employee }) {
     if (isOpen) {
       fetchVehicles();
       if (employee.assigned_vehicle) {
-        setSelectedVehicle(employee.assigned_vehicle.id.toString());
+        setSelectedVehicle(employee.assigned_vehicle.id);
+      } else {
+        setSelectedVehicle(null);
       }
     }
   }, [isOpen, employee.assigned_vehicle]);
 
+  // Reset selectedVehicle when modal closes
+  useEffect(() => {
+    if (!isOpen) {
+      setSelectedVehicle(null);
+    }
+  }, [isOpen]);
+
   const fetchVehicles = async () => {
     try {
-      const response = await axios.get("/Vehicle/GET/GetAllVehicles", { withCredentials: true });
-      setVehicles(response.data);
+      const response = await axios.get("/Vehicle/GET/GetAvailableVehicles", {
+        withCredentials: true,
+      });
+      setVehicles(
+        response.data.map((vehicle: any) => ({
+          id: vehicle.vehicle_id,
+          name: vehicle.name,
+          license_plate: vehicle.license_plate,
+          status: vehicle.status || "available",
+        }))
+      );
     } catch (error) {
       console.error("Failed to fetch vehicles:", error);
     }
   };
 
+  console.log(vehicles);
+  console.log("Selected vehicle:", selectedVehicle);
+  console.log(
+    "Selected keys:",
+    selectedVehicle ? [selectedVehicle.toString()] : []
+  );
+
   const handleVehicleAssignment = async () => {
     if (!selectedVehicle) return;
-    
+
     setIsAssigning(true);
     try {
-      await axios.post("/Employee/POST/AssignVehicle", {
-        employee_id: employee.user_id,
-        vehicle_id: parseInt(selectedVehicle)
-      }, { withCredentials: true });
-      
+      await axios.put(
+        "/Employee/UPDATE/UpdateEmployeeVehicle",
+        {
+          employee_id: employee.user_id,
+          vehicle_id: selectedVehicle,
+        },
+        { withCredentials: true }
+      );
+
       triggerUpdate();
       onClose();
     } catch (error) {
@@ -108,11 +134,12 @@ function EmployeeCard({ employee }: { employee: Employee }) {
   const handleVehicleUnassignment = async () => {
     setIsAssigning(true);
     try {
-      await axios.post("/Employee/POST/UnassignVehicle", {
-        employee_id: employee.user_id
-      }, { withCredentials: true });
-      
-      setSelectedVehicle("");
+      await axios.put("/Employee/UPDATE/UpdateEmployeeVehicle", {
+        employee_id: employee.user_id,
+        vehicle_id: null,
+      });
+
+      setSelectedVehicle(null);
       triggerUpdate();
       onClose();
     } catch (error) {
@@ -134,14 +161,16 @@ function EmployeeCard({ employee }: { employee: Employee }) {
         };
       case "Specialized Technician":
         return {
-          gradient: "bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700",
+          gradient:
+            "bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700",
           icon: "solar:star-bold",
           color: "secondary",
           chipColor: "secondary" as const,
         };
       case "Junior Technician":
         return {
-          gradient: "bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700",
+          gradient:
+            "bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700",
           icon: "solar:user-bold",
           color: "warning",
           chipColor: "warning" as const,
@@ -176,14 +205,10 @@ function EmployeeCard({ employee }: { employee: Employee }) {
         >
           {/* Background pattern */}
           <div className="absolute inset-0 bg-white/5 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.1)_0%,transparent_50%)]" />
-          
+
           {/* Role icon in top left */}
           <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-            <Icon
-              icon={roleConfig.icon}
-              className="text-white"
-              width={18}
-            />
+            <Icon icon={roleConfig.icon} className="text-white" width={18} />
           </div>
 
           {/* Avatar with enhanced styling */}
@@ -193,7 +218,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
             name={avatarName}
             className="h-24 w-24 translate-y-12 border-4 border-white shadow-large ring-2 ring-white/20"
           />
-          
+
           {/* Details button */}
           <Button
             className="absolute right-3 top-3 bg-white/20 backdrop-blur-md text-white border-white/30"
@@ -209,7 +234,9 @@ function EmployeeCard({ employee }: { employee: Employee }) {
         <CardBody className="pt-8">
           <div className="text-center space-y-3">
             <div>
-              <h3 className="text-xl font-bold text-foreground">{displayName}</h3>
+              <h3 className="text-xl font-bold text-foreground">
+                {displayName}
+              </h3>
               <Chip
                 color={roleConfig.chipColor}
                 variant="flat"
@@ -220,7 +247,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                 {displayRole}
               </Chip>
             </div>
-            
+
             {/* Vehicle assignment status */}
             {employee.assigned_vehicle && (
               <div className="mt-3">
@@ -234,13 +261,20 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                 </Chip>
               </div>
             )}
-            
+
             {/* Status indicators */}
             <div className="flex justify-center gap-2 pt-2">
-              <Badge content="" color="success" size="sm" placement="bottom-right">
+              <Badge
+                content=""
+                color="success"
+                size="sm"
+                placement="bottom-right"
+              >
                 <div className="w-3 h-3 rounded-full bg-success-500" />
               </Badge>
-              <span className="text-xs text-success-600 font-medium">Online</span>
+              <span className="text-xs text-success-600 font-medium">
+                Online
+              </span>
             </div>
           </div>
         </CardBody>
@@ -270,11 +304,18 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                     name={avatarName}
                     className="h-32 w-32 mb-4 shadow-large"
                   />
-                  <Badge content="" color="success" size="lg" placement="bottom-right">
+                  <Badge
+                    content=""
+                    color="success"
+                    size="lg"
+                    placement="bottom-right"
+                  >
                     <div />
                   </Badge>
                 </div>
-                <h3 className="text-2xl font-bold text-center">{displayName}</h3>
+                <h3 className="text-2xl font-bold text-center">
+                  {displayName}
+                </h3>
                 <Chip
                   color={roleConfig.chipColor}
                   variant="flat"
@@ -284,17 +325,23 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                 >
                   {displayRole}
                 </Chip>
-                
+
                 {/* Quick stats */}
                 <div className="mt-6 w-full space-y-3">
                   <Card className="bg-success-50 dark:bg-success-950">
                     <CardBody className="py-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                          <Icon icon="solar:calendar-bold" className="text-success-600" width={18} />
+                          <Icon
+                            icon="solar:calendar-bold"
+                            className="text-success-600"
+                            width={18}
+                          />
                           <span className="text-sm font-medium">Stato</span>
                         </div>
-                        <Chip color="success" size="sm">Attivo</Chip>
+                        <Chip color="success" size="sm">
+                          Attivo
+                        </Chip>
                       </div>
                     </CardBody>
                   </Card>
@@ -306,15 +353,23 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                 {/* Personal Information */}
                 <div>
                   <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Icon icon="solar:user-bold" className="text-primary" width={20} />
+                    <Icon
+                      icon="solar:user-bold"
+                      className="text-primary"
+                      width={20}
+                    />
                     Informazioni Personali
                   </h4>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <Card className="bg-default-50 dark:bg-default-950">
                       <CardBody className="py-4">
                         <div className="space-y-2">
-                          <p className="text-sm text-default-500">ID Dipendente</p>
-                          <p className="font-semibold text-lg">#{employee.user_id}</p>
+                          <p className="text-sm text-default-500">
+                            ID Dipendente
+                          </p>
+                          <p className="font-semibold text-lg">
+                            #{employee.user_id}
+                          </p>
                         </div>
                       </CardBody>
                     </Card>
@@ -332,7 +387,11 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                 {/* Vehicle Assignment Section */}
                 <div>
                   <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Icon icon="solar:car-bold" className="text-warning" width={20} />
+                    <Icon
+                      icon="solar:car-bold"
+                      className="text-warning"
+                      width={20}
+                    />
                     Assegnazione Veicolo
                   </h4>
                   <Card className="bg-warning-50 dark:bg-warning-950">
@@ -341,26 +400,61 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                         <div className="space-y-3">
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-sm text-warning-600 dark:text-warning-400">Veicolo Assegnato</p>
-                              <p className="font-semibold text-lg">{employee.assigned_vehicle.name}</p>
-                              <p className="text-sm text-default-500">Targa: {employee.assigned_vehicle.license_plate}</p>
+                              <p className="text-sm text-warning-600 dark:text-warning-400">
+                                Veicolo Assegnato
+                              </p>
+                              <p className="font-semibold text-lg">
+                                {employee.assigned_vehicle.name}
+                              </p>
+                              <p className="text-sm text-default-500">
+                                Targa: {employee.assigned_vehicle.license_plate}
+                              </p>
                             </div>
-                            <Icon icon="solar:car-bold" className="text-warning-600" width={32} />
+                            <Icon
+                              icon="solar:car-bold"
+                              className="text-warning-600"
+                              width={32}
+                            />
                           </div>
                           <div className="flex gap-2">
                             <Select
                               label="Cambia Veicolo"
                               placeholder="Seleziona nuovo veicolo"
-                              selectedKeys={selectedVehicle ? [selectedVehicle] : []}
-                              onSelectionChange={(keys) => setSelectedVehicle(Array.from(keys)[0] as string)}
+                              selectedKeys={
+                                selectedVehicle
+                                  ? [selectedVehicle.toString()]
+                                  : []
+                              }
+                              onSelectionChange={(keys) => {
+                                const selectedKey = parseInt(
+                                  Array.from(keys)[0] as string
+                                );
+                                setSelectedVehicle(selectedKey);
+                              }}
+                              renderValue={(items) => {
+                                return items.map((item) => {
+                                  const vehicle = vehicles.find(
+                                    (v) => v.id.toString() === item.key
+                                  );
+                                  return vehicle
+                                    ? `${vehicle.name} - ${vehicle.license_plate}`
+                                    : item.textValue;
+                                });
+                              }}
                               size="sm"
                               className="flex-1"
                             >
-                                                             {vehicles.filter(v => v.status === "available" || v.id === employee.assigned_vehicle?.id).map((vehicle) => (
-                                 <SelectItem key={vehicle.id}>
-                                   {vehicle.name} - {vehicle.license_plate}
-                                 </SelectItem>
-                               ))}
+                              {vehicles
+                                .filter(
+                                  (v) =>
+                                    v.status === "available" ||
+                                    v.id === employee.assigned_vehicle?.id
+                                )
+                                .map((vehicle) => (
+                                  <SelectItem key={vehicle.id}>
+                                    {vehicle.name} - {vehicle.license_plate}
+                                  </SelectItem>
+                                ))}
                             </Select>
                             <Button
                               color="danger"
@@ -368,7 +462,12 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                               size="sm"
                               onPress={handleVehicleUnassignment}
                               isLoading={isAssigning}
-                              startContent={<Icon icon="solar:close-circle-bold" width={16} />}
+                              startContent={
+                                <Icon
+                                  icon="solar:close-circle-bold"
+                                  width={16}
+                                />
+                              }
                             >
                               Rimuovi
                             </Button>
@@ -377,21 +476,48 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                       ) : (
                         <div className="space-y-3">
                           <div className="flex items-center gap-2 mb-3">
-                            <Icon icon="solar:info-circle-bold" className="text-warning-600" width={20} />
-                            <p className="text-sm text-warning-600 dark:text-warning-400">Nessun veicolo assegnato</p>
+                            <Icon
+                              icon="solar:info-circle-bold"
+                              className="text-warning-600"
+                              width={20}
+                            />
+                            <p className="text-sm text-warning-600 dark:text-warning-400">
+                              Nessun veicolo assegnato
+                            </p>
                           </div>
                           <Select
                             label="Assegna Veicolo"
                             placeholder="Seleziona veicolo da assegnare"
-                            selectedKeys={selectedVehicle ? [selectedVehicle] : []}
-                            onSelectionChange={(keys) => setSelectedVehicle(Array.from(keys)[0] as string)}
+                            selectedKeys={
+                              selectedVehicle
+                                ? [selectedVehicle.toString()]
+                                : []
+                            }
+                            onSelectionChange={(keys) => {
+                              const selectedKey = parseInt(
+                                Array.from(keys)[0] as string
+                              );
+                              setSelectedVehicle(selectedKey);
+                            }}
+                            renderValue={(items) => {
+                              return items.map((item) => {
+                                const vehicle = vehicles.find(
+                                  (v) => v.id.toString() === item.key
+                                );
+                                return vehicle
+                                  ? `${vehicle.name} - ${vehicle.license_plate}`
+                                  : item.textValue;
+                              });
+                            }}
                             size="sm"
                           >
-                                                         {vehicles.filter(v => v.status === "available").map((vehicle) => (
-                               <SelectItem key={vehicle.id}>
-                                 {vehicle.name} - {vehicle.license_plate}
-                               </SelectItem>
-                             ))}
+                            {vehicles
+                              .filter((v) => v.status === "available")
+                              .map((vehicle) => (
+                                <SelectItem key={vehicle.id}>
+                                  {vehicle.name} - {vehicle.license_plate}
+                                </SelectItem>
+                              ))}
                           </Select>
                         </div>
                       )}
@@ -402,36 +528,47 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                 {/* Performance Metrics */}
                 <div>
                   <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Icon icon="solar:chart-bold" className="text-secondary" width={20} />
+                    <Icon
+                      icon="solar:chart-bold"
+                      className="text-secondary"
+                      width={20}
+                    />
                     Metriche Performance
                   </h4>
                   <div className="space-y-4">
                     <div>
                       <div className="flex justify-between mb-2">
                         <span className="text-sm font-medium">Efficienza</span>
-                        <span className="text-sm font-bold text-success-600">92%</span>
+                        <span className="text-sm font-bold text-success-600">
+                          92%
+                        </span>
                       </div>
                       <Progress value={92} color="success" size="md" />
                     </div>
                     <div>
                       <div className="flex justify-between mb-2">
-                        <span className="text-sm font-medium">Progetti Completati</span>
-                        <span className="text-sm font-bold text-primary-600">87%</span>
+                        <span className="text-sm font-medium">
+                          Progetti Completati
+                        </span>
+                        <span className="text-sm font-bold text-primary-600">
+                          87%
+                        </span>
                       </div>
                       <Progress value={87} color="primary" size="md" />
                     </div>
                     <div>
                       <div className="flex justify-between mb-2">
-                        <span className="text-sm font-medium">Valutazione Cliente</span>
-                        <span className="text-sm font-bold text-warning-600">95%</span>
+                        <span className="text-sm font-medium">
+                          Valutazione Cliente
+                        </span>
+                        <span className="text-sm font-bold text-warning-600">
+                          95%
+                        </span>
                       </div>
                       <Progress value={95} color="warning" size="md" />
                     </div>
                   </div>
                 </div>
-
-              
-
               </div>
             </div>
           </ModalBody>
@@ -439,16 +576,17 @@ function EmployeeCard({ employee }: { employee: Employee }) {
             <Button color="default" variant="light" onPress={onClose}>
               Chiudi
             </Button>
-            {selectedVehicle && selectedVehicle !== (employee.assigned_vehicle?.id.toString() || "") && (
-              <Button 
-                color="primary" 
-                onPress={handleVehicleAssignment}
-                isLoading={isAssigning}
-                startContent={<Icon icon="solar:car-bold" width={16} />}
-              >
-                Assegna Veicolo
-              </Button>
-            )}
+            {selectedVehicle &&
+              selectedVehicle !== (employee.assigned_vehicle?.id || 0) && (
+                <Button
+                  color="primary"
+                  onPress={handleVehicleAssignment}
+                  isLoading={isAssigning}
+                  startContent={<Icon icon="solar:car-bold" width={16} />}
+                >
+                  Assegna Veicolo
+                </Button>
+              )}
           </ModalFooter>
         </ModalContent>
       </Modal>
@@ -475,7 +613,19 @@ export default function Team() {
       axios
         .get("/Employee/GET/GetAllEmployees", { withCredentials: true })
         .then((response) => {
-          setCurrentEmployees(response.data);
+          console.log(response.data);
+          setCurrentEmployees(
+            response.data.map((employee: any) => ({
+              ...employee,
+              assigned_vehicle: employee.vehicle_id
+                ? {
+                    id: employee.vehicle_id,
+                    name: employee.vehicle_name,
+                    license_plate: employee.license_plate,
+                  }
+                : null,
+            }))
+          );
         })
         .catch((error) => {
           console.error("Failed to fetch employees:", error);
@@ -498,16 +648,25 @@ export default function Team() {
 
   // Get unique roles for filter
   const availableRoles = useMemo(() => {
-    const roles = ["Tutti", ...new Set(currentEmployees.map(emp => emp.role))];
+    const roles = [
+      "Tutti",
+      ...new Set(currentEmployees.map((emp) => emp.role)),
+    ];
     return roles;
   }, [currentEmployees]);
 
   // Calculate statistics
   const statistics = useMemo(() => {
     const total = currentEmployees.length;
-    const senior = currentEmployees.filter(emp => emp.role === "Senior Technician").length;
-    const specialized = currentEmployees.filter(emp => emp.role === "Specialized Technician").length;
-    const junior = currentEmployees.filter(emp => emp.role === "Junior Technician").length;
+    const senior = currentEmployees.filter(
+      (emp) => emp.role === "Senior Technician"
+    ).length;
+    const specialized = currentEmployees.filter(
+      (emp) => emp.role === "Specialized Technician"
+    ).length;
+    const junior = currentEmployees.filter(
+      (emp) => emp.role === "Junior Technician"
+    ).length;
     const others = total - senior - specialized - junior;
 
     return {
@@ -524,12 +683,16 @@ export default function Team() {
   // Filter and sort employees
   const filteredAndSortedEmployees = useMemo(() => {
     let filtered = currentEmployees.filter((employee) => {
-      const matchesSearch = !searchQuery.trim() || 
-        (employee.name && employee.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
-        (employee.role && employee.role.toLowerCase().includes(searchQuery.toLowerCase()));
-      
-      const matchesRole = selectedRole === "Tutti" || employee.role === selectedRole;
-      
+      const matchesSearch =
+        !searchQuery.trim() ||
+        (employee.name &&
+          employee.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
+        (employee.role &&
+          employee.role.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchesRole =
+        selectedRole === "Tutti" || employee.role === selectedRole;
+
       return matchesSearch && matchesRole;
     });
 
@@ -556,8 +719,12 @@ export default function Team() {
         <div className="flex flex-col items-center gap-4">
           <div className="w-16 h-16 rounded-full border-4 border-primary/20 border-t-primary animate-spin" />
           <div className="text-center">
-            <p className="text-xl font-semibold text-foreground">Caricamento Team</p>
-            <p className="text-sm text-default-500 mt-1">Recupero informazioni dipendenti...</p>
+            <p className="text-xl font-semibold text-foreground">
+              Caricamento Team
+            </p>
+            <p className="text-sm text-default-500 mt-1">
+              Recupero informazioni dipendenti...
+            </p>
           </div>
         </div>
       </div>
@@ -595,11 +762,19 @@ export default function Team() {
             <CardBody className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-primary-600 dark:text-primary-400 font-medium">Totale Tecnici</p>
-                  <p className="text-2xl font-bold text-primary-700 dark:text-primary-300">{statistics.total}</p>
+                  <p className="text-sm text-primary-600 dark:text-primary-400 font-medium">
+                    Totale Tecnici
+                  </p>
+                  <p className="text-2xl font-bold text-primary-700 dark:text-primary-300">
+                    {statistics.total}
+                  </p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-primary-500/20 flex items-center justify-center">
-                  <Icon icon="solar:users-group-rounded-bold" className="text-primary-600" width={24} />
+                  <Icon
+                    icon="solar:users-group-rounded-bold"
+                    className="text-primary-600"
+                    width={24}
+                  />
                 </div>
               </div>
             </CardBody>
@@ -609,11 +784,19 @@ export default function Team() {
             <CardBody className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">Senior</p>
-                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">{statistics.senior}</p>
+                  <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
+                    Senior
+                  </p>
+                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
+                    {statistics.senior}
+                  </p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                  <Icon icon="solar:medal-star-bold" className="text-blue-600" width={24} />
+                  <Icon
+                    icon="solar:medal-star-bold"
+                    className="text-blue-600"
+                    width={24}
+                  />
                 </div>
               </div>
             </CardBody>
@@ -623,11 +806,19 @@ export default function Team() {
             <CardBody className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">Specializzati</p>
-                  <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">{statistics.specialized}</p>
+                  <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">
+                    Specializzati
+                  </p>
+                  <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
+                    {statistics.specialized}
+                  </p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                  <Icon icon="solar:star-bold" className="text-purple-600" width={24} />
+                  <Icon
+                    icon="solar:star-bold"
+                    className="text-purple-600"
+                    width={24}
+                  />
                 </div>
               </div>
             </CardBody>
@@ -637,11 +828,19 @@ export default function Team() {
             <CardBody className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">Junior</p>
-                  <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">{statistics.junior}</p>
+                  <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
+                    Junior
+                  </p>
+                  <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
+                    {statistics.junior}
+                  </p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                  <Icon icon="solar:user-bold" className="text-amber-600" width={24} />
+                  <Icon
+                    icon="solar:user-bold"
+                    className="text-amber-600"
+                    width={24}
+                  />
                 </div>
               </div>
             </CardBody>
@@ -651,11 +850,19 @@ export default function Team() {
             <CardBody className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-success-600 dark:text-success-400 font-medium">Soddisfazione</p>
-                  <p className="text-2xl font-bold text-success-700 dark:text-success-300">{statistics.satisfaction}%</p>
+                  <p className="text-sm text-success-600 dark:text-success-400 font-medium">
+                    Soddisfazione
+                  </p>
+                  <p className="text-2xl font-bold text-success-700 dark:text-success-300">
+                    {statistics.satisfaction}%
+                  </p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-success-500/20 flex items-center justify-center">
-                  <Icon icon="solar:heart-bold" className="text-success-600" width={24} />
+                  <Icon
+                    icon="solar:heart-bold"
+                    className="text-success-600"
+                    width={24}
+                  />
                 </div>
               </div>
             </CardBody>
@@ -665,11 +872,19 @@ export default function Team() {
             <CardBody className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-secondary-600 dark:text-secondary-400 font-medium">Esperienza Media</p>
-                  <p className="text-xl font-bold text-secondary-700 dark:text-secondary-300">{statistics.avgExperience}</p>
+                  <p className="text-sm text-secondary-600 dark:text-secondary-400 font-medium">
+                    Esperienza Media
+                  </p>
+                  <p className="text-xl font-bold text-secondary-700 dark:text-secondary-300">
+                    {statistics.avgExperience}
+                  </p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-secondary-500/20 flex items-center justify-center">
-                  <Icon icon="solar:clock-circle-bold" className="text-secondary-600" width={24} />
+                  <Icon
+                    icon="solar:clock-circle-bold"
+                    className="text-secondary-600"
+                    width={24}
+                  />
                 </div>
               </div>
             </CardBody>
@@ -699,7 +914,7 @@ export default function Team() {
                   className="max-w-md"
                   classNames={{
                     input: "text-sm",
-                    inputWrapper: "bg-default-100 border-0 shadow-sm"
+                    inputWrapper: "bg-default-100 border-0 shadow-sm",
                   }}
                 />
 
@@ -708,8 +923,12 @@ export default function Team() {
                     <Button
                       variant="flat"
                       size="lg"
-                      startContent={<Icon icon="solar:filter-bold" width={18} />}
-                      endContent={<Icon icon="solar:arrow-down-linear" width={16} />}
+                      startContent={
+                        <Icon icon="solar:filter-bold" width={18} />
+                      }
+                      endContent={
+                        <Icon icon="solar:arrow-down-linear" width={16} />
+                      }
                       className="bg-default-100"
                     >
                       {selectedRole}
@@ -732,10 +951,17 @@ export default function Team() {
                       variant="flat"
                       size="lg"
                       startContent={<Icon icon="solar:sort-bold" width={18} />}
-                      endContent={<Icon icon="solar:arrow-down-linear" width={16} />}
+                      endContent={
+                        <Icon icon="solar:arrow-down-linear" width={16} />
+                      }
                       className="bg-default-100"
                     >
-                      Ordina per {sortBy === "name" ? "Nome" : sortBy === "role" ? "Ruolo" : "ID"}
+                      Ordina per{" "}
+                      {sortBy === "name"
+                        ? "Nome"
+                        : sortBy === "role"
+                        ? "Ruolo"
+                        : "ID"}
                     </Button>
                   </DropdownTrigger>
                   <DropdownMenu
@@ -776,18 +1002,28 @@ export default function Team() {
             {/* Results counter */}
             <div className="mt-4 pt-4 border-t border-divider">
               <p className="text-sm text-default-500">
-                Mostrando <span className="font-semibold text-foreground">{filteredAndSortedEmployees.length}</span> di <span className="font-semibold text-foreground">{currentEmployees.length}</span> tecnici
+                Mostrando{" "}
+                <span className="font-semibold text-foreground">
+                  {filteredAndSortedEmployees.length}
+                </span>{" "}
+                di{" "}
+                <span className="font-semibold text-foreground">
+                  {currentEmployees.length}
+                </span>{" "}
+                tecnici
               </p>
             </div>
           </CardBody>
         </Card>
 
         {/* Employee Grid/List */}
-        <div className={
-          viewMode === "grid" 
-            ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6" 
-            : "flex flex-col gap-4"
-        }>
+        <div
+          className={
+            viewMode === "grid"
+              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              : "flex flex-col gap-4"
+          }
+        >
           {filteredAndSortedEmployees.map((employee) => (
             <EmployeeCard key={employee.user_id} employee={employee} />
           ))}
@@ -809,7 +1045,8 @@ export default function Team() {
                   Nessun tecnico trovato
                 </h3>
                 <p className="text-default-500 mb-6 max-w-md">
-                  Non ci sono tecnici che corrispondono ai criteri di ricerca. Prova a modificare i filtri o la ricerca.
+                  Non ci sono tecnici che corrispondono ai criteri di ricerca.
+                  Prova a modificare i filtri o la ricerca.
                 </p>
                 <div className="flex gap-3">
                   <Button
@@ -826,7 +1063,9 @@ export default function Team() {
                   <Button
                     color="secondary"
                     variant="flat"
-                    startContent={<Icon icon="solar:user-plus-bold" width={16} />}
+                    startContent={
+                      <Icon icon="solar:user-plus-bold" width={16} />
+                    }
                   >
                     Aggiungi Tecnico
                   </Button>
