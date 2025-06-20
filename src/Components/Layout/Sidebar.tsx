@@ -918,8 +918,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                           ? "text-warning font-medium data-[hover=true]:bg-warning/10"
                           : dropdownItem.type === "empty"
                           ? ""
-                          : dropdownItem.warehouse?.IsActive === false
-                          ? "text-default-400 opacity-60"
                           : selectedWarehouse === dropdownItem.key
                           ? "bg-primary/10 text-primary font-medium"
                           : "data-[hover=true]:bg-default-100"
@@ -934,17 +932,11 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                           />
                         ) : dropdownItem.type === "empty" ? null : (
                           <Icon
-                            icon={
-                              dropdownItem.warehouse?.IsActive === false
-                                ? "solar:warehouse-minimalistic-broken"
-                                : "solar:warehouse-bold"
-                            }
+                            icon="solar:warehouse-bold"
                             width={20}
                             className={cn(
                               selectedWarehouse === dropdownItem.key
                                 ? "text-primary"
-                                : dropdownItem.warehouse?.IsActive === false
-                                ? "text-default-400"
                                 : "text-default-700"
                             )}
                           />
@@ -953,9 +945,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                       endContent={
                         dropdownItem.warehouse?.IsActive === false ? (
                           <Icon
-                            icon="solar:eye-closed-linear"
+                            icon="solar:close-circle-bold"
                             width={16}
-                            className="text-default-400"
+                            className="text-danger"
                           />
                         ) : null
                       }
