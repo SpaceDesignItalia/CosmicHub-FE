@@ -1,7 +1,7 @@
 export interface Employee {
-  id: string;
+  user_id: string;
   name: string;
   role: string;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   assignedVanId?: string; // ID del furgone assegnato
-} 
+}
