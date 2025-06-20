@@ -365,7 +365,9 @@ export default function Products() {
             ? [
                 {
                   label: "Magazzino",
-                  value: `${warehouseDetails.name}${warehouseDetails.code ? ` (${warehouseDetails.code})` : ""}`,
+                  value: `${warehouseDetails.name}${
+                    warehouseDetails.code ? ` (${warehouseDetails.code})` : ""
+                  }`,
                   icon: "solar:warehouse-bold",
                   color: "primary",
                 },
@@ -374,7 +376,8 @@ export default function Products() {
             ? [
                 {
                   label: "Attenzione",
-                  value: "Nessun magazzino selezionato - Mostrando tutti i prodotti",
+                  value:
+                    "Nessun magazzino selezionato - Mostrando tutti i prodotti",
                   icon: "solar:info-circle-bold",
                   color: "warning",
                 },
@@ -393,44 +396,6 @@ export default function Products() {
         ]}
       />
 
-      {/* Quick Stats Section */}
-      <QuickStats products={products} />
-
-      {/* Search and Filters */}
-      <Card className="min-h-min p-4 transition-all duration-300 ease-in-out">
-        <div className="flex flex-col gap-4">
-          {/* Search Bar with enhanced design */}
-          <div className="w-full relative group">
-            <Input
-              color="primary"
-              type="text"
-              placeholder="Cerca prodotti per nome..."
-              value={searchQuery}
-              startContent={
-                <Icon
-                  icon="line-md:search"
-                  className="text-default-400 text-lg pointer-events-none flex-shrink-0 group-hover:text-primary transition-colors"
-                />
-              }
-              onChange={(e) => setSearchQuery(e.target.value)}
-              variant="bordered"
-              radius="lg"
-              className="transition-all duration-200 hover:border-primary/50"
-            />
-          </div>
-
-          {/* Enhanced Filters with better mobile layout */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            <div className="relative flex-1 group">
-              <Select
-                variant="bordered"
-                selectedKeys={[selectedCategory]}
-                onSelectionChange={(keys) => {
-                  const selected = Array.from(keys)[0] as string;
-                  setSelectedCategory(selected || "Tutti");
-                }}
-                placeholder="Seleziona categoria"
-                startContent={
       {isLoading ? (
         <div className="flex flex-col items-center justify-center min-h-screen gap-4">
           <Spinner
@@ -447,59 +412,6 @@ export default function Products() {
         </div>
       ) : (
         <>
-          {/* Header Section */}
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 sm:gap-0">
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <Icon
-                    icon="solar:box-bold-duotone"
-                    className="text-primary text-xl sm:text-2xl"
-                  />
-                </div>
-                <h1 className="text-xl sm:text-2xl font-bold">
-                  Inventario Prodotti
-                </h1>
-              </div>
-              {/* Indicatore magazzino selezionato */}
-              {selectedWarehouse && warehouseDetails && (
-                <div className="flex items-center gap-2 ml-12 sm:ml-15">
-                  <Icon
-                    icon="solar:warehouse-bold"
-                    className="text-primary text-sm"
-                  />
-                  <span className="text-sm text-default-600">
-                    Magazzino:{" "}
-                    <span className="font-medium text-primary">
-                      {warehouseDetails.name}
-                      {warehouseDetails.code && ` (${warehouseDetails.code})`}
-                    </span>
-                  </span>
-                </div>
-              )}
-              {!selectedWarehouse && (
-                <div className="flex items-center gap-2 ml-12 sm:ml-15">
-                  <Icon
-                    icon="solar:info-circle-bold"
-                    className="text-warning text-sm"
-                  />
-                  <span className="text-sm text-warning">
-                    Nessun magazzino selezionato - Mostrando tutti i prodotti
-                  </span>
-                </div>
-              )}
-            </div>
-            <Button
-              variant="solid"
-              color="primary"
-              as={Link}
-              to="/inventory/products/add"
-            >
-              <Icon icon="proicons:box-add" width={20} />
-              Nuovo prodotto
-            </Button>
-          </div>
-
           {/* Quick Stats Section */}
           <QuickStats products={products} />
 
