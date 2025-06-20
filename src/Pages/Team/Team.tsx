@@ -758,7 +758,7 @@ export default function Team() {
 
         {/* Statistics Dashboard */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          <Card className="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-950 dark:to-primary-900 border-0">
+          <Card className="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-930 dark:to-primary-930 border-0">
             <CardBody className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -846,7 +846,7 @@ export default function Team() {
             </CardBody>
           </Card>
 
-          <Card className="bg-gradient-to-br from-success-50 to-success-100 dark:from-success-950 dark:to-success-900 border-0">
+          <Card className="bg-gradient-to-br from-success-50 to-success-100 dark:from-success-950 dark:to-success-930 border-0">
             <CardBody className="p-4">
               <div className="flex items-center justify-between">
                 <div>
@@ -868,14 +868,14 @@ export default function Team() {
             </CardBody>
           </Card>
 
-          <Card className="bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-950 dark:to-secondary-900 border-0">
+          <Card className="bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-950 dark:to-secondary-930 border-0">
             <CardBody className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <p className="text-sm text-secondary-600 dark:text-secondary-400 font-medium">
+                  <p className="text-sm text-secondary-600 dark:text-secondary-500 font-medium">
                     Esperienza Media
                   </p>
-                  <p className="text-xl font-bold text-secondary-700 dark:text-secondary-300">
+                  <p className="text-xl font-bold text-secondary-700 dark:text-secondary-400">
                     {statistics.avgExperience}
                   </p>
                 </div>
