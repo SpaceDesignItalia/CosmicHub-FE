@@ -195,15 +195,6 @@ export default function AddVehicle() {
             </p>
           </div>
         </div>
-
-        <Button
-          variant="light"
-          color="default"
-          startContent={<Icon icon="solar:arrow-left-linear" />}
-          onPress={() => navigate("/inventory/vehicles")}
-        >
-          Torna ai Veicoli
-        </Button>
       </div>
 
       {/* Form Card */}
@@ -367,7 +358,7 @@ export default function AddVehicle() {
               <Button
                 variant="flat"
                 color="default"
-                onPress={() => navigate("/inventory/vehicles")}
+                onPress={() => navigate(-1)}
               >
                 Annulla
               </Button>

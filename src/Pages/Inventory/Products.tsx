@@ -11,7 +11,7 @@ import {
   SelectItem,
   Spinner,
 } from "@heroui/react";
-import { Link } from "react-router";
+import { Link } from "react-router-dom";
 import axios from "axios";
 import PageHeader from "../../Components/Layout/PageHeader";
 
@@ -391,7 +391,7 @@ export default function Products() {
             color: "primary",
             variant: "solid",
             as: Link,
-            href: "/inventory/products/add",
+            to: "/inventory/products/add",
           },
         ]}
       />
@@ -449,6 +449,7 @@ export default function Products() {
                       setSelectedCategory(selected || "Tutti");
                     }}
                     placeholder="Seleziona categoria"
+                    aria-label="Filtra per categoria"
                     startContent={
                       <Icon
                         icon="tabler:tag"
@@ -473,6 +474,7 @@ export default function Products() {
                       setSelectedStatus(selected);
                     }}
                     placeholder="Seleziona stato"
+                    aria-label="Filtra per stato del prodotto"
                     startContent={
                       <Icon
                         icon="lucide:chart-line"

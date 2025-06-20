@@ -5,10 +5,24 @@ import type { ReactNode } from "react";
 interface PageHeaderAction {
   label: string;
   icon: string;
-  color?: "primary" | "secondary" | "success" | "warning" | "danger" | "default";
-  variant?: "solid" | "flat" | "bordered" | "light" | "faded" | "shadow" | "ghost";
+  color?:
+    | "primary"
+    | "secondary"
+    | "success"
+    | "warning"
+    | "danger"
+    | "default";
+  variant?:
+    | "solid"
+    | "flat"
+    | "bordered"
+    | "light"
+    | "faded"
+    | "shadow"
+    | "ghost";
   onClick?: () => void;
   href?: string;
+  to?: string;
   as?: any;
 }
 
@@ -24,7 +38,13 @@ interface PageHeaderProps {
     label: string;
     value: string;
     icon?: string;
-    color?: "primary" | "secondary" | "success" | "warning" | "danger" | "default";
+    color?:
+      | "primary"
+      | "secondary"
+      | "success"
+      | "warning"
+      | "danger"
+      | "default";
   }[];
   children?: ReactNode;
   size?: "sm" | "md" | "lg";
@@ -76,11 +96,13 @@ export default function PageHeader({
       {/* Main Header */}
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4">
         <div className="flex items-center gap-4">
-          <div className={`${config.iconSize} rounded-2xl ${
-            gradient 
-              ? "bg-gradient-to-br from-primary-500 to-secondary-500" 
-              : "bg-primary/10"
-          } flex items-center justify-center shadow-large`}>
+          <div
+            className={`${config.iconSize} rounded-2xl ${
+              gradient
+                ? "bg-gradient-to-br from-primary-500 to-secondary-500"
+                : "bg-primary/10"
+            } flex items-center justify-center shadow-large`}
+          >
             <Icon
               icon={icon}
               className={gradient ? "text-white" : iconColor}
@@ -88,11 +110,13 @@ export default function PageHeader({
             />
           </div>
           <div>
-            <h1 className={`${config.titleSize} font-bold ${
-              gradient 
-                ? "bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent"
-                : "text-foreground"
-            }`}>
+            <h1
+              className={`${config.titleSize} font-bold ${
+                gradient
+                  ? "bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent"
+                  : "text-foreground"
+              }`}
+            >
               {title}
             </h1>
             {description && (
@@ -101,13 +125,15 @@ export default function PageHeader({
               </p>
             )}
             {subtitle && (
-              <p className={`${config.descriptionSize} text-default-600 font-medium mt-1`}>
+              <p
+                className={`${config.descriptionSize} text-default-600 font-medium mt-1`}
+              >
                 {subtitle}
               </p>
             )}
           </div>
         </div>
-        
+
         {/* Actions */}
         {actions.length > 0 && (
           <div className="flex gap-2 flex-wrap">
@@ -120,6 +146,7 @@ export default function PageHeader({
                 onPress={action.onClick}
                 as={action.as}
                 href={action.href}
+                to={action.to}
               >
                 {action.label}
               </Button>
@@ -136,15 +163,19 @@ export default function PageHeader({
               {indicator.icon && (
                 <Icon
                   icon={indicator.icon}
-                  className={`${indicator.color ? `text-${indicator.color}` : iconColor}`}
+                  className={`${
+                    indicator.color ? `text-${indicator.color}` : iconColor
+                  }`}
                   width={16}
                 />
               )}
               <span className="text-sm text-default-600">
                 {indicator.label}:{" "}
-                <span className={`font-medium ${
-                  indicator.color ? `text-${indicator.color}` : "text-primary"
-                }`}>
+                <span
+                  className={`font-medium ${
+                    indicator.color ? `text-${indicator.color}` : "text-primary"
+                  }`}
+                >
                   {indicator.value}
                 </span>
               </span>
@@ -157,4 +188,4 @@ export default function PageHeader({
       {children}
     </div>
   );
-} 
+}

@@ -2592,7 +2592,6 @@ export default function AddProduct() {
                   </Select>
                 </div>
 
-
                 {/* Tempo di approvvigionamento */}
                 <div>
                   <label className="block text-sm font-medium mb-2">
@@ -4079,17 +4078,27 @@ export default function AddProduct() {
               </div>
             </Tab>
           </Tabs>
-          <Button
-            type="submit"
-            color="primary"
-            variant="solid"
-            isLoading={isSaving}
-            disabled={isSaving}
-            startContent={!isSaving && <Icon icon="solar:diskette-bold" />}
-            className="min-w-32"
-          >
-            {isSaving ? "Salvataggio..." : "Salva Prodotto"}
-          </Button>
+          <div className="flex justify-end gap-3">
+            <Button
+              color="default"
+              variant="light"
+              onPress={() => navigate(-1)}
+              startContent={<Icon icon="solar:arrow-left-linear" />}
+            >
+              Annulla
+            </Button>
+            <Button
+              type="submit"
+              color="primary"
+              variant="solid"
+              isLoading={isSaving}
+              disabled={isSaving}
+              startContent={!isSaving && <Icon icon="solar:diskette-bold" />}
+              className="min-w-32"
+            >
+              {isSaving ? "Salvataggio..." : "Salva Prodotto"}
+            </Button>
+          </div>
         </form>
       </CardBody>
       {isScannerOpen && (

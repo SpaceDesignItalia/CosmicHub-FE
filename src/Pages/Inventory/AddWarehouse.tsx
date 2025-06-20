@@ -142,7 +142,7 @@ const AddWarehouse: React.FC = () => {
       {/* Breadcrumbs */}
       <Breadcrumbs className="mb-4">
         <BreadcrumbItem href="/dashboard">Dashboard</BreadcrumbItem>
-        <BreadcrumbItem href="/inventory/products">Inventario</BreadcrumbItem>
+        <BreadcrumbItem href="/warehouses">Magazzini</BreadcrumbItem>
         <BreadcrumbItem>Nuovo Magazzino</BreadcrumbItem>
       </Breadcrumbs>
 
@@ -201,14 +201,6 @@ const AddWarehouse: React.FC = () => {
             </p>
           </div>
         </div>
-        <Button
-          variant="light"
-          color="default"
-          startContent={<Icon icon="solar:arrow-left-linear" />}
-          onPress={() => navigate("/inventory/products")}
-        >
-          Torna all'Inventario
-        </Button>
       </div>
 
       {/* Form per la creazione di un nuovo magazzino */}
@@ -307,7 +299,7 @@ const AddWarehouse: React.FC = () => {
             <Button
               color="default"
               variant="light"
-              onClick={() => navigate("/inventory/products")}
+              onClick={() => navigate(-1)}
             >
               Annulla
             </Button>
