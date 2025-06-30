@@ -20,6 +20,11 @@ import Vehicles from "./Pages/Inventory/Vehicles";
 import Suppliers from "./Pages/Suppliers/Suppliers";
 import WarehouseMovement from "./Pages/Inventory/WarehouseMovement";
 import Team from "./Pages/Team/Team";
+import DDTManagement from "./Pages/Inventory/DDTManagement";
+import VehicleDocuments from "./Pages/Documents/VehicleDocuments";
+import CompanyDocuments from "./Pages/Documents/CompanyDocuments";
+import EmployeeDocuments from "./Pages/Documents/EmployeeDocuments";
+import DocumentReminders from "./Pages/Documents/DocumentReminders";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_API_URL;
@@ -94,6 +99,11 @@ function App() {
           />
           <Route path="/inventory/warehouses/add" element={<AddWarehouse />} />
           <Route path="/inventory/movements" element={<WarehouseMovement />} />
+          <Route path="/documents/ddt" element={<DDTManagement />} />
+          <Route path="/documents/vehicles" element={<VehicleDocuments />} />
+          <Route path="/documents/company" element={<CompanyDocuments />} />
+          <Route path="/documents/employees" element={<EmployeeDocuments />} />
+          <Route path="/documents/reminders" element={<DocumentReminders />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/team" element={<Team />} />

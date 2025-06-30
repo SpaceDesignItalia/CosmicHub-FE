@@ -116,6 +116,44 @@ export const sectionNestedItems = [
     ],
   },
   {
+    key: "documents",
+    title: "Documenti",
+    icon: "solar:documents-bold-duotone",
+    type: SidebarItemType.Nest,
+    items: [
+      {
+        key: "ddt",
+        title: "DDT",
+        icon: "solar:document-text-bold-duotone",
+        href: "/documents/ddt",
+      },
+      {
+        key: "vehicle-docs",
+        title: "Documenti Veicoli",
+        icon: "mingcute:truck-line",
+        href: "/documents/vehicles",
+      },
+      {
+        key: "company-docs",
+        title: "Documenti Azienda",
+        icon: "solar:buildings-2-bold-duotone",
+        href: "/documents/company",
+      },
+      {
+        key: "employee-docs",
+        title: "Documenti Dipendenti",
+        icon: "solar:user-id-bold-duotone",
+        href: "/documents/employees",
+      },
+      {
+        key: "reminders",
+        title: "Scadenze & Reminder",
+        icon: "solar:bell-bing-bold-duotone",
+        href: "/documents/reminders",
+      },
+    ],
+  },
+  {
     key: "automations",
     title: "Automazioni",
     icon: "majesticons:puzzle-line",
