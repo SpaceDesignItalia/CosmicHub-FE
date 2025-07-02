@@ -56,11 +56,210 @@ const UpdateContext = createContext<{
   triggerUpdate: () => {},
 });
 
+// Component for intelligent vehicle selection
+function VehicleSelectionModal({ 
+  vehicles, 
+  currentVehicleId, 
+  onVehicleSelect, 
+  onClose 
+}: { 
+  vehicles: Vehicle[]; 
+  currentVehicleId?: number; 
+  onVehicleSelect: (vehicleId: number) => void; 
+  onClose: () => void; 
+}) {
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sortBy, setSortBy] = useState<string>("name");
+
+  // Filter and sort vehicles
+  const filteredVehicles = useMemo(() => {
+    let filtered = vehicles.filter(vehicle => {
+      const matchesSearch = !searchQuery.trim() || 
+        vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        vehicle.license_plate.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      const matchesStatus = statusFilter === "all" || 
+        (statusFilter === "available" && vehicle.status === "available") ||
+        (statusFilter === "assigned" && vehicle.status !== "available") ||
+        (statusFilter === "current" && vehicle.id === currentVehicleId);
+      
+      return matchesSearch && matchesStatus;
+    });
+
+    // Sort vehicles
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "plate":
+          return a.license_plate.localeCompare(b.license_plate);
+        case "status":
+          return a.status.localeCompare(b.status);
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [vehicles, searchQuery, statusFilter, sortBy, currentVehicleId]);
+
+  const getStatusColor = (status: string, vehicleId: number) => {
+    if (vehicleId === currentVehicleId) return "success";
+    if (status === "available") return "primary";
+    return "default";
+  };
+
+  const getStatusText = (status: string, vehicleId: number) => {
+    if (vehicleId === currentVehicleId) return "Attuale";
+    if (status === "available") return "Disponibile";
+    return "Assegnato";
+  };
+
+  return (
+    <div className="space-y-6">
+      {/* Search and Filters */}
+      <div className="flex flex-col sm:flex-row gap-4">
+        <Input
+          placeholder="Cerca per nome o targa..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          size="lg"
+          startContent={<Icon icon="solar:magnifer-linear" className="text-default-400" width={20} />}
+          isClearable
+          onClear={() => setSearchQuery("")}
+          className="flex-1"
+        />
+        
+        <Dropdown>
+          <DropdownTrigger>
+            <Button variant="flat" size="lg" startContent={<Icon icon="solar:filter-bold" width={18} />}>
+              {statusFilter === "all" ? "Tutti" : 
+               statusFilter === "available" ? "Disponibili" : 
+               statusFilter === "assigned" ? "Assegnati" : "Attuale"}
+            </Button>
+          </DropdownTrigger>
+          <DropdownMenu
+            aria-label="Filtro stato"
+            selectedKeys={[statusFilter]}
+            onAction={(key) => setStatusFilter(key as string)}
+          >
+            <DropdownItem key="all">Tutti i veicoli</DropdownItem>
+            <DropdownItem key="available">Solo disponibili</DropdownItem>
+            <DropdownItem key="assigned">Solo assegnati</DropdownItem>
+            <DropdownItem key="current">Veicolo attuale</DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
+
+        <Dropdown>
+          <DropdownTrigger>
+            <Button variant="flat" size="lg" startContent={<Icon icon="solar:sort-bold" width={18} />}>
+              {sortBy === "name" ? "Nome" : sortBy === "plate" ? "Targa" : "Stato"}
+            </Button>
+          </DropdownTrigger>
+          <DropdownMenu
+            aria-label="Ordinamento"
+            selectedKeys={[sortBy]}
+            onAction={(key) => setSortBy(key as string)}
+          >
+            <DropdownItem key="name">Per nome</DropdownItem>
+            <DropdownItem key="plate">Per targa</DropdownItem>
+            <DropdownItem key="status">Per stato</DropdownItem>
+          </DropdownMenu>
+        </Dropdown>
+      </div>
+
+      {/* Results counter */}
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-default-500">
+          {filteredVehicles.length} veicoli trovati
+        </p>
+        <Button color="default" variant="light" size="sm" onPress={onClose}>
+          Chiudi
+        </Button>
+      </div>
+
+      {/* Vehicle Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+        {filteredVehicles.map((vehicle) => (
+          <Card 
+            key={vehicle.id} 
+            className={`cursor-pointer transition-all duration-200 hover:scale-105 ${
+              vehicle.id === currentVehicleId 
+                ? 'ring-2 ring-success-500 bg-success-50 dark:bg-success-950' 
+                : 'hover:bg-default-50 dark:hover:bg-default-950'
+            }`}
+            isPressable
+            onPress={() => onVehicleSelect(vehicle.id)}
+          >
+            <CardBody className="p-4">
+              <div className="flex items-start justify-between mb-3">
+                <div className="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center">
+                  <Icon icon="solar:car-bold" className="text-primary-600" width={20} />
+                </div>
+                <Chip 
+                  color={getStatusColor(vehicle.status, vehicle.id) as any}
+                  size="sm" 
+                  variant="flat"
+                >
+                  {getStatusText(vehicle.status, vehicle.id)}
+                </Chip>
+              </div>
+              
+              <div className="space-y-2">
+                <h4 className="font-semibold text-foreground">{vehicle.name}</h4>
+                <p className="text-sm text-default-500 font-mono">
+                  {vehicle.license_plate}
+                </p>
+              </div>
+
+              {vehicle.id === currentVehicleId && (
+                <div className="mt-3 pt-3 border-t border-success-200 dark:border-success-800">
+                  <Chip color="success" size="sm" variant="flat" startContent={<Icon icon="solar:check-circle-bold" width={14} />}>
+                    Veicolo attuale
+                  </Chip>
+                </div>
+              )}
+            </CardBody>
+          </Card>
+        ))}
+      </div>
+
+      {/* Empty state */}
+      {filteredVehicles.length === 0 && (
+        <div className="text-center py-8">
+          <div className="w-16 h-16 rounded-full bg-default-100 flex items-center justify-center mx-auto mb-4">
+            <Icon icon="solar:car-cross-bold" className="text-default-400" width={32} />
+          </div>
+          <h3 className="text-lg font-semibold text-foreground mb-2">
+            Nessun veicolo trovato
+          </h3>
+          <p className="text-default-500 mb-4">
+            Prova a modificare i filtri o la ricerca
+          </p>
+          <Button 
+            color="primary" 
+            variant="flat" 
+            onPress={() => {
+              setSearchQuery("");
+              setStatusFilter("all");
+            }}
+            startContent={<Icon icon="solar:refresh-bold" width={16} />}
+          >
+            Resetta Filtri
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // Component for the employee card with enhanced design
 function EmployeeCard({ employee }: { employee: Employee }) {
   const { isOpen, onOpen, onClose } = useDisclosure();
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [selectedVehicle, setSelectedVehicle] = useState<number | null>(null);
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const { triggerUpdate } = useContext(UpdateContext);
 
@@ -124,6 +323,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
 
       triggerUpdate();
       onClose();
+      setShowVehicleModal(false);
     } catch (error) {
       console.error("Failed to assign vehicle:", error);
     } finally {
@@ -142,6 +342,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
       setSelectedVehicle(null);
       triggerUpdate();
       onClose();
+      setShowVehicleModal(false);
     } catch (error) {
       console.error("Failed to unassign vehicle:", error);
     } finally {
@@ -397,77 +598,47 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                   <Card className="bg-warning-50 dark:bg-warning-950">
                     <CardBody className="py-4">
                       {employee.assigned_vehicle ? (
-                        <div className="space-y-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <p className="text-sm text-warning-600 dark:text-warning-400">
-                                Veicolo Assegnato
-                              </p>
-                              <p className="font-semibold text-lg">
-                                {employee.assigned_vehicle.name}
-                              </p>
-                              <p className="text-sm text-default-500">
-                                Targa: {employee.assigned_vehicle.license_plate}
-                              </p>
+                        <div className="space-y-4">
+                          <div className="flex items-center justify-between p-3 bg-success-100 dark:bg-success-900 rounded-lg">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-full bg-success-500/20 flex items-center justify-center">
+                                <Icon
+                                  icon="solar:car-bold"
+                                  className="text-success-600"
+                                  width={20}
+                                />
+                              </div>
+                              <div>
+                                <p className="font-semibold text-success-700 dark:text-success-300">
+                                  {employee.assigned_vehicle.name}
+                                </p>
+                                <p className="text-sm text-success-600 dark:text-success-400">
+                                  Targa: {employee.assigned_vehicle.license_plate}
+                                </p>
+                              </div>
                             </div>
-                            <Icon
-                              icon="solar:car-bold"
-                              className="text-warning-600"
-                              width={32}
-                            />
+                            <Chip color="success" size="sm" variant="flat">
+                              Assegnato
+                            </Chip>
                           </div>
+                          
                           <div className="flex gap-2">
-                            <Select
-                              label="Cambia Veicolo"
-                              placeholder="Seleziona nuovo veicolo"
-                              selectedKeys={
-                                selectedVehicle
-                                  ? [selectedVehicle.toString()]
-                                  : []
-                              }
-                              onSelectionChange={(keys) => {
-                                const selectedKey = parseInt(
-                                  Array.from(keys)[0] as string
-                                );
-                                setSelectedVehicle(selectedKey);
-                              }}
-                              renderValue={(items) => {
-                                return items.map((item) => {
-                                  const vehicle = vehicles.find(
-                                    (v) => v.id.toString() === item.key
-                                  );
-                                  return vehicle
-                                    ? `${vehicle.name} - ${vehicle.license_plate}`
-                                    : item.textValue;
-                                });
-                              }}
+                            <Button
+                              color="primary"
+                              variant="flat"
                               size="sm"
-                              className="flex-1"
+                              onPress={() => setShowVehicleModal(true)}
+                              startContent={<Icon icon="solar:pen-bold" width={16} />}
                             >
-                              {vehicles
-                                .filter(
-                                  (v) =>
-                                    v.status === "available" ||
-                                    v.id === employee.assigned_vehicle?.id
-                                )
-                                .map((vehicle) => (
-                                  <SelectItem key={vehicle.id}>
-                                    {vehicle.name} - {vehicle.license_plate}
-                                  </SelectItem>
-                                ))}
-                            </Select>
+                              Cambia Veicolo
+                            </Button>
                             <Button
                               color="danger"
                               variant="flat"
                               size="sm"
                               onPress={handleVehicleUnassignment}
                               isLoading={isAssigning}
-                              startContent={
-                                <Icon
-                                  icon="solar:close-circle-bold"
-                                  width={16}
-                                />
-                              }
+                              startContent={<Icon icon="solar:close-circle-bold" width={16} />}
                             >
                               Rimuovi
                             </Button>
@@ -485,45 +656,22 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                               Nessun veicolo assegnato
                             </p>
                           </div>
-                          <Select
-                            label="Assegna Veicolo"
-                            placeholder="Seleziona veicolo da assegnare"
-                            selectedKeys={
-                              selectedVehicle
-                                ? [selectedVehicle.toString()]
-                                : []
-                            }
-                            onSelectionChange={(keys) => {
-                              const selectedKey = parseInt(
-                                Array.from(keys)[0] as string
-                              );
-                              setSelectedVehicle(selectedKey);
-                            }}
-                            renderValue={(items) => {
-                              return items.map((item) => {
-                                const vehicle = vehicles.find(
-                                  (v) => v.id.toString() === item.key
-                                );
-                                return vehicle
-                                  ? `${vehicle.name} - ${vehicle.license_plate}`
-                                  : item.textValue;
-                              });
-                            }}
+                          <Button
+                            color="primary"
+                            variant="flat"
                             size="sm"
+                            onPress={() => setShowVehicleModal(true)}
+                            startContent={<Icon icon="solar:car-bold" width={16} />}
                           >
-                            {vehicles
-                              .filter((v) => v.status === "available")
-                              .map((vehicle) => (
-                                <SelectItem key={vehicle.id}>
-                                  {vehicle.name} - {vehicle.license_plate}
-                                </SelectItem>
-                              ))}
-                          </Select>
+                            Assegna Veicolo
+                          </Button>
                         </div>
                       )}
                     </CardBody>
                   </Card>
                 </div>
+
+
 
                 {/* Performance Metrics */}
                 <div>
@@ -588,6 +736,34 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                 </Button>
               )}
           </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Vehicle Selection Modal */}
+      <Modal 
+        isOpen={showVehicleModal} 
+        onClose={() => setShowVehicleModal(false)} 
+        size="3xl" 
+        backdrop="blur"
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <Icon icon="solar:car-bold" className="text-primary" width={24} />
+              <span>Seleziona Veicolo</span>
+            </div>
+          </ModalHeader>
+          <ModalBody className="p-6">
+            <VehicleSelectionModal 
+              vehicles={vehicles}
+              currentVehicleId={employee.assigned_vehicle?.id}
+              onVehicleSelect={(vehicleId) => {
+                setSelectedVehicle(vehicleId);
+                setShowVehicleModal(false);
+              }}
+              onClose={() => setShowVehicleModal(false)}
+            />
+          </ModalBody>
         </ModalContent>
       </Modal>
     </>
