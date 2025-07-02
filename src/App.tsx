@@ -6,6 +6,7 @@ import Analytics from "./Pages/Analytics/Analytics";
 import Authentication from "./Pages/Authentication/Authentication";
 import Dashboard from "./Pages/Dashboard/Dashboard";
 import Products from "./Pages/Inventory/Products";
+import GlobalProductSearch from "./Pages/Inventory/GlobalProductSearch";
 import Settings from "./Pages/Settings/Settings";
 import AddWarehouse from "./Pages/Inventory/AddWarehouse";
 import EditWarehouse from "./Pages/Inventory/EditWarehouse";
@@ -80,6 +81,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/inventory/products" element={<Products />} />
+          <Route path="/inventory/products/search" element={<GlobalProductSearch />} />
           <Route path="/inventory/products/add" element={<ProductAdd />} />
           <Route
             path="/inventory/products/edit/:id"
