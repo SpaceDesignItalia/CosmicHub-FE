@@ -6,6 +6,7 @@ import QuickStats from "../../Components/Inventory/Product/QuickStats";
 import {
   Button,
   Card,
+  CardBody,
   Input,
   Select,
   SelectItem,
@@ -386,6 +387,14 @@ export default function Products() {
         }
         actions={[
           {
+            label: "Vista Globale",
+            icon: "solar:widget-2-bold",
+            color: "secondary",
+            variant: "flat",
+            as: Link,
+            to: "/inventory/products/search",
+          },
+          {
             label: "Nuovo prodotto",
             icon: "proicons:box-add",
             color: "primary",
@@ -412,6 +421,38 @@ export default function Products() {
         </div>
       ) : (
         <>
+         
+
+          {!selectedWarehouse && (
+            <Card className="border-l-4 border-l-warning bg-warning-50 dark:bg-warning-950/20">
+              <CardBody className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Icon icon="solar:danger-bold" className="text-warning" width={20} />
+                    <div>
+                      <p className="text-sm font-medium text-warning-700 dark:text-warning-300">
+                        Nessun magazzino selezionato - Visualizzazione limitata
+                      </p>
+                      <p className="text-xs text-warning-600 dark:text-warning-400 mt-1">
+                        Seleziona un magazzino dalla sidebar o usa la Vista Globale per una panoramica completa
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    size="sm" 
+                    color="primary" 
+                    variant="flat"
+                    as={Link}
+                    to="/inventory/products/search"
+                    startContent={<Icon icon="solar:widget-2-bold" width={16} />}
+                  >
+                    Vista Globale
+                  </Button>
+                </div>
+              </CardBody>
+            </Card>
+          )}
+
           {/* Quick Stats Section */}
           <QuickStats products={products} />
 

@@ -102,12 +102,6 @@ export const sectionNestedItems = [
         href: "/inventory/products",
       },
       {
-        key: "global-search",
-        title: "Distribuzione Globale",
-        icon: "solar:widget-2-linear",
-        href: "/inventory/products/search",
-      },
-      {
         key: "categories",
         title: "Categorie",
         icon: "solar:tag-linear",
