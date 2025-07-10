@@ -28,11 +28,9 @@ import EmployeeDocuments from "./Pages/Documents/EmployeeDocuments";
 import DocumentReminders from "./Pages/Documents/DocumentReminders";
 import Customers from "./Pages/Customers/Customers";
 import AddCustomer from "./Pages/Customers/AddCustomer";
-import Calls from "./Pages/Calls/Calls";
-import NewCall from "./Pages/Calls/NewCall";
 import Calendar from "./Pages/Calendar/Calendar";
 import NewAppointment from "./Pages/Calendar/NewAppointment";
-import BookingCalendar from "./Pages/Calendar/BookingCalendar";
+
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_API_URL;
@@ -117,11 +115,9 @@ function App() {
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/customers/add" element={<AddCustomer />} />
-          <Route path="/calls" element={<Calls />} />
-          <Route path="/calls/new" element={<NewCall />} />
           <Route path="/calendar" element={<Calendar />} />
           <Route path="/calendar/new" element={<NewAppointment />} />
-          <Route path="/calendar/booking" element={<BookingCalendar />} />
+
           <Route path="/team" element={<Team />} />
           <Route path="/warehouses/:UUID" element={<WarehouseDetail />} />
         </Route>

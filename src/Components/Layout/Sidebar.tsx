@@ -84,22 +84,10 @@ export const sectionNestedItems = [
         href: "/customers",
       },
       {
-        key: "calls",
-        title: "Chiamate",
-        icon: "solar:phone-calling-rounded-bold",
-        href: "/calls",
-      },
-      {
         key: "calendar",
         title: "Calendario",
         icon: "solar:calendar-bold",
         href: "/calendar",
-      },
-      {
-        key: "booking",
-        title: "Book Appointment",
-        icon: "solar:calendar-add-bold",
-        href: "/calendar/booking",
       },
     ],
   },

@@ -285,14 +285,7 @@ export default function Calendar() {
                 Oggi
               </Button>
               
-              <Button
-                color="secondary"
-                variant="flat"
-                onPress={() => navigate("/calendar/booking")}
-                startContent={<Icon icon="solar:calendar-mark-bold" width={16} />}
-              >
-                Prenota Online
-              </Button>
+
               
               <Button
                 color="primary"
