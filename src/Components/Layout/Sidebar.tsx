@@ -63,41 +63,69 @@ export type SidebarProps = Omit<ListboxProps<SidebarItem>, "children"> & {
   onSelect?: (key: string) => void;
 };
 
-// Memoizzo i dati degli elementi della sidebar per evitare re-render
+// Memoizzo i dati degli elementi della sidebar organizzati in modo più user-friendly
 export const sectionNestedItems = [
   {
-    key: "home",
-    title: "Home",
-    icon: "solar:home-2-linear",
+    key: "dashboard",
+    title: "Dashboard",
+    icon: "solar:home-2-bold-duotone",
     href: "/dashboard",
   },
   {
-    key: "analytics",
-    title: "Analitica",
-    icon: "solar:chart-2-linear",
-    href: "/analytics",
+    key: "client-management",
+    title: "Gestione Clienti",
+    icon: "solar:users-group-two-rounded-bold-duotone",
+    type: SidebarItemType.Nest,
+    items: [
+      {
+        key: "customers",
+        title: "Clienti",
+        icon: "solar:users-group-rounded-linear",
+        href: "/customers",
+      },
+      {
+        key: "calendar",
+        title: "Calendario",
+        icon: "solar:calendar-bold",
+        href: "/calendar",
+      },
+    ],
   },
   {
-    key: "suppliers",
-    title: "Fornitori",
-    icon: "solar:users-group-rounded-bold",
-    href: "/suppliers",
+    key: "interventions",
+    title: "Interventi",
+    icon: "solar:settings-bold-duotone",
+    type: SidebarItemType.Nest,
+    items: [
+      {
+        key: "interventions-list",
+        title: "Lista Interventi",
+        icon: "solar:clipboard-list-bold",
+        href: "/interventions",
+      },
+      {
+        key: "interventions-assign",
+        title: "Assegna Intervento",
+        icon: "solar:user-check-rounded-bold",
+        href: "/interventions/assign",
+      },
+      {
+        key: "interventions-map",
+        title: "Mappa Interventi",
+        icon: "solar:map-point-bold-duotone",
+        href: "/interventions/map",
+      },
+    ],
   },
   {
-    key: "vehicles",
-    title: "Veicoli",
-    icon: "mingcute:truck-line",
-    href: "/inventory/vehicles",
-  },
-  {
-    key: "inventory",
-    title: "Inventario",
+    key: "warehouse",
+    title: "Magazzino",
     icon: "solar:box-line-duotone",
     type: SidebarItemType.Nest,
     items: [
       {
         key: "products",
-        title: "Products",
+        title: "Prodotti",
         icon: "solar:box-minimalistic-line-duotone",
         href: "/inventory/products",
       },
@@ -112,6 +140,32 @@ export const sectionNestedItems = [
         title: "Movimenti",
         icon: "solar:refresh-circle-linear",
         href: "/inventory/movements",
+      },
+      {
+        key: "suppliers",
+        title: "Fornitori",
+        icon: "solar:users-group-rounded-bold",
+        href: "/suppliers",
+      },
+    ],
+  },
+  {
+    key: "fleet-team",
+    title: "Veicoli & Team",
+    icon: "mingcute:truck-line",
+    type: SidebarItemType.Nest,
+    items: [
+      {
+        key: "vehicles",
+        title: "Veicoli",
+        icon: "mingcute:truck-line",
+        href: "/inventory/vehicles",
+      },
+      {
+        key: "team",
+        title: "Team Tecnico",
+        icon: "mingcute:tool-line",
+        href: "/team",
       },
     ],
   },
@@ -154,16 +208,10 @@ export const sectionNestedItems = [
     ],
   },
   {
-    key: "automations",
-    title: "Automazioni",
-    icon: "majesticons:puzzle-line",
-    href: "/automations",
-  },
-  {
-    key: "team",
-    title: "Team Tecnico",
-    icon: "mingcute:tool-line",
-    href: "/team",
+    key: "analytics",
+    title: "Analytics",
+    icon: "solar:chart-2-bold-duotone",
+    href: "/analytics",
   },
 ];
 
@@ -250,6 +298,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       new Set()
     );
 
+   
+
     // Stato per i magazzini
     const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
 
@@ -264,7 +314,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       const currentPath = location.pathname;
       const firstPathSegment = currentPath.split("/")[1];
 
-      if (!firstPathSegment) return "home";
+      if (!firstPathSegment) return "dashboard";
 
       // Prima cerco negli elementi di primo livello
       const topLevelItem = sectionNestedItems.find(
@@ -287,7 +337,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
         }
       }
 
-      return "home";
+      return "dashboard";
     }, [location.pathname]);
 
     // Ottimizzazione: aggiorno lo stato solo quando necessario
@@ -643,6 +693,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
               </Dropdown>
             </div>
 
+          
+
             <ScrollShadow className="-mr-6 h-full max-h-full py-6 pr-6">
               <div className="flex flex-col -space-y-1">
                 {sectionNestedItems.map((item) => {
@@ -661,6 +713,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                               new Set(Array.from(keys).map(String))
                             );
                           }}
+                          selectionMode="multiple"
+                          variant="light"
                         >
                           <AccordionItem
                             key={item.key}

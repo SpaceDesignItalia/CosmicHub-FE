@@ -1,0 +1,692 @@
+import React, { useState, useEffect, useMemo } from "react";
+import {
+  Button,
+  Card,
+  CardBody,
+  Input,
+  Table,
+  TableHeader,
+  TableColumn,
+  TableBody,
+  TableRow,
+  TableCell,
+  Chip,
+  Dropdown,
+  DropdownTrigger,
+  DropdownMenu,
+  DropdownItem,
+  Modal,
+  ModalContent,
+  ModalHeader,
+  ModalBody,
+  ModalFooter,
+  useDisclosure,
+  Pagination,
+  Selection,
+  SortDescriptor,
+  Badge,
+} from "@heroui/react";
+import { Icon } from "@iconify/react";
+import { useNavigate } from "react-router-dom";
+import type { Intervention } from "../../types/Intervention";
+import type { Customer } from "../../types/Customer";
+import type { Technician } from "../../types/Technician";
+import PageHeader from "../../Components/Layout/PageHeader";
+
+const statusColorMap = {
+  assigned: "default",
+  accepted: "primary",
+  in_progress: "warning",
+  paused: "secondary",
+  completed: "success",
+  cancelled: "danger",
+} as const;
+
+const priorityColorMap = {
+  low: "success",
+  medium: "warning",
+  high: "danger",
+  emergency: "danger",
+} as const;
+
+const typeColorMap = {
+  inspection: "primary",
+  repair: "warning",
+  maintenance: "secondary",
+  installation: "success",
+  emergency: "danger",
+} as const;
+
+const columns = [
+  { name: "CODICE", uid: "intervention_code", sortable: true },
+  { name: "TITOLO", uid: "title", sortable: true },
+  { name: "CLIENTE", uid: "customer_name", sortable: true },
+  { name: "TECNICO", uid: "technician_name", sortable: true },
+  { name: "DATA", uid: "scheduled_date", sortable: true },
+  { name: "ORARIO", uid: "scheduled_time" },
+  { name: "STATO", uid: "status", sortable: true },
+  { name: "PRIORITÀ", uid: "priority", sortable: true },
+  { name: "AZIONI", uid: "actions" },
+];
+
+export default function InterventionsList() {
+  const navigate = useNavigate();
+  const { isOpen, onOpen, onClose } = useDisclosure();
+  const [interventions, setInterventions] = useState<Intervention[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [technicians, setTechnicians] = useState<Technician[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filterValue, setFilterValue] = useState("");
+  const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]));
+  const [statusFilter, setStatusFilter] = useState<Selection>("all");
+  const [priorityFilter, setPriorityFilter] = useState<Selection>("all");
+  const [typeFilter, setTypeFilter] = useState<Selection>("all");
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
+    column: "scheduled_date",
+    direction: "ascending",
+  });
+  const [page, setPage] = useState(1);
+  const [interventionToDelete, setInterventionToDelete] = useState<Intervention | null>(null);
+
+  // Mock data
+  useEffect(() => {
+    const mockCustomers: Customer[] = [
+      {
+        customer_id: "1",
+        name: "Mario",
+        surname: "Rossi",
+        phone: "+39 333 1234567",
+        address: "Via Roma 123",
+        city: "Milano",
+        zip_code: "20100",
+        country: "Italia",
+        status: "active",
+        customer_type: "private",
+        created_at: new Date(),
+        updated_at: new Date(),
+        created_by: "admin",
+      },
+    ];
+
+    const mockTechnicians: Technician[] = [
+      {
+        technician_id: "1",
+        user_id: "tech1",
+        name: "Giuseppe",
+        surname: "Bianchi",
+        role: "technician",
+        status: "active",
+        specializations: [],
+        skill_level: "senior",
+        availability_status: "available",
+        working_hours: {
+          monday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
+          tuesday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
+          wednesday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
+          thursday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
+          friday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
+          saturday: { is_working_day: false },
+          sunday: { is_working_day: false },
+        },
+      },
+    ];
+
+    const mockInterventions: Intervention[] = [
+      {
+        intervention_id: "1",
+        appointment_id: "1",
+        customer_id: "1",
+        assigned_technician_id: "1",
+        intervention_code: "INT-2024-001",
+        title: "Riparazione rubinetto cucina",
+        description: "Sostituzione guarnizioni e riparazione perdita d'acqua",
+        intervention_type: "repair",
+        status: "in_progress",
+        priority: "medium",
+        scheduled_date: new Date("2024-12-15"),
+        scheduled_start_time: "09:30",
+        scheduled_end_time: "11:00",
+        intervention_address: "Via Roma 123",
+        intervention_city: "Milano",
+        estimated_cost: 150,
+        created_at: new Date(),
+        updated_at: new Date(),
+        created_by: "operator1",
+      },
+      {
+        intervention_id: "2",
+        appointment_id: "2",
+        customer_id: "1",
+        assigned_technician_id: "1",
+        intervention_code: "INT-2024-002",
+        title: "Manutenzione impianto elettrico",
+        description: "Controllo generale e sostituzione componenti usurate",
+        intervention_type: "maintenance",
+        status: "assigned",
+        priority: "low",
+        scheduled_date: new Date("2024-12-18"),
+        scheduled_start_time: "14:00",
+        scheduled_end_time: "16:30",
+        intervention_address: "Via Garibaldi 456",
+        intervention_city: "Roma",
+        estimated_cost: 200,
+        created_at: new Date(),
+        updated_at: new Date(),
+        created_by: "operator1",
+      },
+      {
+        intervention_id: "3",
+        appointment_id: "3",
+        customer_id: "1",
+        assigned_technician_id: "1",
+        intervention_code: "INT-2024-003",
+        title: "Installazione termostato smart",
+        description: "Installazione e configurazione termostato WiFi",
+        intervention_type: "installation",
+        status: "accepted",
+        priority: "high",
+        scheduled_date: new Date("2024-12-20"),
+        scheduled_start_time: "10:00",
+        scheduled_end_time: "12:00",
+        intervention_address: "Via Verdi 789",
+        intervention_city: "Torino",
+        estimated_cost: 300,
+        created_at: new Date(),
+        updated_at: new Date(),
+        created_by: "operator2",
+      },
+    ];
+
+    setTimeout(() => {
+      setCustomers(mockCustomers);
+      setTechnicians(mockTechnicians);
+      setInterventions(mockInterventions);
+      setLoading(false);
+    }, 1000);
+  }, []);
+
+  const hasSearchFilter = Boolean(filterValue);
+
+  const filteredItems = useMemo(() => {
+    let filteredInterventions = [...interventions];
+
+    if (hasSearchFilter) {
+      filteredInterventions = filteredInterventions.filter(
+        (intervention) =>
+          intervention.intervention_code.toLowerCase().includes(filterValue.toLowerCase()) ||
+          intervention.title.toLowerCase().includes(filterValue.toLowerCase()) ||
+          intervention.description.toLowerCase().includes(filterValue.toLowerCase())
+      );
+    }
+
+    if (statusFilter !== "all" && Array.from(statusFilter).length !== 6) {
+      filteredInterventions = filteredInterventions.filter((intervention) =>
+        Array.from(statusFilter).includes(intervention.status)
+      );
+    }
+
+    if (priorityFilter !== "all" && Array.from(priorityFilter).length !== 4) {
+      filteredInterventions = filteredInterventions.filter((intervention) =>
+        Array.from(priorityFilter).includes(intervention.priority)
+      );
+    }
+
+    if (typeFilter !== "all" && Array.from(typeFilter).length !== 5) {
+      filteredInterventions = filteredInterventions.filter((intervention) =>
+        Array.from(typeFilter).includes(intervention.intervention_type)
+      );
+    }
+
+    return filteredInterventions;
+  }, [interventions, filterValue, statusFilter, priorityFilter, typeFilter, hasSearchFilter]);
+
+  const pages = Math.ceil(filteredItems.length / rowsPerPage);
+
+  const items = useMemo(() => {
+    const start = (page - 1) * rowsPerPage;
+    const end = start + rowsPerPage;
+    return filteredItems.slice(start, end);
+  }, [page, filteredItems, rowsPerPage]);
+
+  const sortedItems = useMemo(() => {
+    return [...items].sort((a: Intervention, b: Intervention) => {
+      let first = a[sortDescriptor.column as keyof Intervention] as any;
+      let second = b[sortDescriptor.column as keyof Intervention] as any;
+
+      if (sortDescriptor.column === "scheduled_date") {
+        first = new Date(first).getTime();
+        second = new Date(second).getTime();
+      }
+
+      const cmp = first < second ? -1 : first > second ? 1 : 0;
+      return sortDescriptor.direction === "descending" ? -cmp : cmp;
+    });
+  }, [sortDescriptor, items]);
+
+  const getCustomerName = (customerId: string) => {
+    const customer = customers.find(c => c.customer_id === customerId);
+    return customer ? `${customer.name} ${customer.surname}` : "N/A";
+  };
+
+  const getTechnicianName = (technicianId: string) => {
+    const technician = technicians.find(t => t.technician_id === technicianId);
+    return technician ? `${technician.name} ${technician.surname}` : "N/A";
+  };
+
+  const getStatusLabel = (status: string) => {
+    const labels = {
+      assigned: "Assegnato",
+      accepted: "Accettato",
+      in_progress: "In Corso",
+      paused: "In Pausa",
+      completed: "Completato",
+      cancelled: "Annullato"
+    };
+    return labels[status as keyof typeof labels] || status;
+  };
+
+  const getPriorityLabel = (priority: string) => {
+    const labels = {
+      low: "Bassa",
+      medium: "Media",
+      high: "Alta",
+      emergency: "Emergenza"
+    };
+    return labels[priority as keyof typeof labels] || priority;
+  };
+
+  const getTypeLabel = (type: string) => {
+    const labels = {
+      inspection: "Ispezione",
+      repair: "Riparazione",
+      maintenance: "Manutenzione",
+      installation: "Installazione",
+      emergency: "Emergenza"
+    };
+    return labels[type as keyof typeof labels] || type;
+  };
+
+  const formatDate = (date: Date) => {
+    return new Intl.DateTimeFormat('it-IT', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    }).format(date);
+  };
+
+  const renderCell = React.useCallback((intervention: Intervention, columnKey: React.Key) => {
+    const cellValue = intervention[columnKey as keyof Intervention];
+
+    switch (columnKey) {
+      case "intervention_code":
+        return (
+          <div className="flex flex-col">
+            <p className="text-bold text-small">{intervention.intervention_code}</p>
+            <p className="text-tiny text-default-400">{intervention.intervention_type}</p>
+          </div>
+        );
+      case "title":
+        return (
+          <div className="flex flex-col">
+            <p className="text-bold text-small">{intervention.title}</p>
+            <p className="text-tiny text-default-400 truncate max-w-xs">
+              {intervention.description}
+            </p>
+          </div>
+        );
+      case "customer_name":
+        return (
+          <p className="text-small">
+            {getCustomerName(intervention.customer_id)}
+          </p>
+        );
+      case "technician_name":
+        return (
+          <div className="flex flex-col">
+            <p className="text-small">{getTechnicianName(intervention.assigned_technician_id)}</p>
+            {intervention.assigned_van_id && (
+              <Badge size="sm" color="secondary" variant="flat">
+                Furgone {intervention.assigned_van_id}
+              </Badge>
+            )}
+          </div>
+        );
+      case "scheduled_date":
+        return (
+          <p className="text-small">
+            {formatDate(intervention.scheduled_date)}
+          </p>
+        );
+      case "scheduled_time":
+        return (
+          <p className="text-small">
+            {intervention.scheduled_start_time} - {intervention.scheduled_end_time}
+          </p>
+        );
+      case "status":
+        return (
+          <Chip
+            className="capitalize"
+            color={statusColorMap[intervention.status]}
+            size="sm"
+            variant="flat"
+          >
+            {getStatusLabel(intervention.status)}
+          </Chip>
+        );
+      case "priority":
+        return (
+          <Chip
+            className="capitalize"
+            color={priorityColorMap[intervention.priority]}
+            size="sm"
+            variant="flat"
+          >
+            {getPriorityLabel(intervention.priority)}
+          </Chip>
+        );
+      case "actions":
+        return (
+          <div className="relative flex justify-end items-center gap-2">
+            <Dropdown>
+              <DropdownTrigger>
+                <Button isIconOnly size="sm" variant="light">
+                  <Icon icon="solar:menu-dots-vertical-bold" width={16} />
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu>
+                <DropdownItem
+                  key="view"
+                  startContent={<Icon icon="solar:eye-bold" width={16} />}
+                  onPress={() => navigate(`/interventions/${intervention.intervention_id}`)}
+                >
+                  Visualizza
+                </DropdownItem>
+                <DropdownItem
+                  key="edit"
+                  startContent={<Icon icon="solar:pen-bold" width={16} />}
+                  onPress={() => navigate(`/interventions/edit/${intervention.intervention_id}`)}
+                >
+                  Modifica
+                </DropdownItem>
+                <DropdownItem
+                  key="start"
+                  startContent={<Icon icon="solar:play-circle-bold" width={16} />}
+                  onPress={() => navigate(`/interventions/start/${intervention.intervention_id}`)}
+                >
+                  Avvia Intervento
+                </DropdownItem>
+                <DropdownItem
+                  key="complete"
+                  startContent={<Icon icon="solar:check-circle-bold" width={16} />}
+                  onPress={() => navigate(`/interventions/complete/${intervention.intervention_id}`)}
+                >
+                  Completa
+                </DropdownItem>
+                <DropdownItem
+                  key="reassign"
+                  startContent={<Icon icon="solar:user-check-rounded-bold" width={16} />}
+                  onPress={() => navigate(`/interventions/reassign/${intervention.intervention_id}`)}
+                >
+                  Ri-assegna
+                </DropdownItem>
+                <DropdownItem
+                  key="delete"
+                  className="text-danger"
+                  color="danger"
+                  startContent={<Icon icon="solar:trash-bin-trash-bold" width={16} />}
+                  onPress={() => {
+                    setInterventionToDelete(intervention);
+                    onOpen();
+                  }}
+                >
+                  Elimina
+                </DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
+          </div>
+        );
+      default:
+        return cellValue?.toString();
+    }
+  }, [navigate, onOpen, customers, technicians]);
+
+  const onSearchChange = React.useCallback((value?: string) => {
+    if (value) {
+      setFilterValue(value);
+      setPage(1);
+    } else {
+      setFilterValue("");
+    }
+  }, []);
+
+  const onClear = React.useCallback(() => {
+    setFilterValue("");
+    setPage(1);
+  }, []);
+
+  const topContent = useMemo(() => {
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-between gap-3 items-end">
+          <Input
+            isClearable
+            className="w-full sm:max-w-[44%]"
+            placeholder="Cerca per codice, titolo, descrizione..."
+            startContent={<Icon icon="solar:magnifer-linear" width={16} />}
+            value={filterValue}
+            onClear={() => onClear()}
+            onValueChange={onSearchChange}
+          />
+          <div className="flex gap-3">
+            <Dropdown>
+              <DropdownTrigger className="hidden sm:flex">
+                <Button
+                  endContent={<Icon icon="solar:alt-arrow-down-linear" width={16} />}
+                  variant="flat"
+                >
+                  Stato
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu
+                disallowEmptySelection
+                aria-label="Status Filter"
+                closeOnSelect={false}
+                selectedKeys={statusFilter}
+                selectionMode="multiple"
+                onSelectionChange={setStatusFilter}
+              >
+                <DropdownItem key="assigned">Assegnato</DropdownItem>
+                <DropdownItem key="accepted">Accettato</DropdownItem>
+                <DropdownItem key="in_progress">In Corso</DropdownItem>
+                <DropdownItem key="paused">In Pausa</DropdownItem>
+                <DropdownItem key="completed">Completato</DropdownItem>
+                <DropdownItem key="cancelled">Annullato</DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
+            <Dropdown>
+              <DropdownTrigger className="hidden sm:flex">
+                <Button
+                  endContent={<Icon icon="solar:alt-arrow-down-linear" width={16} />}
+                  variant="flat"
+                >
+                  Priorità
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu
+                disallowEmptySelection
+                aria-label="Priority Filter"
+                closeOnSelect={false}
+                selectedKeys={priorityFilter}
+                selectionMode="multiple"
+                onSelectionChange={setPriorityFilter}
+              >
+                <DropdownItem key="low">Bassa</DropdownItem>
+                <DropdownItem key="medium">Media</DropdownItem>
+                <DropdownItem key="high">Alta</DropdownItem>
+                <DropdownItem key="emergency">Emergenza</DropdownItem>
+              </DropdownMenu>
+            </Dropdown>
+            <Button
+              color="primary"
+              endContent={<Icon icon="solar:settings-bold" width={16} />}
+              onPress={() => navigate("/interventions/assign")}
+            >
+              Assegna Intervento
+            </Button>
+          </div>
+        </div>
+        <div className="flex justify-between items-center">
+          <span className="text-default-400 text-small">
+            Totale {interventions.length} interventi
+          </span>
+          <label className="flex items-center text-default-400 text-small">
+            Righe per pagina:
+            <select
+              className="bg-transparent outline-none text-default-400 text-small ml-2"
+              onChange={(e) => setRowsPerPage(Number(e.target.value))}
+            >
+              <option value="5">5</option>
+              <option value="10">10</option>
+              <option value="15">15</option>
+            </select>
+          </label>
+        </div>
+      </div>
+    );
+  }, [filterValue, statusFilter, priorityFilter, interventions.length, onSearchChange, onClear, navigate]);
+
+  const bottomContent = useMemo(() => {
+    return (
+      <div className="py-2 px-2 flex justify-between items-center">
+        <span className="w-[30%] text-small text-default-400">
+          {selectedKeys === "all"
+            ? "Tutti gli elementi selezionati"
+            : `${selectedKeys.size} di ${filteredItems.length} selezionati`}
+        </span>
+        <Pagination
+          isCompact
+          showControls
+          showShadow
+          color="primary"
+          page={page}
+          total={pages}
+          onChange={setPage}
+        />
+        <div className="hidden sm:flex w-[30%] justify-end gap-2">
+          <Button isDisabled={pages === 1} size="sm" variant="flat" onPress={() => setPage(1)}>
+            Prima
+          </Button>
+          <Button
+            isDisabled={pages === 1}
+            size="sm"
+            variant="flat"
+            onPress={() => setPage(pages)}
+          >
+            Ultima
+          </Button>
+        </div>
+      </div>
+    );
+  }, [selectedKeys, filteredItems.length, page, pages]);
+
+  const handleDeleteIntervention = async () => {
+    if (!interventionToDelete) return;
+
+    try {
+      // Qui implementare la chiamata API per eliminare l'intervento
+      console.log("Eliminating intervention:", interventionToDelete.intervention_id);
+      
+      // Aggiorna la lista locale
+      setInterventions(interventions.filter(i => i.intervention_id !== interventionToDelete.intervention_id));
+      
+      onClose();
+      setInterventionToDelete(null);
+    } catch (error) {
+      console.error("Errore nell'eliminazione dell'intervento:", error);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-screen">
+      <PageHeader
+        title="Lista Interventi"
+        description="Gestisci tutti gli interventi programmati e in corso"
+        icon="solar:clipboard-list-bold-duotone"
+      />
+      
+      <div className="flex-1 p-6 overflow-auto">
+        <Card>
+          <CardBody className="px-0">
+            <Table
+              aria-label="Tabella interventi"
+              isHeaderSticky
+              bottomContent={bottomContent}
+              bottomContentPlacement="outside"
+              classNames={{
+                wrapper: "max-h-[382px]",
+              }}
+              selectedKeys={selectedKeys}
+              selectionMode="multiple"
+              sortDescriptor={sortDescriptor}
+              topContent={topContent}
+              topContentPlacement="outside"
+              onSelectionChange={setSelectedKeys}
+              onSortChange={setSortDescriptor}
+            >
+              <TableHeader columns={columns}>
+                {(column) => (
+                  <TableColumn
+                    key={column.uid}
+                    align={column.uid === "actions" ? "center" : "start"}
+                    allowsSorting={column.sortable}
+                  >
+                    {column.name}
+                  </TableColumn>
+                )}
+              </TableHeader>
+              <TableBody emptyContent={"Nessun intervento trovato"} items={sortedItems} isLoading={loading}>
+                {(item) => (
+                  <TableRow key={item.intervention_id}>
+                    {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* Modal conferma eliminazione */}
+      <Modal isOpen={isOpen} onClose={onClose}>
+        <ModalContent>
+          {(onClose) => (
+            <>
+              <ModalHeader className="flex flex-col gap-1">
+                Conferma Eliminazione
+              </ModalHeader>
+              <ModalBody>
+                <p>
+                  Sei sicuro di voler eliminare l'intervento{" "}
+                  <strong>{interventionToDelete?.intervention_code}</strong>?
+                </p>
+                <p className="text-danger text-small">
+                  Questa azione non può essere annullata.
+                </p>
+              </ModalBody>
+              <ModalFooter>
+                <Button color="default" variant="light" onPress={onClose}>
+                  Annulla
+                </Button>
+                <Button color="danger" onPress={handleDeleteIntervention}>
+                  Elimina
+                </Button>
+              </ModalFooter>
+            </>
+          )}
+        </ModalContent>
+      </Modal>
+    </div>
+  );
+} 

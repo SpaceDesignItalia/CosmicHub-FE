@@ -6,6 +6,7 @@ import Analytics from "./Pages/Analytics/Analytics";
 import Authentication from "./Pages/Authentication/Authentication";
 import Dashboard from "./Pages/Dashboard/Dashboard";
 import Products from "./Pages/Inventory/Products";
+import GlobalProductSearch from "./Pages/Inventory/GlobalProductSearch";
 import Settings from "./Pages/Settings/Settings";
 import AddWarehouse from "./Pages/Inventory/AddWarehouse";
 import EditWarehouse from "./Pages/Inventory/EditWarehouse";
@@ -25,6 +26,11 @@ import VehicleDocuments from "./Pages/Documents/VehicleDocuments";
 import CompanyDocuments from "./Pages/Documents/CompanyDocuments";
 import EmployeeDocuments from "./Pages/Documents/EmployeeDocuments";
 import DocumentReminders from "./Pages/Documents/DocumentReminders";
+import Customers from "./Pages/Customers/Customers";
+import AddCustomer from "./Pages/Customers/AddCustomer";
+import Calendar from "./Pages/Calendar/Calendar";
+import NewAppointment from "./Pages/Calendar/NewAppointment";
+
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_API_URL;
@@ -80,6 +86,7 @@ function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/inventory/products" element={<Products />} />
+          <Route path="/inventory/products/search" element={<GlobalProductSearch />} />
           <Route path="/inventory/products/add" element={<ProductAdd />} />
           <Route
             path="/inventory/products/edit/:id"
@@ -106,6 +113,11 @@ function App() {
           <Route path="/documents/reminders" element={<DocumentReminders />} />
           <Route path="/analytics" element={<Analytics />} />
           <Route path="/suppliers" element={<Suppliers />} />
+          <Route path="/customers" element={<Customers />} />
+          <Route path="/customers/add" element={<AddCustomer />} />
+          <Route path="/calendar" element={<Calendar />} />
+          <Route path="/calendar/new" element={<NewAppointment />} />
+
           <Route path="/team" element={<Team />} />
           <Route path="/warehouses/:UUID" element={<WarehouseDetail />} />
         </Route>
@@ -116,7 +128,7 @@ function App() {
   return (
     <div className="flex h-screen w-full flex-row">
       {isAuth && (
-        <Sidebar defaultSelectedKey="home" items={sectionNestedItems} />
+        <Sidebar defaultSelectedKey="dashboard" items={sectionNestedItems} />
       )}
 
       <div className={`flex-1 ${isAuth ? "ml-64" : ""}`}>
