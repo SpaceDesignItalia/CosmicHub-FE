@@ -1,44 +1,41 @@
-import React, { useState, useEffect, useCallback } from "react";
 import {
+  Badge,
+  Button,
   Card,
   CardBody,
   CardHeader,
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-  Button,
+  Chip,
+  DatePicker,
+  Divider,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
   Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
   Select,
   SelectItem,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
-  Chip,
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-  Textarea,
-  DatePicker,
-  Autocomplete,
-  AutocompleteItem,
-  Divider,
-  Tooltip,
   Spinner,
-  Badge,
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
+  Textarea,
+  Tooltip,
+  useDisclosure,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { parseDate } from "@internationalized/date";
-import type { DateValue } from "@internationalized/date";
 import axios from "axios";
-import PageHeader from "../../Components/Layout/PageHeader";
+import { useEffect, useState } from "react";
 import ProductSelectionModal from "../../Components/Inventory/DDT/ProductSelectionModal";
+import PageHeader from "../../Components/Layout/PageHeader";
 
 // Interfaces
 interface Vehicle {
@@ -58,12 +55,12 @@ interface Product {
   dimensions: string;
   category: string;
   price: number;
-  quantity: number;
+  stock_unit: number;
 }
 
 interface DDTItem {
   product_id: string;
-  product_name: string;
+  name: string;
   sku: string;
   quantity: number;
   weight: number;
@@ -75,11 +72,11 @@ interface DDTItem {
 
 interface DDT {
   ddt_id: string;
-  ddt_number: string;
+  document_id: string;
   date: string;
   vehicle_id: string;
-  vehicle_name: string;
-  vehicle_plate: string;
+  name: string;
+  license_plate: string;
   driver_name: string;
   driver_phone?: string;
   departure_address: string;
@@ -135,14 +132,26 @@ export default function DDTManagement() {
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   // Modal states
-  const { isOpen: isCreateModalOpen, onOpen: onCreateModalOpen, onClose: onCreateModalClose } = useDisclosure();
-  const { isOpen: isViewModalOpen, onOpen: onViewModalOpen, onClose: onViewModalClose } = useDisclosure();
-  const { isOpen: isProductModalOpen, onOpen: onProductModalOpen, onClose: onProductModalClose } = useDisclosure();
+  const {
+    isOpen: isCreateModalOpen,
+    onOpen: onCreateModalOpen,
+    onClose: onCreateModalClose,
+  } = useDisclosure();
+  const {
+    isOpen: isViewModalOpen,
+    onOpen: onViewModalOpen,
+    onClose: onViewModalClose,
+  } = useDisclosure();
+  const {
+    isOpen: isProductModalOpen,
+    onOpen: onProductModalOpen,
+    onClose: onProductModalClose,
+  } = useDisclosure();
   const [selectedDDT, setSelectedDDT] = useState<DDT | null>(null);
 
   // Form state for new DDT
   const [newDDT, setNewDDT] = useState<Partial<DDT>>({
-    date: new Date().toISOString().split('T')[0],
+    date: new Date().toISOString().split("T")[0],
     departure_address: "",
     destination_address: "",
     customer_name: "",
@@ -162,103 +171,65 @@ export default function DDTManagement() {
     setIsLoading(true);
     try {
       // Load DDTs
-      const ddtResponse = await axios.get("/DDT/GET/GetAllDDTs");
-      setDDTs(ddtResponse.data || []);
+      const ddtResponse = await axios.get("/Document/GET/GetAllDDT");
+      if (ddtResponse.status === 200) {
+        console.log("DDTs caricati:", ddtResponse.data);
+        setDDTs(ddtResponse.data || []);
+      } else {
+        console.error("Errore nel caricamento DDTs:", ddtResponse.statusText);
+      }
 
       // Load vehicles
       const vehicleResponse = await axios.get("/Vehicle/GET/GetAllVehicles");
-      setVehicles(vehicleResponse.data || []);
+      if (vehicleResponse.status === 200) {
+        setVehicles(vehicleResponse.data || []);
+      } else {
+        console.error(
+          "Errore nel caricamento veicoli:",
+          vehicleResponse.statusText
+        );
+      }
 
       // Load products
       const productResponse = await axios.get("/Product/GET/GetAllProducts");
-      setProducts(productResponse.data || []);
+      if (productResponse.status === 200) {
+        console.log("Prodotti caricati:", productResponse.data);
+        setProducts(productResponse.data || []);
+      } else {
+        console.error(
+          "Errore nel caricamento prodotti:",
+          productResponse.statusText
+        );
+      }
 
       // Load customers
       const customerResponse = await axios.get("/Customer/GET/GetAllCustomers");
-      setCustomers(customerResponse.data || []);
-
+      if (customerResponse.status === 200) {
+        setCustomers(customerResponse.data || []);
+      } else {
+        console.error(
+          "Errore nel caricamento clienti:",
+          customerResponse.statusText
+        );
+      }
     } catch (error) {
       console.error("Errore nel caricamento dati:", error);
       // Load mock data for development
-      loadMockData();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadMockData = () => {
-    const mockDDTs: DDT[] = [
-      {
-        ddt_id: "1",
-        ddt_number: "DDT/2024/001",
-        date: "2024-01-15",
-        vehicle_id: "1",
-        vehicle_name: "Furgone Caldaie",
-        vehicle_plate: "AB123CD",
-        driver_name: "Mario Rossi",
-        driver_phone: "+39 333 1234567",
-        departure_address: "Via Roma 123, Milano",
-        destination_address: "Via Verdi 456, Bergamo",
-        customer_name: "Caldaie Service SRL",
-        customer_vat: "IT12345678901",
-        customer_phone: "+39 035 123456",
-        items: [
-          {
-            product_id: "1",
-            product_name: "Caldaia Condensazione Vaillant 24kW",
-            sku: "VAI-24-COND",
-            quantity: 2,
-            weight: 80,
-            unit_price: 1200,
-            total_price: 2400,
-            serial_numbers: ["VAI001", "VAI002"],
-          }
-        ],
-        total_weight: 160,
-        total_value: 2400,
-        status: "in_transit",
-        departure_time: "08:30",
-        created_at: "2024-01-15T08:00:00Z",
-        updated_at: "2024-01-15T08:30:00Z",
-      },
-      {
-        ddt_id: "2",
-        ddt_number: "DDT/2024/002",
-        date: "2024-01-16",
-        vehicle_id: "2",
-        vehicle_name: "Furgone Ricambi",
-        vehicle_plate: "EF456GH",
-        driver_name: "Luigi Bianchi",
-        departure_address: "Via Roma 123, Milano",
-        destination_address: "Via Manzoni 789, Como",
-        customer_name: "Termo Impianti Como",
-        items: [
-          {
-            product_id: "2",
-            product_name: "Pompa Circolazione Grundfos",
-            sku: "GRU-CIRC-25",
-            quantity: 5,
-            weight: 15,
-            unit_price: 180,
-            total_price: 900,
-          }
-        ],
-        total_weight: 75,
-        total_value: 900,
-        status: "confirmed",
-        created_at: "2024-01-16T09:00:00Z",
-        updated_at: "2024-01-16T09:15:00Z",
-      }
-    ];
-
-    setDDTs(mockDDTs);
-  };
+  useEffect(() => {
+    loadData();
+  }, []);
 
   // Filter DDTs
-  const filteredDDTs = ddts.filter(ddt => {
-    const matchesSearch = ddt.ddt_number.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         ddt.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                         ddt.vehicle_plate.toLowerCase().includes(searchQuery.toLowerCase());
+  const filteredDDTs = ddts.filter((ddt) => {
+    const matchesSearch =
+      ddt.document_id.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ddt.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      ddt.license_plate.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesStatus = statusFilter === "all" || ddt.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -269,15 +240,25 @@ export default function DDTManagement() {
       const ddtData = {
         ...newDDT,
         items: ddtItems,
-        total_weight: ddtItems.reduce((sum, item) => sum + (item.weight * item.quantity), 0),
+        total_weight: ddtItems.reduce(
+          (sum, item) => sum + item.weight * item.quantity,
+          0
+        ),
         total_value: ddtItems.reduce((sum, item) => sum + item.total_price, 0),
-        ddt_number: `DDT/${new Date().getFullYear()}/${String(ddts.length + 1).padStart(3, '0')}`,
+        document_id: `DDT/${new Date().getFullYear()}/${String(
+          ddts.length + 1
+        ).padStart(3, "0")}`,
       };
 
-      await axios.post("/DDT/POST/CreateDDT", ddtData);
-      loadData();
-      onCreateModalClose();
-      resetForm();
+      await axios.post("/Document/POST/CreateDDT", ddtData).then((res) => {
+        if (res.status === 200) {
+          loadData();
+          onCreateModalClose();
+          resetForm();
+        } else {
+          console.error("Errore nella creazione DDT:", res.data);
+        }
+      });
     } catch (error) {
       console.error("Errore nella creazione DDT:", error);
     }
@@ -285,7 +266,7 @@ export default function DDTManagement() {
 
   const resetForm = () => {
     setNewDDT({
-      date: new Date().toISOString().split('T')[0],
+      date: new Date().toISOString().split("T")[0],
       departure_address: "",
       destination_address: "",
       customer_name: "",
@@ -299,7 +280,7 @@ export default function DDTManagement() {
   const addProductToDDT = (product: Product, quantity: number) => {
     const newItem: DDTItem = {
       product_id: product.product_id,
-      product_name: product.name,
+      name: product.name,
       sku: product.sku,
       quantity,
       weight: product.weight || 0,
@@ -307,14 +288,14 @@ export default function DDTManagement() {
       total_price: product.price * quantity,
     };
 
-    setDDTItems(prev => [...prev, newItem]);
+    setDDTItems((prev) => [...prev, newItem]);
   };
 
   // Handle multiple products selection from modal
   const handleProductsSelection = (selectedProducts: any[]) => {
-    const newItems: DDTItem[] = selectedProducts.map(product => ({
+    const newItems: DDTItem[] = selectedProducts.map((product) => ({
       product_id: product.product_id,
-      product_name: product.name,
+      name: product.name,
       sku: product.sku,
       quantity: product.selected_quantity,
       weight: product.weight || 0,
@@ -324,18 +305,20 @@ export default function DDTManagement() {
       notes: product.notes,
     }));
 
-    setDDTItems(prev => [...prev, ...newItems]);
+    setDDTItems((prev) => [...prev, ...newItems]);
     onProductModalClose();
   };
 
   const removeProductFromDDT = (index: number) => {
-    setDDTItems(prev => prev.filter((_, i) => i !== index));
+    setDDTItems((prev) => prev.filter((_, i) => i !== index));
   };
 
   // Handle DDT status update
-  const updateDDTStatus = async (ddtId: string, newStatus: DDT['status']) => {
+  const updateDDTStatus = async (ddtId: string, newStatus: DDT["status"]) => {
     try {
-      await axios.put(`/DDT/PUT/UpdateDDTStatus/${ddtId}`, { status: newStatus });
+      await axios.put(`/DDT/PUT/UpdateDDTStatus/${ddtId}`, {
+        status: newStatus,
+      });
       loadData();
     } catch (error) {
       console.error("Errore nell'aggiornamento stato DDT:", error);
@@ -346,14 +329,14 @@ export default function DDTManagement() {
   const generatePDF = async (ddt: DDT) => {
     try {
       const response = await axios.get(`/DDT/GET/GeneratePDF/${ddt.ddt_id}`, {
-        responseType: 'blob'
+        responseType: "blob",
       });
-      
-      const blob = new Blob([response.data], { type: 'application/pdf' });
+
+      const blob = new Blob([response.data], { type: "application/pdf" });
       const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
+      const a = document.createElement("a");
       a.href = url;
-      a.download = `${ddt.ddt_number}.pdf`;
+      a.download = `${ddt.document_id}.pdf`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -402,7 +385,9 @@ export default function DDTManagement() {
           <Select
             placeholder="Filtra per stato"
             selectedKeys={statusFilter ? [statusFilter] : []}
-            onSelectionChange={(keys) => setStatusFilter(Array.from(keys)[0] as string)}
+            onSelectionChange={(keys) =>
+              setStatusFilter(Array.from(keys)[0] as string)
+            }
             className="w-48"
           >
             <SelectItem key="all">Tutti gli stati</SelectItem>
@@ -440,27 +425,34 @@ export default function DDTManagement() {
               {filteredDDTs.map((ddt) => (
                 <TableRow key={ddt.ddt_id}>
                   <TableCell>
-                    <div className="font-medium">{ddt.ddt_number}</div>
+                    <div className="font-medium">{ddt.document_id}</div>
                   </TableCell>
                   <TableCell>
-                    {new Date(ddt.date).toLocaleDateString('it-IT')}
+                    {new Date(ddt.date).toLocaleDateString("it-IT")}
                   </TableCell>
                   <TableCell>
                     <div>
-                      <div className="font-medium">{ddt.vehicle_name}</div>
-                      <div className="text-sm text-default-500">{ddt.vehicle_plate}</div>
+                      <div className="font-medium">{ddt.name}</div>
+                      <div className="text-sm text-default-500">
+                        {ddt.license_plate}
+                      </div>
                     </div>
                   </TableCell>
                   <TableCell>
                     <div>
                       <div className="font-medium">{ddt.customer_name}</div>
                       {ddt.customer_phone && (
-                        <div className="text-sm text-default-500">{ddt.customer_phone}</div>
+                        <div className="text-sm text-default-500">
+                          {ddt.customer_phone}
+                        </div>
                       )}
                     </div>
                   </TableCell>
                   <TableCell>
-                    <div className="max-w-48 truncate" title={ddt.destination_address}>
+                    <div
+                      className="max-w-48 truncate"
+                      title={ddt.destination_address}
+                    >
                       {ddt.destination_address}
                     </div>
                   </TableCell>
@@ -468,7 +460,7 @@ export default function DDTManagement() {
                     <div className="font-medium">{ddt.total_weight} kg</div>
                   </TableCell>
                   <TableCell>
-                    <div className="font-medium">€{ddt.total_value.toFixed(2)}</div>
+                    <div className="font-medium">€{ddt.total_value}</div>
                   </TableCell>
                   <TableCell>
                     <Chip
@@ -494,52 +486,68 @@ export default function DDTManagement() {
                           <Icon icon="solar:eye-bold" width={16} />
                         </Button>
                       </Tooltip>
-                      
+
                       <Dropdown>
                         <DropdownTrigger>
-                          <Button
-                            isIconOnly
-                            size="sm"
-                            variant="light"
-                          >
+                          <Button isIconOnly size="sm" variant="light">
                             <Icon icon="solar:menu-dots-bold" width={16} />
                           </Button>
                         </DropdownTrigger>
                         <DropdownMenu>
                           <DropdownItem
                             key="pdf"
-                            startContent={<Icon icon="solar:file-text-bold" width={16} />}
+                            startContent={
+                              <Icon icon="solar:file-text-bold" width={16} />
+                            }
                             onPress={() => generatePDF(ddt)}
                           >
                             Genera PDF
                           </DropdownItem>
-                          {ddt.status === "draft" && (
+                          {ddt.status === "draft" ? (
                             <DropdownItem
                               key="confirm"
-                              startContent={<Icon icon="solar:check-circle-bold" width={16} />}
-                              onPress={() => updateDDTStatus(ddt.ddt_id, "confirmed")}
+                              startContent={
+                                <Icon
+                                  icon="solar:check-circle-bold"
+                                  width={16}
+                                />
+                              }
+                              onPress={() =>
+                                updateDDTStatus(ddt.ddt_id, "confirmed")
+                              }
                             >
                               Conferma
                             </DropdownItem>
-                          )}
-                          {ddt.status === "confirmed" && (
+                          ) : null}
+                          {ddt.status === "confirmed" ? (
                             <DropdownItem
                               key="transit"
-                              startContent={<Icon icon="solar:delivery-bold" width={16} />}
-                              onPress={() => updateDDTStatus(ddt.ddt_id, "in_transit")}
+                              startContent={
+                                <Icon icon="solar:delivery-bold" width={16} />
+                              }
+                              onPress={() =>
+                                updateDDTStatus(ddt.ddt_id, "in_transit")
+                              }
                             >
                               Avvia Trasporto
                             </DropdownItem>
-                          )}
-                          {ddt.status === "in_transit" && (
+                          ) : null}
+                          {ddt.status === "in_transit" ? (
                             <DropdownItem
                               key="deliver"
-                              startContent={<Icon icon="solar:check-square-bold" width={16} />}
-                              onPress={() => updateDDTStatus(ddt.ddt_id, "delivered")}
+                              startContent={
+                                <Icon
+                                  icon="solar:check-square-bold"
+                                  width={16}
+                                />
+                              }
+                              onPress={() =>
+                                updateDDTStatus(ddt.ddt_id, "delivered")
+                              }
                             >
                               Segna Consegnato
                             </DropdownItem>
-                          )}
+                          ) : null}
                         </DropdownMenu>
                       </Dropdown>
                     </div>
@@ -560,7 +568,9 @@ export default function DDTManagement() {
       >
         <ModalContent>
           <ModalHeader>
-            <h3 className="text-xl font-semibold">Nuovo Documento di Trasporto</h3>
+            <h3 className="text-xl font-semibold">
+              Nuovo Documento di Trasporto
+            </h3>
           </ModalHeader>
           <ModalBody>
             <div className="space-y-6">
@@ -571,24 +581,45 @@ export default function DDTManagement() {
                   value={newDDT.date ? parseDate(newDDT.date) : null}
                   onChange={(date) => {
                     if (date) {
-                      const dateString = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
-                      setNewDDT(prev => ({ ...prev, date: dateString }));
+                      const dateString = `${date.year}-${String(
+                        date.month
+                      ).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+                      setNewDDT((prev) => ({ ...prev, date: dateString }));
                     }
                   }}
                 />
-                
+
                 <Select
                   label="Veicolo"
                   placeholder="Seleziona veicolo"
-                  selectedKeys={newDDT.vehicle_id ? [newDDT.vehicle_id] : []}
+                  selectedKeys={
+                    newDDT.vehicle_id ? new Set([newDDT.vehicle_id]) : new Set()
+                  }
+                  renderValue={() => {
+                    const selectedVehicle = vehicles.find(
+                      (v) => v.vehicle_id === newDDT.vehicle_id
+                    );
+                    return selectedVehicle ? (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-small">
+                            {selectedVehicle.name} -{" "}
+                            {selectedVehicle.license_plate}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null;
+                  }}
                   onSelectionChange={(keys) => {
                     const vehicleId = Array.from(keys)[0] as string;
-                    const vehicle = vehicles.find(v => v.vehicle_id === vehicleId);
-                    setNewDDT(prev => ({
+                    const vehicle = vehicles.find(
+                      (v) => v.vehicle_id === vehicleId
+                    );
+                    setNewDDT((prev) => ({
                       ...prev,
                       vehicle_id: vehicleId,
-                      vehicle_name: vehicle?.name || "",
-                      vehicle_plate: vehicle?.license_plate || "",
+                      name: vehicle?.name || "",
+                      license_plate: vehicle?.license_plate || "",
                       driver_name: vehicle?.assigned_user || "",
                     }));
                   }}
@@ -605,38 +636,63 @@ export default function DDTManagement() {
                 <Input
                   label="Nome Autista"
                   value={newDDT.driver_name || ""}
-                  onChange={(e) => setNewDDT(prev => ({ ...prev, driver_name: e.target.value }))}
+                  onChange={(e) =>
+                    setNewDDT((prev) => ({
+                      ...prev,
+                      driver_name: e.target.value,
+                    }))
+                  }
                 />
-                
+
                 <Input
                   label="Telefono Autista"
                   value={newDDT.driver_phone || ""}
-                  onChange={(e) => setNewDDT(prev => ({ ...prev, driver_phone: e.target.value }))}
+                  onChange={(e) =>
+                    setNewDDT((prev) => ({
+                      ...prev,
+                      driver_phone: e.target.value,
+                    }))
+                  }
                 />
               </div>
 
               {/* Customer Information */}
               <Divider />
               <h4 className="text-lg font-medium">Informazioni Cliente</h4>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <Input
                   label="Nome Cliente"
                   value={newDDT.customer_name || ""}
-                  onChange={(e) => setNewDDT(prev => ({ ...prev, customer_name: e.target.value }))}
+                  onChange={(e) =>
+                    setNewDDT((prev) => ({
+                      ...prev,
+                      customer_name: e.target.value,
+                    }))
+                  }
                 />
-                
+
                 <Input
                   label="Partita IVA"
                   value={newDDT.customer_vat || ""}
-                  onChange={(e) => setNewDDT(prev => ({ ...prev, customer_vat: e.target.value }))}
+                  onChange={(e) =>
+                    setNewDDT((prev) => ({
+                      ...prev,
+                      customer_vat: e.target.value,
+                    }))
+                  }
                 />
               </div>
 
               <Input
                 label="Telefono Cliente"
                 value={newDDT.customer_phone || ""}
-                onChange={(e) => setNewDDT(prev => ({ ...prev, customer_phone: e.target.value }))}
+                onChange={(e) =>
+                  setNewDDT((prev) => ({
+                    ...prev,
+                    customer_phone: e.target.value,
+                  }))
+                }
               />
 
               {/* Addresses */}
@@ -644,13 +700,23 @@ export default function DDTManagement() {
                 <Textarea
                   label="Indirizzo di Partenza"
                   value={newDDT.departure_address || ""}
-                  onChange={(e) => setNewDDT(prev => ({ ...prev, departure_address: e.target.value }))}
+                  onChange={(e) =>
+                    setNewDDT((prev) => ({
+                      ...prev,
+                      departure_address: e.target.value,
+                    }))
+                  }
                 />
-                
+
                 <Textarea
                   label="Indirizzo di Destinazione"
                   value={newDDT.destination_address || ""}
-                  onChange={(e) => setNewDDT(prev => ({ ...prev, destination_address: e.target.value }))}
+                  onChange={(e) =>
+                    setNewDDT((prev) => ({
+                      ...prev,
+                      destination_address: e.target.value,
+                    }))
+                  }
                 />
               </div>
 
@@ -658,14 +724,16 @@ export default function DDTManagement() {
               <Divider />
               <div className="flex justify-between items-center">
                 <h4 className="text-lg font-medium">Prodotti da Trasportare</h4>
-                                  <Button
-                    color="primary"
-                    variant="flat"
-                    startContent={<Icon icon="solar:add-circle-bold" width={16} />}
-                    onPress={onProductModalOpen}
-                  >
-                    Aggiungi Prodotto
-                  </Button>
+                <Button
+                  color="primary"
+                  variant="flat"
+                  startContent={
+                    <Icon icon="solar:add-circle-bold" width={16} />
+                  }
+                  onPress={onProductModalOpen}
+                >
+                  Aggiungi Prodotto
+                </Button>
               </div>
 
               {ddtItems.length > 0 && (
@@ -682,12 +750,12 @@ export default function DDTManagement() {
                   <TableBody>
                     {ddtItems.map((item, index) => (
                       <TableRow key={index}>
-                        <TableCell>{item.product_name}</TableCell>
+                        <TableCell>{item.name}</TableCell>
                         <TableCell>{item.sku}</TableCell>
                         <TableCell>{item.quantity}</TableCell>
                         <TableCell>{item.weight * item.quantity} kg</TableCell>
-                        <TableCell>€{item.unit_price.toFixed(2)}</TableCell>
-                        <TableCell>€{item.total_price.toFixed(2)}</TableCell>
+                        <TableCell>€{item.unit_price}</TableCell>
+                        <TableCell>€{item.total_price}</TableCell>
                         <TableCell>
                           <Button
                             isIconOnly
@@ -696,7 +764,10 @@ export default function DDTManagement() {
                             variant="light"
                             onPress={() => removeProductFromDDT(index)}
                           >
-                            <Icon icon="solar:trash-bin-minimalistic-bold" width={16} />
+                            <Icon
+                              icon="solar:trash-bin-minimalistic-bold"
+                              width={16}
+                            />
                           </Button>
                         </TableCell>
                       </TableRow>
@@ -710,13 +781,21 @@ export default function DDTManagement() {
                   <div className="flex justify-between">
                     <span>Peso Totale:</span>
                     <span className="font-medium">
-                      {ddtItems.reduce((sum, item) => sum + (item.weight * item.quantity), 0)} kg
+                      {ddtItems.reduce(
+                        (sum, item) => sum + item.weight * item.quantity,
+                        0
+                      )}{" "}
+                      kg
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Valore Totale:</span>
                     <span className="font-medium">
-                      €{ddtItems.reduce((sum, item) => sum + item.total_price, 0).toFixed(2)}
+                      €
+                      {ddtItems.reduce(
+                        (sum, item) => sum + item.total_price,
+                        0
+                      )}
                     </span>
                   </div>
                 </div>
@@ -730,7 +809,11 @@ export default function DDTManagement() {
             <Button
               color="primary"
               onPress={handleCreateDDT}
-              isDisabled={!newDDT.vehicle_id || !newDDT.customer_name || ddtItems.length === 0}
+              isDisabled={
+                !newDDT.vehicle_id ||
+                !newDDT.customer_name ||
+                ddtItems.length === 0
+              }
             >
               Crea DDT
             </Button>
@@ -750,11 +833,10 @@ export default function DDTManagement() {
             <>
               <ModalHeader>
                 <div className="flex items-center gap-3">
-                  <h3 className="text-xl font-semibold">{selectedDDT.ddt_number}</h3>
-                  <Chip
-                    color={statusColors[selectedDDT.status]}
-                    variant="flat"
-                  >
+                  <h3 className="text-xl font-semibold">
+                    {selectedDDT.document_id}
+                  </h3>
+                  <Chip color={statusColors[selectedDDT.status]} variant="flat">
                     {statusLabels[selectedDDT.status]}
                   </Chip>
                 </div>
@@ -765,11 +847,15 @@ export default function DDTManagement() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-default-500">Data</p>
-                      <p className="font-medium">{new Date(selectedDDT.date).toLocaleDateString('it-IT')}</p>
+                      <p className="font-medium">
+                        {new Date(selectedDDT.date).toLocaleDateString("it-IT")}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-default-500">Veicolo</p>
-                      <p className="font-medium">{selectedDDT.vehicle_name} - {selectedDDT.vehicle_plate}</p>
+                      <p className="font-medium">
+                        {selectedDDT.name} - {selectedDDT.license_plate}
+                      </p>
                     </div>
                   </div>
 
@@ -781,8 +867,12 @@ export default function DDTManagement() {
                     </div>
                     {selectedDDT.driver_phone && (
                       <div>
-                        <p className="text-sm text-default-500">Telefono Autista</p>
-                        <p className="font-medium">{selectedDDT.driver_phone}</p>
+                        <p className="text-sm text-default-500">
+                          Telefono Autista
+                        </p>
+                        <p className="font-medium">
+                          {selectedDDT.driver_phone}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -798,7 +888,9 @@ export default function DDTManagement() {
                     {selectedDDT.customer_vat && (
                       <div>
                         <p className="text-sm text-default-500">Partita IVA</p>
-                        <p className="font-medium">{selectedDDT.customer_vat}</p>
+                        <p className="font-medium">
+                          {selectedDDT.customer_vat}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -807,49 +899,65 @@ export default function DDTManagement() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-default-500">Partenza</p>
-                      <p className="font-medium">{selectedDDT.departure_address}</p>
+                      <p className="font-medium">
+                        {selectedDDT.departure_address}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-default-500">Destinazione</p>
-                      <p className="font-medium">{selectedDDT.destination_address}</p>
+                      <p className="font-medium">
+                        {selectedDDT.destination_address}
+                      </p>
                     </div>
                   </div>
 
                   {/* Items */}
-                  <Divider />
-                  <h4 className="text-lg font-medium">Prodotti Trasportati</h4>
-                  <Table aria-label="Prodotti DDT">
-                    <TableHeader>
-                      <TableColumn>PRODOTTO</TableColumn>
-                      <TableColumn>SKU</TableColumn>
-                      <TableColumn>QUANTITÀ</TableColumn>
-                      <TableColumn>PESO</TableColumn>
-                      <TableColumn>VALORE</TableColumn>
-                    </TableHeader>
-                    <TableBody>
-                      {selectedDDT.items.map((item, index) => (
-                        <TableRow key={index}>
-                          <TableCell>{item.product_name}</TableCell>
-                          <TableCell>{item.sku}</TableCell>
-                          <TableCell>{item.quantity}</TableCell>
-                          <TableCell>{item.weight * item.quantity} kg</TableCell>
-                          <TableCell>€{item.total_price.toFixed(2)}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                  {selectedDDT.items && (
+                    <>
+                      <Divider />
+                      <h4 className="text-lg font-medium">
+                        Prodotti Trasportati
+                      </h4>
+                      <Table aria-label="Prodotti DDT">
+                        <TableHeader>
+                          <TableColumn>PRODOTTO</TableColumn>
+                          <TableColumn>SKU</TableColumn>
+                          <TableColumn>QUANTITÀ</TableColumn>
+                          <TableColumn>PESO</TableColumn>
+                          <TableColumn>VALORE</TableColumn>
+                        </TableHeader>
+                        <TableBody>
+                          {selectedDDT.items.map((item, index) => (
+                            <TableRow key={index}>
+                              <TableCell>{item.name}</TableCell>
+                              <TableCell>{item.sku}</TableCell>
+                              <TableCell>{item.quantity}</TableCell>
+                              <TableCell>
+                                {item.weight * item.quantity} kg
+                              </TableCell>
+                              <TableCell>€{item.total_price}</TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
 
-                  {/* Totals */}
-                  <div className="bg-default-100 p-4 rounded-lg">
-                    <div className="flex justify-between">
-                      <span>Peso Totale:</span>
-                      <span className="font-medium">{selectedDDT.total_weight} kg</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Valore Totale:</span>
-                      <span className="font-medium">€{selectedDDT.total_value.toFixed(2)}</span>
-                    </div>
-                  </div>
+                      {/* Totals */}
+                      <div className="bg-default-100 p-4 rounded-lg">
+                        <div className="flex justify-between">
+                          <span>Peso Totale:</span>
+                          <span className="font-medium">
+                            {selectedDDT.total_weight} kg
+                          </span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Valore Totale:</span>
+                          <span className="font-medium">
+                            €{selectedDDT.total_value}
+                          </span>
+                        </div>
+                      </div>
+                    </>
+                  )}
 
                   {/* Times */}
                   {(selectedDDT.departure_time || selectedDDT.arrival_time) && (
@@ -858,14 +966,22 @@ export default function DDTManagement() {
                       <div className="grid grid-cols-2 gap-4">
                         {selectedDDT.departure_time && (
                           <div>
-                            <p className="text-sm text-default-500">Ora Partenza</p>
-                            <p className="font-medium">{selectedDDT.departure_time}</p>
+                            <p className="text-sm text-default-500">
+                              Ora Partenza
+                            </p>
+                            <p className="font-medium">
+                              {selectedDDT.departure_time}
+                            </p>
                           </div>
                         )}
                         {selectedDDT.arrival_time && (
                           <div>
-                            <p className="text-sm text-default-500">Ora Arrivo</p>
-                            <p className="font-medium">{selectedDDT.arrival_time}</p>
+                            <p className="text-sm text-default-500">
+                              Ora Arrivo
+                            </p>
+                            <p className="font-medium">
+                              {selectedDDT.arrival_time}
+                            </p>
                           </div>
                         )}
                       </div>
@@ -877,8 +993,12 @@ export default function DDTManagement() {
                     <>
                       <Divider />
                       <div>
-                        <p className="text-sm text-default-500">Note Consegna</p>
-                        <p className="font-medium">{selectedDDT.delivery_notes}</p>
+                        <p className="text-sm text-default-500">
+                          Note Consegna
+                        </p>
+                        <p className="font-medium">
+                          {selectedDDT.delivery_notes}
+                        </p>
                       </div>
                     </>
                   )}
@@ -907,7 +1027,11 @@ export default function DDTManagement() {
         onClose={onProductModalClose}
         products={products}
         onConfirm={handleProductsSelection}
-        vehicleCapacity={newDDT.vehicle_id ? vehicles.find(v => v.vehicle_id === newDDT.vehicle_id)?.capacity : undefined}
+        vehicleCapacity={
+          newDDT.vehicle_id
+            ? vehicles.find((v) => v.vehicle_id === newDDT.vehicle_id)?.capacity
+            : undefined
+        }
       />
     </div>
   );

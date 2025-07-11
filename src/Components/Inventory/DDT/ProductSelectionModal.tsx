@@ -32,7 +32,7 @@ interface Product {
   dimensions?: string;
   category: string;
   price: number;
-  quantity: number;
+  stock_unit: number;
   warehouse_name?: string;
   is_caldaia?: boolean;
   brand?: string;
@@ -55,12 +55,12 @@ interface ProductSelectionModalProps {
 }
 
 const categoryColors = {
-  "Caldaie": "success",
+  Caldaie: "success",
   "Pompe di Calore": "primary",
-  "Radiatori": "warning",
+  Radiatori: "warning",
   "Componenti Idraulici": "secondary",
   "Componenti Elettrici": "danger",
-  "Ricambi": "default",
+  Ricambi: "default",
 } as const;
 
 export default function ProductSelectionModal({
@@ -70,27 +70,32 @@ export default function ProductSelectionModal({
   onConfirm,
   vehicleCapacity,
 }: ProductSelectionModalProps) {
-  const [selectedProducts, setSelectedProducts] = useState<Map<string, SelectedProduct>>(new Map());
+  const [selectedProducts, setSelectedProducts] = useState<
+    Map<string, SelectedProduct>
+  >(new Map());
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
 
   // Get unique categories
   const categories = useMemo(() => {
-    const cats = [...new Set(products.map(p => p.category))];
+    const cats = [...new Set(products.map((p) => p.category))];
     return cats.sort();
   }, [products]);
 
   // Filter products
   const filteredProducts = useMemo(() => {
-    return products.filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                           (product.brand && product.brand.toLowerCase().includes(searchQuery.toLowerCase()));
-      
-      const matchesCategory = categoryFilter === "all" || product.category === categoryFilter;
-      const hasStock = !showOnlyAvailable || product.quantity > 0;
-      
+    return products.filter((product) => {
+      const matchesSearch =
+        product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        product.sku.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (product.brand &&
+          product.brand.toLowerCase().includes(searchQuery.toLowerCase()));
+
+      const matchesCategory =
+        categoryFilter === "all" || product.category === categoryFilter;
+      const hasStock = !showOnlyAvailable || product.stock_unit > 0;
+
       return matchesSearch && matchesCategory && hasStock;
     });
   }, [products, searchQuery, categoryFilter, showOnlyAvailable]);
@@ -99,15 +104,24 @@ export default function ProductSelectionModal({
   const totals = useMemo(() => {
     const selectedArray = Array.from(selectedProducts.values());
     return {
-      totalWeight: selectedArray.reduce((sum, product) => sum + (product.weight * product.selected_quantity), 0),
-      totalValue: selectedArray.reduce((sum, product) => sum + (product.price * product.selected_quantity), 0),
-      totalItems: selectedArray.reduce((sum, product) => sum + product.selected_quantity, 0),
+      totalWeight: selectedArray.reduce(
+        (sum, product) => sum + product.weight * product.selected_quantity,
+        0
+      ),
+      totalValue: selectedArray.reduce(
+        (sum, product) => sum + product.price * product.selected_quantity,
+        0
+      ),
+      totalItems: selectedArray.reduce(
+        (sum, product) => sum + product.selected_quantity,
+        0
+      ),
     };
   }, [selectedProducts]);
 
   const handleProductSelect = (product: Product, selected: boolean) => {
     const newSelectedProducts = new Map(selectedProducts);
-    
+
     if (selected) {
       newSelectedProducts.set(product.product_id, {
         ...product,
@@ -116,15 +130,15 @@ export default function ProductSelectionModal({
     } else {
       newSelectedProducts.delete(product.product_id);
     }
-    
+
     setSelectedProducts(newSelectedProducts);
   };
 
   const handleQuantityChange = (productId: string, quantity: number) => {
     const newSelectedProducts = new Map(selectedProducts);
     const product = newSelectedProducts.get(productId);
-    
-    if (product && quantity > 0 && quantity <= product.quantity) {
+
+    if (product && quantity > 0 && quantity <= product.stock_unit) {
       newSelectedProducts.set(productId, {
         ...product,
         selected_quantity: quantity,
@@ -146,25 +160,30 @@ export default function ProductSelectionModal({
     onClose();
   };
 
-  const isProductSelected = (productId: string) => selectedProducts.has(productId);
+  const isProductSelected = (productId: string) =>
+    selectedProducts.has(productId);
 
   const getCapacityWarning = () => {
     if (!vehicleCapacity) return null;
-    
+
     const usagePercentage = (totals.totalWeight / vehicleCapacity) * 100;
-    
+
     if (usagePercentage > 100) {
       return {
         type: "danger" as const,
-        message: `Capacità superata! ${usagePercentage.toFixed(1)}% (${totals.totalWeight}kg / ${vehicleCapacity}kg)`,
+        message: `Capacità superata! ${usagePercentage.toFixed(1)}% (${
+          totals.totalWeight
+        }kg / ${vehicleCapacity}kg)`,
       };
     } else if (usagePercentage > 80) {
       return {
         type: "warning" as const,
-        message: `Capacità quasi piena: ${usagePercentage.toFixed(1)}% (${totals.totalWeight}kg / ${vehicleCapacity}kg)`,
+        message: `Capacità quasi piena: ${usagePercentage.toFixed(1)}% (${
+          totals.totalWeight
+        }kg / ${vehicleCapacity}kg)`,
       };
     }
-    
+
     return null;
   };
 
@@ -180,11 +199,17 @@ export default function ProductSelectionModal({
       <ModalContent>
         <ModalHeader>
           <div className="flex items-center gap-3">
-            <Icon icon="solar:box-bold-duotone" className="text-primary" width={24} />
-            <h3 className="text-xl font-semibold">Seleziona Prodotti per DDT</h3>
+            <Icon
+              icon="solar:box-bold-duotone"
+              className="text-primary"
+              width={24}
+            />
+            <h3 className="text-xl font-semibold">
+              Seleziona Prodotti per DDT
+            </h3>
           </div>
         </ModalHeader>
-        
+
         <ModalBody>
           <div className="space-y-4">
             {/* Filters */}
@@ -196,11 +221,13 @@ export default function ProductSelectionModal({
                 startContent={<Icon icon="solar:magnifer-bold" width={20} />}
                 className="flex-1"
               />
-              
+
               <Select
                 placeholder="Categoria"
                 selectedKeys={categoryFilter ? [categoryFilter] : []}
-                onSelectionChange={(keys) => setCategoryFilter(Array.from(keys)[0] as string)}
+                onSelectionChange={(keys) =>
+                  setCategoryFilter(Array.from(keys)[0] as string)
+                }
                 className="w-48"
               >
                 <SelectItem key="all">Tutte le categorie</SelectItem>
@@ -208,7 +235,7 @@ export default function ProductSelectionModal({
                   <SelectItem key={category}>{category}</SelectItem>
                 ))}
               </Select>
-              
+
               <div className="flex items-center gap-2">
                 <Checkbox
                   isSelected={showOnlyAvailable}
@@ -230,34 +257,50 @@ export default function ProductSelectionModal({
                         {selectedProducts.size} prodotti selezionati
                       </Badge>
                     </div>
-                    
+
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div>
-                        <span className="text-default-500">Articoli totali:</span>
-                        <span className="font-medium ml-2">{totals.totalItems}</span>
+                        <span className="text-default-500">
+                          Articoli totali:
+                        </span>
+                        <span className="font-medium ml-2">
+                          {totals.totalItems}
+                        </span>
                       </div>
                       <div>
                         <span className="text-default-500">Peso totale:</span>
-                        <span className="font-medium ml-2">{totals.totalWeight.toFixed(1)} kg</span>
+                        <span className="font-medium ml-2">
+                          {totals.totalWeight.toFixed(1)} kg
+                        </span>
                       </div>
                       <div>
                         <span className="text-default-500">Valore totale:</span>
-                        <span className="font-medium ml-2">€{totals.totalValue.toFixed(2)}</span>
+                        <span className="font-medium ml-2">
+                          €{totals.totalValue.toFixed(2)}
+                        </span>
                       </div>
                     </div>
 
                     {capacityWarning && (
-                      <div className={`p-3 rounded-lg ${
-                        capacityWarning.type === "danger" 
-                          ? "bg-danger-50 text-danger-700 border border-danger-200" 
-                          : "bg-warning-50 text-warning-700 border border-warning-200"
-                      }`}>
+                      <div
+                        className={`p-3 rounded-lg ${
+                          capacityWarning.type === "danger"
+                            ? "bg-danger-50 text-danger-700 border border-danger-200"
+                            : "bg-warning-50 text-warning-700 border border-warning-200"
+                        }`}
+                      >
                         <div className="flex items-center gap-2">
-                          <Icon 
-                            icon={capacityWarning.type === "danger" ? "solar:danger-triangle-bold" : "solar:info-circle-bold"} 
-                            width={16} 
+                          <Icon
+                            icon={
+                              capacityWarning.type === "danger"
+                                ? "solar:danger-triangle-bold"
+                                : "solar:info-circle-bold"
+                            }
+                            width={16}
                           />
-                          <span className="text-sm font-medium">{capacityWarning.message}</span>
+                          <span className="text-sm font-medium">
+                            {capacityWarning.message}
+                          </span>
                         </div>
                       </div>
                     )}
@@ -270,12 +313,54 @@ export default function ProductSelectionModal({
             <Table
               aria-label="Tabella prodotti"
               selectionMode="multiple"
+              showSelectionCheckboxes={true}
+              selectedKeys={
+                new Set(
+                  Array.from(selectedProducts.keys()).map((key) =>
+                    key.toString()
+                  )
+                )
+              }
+              onSelectionChange={(keys) => {
+                console.log("Selection changed:", keys);
+                console.log(
+                  "Filtered products IDs:",
+                  filteredProducts.map((p) => p.product_id)
+                );
+                const newSelectedProducts = new Map();
+
+                if (keys === "all") {
+                  // Se "all" è selezionato, seleziona tutti i prodotti filtrati
+                  filteredProducts.forEach((product) => {
+                    newSelectedProducts.set(product.product_id.toString(), {
+                      ...product,
+                      selected_quantity: 1,
+                    });
+                  });
+                } else {
+                  // Altrimenti, gestisci le chiavi selezionate
+                  Array.from(keys).forEach((key) => {
+                    console.log("Processing key:", key, "Type:", typeof key);
+                    const product = filteredProducts.find(
+                      (p) => p.product_id === Number(key)
+                    );
+                    console.log("Found product:", product);
+                    if (product) {
+                      newSelectedProducts.set(key as string, {
+                        ...product,
+                        selected_quantity: 1,
+                      });
+                    }
+                  });
+                }
+                console.log("New selected products:", newSelectedProducts);
+                setSelectedProducts(newSelectedProducts);
+              }}
               classNames={{
                 wrapper: "max-h-96",
               }}
             >
               <TableHeader>
-                <TableColumn>SELEZIONA</TableColumn>
                 <TableColumn>PRODOTTO</TableColumn>
                 <TableColumn>CATEGORIA</TableColumn>
                 <TableColumn>DISPONIBILITÀ</TableColumn>
@@ -283,76 +368,89 @@ export default function ProductSelectionModal({
                 <TableColumn>PREZZO</TableColumn>
                 <TableColumn>QUANTITÀ</TableColumn>
               </TableHeader>
-              
+
               <TableBody>
                 {filteredProducts.map((product) => {
-                  const isSelected = isProductSelected(product.product_id);
-                  const selectedProduct = selectedProducts.get(product.product_id);
-                  
+                  const selectedProduct = selectedProducts.get(
+                    product.product_id
+                  );
+
                   return (
                     <TableRow key={product.product_id}>
-                      <TableCell>
-                        <Checkbox
-                          isSelected={isSelected}
-                          onValueChange={(selected) => handleProductSelect(product, selected)}
-                        />
-                      </TableCell>
-                      
                       <TableCell>
                         <div>
                           <div className="font-medium">{product.name}</div>
                           <div className="text-sm text-default-500">
                             SKU: {product.sku}
                             {product.brand && ` • ${product.brand}`}
-                            {product.is_caldaia && product.power_kw && ` • ${product.power_kw}kW`}
+                            {product.is_caldaia &&
+                              product.power_kw &&
+                              ` • ${product.power_kw}kW`}
                           </div>
                         </div>
                       </TableCell>
-                      
+
                       <TableCell>
                         <Chip
-                          color={categoryColors[product.category as keyof typeof categoryColors] || "default"}
+                          color={
+                            categoryColors[
+                              product.category as keyof typeof categoryColors
+                            ] || "default"
+                          }
                           size="sm"
                           variant="flat"
                         >
                           {product.category}
                         </Chip>
                       </TableCell>
-                      
+
                       <TableCell>
                         <div className="flex flex-col">
-                          <span className={`font-medium ${product.quantity === 0 ? 'text-danger' : 'text-success'}`}>
-                            {product.quantity} pz
+                          <span
+                            className={`font-medium ${
+                              product.stock_unit === 0
+                                ? "text-danger"
+                                : "text-success"
+                            }`}
+                          >
+                            {product.stock_unit} pz
                           </span>
                           {product.warehouse_name && (
-                            <span className="text-xs text-default-500">{product.warehouse_name}</span>
+                            <span className="text-xs text-default-500">
+                              {product.warehouse_name}
+                            </span>
                           )}
                         </div>
                       </TableCell>
-                      
+
                       <TableCell>
                         <span className="font-medium">{product.weight} kg</span>
                         {product.dimensions && (
-                          <div className="text-xs text-default-500">{product.dimensions}</div>
+                          <div className="text-xs text-default-500">
+                            {product.dimensions}
+                          </div>
                         )}
                       </TableCell>
-                      
+
                       <TableCell>
-                        <span className="font-medium">€{product.price.toFixed(2)}</span>
+                        <span className="font-medium">€{product.price}</span>
                       </TableCell>
-                      
+
                       <TableCell>
-                        {isSelected ? (
+                        {selectedProduct ? (
                           <Input
                             type="number"
                             size="sm"
                             min="1"
-                            max={product.quantity}
-                            value={selectedProduct?.selected_quantity?.toString() || "1"}
+                            max={product.stock_unit}
+                            value={selectedProduct.selected_quantity.toString()}
                             onChange={(e) => {
                               const quantity = parseInt(e.target.value);
                               if (!isNaN(quantity)) {
-                                handleQuantityChange(product.product_id, quantity);
+                                handleQuantityChange(
+                                  product.product_id,
+                                  quantity
+                                );
                               }
                             }}
                             className="w-20"
@@ -384,7 +482,7 @@ export default function ProductSelectionModal({
             )}
           </div>
         </ModalBody>
-        
+
         <ModalFooter>
           <Button variant="light" onPress={handleClose}>
             Annulla
@@ -392,7 +490,9 @@ export default function ProductSelectionModal({
           <Button
             color="primary"
             onPress={handleConfirm}
-            isDisabled={selectedProducts.size === 0 || (capacityWarning?.type === "danger")}
+            isDisabled={
+              selectedProducts.size === 0 || capacityWarning?.type === "danger"
+            }
             startContent={<Icon icon="solar:check-circle-bold" width={16} />}
           >
             Conferma Selezione ({selectedProducts.size})
