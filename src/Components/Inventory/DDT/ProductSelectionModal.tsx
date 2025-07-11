@@ -1,36 +1,36 @@
-import React, { useState, useMemo } from "react";
 import {
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Button,
-  Input,
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-  Chip,
-  Select,
-  SelectItem,
-  Checkbox,
   Badge,
+  Button,
   Card,
   CardBody,
-  Divider,
+  Checkbox,
+  Chip,
+  Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  Select,
+  SelectItem,
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import { useMemo, useState } from "react";
 
 interface Product {
-  product_id: string;
+  product_id: number;
   name: string;
   sku: string;
   weight: number;
   dimensions?: string;
   category: string;
+  category_id?: string;
   price: number;
   stock_unit: number;
   warehouse_name?: string;
@@ -46,10 +46,16 @@ interface SelectedProduct extends Product {
   notes?: string;
 }
 
+interface Category {
+  category_id: string;
+  category_name: string;
+}
+
 interface ProductSelectionModalProps {
   isOpen: boolean;
   onClose: () => void;
   products: Product[];
+  categories: Category[];
   onConfirm: (selectedProducts: SelectedProduct[]) => void;
   vehicleCapacity?: number;
 }
@@ -67,6 +73,7 @@ export default function ProductSelectionModal({
   isOpen,
   onClose,
   products,
+  categories,
   onConfirm,
   vehicleCapacity,
 }: ProductSelectionModalProps) {
@@ -77,11 +84,28 @@ export default function ProductSelectionModal({
   const [categoryFilter, setCategoryFilter] = useState<string>("all");
   const [showOnlyAvailable, setShowOnlyAvailable] = useState(true);
 
-  // Get unique categories
-  const categories = useMemo(() => {
-    const cats = [...new Set(products.map((p) => p.category))];
+  // Create category map
+  const categoryMap = useMemo(() => {
+    const map = new Map<string, string>();
+    categories.forEach((cat) => {
+      map.set(cat.category_id, cat.category_name);
+    });
+    return map;
+  }, [categories]);
+
+  // Get unique category names
+  const categoryNames = useMemo(() => {
+    const cats = [
+      ...new Set(
+        products.map((p) => {
+          // Se il prodotto ha category_id, usa quello, altrimenti usa category
+          const categoryId = p.category_id || p.category;
+          return categoryMap.get(categoryId) || categoryId;
+        })
+      ),
+    ];
     return cats.sort();
-  }, [products]);
+  }, [products, categoryMap]);
 
   // Filter products
   const filteredProducts = useMemo(() => {
@@ -92,8 +116,10 @@ export default function ProductSelectionModal({
         (product.brand &&
           product.brand.toLowerCase().includes(searchQuery.toLowerCase()));
 
+      const categoryId = product.category_id || product.category;
+      const productCategoryName = categoryMap.get(categoryId) || categoryId;
       const matchesCategory =
-        categoryFilter === "all" || product.category === categoryFilter;
+        categoryFilter === "all" || productCategoryName === categoryFilter;
       const hasStock = !showOnlyAvailable || product.stock_unit > 0;
 
       return matchesSearch && matchesCategory && hasStock;
@@ -118,21 +144,6 @@ export default function ProductSelectionModal({
       ),
     };
   }, [selectedProducts]);
-
-  const handleProductSelect = (product: Product, selected: boolean) => {
-    const newSelectedProducts = new Map(selectedProducts);
-
-    if (selected) {
-      newSelectedProducts.set(product.product_id, {
-        ...product,
-        selected_quantity: 1,
-      });
-    } else {
-      newSelectedProducts.delete(product.product_id);
-    }
-
-    setSelectedProducts(newSelectedProducts);
-  };
 
   const handleQuantityChange = (productId: string, quantity: number) => {
     const newSelectedProducts = new Map(selectedProducts);
@@ -159,9 +170,6 @@ export default function ProductSelectionModal({
     setCategoryFilter("all");
     onClose();
   };
-
-  const isProductSelected = (productId: string) =>
-    selectedProducts.has(productId);
 
   const getCapacityWarning = () => {
     if (!vehicleCapacity) return null;
@@ -231,9 +239,11 @@ export default function ProductSelectionModal({
                 className="w-48"
               >
                 <SelectItem key="all">Tutte le categorie</SelectItem>
-                {categories.map((category) => (
-                  <SelectItem key={category}>{category}</SelectItem>
-                ))}
+                <>
+                  {categoryNames.map((categoryName) => (
+                    <SelectItem key={categoryName}>{categoryName}</SelectItem>
+                  ))}
+                </>
               </Select>
 
               <div className="flex items-center gap-2">
@@ -322,38 +332,38 @@ export default function ProductSelectionModal({
                 )
               }
               onSelectionChange={(keys) => {
-                console.log("Selection changed:", keys);
-                console.log(
-                  "Filtered products IDs:",
-                  filteredProducts.map((p) => p.product_id)
-                );
                 const newSelectedProducts = new Map();
 
                 if (keys === "all") {
                   // Se "all" è selezionato, seleziona tutti i prodotti filtrati
                   filteredProducts.forEach((product) => {
+                    const existingProduct = selectedProducts.get(
+                      product.product_id.toString()
+                    );
                     newSelectedProducts.set(product.product_id.toString(), {
                       ...product,
-                      selected_quantity: 1,
+                      selected_quantity:
+                        existingProduct?.selected_quantity || 1,
                     });
                   });
                 } else {
                   // Altrimenti, gestisci le chiavi selezionate
                   Array.from(keys).forEach((key) => {
-                    console.log("Processing key:", key, "Type:", typeof key);
                     const product = filteredProducts.find(
-                      (p) => p.product_id === Number(key)
+                      (p) => p.product_id.toString() === key
                     );
-                    console.log("Found product:", product);
                     if (product) {
+                      const existingProduct = selectedProducts.get(
+                        key as string
+                      );
                       newSelectedProducts.set(key as string, {
                         ...product,
-                        selected_quantity: 1,
+                        selected_quantity:
+                          existingProduct?.selected_quantity || 1,
                       });
                     }
                   });
                 }
-                console.log("New selected products:", newSelectedProducts);
                 setSelectedProducts(newSelectedProducts);
               }}
               classNames={{
@@ -372,8 +382,9 @@ export default function ProductSelectionModal({
               <TableBody>
                 {filteredProducts.map((product) => {
                   const selectedProduct = selectedProducts.get(
-                    product.product_id
+                    product.product_id.toString()
                   );
+                  const categoryId = product.category_id || product.category;
 
                   return (
                     <TableRow key={product.product_id}>
@@ -394,13 +405,14 @@ export default function ProductSelectionModal({
                         <Chip
                           color={
                             categoryColors[
-                              product.category as keyof typeof categoryColors
+                              (categoryMap.get(categoryId) ||
+                                categoryId) as keyof typeof categoryColors
                             ] || "default"
                           }
                           size="sm"
                           variant="flat"
                         >
-                          {product.category}
+                          {categoryMap.get(categoryId) || categoryId}
                         </Chip>
                       </TableCell>
 
@@ -448,7 +460,7 @@ export default function ProductSelectionModal({
                               const quantity = parseInt(e.target.value);
                               if (!isNaN(quantity)) {
                                 handleQuantityChange(
-                                  product.product_id,
+                                  product.product_id.toString(),
                                   quantity
                                 );
                               }

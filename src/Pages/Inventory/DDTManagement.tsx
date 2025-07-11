@@ -1,5 +1,4 @@
 import {
-  Badge,
   Button,
   Card,
   CardBody,
@@ -31,11 +30,20 @@ import {
   useDisclosure,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import { parseDate } from "@internationalized/date";
+import { getLocalTimeZone, parseDate, today } from "@internationalized/date";
 import axios from "axios";
+import pdfMake from "pdfmake/build/pdfmake";
+import pdfFonts from "pdfmake/build/vfs_fonts";
 import { useEffect, useState } from "react";
 import ProductSelectionModal from "../../Components/Inventory/DDT/ProductSelectionModal";
 import PageHeader from "../../Components/Layout/PageHeader";
+
+// Inizializza i font per pdfmake
+if (typeof window !== "undefined") {
+  (pdfMake as any).vfs = (pdfFonts as any).pdfMake
+    ? (pdfFonts as any).pdfMake.vfs
+    : {};
+}
 
 // Interfaces
 interface Vehicle {
@@ -48,7 +56,7 @@ interface Vehicle {
 }
 
 interface Product {
-  product_id: string;
+  product_id: number;
   name: string;
   sku: string;
   weight: number;
@@ -58,8 +66,13 @@ interface Product {
   stock_unit: number;
 }
 
+interface Category {
+  category_id: string;
+  category_name: string;
+}
+
 interface DDTItem {
-  product_id: string;
+  product_id: number;
   name: string;
   sku: string;
   quantity: number;
@@ -71,7 +84,7 @@ interface DDTItem {
 }
 
 interface DDT {
-  ddt_id: string;
+  DDT_id: string;
   document_id: string;
   date: string;
   vehicle_id: string;
@@ -126,6 +139,7 @@ export default function DDTManagement() {
   const [ddts, setDDTs] = useState<DDT[]>([]);
   const [vehicles, setVehicles] = useState<Vehicle[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -173,7 +187,6 @@ export default function DDTManagement() {
       // Load DDTs
       const ddtResponse = await axios.get("/Document/GET/GetAllDDT");
       if (ddtResponse.status === 200) {
-        console.log("DDTs caricati:", ddtResponse.data);
         setDDTs(ddtResponse.data || []);
       } else {
         console.error("Errore nel caricamento DDTs:", ddtResponse.statusText);
@@ -193,7 +206,6 @@ export default function DDTManagement() {
       // Load products
       const productResponse = await axios.get("/Product/GET/GetAllProducts");
       if (productResponse.status === 200) {
-        console.log("Prodotti caricati:", productResponse.data);
         setProducts(productResponse.data || []);
       } else {
         console.error(
@@ -202,8 +214,35 @@ export default function DDTManagement() {
         );
       }
 
+      // Load categories
+      const categoryResponse = await axios.get("/Product/GET/GetAllCategories");
+      if (categoryResponse.status === 200) {
+        // Estrai le coppie uniche di category_id e category_name
+        const uniqueCategories = new Map();
+        categoryResponse.data.forEach((item: any) => {
+          if (item.category_id && item.category_name) {
+            uniqueCategories.set(item.category_id, item.category_name);
+          }
+        });
+
+        // Converti in array di oggetti Category
+        const categoriesArray = Array.from(uniqueCategories.entries()).map(
+          ([category_id, category_name]) => ({
+            category_id,
+            category_name,
+          })
+        );
+
+        setCategories(categoriesArray);
+      } else {
+        console.error(
+          "Errore nel caricamento categorie:",
+          categoryResponse.statusText
+        );
+      }
+
       // Load customers
-      const customerResponse = await axios.get("/Customer/GET/GetAllCustomers");
+      /*const customerResponse = await axios.get("/Customer/GET/GetAllCustomers");
       if (customerResponse.status === 200) {
         setCustomers(customerResponse.data || []);
       } else {
@@ -211,7 +250,7 @@ export default function DDTManagement() {
           "Errore nel caricamento clienti:",
           customerResponse.statusText
         );
-      }
+      }*/
     } catch (error) {
       console.error("Errore nel caricamento dati:", error);
       // Load mock data for development
@@ -315,34 +354,15 @@ export default function DDTManagement() {
 
   // Handle DDT status update
   const updateDDTStatus = async (ddtId: string, newStatus: DDT["status"]) => {
+    console.log(ddtId, newStatus);
     try {
-      await axios.put(`/DDT/PUT/UpdateDDTStatus/${ddtId}`, {
+      await axios.put(`/Document/UPDATE/UpdateDDTStatus`, {
+        DDT_id: ddtId,
         status: newStatus,
       });
       loadData();
     } catch (error) {
       console.error("Errore nell'aggiornamento stato DDT:", error);
-    }
-  };
-
-  // Generate PDF
-  const generatePDF = async (ddt: DDT) => {
-    try {
-      const response = await axios.get(`/DDT/GET/GeneratePDF/${ddt.ddt_id}`, {
-        responseType: "blob",
-      });
-
-      const blob = new Blob([response.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `${ddt.document_id}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
-    } catch (error) {
-      console.error("Errore nella generazione PDF:", error);
     }
   };
 
@@ -353,6 +373,119 @@ export default function DDTManagement() {
       </div>
     );
   }
+
+  function generateDDTPdf(ddt: DDT) {
+    const docDefinition = {
+      content: [
+        // Intestazione azienda
+        {
+          columns: [
+            [
+              { text: "Arredufficio Srl", style: "header" },
+              {
+                text: "Via Crocicchio, 12 - 50018 Tavarnelle (FI) - Italy",
+                style: "small",
+              },
+              { text: "Tel. 011-358475 - Fax 011-358479", style: "small" },
+              { text: "e-mail: arredoufficio@arredufficio.it", style: "small" },
+              { text: "C.F./P. Iva 01314810120", style: "small" },
+            ],
+            [
+              // Qui puoi inserire un logo se vuoi, vedi pdfmake immagini base64
+            ],
+          ],
+        },
+        {
+          text: "Doc. di trasporto",
+          style: "subheader",
+          margin: [0, 20, 0, 0],
+        },
+        {
+          text: `n. ${ddt.document_id} del ${new Date(
+            ddt.date
+          ).toLocaleDateString("it-IT")}`,
+          margin: [0, 0, 0, 10],
+        },
+
+        // Mittente/Destinatario
+        {
+          columns: [
+            [
+              { text: "Mittente", bold: true, margin: [0, 10, 0, 2] },
+              { text: "Tua Azienda", style: "small" },
+              { text: "Indirizzo partenza:", style: "small" },
+              { text: ddt.departure_address, style: "small" },
+            ],
+            [
+              { text: "Destinatario", bold: true, margin: [0, 10, 0, 2] },
+              { text: ddt.customer_name, style: "small" },
+              { text: ddt.destination_address, style: "small" },
+            ],
+          ],
+        },
+
+        // Tabella prodotti
+        {
+          style: "tableExample",
+          table: {
+            widths: [40, "*", 40, 50, 50, 30],
+            body: [
+              [
+                { text: "Codice", bold: true },
+                { text: "Descrizione", bold: true },
+                { text: "Quantità", bold: true },
+                { text: "Prezzo", bold: true },
+                { text: "Importo", bold: true },
+                { text: "IVA", bold: true },
+              ],
+              ...ddt.items.map((item: DDTItem) => [
+                item.sku,
+                item.name,
+                item.quantity,
+                `€${item.unit_price}`,
+                `€${item.total_price}`,
+                "22",
+              ]),
+            ],
+          },
+        },
+
+        // Totali
+        {
+          columns: [
+            { width: "*", text: "" },
+            {
+              width: "auto",
+              table: {
+                body: [
+                  ["Totale imponibile", `€${ddt.total_value}`],
+                  ["Totale IVA", `€${ddt.total_value * 0.22}`],
+                  [
+                    "Totale documento",
+                    `€${(ddt.total_value * 1.22).toFixed(2)}`,
+                  ],
+                ],
+              },
+              layout: "noBorders",
+            },
+          ],
+          margin: [0, 20, 0, 0],
+        },
+      ],
+      styles: {
+        header: { fontSize: 16, bold: true },
+        subheader: { fontSize: 13, bold: true },
+        small: { fontSize: 9 },
+        tableExample: { margin: [0, 20, 0, 10] },
+      },
+    };
+
+    (pdfMake as any)
+      .createPdf(docDefinition)
+      .download(`${ddt.document_id}.pdf`);
+  }
+
+  console.log(filteredDDTs[0].DDT_id);
 
   return (
     <div className="w-full flex flex-col p-4 gap-6 min-h-screen">
@@ -404,9 +537,6 @@ export default function DDTManagement() {
       <Card>
         <CardHeader>
           <h3 className="text-lg font-semibold">Documenti di Trasporto</h3>
-          <Badge color="primary" variant="flat">
-            {filteredDDTs.length} DDT
-          </Badge>
         </CardHeader>
         <CardBody>
           <Table aria-label="Tabella DDT">
@@ -423,7 +553,7 @@ export default function DDTManagement() {
             </TableHeader>
             <TableBody>
               {filteredDDTs.map((ddt) => (
-                <TableRow key={ddt.ddt_id}>
+                <TableRow key={ddt.DDT_id}>
                   <TableCell>
                     <div className="font-medium">{ddt.document_id}</div>
                   </TableCell>
@@ -499,7 +629,7 @@ export default function DDTManagement() {
                             startContent={
                               <Icon icon="solar:file-text-bold" width={16} />
                             }
-                            onPress={() => generatePDF(ddt)}
+                            onPress={() => generateDDTPdf(ddt)}
                           >
                             Genera PDF
                           </DropdownItem>
@@ -513,7 +643,7 @@ export default function DDTManagement() {
                                 />
                               }
                               onPress={() =>
-                                updateDDTStatus(ddt.ddt_id, "confirmed")
+                                updateDDTStatus(ddt.DDT_id, "confirmed")
                               }
                             >
                               Conferma
@@ -526,7 +656,7 @@ export default function DDTManagement() {
                                 <Icon icon="solar:delivery-bold" width={16} />
                               }
                               onPress={() =>
-                                updateDDTStatus(ddt.ddt_id, "in_transit")
+                                updateDDTStatus(ddt.DDT_id, "in_transit")
                               }
                             >
                               Avvia Trasporto
@@ -542,7 +672,7 @@ export default function DDTManagement() {
                                 />
                               }
                               onPress={() =>
-                                updateDDTStatus(ddt.ddt_id, "delivered")
+                                updateDDTStatus(ddt.DDT_id, "delivered")
                               }
                             >
                               Segna Consegnato
@@ -578,8 +708,12 @@ export default function DDTManagement() {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <DatePicker
                   label="Data DDT"
-                  value={newDDT.date ? parseDate(newDDT.date) : null}
-                  onChange={(date) => {
+                  value={
+                    newDDT.date
+                      ? (parseDate(newDDT.date) as any)
+                      : (today(getLocalTimeZone()) as any)
+                  }
+                  onChange={(date: any) => {
                     if (date) {
                       const dateString = `${date.year}-${String(
                         date.month
@@ -946,13 +1080,21 @@ export default function DDTManagement() {
                         <div className="flex justify-between">
                           <span>Peso Totale:</span>
                           <span className="font-medium">
-                            {selectedDDT.total_weight} kg
+                            {selectedDDT.items.reduce(
+                              (sum, item) => sum + item.weight * item.quantity,
+                              0
+                            )}{" "}
+                            kg
                           </span>
                         </div>
                         <div className="flex justify-between">
                           <span>Valore Totale:</span>
                           <span className="font-medium">
-                            €{selectedDDT.total_value}
+                            €
+                            {selectedDDT.items.reduce(
+                              (sum, item) => sum + item.total_price,
+                              0
+                            )}
                           </span>
                         </div>
                       </div>
@@ -1011,7 +1153,7 @@ export default function DDTManagement() {
                 <Button
                   color="primary"
                   startContent={<Icon icon="solar:file-text-bold" width={16} />}
-                  onPress={() => generatePDF(selectedDDT)}
+                  onPress={() => generateDDTPdf(selectedDDT)}
                 >
                   Genera PDF
                 </Button>
@@ -1026,6 +1168,7 @@ export default function DDTManagement() {
         isOpen={isProductModalOpen}
         onClose={onProductModalClose}
         products={products}
+        categories={categories}
         onConfirm={handleProductsSelection}
         vehicleCapacity={
           newDDT.vehicle_id
