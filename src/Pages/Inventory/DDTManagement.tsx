@@ -375,114 +375,335 @@ export default function DDTManagement() {
   }
 
   function generateDDTPdf(ddt: DDT) {
-    const docDefinition = {
-      content: [
-        // Intestazione azienda
-        {
-          columns: [
-            [
-              { text: "Arredufficio Srl", style: "header" },
-              {
-                text: "Via Crocicchio, 12 - 50018 Tavarnelle (FI) - Italy",
-                style: "small",
-              },
-              { text: "Tel. 011-358475 - Fax 011-358479", style: "small" },
-              { text: "e-mail: arredoufficio@arredufficio.it", style: "small" },
-              { text: "C.F./P. Iva 01314810120", style: "small" },
-            ],
-            [
-              // Qui puoi inserire un logo se vuoi, vedi pdfmake immagini base64
-            ],
-          ],
-        },
-        {
-          text: "Doc. di trasporto",
-          style: "subheader",
-          margin: [0, 20, 0, 0],
-        },
-        {
-          text: `n. ${ddt.document_id} del ${new Date(
-            ddt.date
-          ).toLocaleDateString("it-IT")}`,
-          margin: [0, 0, 0, 10],
-        },
+    try {
+      console.log('Generazione PDF per DDT:', ddt.document_id);
+      
+      // Calcola i totali con controlli di sicurezza
+      const imponibile = Number(ddt.total_value) || 0;
+      const iva = Number(imponibile) * 0.22;
+      const totale = Number(imponibile) + Number(iva);
+      const peso_totale = ddt.items ? ddt.items.reduce((sum, item) => {
+        const weight = Number(item.weight) || 0;
+        const quantity = Number(item.quantity) || 0;
+        return sum + (weight * quantity);
+      }, 0) : 0;
 
-        // Mittente/Destinatario
-        {
-          columns: [
-            [
-              { text: "Mittente", bold: true, margin: [0, 10, 0, 2] },
-              { text: "Tua Azienda", style: "small" },
-              { text: "Indirizzo partenza:", style: "small" },
-              { text: ddt.departure_address, style: "small" },
-            ],
-            [
-              { text: "Destinatario", bold: true, margin: [0, 10, 0, 2] },
-              { text: ddt.customer_name, style: "small" },
-              { text: ddt.destination_address, style: "small" },
-            ],
-          ],
-        },
-
-        // Tabella prodotti
-        {
-          style: "tableExample",
-          table: {
-            widths: [40, "*", 40, 50, 50, 30],
-            body: [
-              [
-                { text: "Codice", bold: true },
-                { text: "Descrizione", bold: true },
-                { text: "Quantità", bold: true },
-                { text: "Prezzo", bold: true },
-                { text: "Importo", bold: true },
-                { text: "IVA", bold: true },
-              ],
-              ...ddt.items.map((item: DDTItem) => [
-                item.sku,
-                item.name,
-                item.quantity,
-                `€${item.unit_price}`,
-                `€${item.total_price}`,
-                "22",
-              ]),
-            ],
+      const docDefinition = {
+        pageSize: 'A4',
+        pageMargins: [40, 40, 40, 40],
+        content: [
+          // Titolo del documento
+          {
+            text: 'DOCUMENTO DI TRASPORTO',
+            style: 'title',
+            alignment: 'center',
+            margin: [0, 0, 0, 20]
           },
-        },
 
-        // Totali
-        {
-          columns: [
-            { width: "*", text: "" },
-            {
-              width: "auto",
-              table: {
-                body: [
-                  ["Totale imponibile", `€${ddt.total_value}`],
-                  ["Totale IVA", `€${ddt.total_value * 0.22}`],
-                  [
-                    "Totale documento",
-                    `€${(ddt.total_value * 1.22).toFixed(2)}`,
-                  ],
+          // Intestazione azienda e numero documento
+          {
+            columns: [
+              [
+                { text: "Arredufficio Srl", style: "companyName" },
+                { text: "Via Crocicchio, 12 - 50018 Tavarnelle (FI)", style: "companyInfo" },
+                { text: "Tel. 011-358475 - Fax 011-358479", style: "companyInfo" },
+                { text: "e-mail: arredoufficio@arredufficio.it", style: "companyInfo" },
+                { text: "C.F./P. Iva 01314810120", style: "companyInfo" },
+              ],
+              [
+                { text: `DDT N° ${ddt.document_id}`, style: "documentNumber" },
+                { text: `Data: ${new Date(ddt.date).toLocaleDateString("it-IT")}`, style: "documentInfo" },
+                { text: `Stato: ${statusLabels[ddt.status]}`, style: "documentInfo" },
+              ],
+            ],
+            margin: [0, 0, 0, 20]
+          },
+
+          // Informazioni veicolo e autista
+          {
+            columns: [
+              [
+                { text: "VEICOLO", style: "sectionTitle" },
+                { text: `${ddt.name} - ${ddt.license_plate}`, style: "sectionContent" },
+              ],
+              [
+                { text: "AUTISTA", style: "sectionTitle" },
+                { text: ddt.driver_name || "Non specificato", style: "sectionContent" },
+                ...(ddt.driver_phone ? [{ text: `Tel: ${ddt.driver_phone}`, style: "sectionContent" }] : [])
+              ],
+            ],
+            margin: [0, 0, 0, 15]
+          },
+
+          // Mittente e destinatario
+          {
+            columns: [
+              [
+                { text: "MITTENTE", style: "sectionTitle" },
+                { text: "Arredufficio Srl", style: "sectionContent" },
+                { text: "Indirizzo di partenza:", style: "sectionLabel" },
+                { text: ddt.departure_address || "Non specificato", style: "sectionContent" },
+              ],
+              [
+                { text: "DESTINATARIO", style: "sectionTitle" },
+                { text: ddt.customer_name || "Non specificato", style: "sectionContent" },
+                ...(ddt.customer_vat ? [{ text: `P.IVA: ${ddt.customer_vat}`, style: "sectionContent" }] : []),
+                ...(ddt.customer_phone ? [{ text: `Tel: ${ddt.customer_phone}`, style: "sectionContent" }] : []),
+                { text: "Indirizzo di destinazione:", style: "sectionLabel" },
+                { text: ddt.destination_address || "Non specificato", style: "sectionContent" },
+              ],
+            ],
+            margin: [0, 0, 0, 20]
+          },
+
+          // Tabella prodotti
+          {
+            text: "ARTICOLI TRASPORTATI",
+            style: "sectionTitle",
+            margin: [0, 0, 0, 10]
+          },
+          {
+            table: {
+              headerRows: 1,
+              widths: ['15%', '40%', '10%', '12%', '12%', '11%'],
+              body: [
+                [
+                  { text: "Codice", style: "tableHeader" },
+                  { text: "Descrizione", style: "tableHeader" },
+                  { text: "Q.tà", style: "tableHeader" },
+                  { text: "Peso (kg)", style: "tableHeader" },
+                  { text: "Prezzo Unit.", style: "tableHeader" },
+                  { text: "Importo", style: "tableHeader" },
                 ],
-              },
-              layout: "noBorders",
+                ...(ddt.items && ddt.items.length > 0 ? ddt.items.map((item: DDTItem) => {
+                  const weight = Number(item.weight) || 0;
+                  const quantity = Number(item.quantity) || 0;
+                  const unitPrice = Number(item.unit_price) || 0;
+                  const totalPrice = Number(item.total_price) || 0;
+                  
+                  return [
+                    { text: item.sku || "N/A", style: "tableCell" },
+                    { text: item.name || "N/A", style: "tableCell" },
+                    { text: quantity.toString(), style: "tableCell" },
+                    { text: (weight * quantity).toFixed(2), style: "tableCell" },
+                    { text: `€${unitPrice.toFixed(2)}`, style: "tableCell" },
+                    { text: `€${totalPrice.toFixed(2)}`, style: "tableCell" },
+                  ];
+                }) : [
+                  [
+                    { text: "Nessun articolo", colSpan: 6, style: "tableCell", alignment: 'center' },
+                    "", "", "", "", ""
+                  ]
+                ])
+              ],
             },
-          ],
-          margin: [0, 20, 0, 0],
-        },
-      ],
-      styles: {
-        header: { fontSize: 16, bold: true },
-        subheader: { fontSize: 13, bold: true },
-        small: { fontSize: 9 },
-        tableExample: { margin: [0, 20, 0, 10] },
-      },
-    };
+            layout: {
+              hLineWidth: function() { return 0.5; },
+              vLineWidth: function() { return 0.5; },
+              hLineColor: function() { return '#aaa'; },
+              vLineColor: function() { return '#aaa'; },
+              fillColor: function(rowIndex: any) {
+                return (rowIndex === 0) ? '#f0f0f0' : null;
+              }
+            },
+            margin: [0, 0, 0, 20]
+          },
 
-    (pdfMake as any)
-      .createPdf(docDefinition)
-      .download(`${ddt.document_id}.pdf`);
+          // Totali
+          {
+            columns: [
+              { width: "*", text: "" },
+              {
+                width: "auto",
+                table: {
+                  body: [
+                                      [
+                    { text: "Peso Totale:", style: "totalLabel" },
+                    { text: `${Number(peso_totale).toFixed(2)} kg`, style: "totalValue" }
+                  ],
+                  [
+                    { text: "Totale Imponibile:", style: "totalLabel" },
+                    { text: `€${Number(imponibile).toFixed(2)}`, style: "totalValue" }
+                  ],
+                  [
+                    { text: "IVA (22%):", style: "totalLabel" },
+                    { text: `€${Number(iva).toFixed(2)}`, style: "totalValue" }
+                  ],
+                  [
+                    { text: "TOTALE DOCUMENTO:", style: "totalLabelBold" },
+                    { text: `€${Number(totale).toFixed(2)}`, style: "totalValueBold" }
+                  ],
+                  ],
+                },
+                layout: "noBorders",
+              },
+            ],
+            margin: [0, 0, 0, 20]
+          },
+
+          // Informazioni aggiuntive
+          ...(ddt.departure_time || ddt.arrival_time ? [{
+            columns: [
+              ...(ddt.departure_time ? [{
+                text: [
+                  { text: "Ora Partenza: ", style: "infoLabel" },
+                  { text: ddt.departure_time, style: "infoValue" }
+                ]
+              }] : []),
+              ...(ddt.arrival_time ? [{
+                text: [
+                  { text: "Ora Arrivo: ", style: "infoLabel" },
+                  { text: ddt.arrival_time, style: "infoValue" }
+                ]
+              }] : [])
+            ],
+            margin: [0, 0, 0, 10]
+          }] : []),
+
+          // Note di consegna
+          ...(ddt.delivery_notes ? [{
+            text: [
+              { text: "Note di Consegna: ", style: "infoLabel" },
+              { text: ddt.delivery_notes, style: "infoValue" }
+            ],
+            margin: [0, 0, 0, 20]
+          }] : []),
+
+          // Spazio per firme
+          {
+            columns: [
+              {
+                text: "Firma Autista",
+                style: "signatureLabel",
+                alignment: 'center'
+              },
+              {
+                text: "Firma Destinatario",
+                style: "signatureLabel",
+                alignment: 'center'
+              }
+            ],
+            margin: [0, 30, 0, 0]
+          },
+          {
+            columns: [
+              {
+                canvas: [{ type: 'line', x1: 0, y1: 0, x2: 150, y2: 0, lineWidth: 1 }],
+                alignment: 'center'
+              },
+              {
+                canvas: [{ type: 'line', x1: 0, y1: 0, x2: 150, y2: 0, lineWidth: 1 }],
+                alignment: 'center'
+              }
+            ],
+            margin: [0, 5, 0, 0]
+          }
+        ],
+        styles: {
+          title: { 
+            fontSize: 18, 
+            bold: true, 
+            color: '#2c3e50'
+          },
+          companyName: { 
+            fontSize: 14, 
+            bold: true, 
+            color: '#2c3e50',
+            margin: [0, 0, 0, 5]
+          },
+          companyInfo: { 
+            fontSize: 9, 
+            color: '#34495e',
+            margin: [0, 0, 0, 2]
+          },
+          documentNumber: { 
+            fontSize: 12, 
+            bold: true, 
+            color: '#2c3e50',
+            alignment: 'right',
+            margin: [0, 0, 0, 5]
+          },
+          documentInfo: { 
+            fontSize: 9, 
+            color: '#34495e',
+            alignment: 'right',
+            margin: [0, 0, 0, 2]
+          },
+          sectionTitle: { 
+            fontSize: 11, 
+            bold: true, 
+            color: '#2c3e50',
+            margin: [0, 0, 0, 5]
+          },
+          sectionContent: { 
+            fontSize: 9, 
+            color: '#34495e',
+            margin: [0, 0, 0, 2]
+          },
+          sectionLabel: { 
+            fontSize: 8, 
+            color: '#7f8c8d',
+            margin: [0, 5, 0, 2]
+          },
+          tableHeader: { 
+            fontSize: 8, 
+            bold: true, 
+            color: '#2c3e50',
+            alignment: 'center'
+          },
+          tableCell: { 
+            fontSize: 8, 
+            color: '#34495e',
+            alignment: 'center'
+          },
+          totalLabel: { 
+            fontSize: 9, 
+            color: '#2c3e50'
+          },
+          totalValue: { 
+            fontSize: 9, 
+            bold: true, 
+            color: '#2c3e50',
+            alignment: 'right'
+          },
+          totalLabelBold: { 
+            fontSize: 10, 
+            bold: true, 
+            color: '#2c3e50'
+          },
+          totalValueBold: { 
+            fontSize: 10, 
+            bold: true, 
+            color: '#2c3e50',
+            alignment: 'right'
+          },
+          infoLabel: { 
+            fontSize: 9, 
+            bold: true, 
+            color: '#2c3e50'
+          },
+          infoValue: { 
+            fontSize: 9, 
+            color: '#34495e'
+          },
+          signatureLabel: { 
+            fontSize: 9, 
+            color: '#7f8c8d'
+          }
+        }
+      };
+
+      console.log('Definizione documento creata, generazione PDF...');
+      
+      (pdfMake as any)
+        .createPdf(docDefinition)
+        .download(`DDT_${ddt.document_id}_${new Date(ddt.date).toISOString().split('T')[0]}.pdf`);
+        
+      console.log('PDF generato con successo!');
+    } catch (error) {
+      console.error('Errore nella generazione del PDF:', error);
+      alert('Errore nella generazione del PDF. Controlla la console per i dettagli.');
+    }
   }
 
   console.log(filteredDDTs[0].DDT_id);
