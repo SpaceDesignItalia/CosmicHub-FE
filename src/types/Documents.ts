@@ -22,10 +22,11 @@ export interface BaseDocument {
 
 // Documenti Veicoli
 export interface VehicleDocument extends BaseDocument {
+  document_id: string;
   vehicle_id: string;
-  vehicle_plate: string;
+  vehicle_license_plate: string;
   vehicle_name?: string;
-  document_type: 
+  document_type:
     | "insurance" // Assicurazione
     | "inspection" // Revisione
     | "maintenance" // Tagliando/Manutenzione
@@ -40,6 +41,8 @@ export interface VehicleDocument extends BaseDocument {
   provider?: string; // Assicurazione/officina/ente
   certificate_number?: string;
   renewal_automatic?: boolean;
+  status: "active" | "expired" | "expiring_soon" | "draft" | "cancelled";
+  file_path: string;
 }
 
 // Documenti Azienda/Magazzino
@@ -118,7 +121,10 @@ export interface DocumentReminder {
 // Configurazione Reminder
 export interface ReminderConfig {
   id: string;
-  document_type: VehicleDocument["document_type"] | CompanyDocument["document_type"] | EmployeeDocument["document_type"];
+  document_type:
+    | VehicleDocument["document_type"]
+    | CompanyDocument["document_type"]
+    | EmployeeDocument["document_type"];
   entity_type: "vehicle" | "company" | "employee";
   reminder_days: number[]; // Es. [60, 30, 15, 7, 1]
   reminder_methods: ("email" | "notification" | "dashboard" | "sms")[];
@@ -192,4 +198,4 @@ export interface DocumentUploadRequest {
   certificate_number?: string;
   provider?: string;
   cost?: number;
-} 
+}
