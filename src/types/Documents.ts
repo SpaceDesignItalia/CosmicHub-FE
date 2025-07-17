@@ -47,6 +47,7 @@ export interface VehicleDocument extends BaseDocument {
 
 // Documenti Azienda/Magazzino
 export interface CompanyDocument extends BaseDocument {
+  document_id: string;
   facility_id?: string; // ID magazzino/sede se specifico
   facility_name?: string;
   document_type:
@@ -69,6 +70,8 @@ export interface CompanyDocument extends BaseDocument {
   license_number?: string;
   renewal_required?: boolean;
   compliance_area?: string; // Area di conformità (sicurezza, ambiente, qualità, ecc.)
+  status: "active" | "expired" | "expiring_soon" | "draft" | "cancelled";
+  file_path: string;
 }
 
 // Documenti Dipendenti

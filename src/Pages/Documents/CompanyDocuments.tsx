@@ -1,54 +1,56 @@
-import React, { useState, useEffect } from "react";
 import {
-  Card,
-  CardHeader,
-  CardBody,
+  Avatar,
   Button,
+  Card,
+  CardBody,
+  CardHeader,
+  Chip,
+  DatePicker,
+  Dropdown,
+  DropdownItem,
+  DropdownMenu,
+  DropdownTrigger,
   Input,
+  Modal,
+  ModalBody,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  Progress,
   Select,
   SelectItem,
-  Table,
-  TableHeader,
-  TableColumn,
-  TableBody,
-  TableRow,
-  TableCell,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
-  Chip,
-  Badge,
-  Tooltip,
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-  DatePicker,
-  Textarea,
   Spinner,
-  Progress,
-  Divider,
-  Tabs,
   Tab,
-  Avatar,
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
+  Tabs,
+  Textarea,
+  Tooltip,
+  useDisclosure,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import axios from "axios";
 import { parseDate } from "@internationalized/date";
+import axios from "axios";
+import { useEffect, useState } from "react";
 import PageHeader from "../../Components/Layout/PageHeader";
-import { CompanyDocument, DocumentFilters, DocumentUploadRequest } from "../../types/Documents";
+import type {
+  CompanyDocument,
+  DocumentFilters,
+  DocumentUploadRequest,
+} from "../../types/Documents";
 
 interface Warehouse {
-  warehouse_id: string;
-  name: string;
-  location: string;
+  WarehouseID: string;
+  WarehouseName: string;
+  WarehouseAddress: string;
   WarehouseCode?: string;
 }
 
-const documentTypeLabels = {
+const documentTypeLabels: Record<string, string> = {
   business_license: "Licenza Commerciale",
   tax_registration: "Registrazione Fiscale",
   safety_certification: "Certificazione Sicurezza",
@@ -66,7 +68,7 @@ const documentTypeLabels = {
   other: "Altro",
 };
 
-const complianceAreaLabels = {
+const complianceAreaLabels: Record<string, string> = {
   safety: "Sicurezza",
   environment: "Ambiente",
   quality: "Qualità",
@@ -105,23 +107,73 @@ export default function CompanyDocuments() {
   });
 
   // Modals
-  const { isOpen: isUploadModalOpen, onOpen: onUploadModalOpen, onClose: onUploadModalClose } = useDisclosure();
-  const { isOpen: isViewModalOpen, onOpen: onViewModalOpen, onClose: onViewModalClose } = useDisclosure();
-  const [selectedDocument, setSelectedDocument] = useState<CompanyDocument | null>(null);
+  const {
+    isOpen: isUploadModalOpen,
+    onOpen: onUploadModalOpen,
+    onClose: onUploadModalClose,
+  } = useDisclosure();
+  const {
+    isOpen: isViewModalOpen,
+    onOpen: onViewModalOpen,
+    onClose: onViewModalClose,
+  } = useDisclosure();
+  const {
+    isOpen: isEditModalOpen,
+    onOpen: onEditModalOpen,
+    onClose: onEditModalClose,
+  } = useDisclosure();
+  const {
+    isOpen: isDeleteModalOpen,
+    onOpen: onDeleteModalOpen,
+    onClose: onDeleteModalClose,
+  } = useDisclosure();
+  const [selectedDocument, setSelectedDocument] =
+    useState<CompanyDocument | null>(null);
+  const [documentToDelete, setDocumentToDelete] =
+    useState<CompanyDocument | null>(null);
 
   // Upload form
-  const [uploadForm, setUploadForm] = useState<Partial<DocumentUploadRequest & { 
-    compliance_area?: string;
-    authority?: string;
-    license_number?: string;
-    renewal_required?: boolean;
-  }>>({
+  const [uploadForm, setUploadForm] = useState<
+    Partial<
+      DocumentUploadRequest & {
+        compliance_area?: string;
+        authority?: string;
+        license_number?: string;
+        renewal_required?: boolean;
+      }
+    >
+  >({
     entity_type: "company",
     reminder_days: [60, 30, 15, 7],
   });
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Edit form
+  const [editForm, setEditForm] = useState<{
+    title?: string;
+    document_type?: string;
+    entity_id?: string;
+    issue_date?: string;
+    expiry_date?: string;
+    authority?: string;
+    license_number?: string;
+    compliance_area?: string;
+    notes?: string;
+    reminder_days?: number[];
+    file_path?: string;
+  }>({});
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [fileChanged, setFileChanged] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Helper function per formattare le date
+  const formatDateForPicker = (dateString?: string) => {
+    if (!dateString) return undefined;
+    return new Date(dateString).toISOString().split("T")[0];
+  };
 
   // Load data
   useEffect(() => {
@@ -132,126 +184,33 @@ export default function CompanyDocuments() {
     setIsLoading(true);
     try {
       // Load warehouses
-      const warehouseResponse = await axios.get("/Warehouse/GET/GetAllWarehouses");
+      const warehouseResponse = await axios.get(
+        "/Warehouse/GET/GetAllWarehouses"
+      );
       setWarehouses(warehouseResponse.data || []);
 
       // Load company documents
-      const documentsResponse = await axios.get("/Documents/Company/GET/GetAllCompanyDocuments");
+      const documentsResponse = await axios.get(
+        "/Document/GET/GetAllCompanyDocuments"
+      );
       setDocuments(documentsResponse.data || []);
     } catch (error) {
       console.error("Errore nel caricamento dati:", error);
-      // Load mock data for development
-      loadMockData();
     } finally {
       setIsLoading(false);
     }
   };
 
-  const loadMockData = () => {
-    const mockWarehouses: Warehouse[] = [
-      { warehouse_id: "1", name: "Magazzino Centrale Milano", location: "Milano", WarehouseCode: "MC01" },
-      { warehouse_id: "2", name: "Deposito Roma Sud", location: "Roma", WarehouseCode: "RS02" },
-    ];
-
-    const mockDocuments: CompanyDocument[] = [
-      {
-        id: "1",
-        title: "Licenza Commerciale CosmicHub",
-        document_type: "business_license",
-        issue_date: "2024-01-01",
-        expiry_date: "2025-01-01",
-        status: "active",
-        authority: "Camera di Commercio di Milano",
-        license_number: "LC2024001",
-        renewal_required: true,
-        compliance_area: "legal",
-        created_at: "2024-01-01T10:00:00Z",
-        updated_at: "2024-01-01T10:00:00Z",
-        created_by: "admin",
-        reminder_days: [60, 30, 15, 7],
-      },
-      {
-        id: "2",
-        title: "Certificazione Sicurezza Magazzino Milano",
-        document_type: "safety_certification",
-        facility_id: "1",
-        facility_name: "Magazzino Centrale Milano",
-        issue_date: "2024-03-15",
-        expiry_date: "2025-03-15",
-        status: "expiring_soon",
-        authority: "ASL Milano",
-        license_number: "SAFE2024015",
-        renewal_required: true,
-        compliance_area: "safety",
-        created_at: "2024-03-15T14:30:00Z",
-        updated_at: "2024-03-15T14:30:00Z",
-        created_by: "safety_manager",
-        reminder_days: [60, 30, 15, 7, 1],
-      },
-      {
-        id: "3",
-        title: "Polizza RC Generale 2024",
-        document_type: "insurance_policy",
-        issue_date: "2024-01-01",
-        expiry_date: "2024-12-31",
-        status: "expired",
-        authority: "Generali Assicurazioni",
-        license_number: "POL2024GEN001",
-        renewal_required: true,
-        compliance_area: "legal",
-        created_at: "2024-01-01T09:00:00Z",
-        updated_at: "2024-01-01T09:00:00Z",
-        created_by: "admin",
-        cost: 5500,
-        reminder_days: [30, 15, 7, 1],
-      },
-      {
-        id: "4",
-        title: "Certificazione ISO 9001:2015",
-        document_type: "iso_certification",
-        issue_date: "2023-06-01",
-        expiry_date: "2026-06-01",
-        status: "active",
-        authority: "RINA Services",
-        license_number: "ISO9001-2023-001",
-        renewal_required: true,
-        compliance_area: "quality",
-        created_at: "2023-06-01T10:00:00Z",
-        updated_at: "2023-06-01T10:00:00Z",
-        created_by: "quality_manager",
-        cost: 3200,
-        reminder_days: [180, 90, 30, 15],
-      },
-      {
-        id: "5",
-        title: "Autorizzazione Smaltimento Rifiuti Speciali",
-        document_type: "waste_disposal",
-        facility_id: "1",
-        facility_name: "Magazzino Centrale Milano",
-        issue_date: "2024-02-01",
-        expiry_date: "2025-02-01",
-        status: "active",
-        authority: "Regione Lombardia",
-        license_number: "WD2024001",
-        renewal_required: true,
-        compliance_area: "environment",
-        created_at: "2024-02-01T11:00:00Z",
-        updated_at: "2024-02-01T11:00:00Z",
-        created_by: "env_manager",
-        cost: 450,
-        reminder_days: [60, 30, 15, 7],
-      },
-    ];
-
-    setWarehouses(mockWarehouses);
-    setDocuments(mockDocuments);
-  };
-
   // Filter documents
-  const filteredDocuments = documents.filter(doc => {
+  const filteredDocuments = documents.filter((doc) => {
     // Tab filter
     if (selectedTab !== "all") {
-      if (selectedTab === "expiring" && doc.status !== "expiring_soon" && doc.status !== "expired") return false;
+      if (
+        selectedTab === "expiring" &&
+        doc.status !== "expiring_soon" &&
+        doc.status !== "expired"
+      )
+        return false;
       if (selectedTab === "active" && doc.status !== "active") return false;
       if (selectedTab === "expired" && doc.status !== "expired") return false;
       if (selectedTab === "compliance" && !doc.compliance_area) return false;
@@ -264,17 +223,21 @@ export default function CompanyDocuments() {
         !doc.title.toLowerCase().includes(searchTerm) &&
         !doc.authority?.toLowerCase().includes(searchTerm) &&
         !doc.license_number?.toLowerCase().includes(searchTerm) &&
-        !documentTypeLabels[doc.document_type].toLowerCase().includes(searchTerm)
+        !documentTypeLabels[doc.document_type]
+          .toLowerCase()
+          .includes(searchTerm)
       ) {
         return false;
       }
     }
 
     // Document type filter
-    if (filters.document_type && doc.document_type !== filters.document_type) return false;
+    if (filters.document_type && doc.document_type !== filters.document_type)
+      return false;
 
     // Facility filter
-    if (filters.entity_id && doc.facility_id !== filters.entity_id) return false;
+    if (filters.entity_id && doc.facility_id !== filters.entity_id)
+      return false;
 
     return true;
   });
@@ -282,14 +245,15 @@ export default function CompanyDocuments() {
   // Count documents by status and compliance area
   const documentStats = {
     total: documents.length,
-    active: documents.filter(d => d.status === "active").length,
-    expiring: documents.filter(d => d.status === "expiring_soon").length,
-    expired: documents.filter(d => d.status === "expired").length,
+    active: documents.filter((d) => d.status === "active").length,
+    expiring: documents.filter((d) => d.status === "expiring_soon").length,
+    expired: documents.filter((d) => d.status === "expired").length,
     by_compliance: {
-      safety: documents.filter(d => d.compliance_area === "safety").length,
-      environment: documents.filter(d => d.compliance_area === "environment").length,
-      quality: documents.filter(d => d.compliance_area === "quality").length,
-      legal: documents.filter(d => d.compliance_area === "legal").length,
+      safety: documents.filter((d) => d.compliance_area === "safety").length,
+      environment: documents.filter((d) => d.compliance_area === "environment")
+        .length,
+      quality: documents.filter((d) => d.compliance_area === "quality").length,
+      legal: documents.filter((d) => d.compliance_area === "legal").length,
     },
   };
 
@@ -307,17 +271,25 @@ export default function CompanyDocuments() {
       formData.append("file", uploadFile);
       formData.append("data", JSON.stringify(uploadForm));
 
-      const response = await axios.post("/Documents/Company/POST/UploadDocument", formData, {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
-        onUploadProgress: (progressEvent) => {
-          if (progressEvent.total) {
-            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-            setUploadProgress(progress);
-          }
-        },
-      });
+      console.log(uploadForm);
+
+      const response = await axios.post(
+        "/Document/POST/CreateCompanyDocument",
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+          onUploadProgress: (progressEvent) => {
+            if (progressEvent.total) {
+              const progress = Math.round(
+                (progressEvent.loaded * 100) / progressEvent.total
+              );
+              setUploadProgress(progress);
+            }
+          },
+        }
+      );
 
       if (response.status === 200) {
         await loadData();
@@ -340,28 +312,156 @@ export default function CompanyDocuments() {
     setUploadFile(null);
   };
 
+  // Handle edit document
+  const handleEditDocument = (document: CompanyDocument) => {
+    setSelectedDocument(document);
+
+    setEditForm({
+      title: document.title,
+      document_type: document.document_type,
+      entity_id: document.facility_id,
+      issue_date: formatDateForPicker(document.issue_date),
+      expiry_date: formatDateForPicker(document.expiry_date),
+      authority: document.authority,
+      license_number: document.license_number,
+      compliance_area: document.compliance_area,
+      notes: document.notes,
+      reminder_days: document.reminder_days,
+      file_path: document.file_path,
+    });
+    setEditFile(null);
+    setFileChanged(false);
+    onEditModalOpen();
+  };
+
+  const resetEditForm = () => {
+    setEditForm({});
+    setEditFile(null);
+    setFileChanged(false);
+    setSelectedDocument(null);
+  };
+
+  // Handle file operations in edit modal
+  const handleEditFileUpload = (file: File | null) => {
+    setEditFile(file);
+    setFileChanged(true);
+  };
+
+  const handleFileDelete = () => {
+    setEditForm((prev) => ({ ...prev, file_path: undefined }));
+    setEditFile(null);
+    setFileChanged(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (!selectedDocument || !editForm.title || !editForm.document_type) {
+      return;
+    }
+
+    setIsEditing(true);
+
+    try {
+      const updateData = {
+        document_id: selectedDocument.document_id,
+        title: editForm.title,
+        document_type: editForm.document_type,
+        entity_id: editForm.entity_id,
+        issue_date: editForm.issue_date,
+        expiry_date: editForm.expiry_date,
+        authority: editForm.authority,
+        license_number: editForm.license_number,
+        compliance_area: editForm.compliance_area,
+        notes: editForm.notes,
+        reminder_days: editForm.reminder_days,
+        fileChanged: fileChanged,
+      };
+
+      // Se c'è un nuovo file o il file è stato eliminato, usa FormData
+      if (editFile || (fileChanged && !editForm.file_path)) {
+        const formData = new FormData();
+        if (editFile) {
+          formData.append("file", editFile);
+        }
+        formData.append("data", JSON.stringify(updateData));
+
+        await axios.put(`/Document/UPDATE/UpdateCompanyDocument`, formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+      } else {
+        // Altrimenti invia solo i dati JSON
+        await axios.put(`/Document/UPDATE/UpdateCompanyDocument`, updateData);
+      }
+
+      await loadData();
+      onEditModalClose();
+      resetEditForm();
+    } catch (error) {
+      console.error("Errore nell'aggiornamento del documento:", error);
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
   // Delete document
   const deleteDocument = async (documentId: string) => {
+    setIsDeleting(true);
     try {
-      await axios.delete(`/Documents/Company/DELETE/DeleteDocument/${documentId}`);
+      await axios.delete(
+        `/Document/DELETE/DeleteCompanyDocument/${documentId}`
+      );
       await loadData();
+    } catch (error) {
+      console.error("Errore nell'eliminazione del documento:", error);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
+  // Handle delete confirmation
+  const handleDeleteClick = (document: CompanyDocument) => {
+    setDocumentToDelete(document);
+    onDeleteModalOpen();
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!documentToDelete) return;
+
+    try {
+      await deleteDocument(documentToDelete.document_id);
+      onDeleteModalClose();
+      setDocumentToDelete(null);
     } catch (error) {
       console.error("Errore nell'eliminazione del documento:", error);
     }
   };
 
+  const handleCancelDelete = () => {
+    onDeleteModalClose();
+    setDocumentToDelete(null);
+  };
+
   // Download document
   const downloadDocument = async (document: CompanyDocument) => {
+    console.log(document);
     try {
-      const response = await axios.get(`/Documents/Company/GET/DownloadDocument/${document.id}`, {
-        responseType: "blob",
-      });
+      const response = await axios.get(
+        `/Document/GET/DownloadCompanyDocument/${document.document_id}`,
+        {
+          responseType: "blob",
+        }
+      );
 
       const blob = new Blob([response.data]);
       const url = window.URL.createObjectURL(blob);
       const a = window.document.createElement("a");
       a.href = url;
-      a.download = document.file_name || `${document.title}.pdf`;
+      a.download = document.title
+        ? document.title +
+          "." +
+          document.file_path.split("/").pop()?.split(".")[1]
+        : document.file_path;
       window.document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
@@ -403,7 +503,11 @@ export default function CompanyDocuments() {
           <CardBody className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-primary/10 rounded-lg">
-                <Icon icon="solar:documents-bold" className="text-primary" width={24} />
+                <Icon
+                  icon="solar:documents-bold"
+                  className="text-primary"
+                  width={24}
+                />
               </div>
               <div>
                 <p className="text-small text-default-500">Totale Documenti</p>
@@ -417,11 +521,17 @@ export default function CompanyDocuments() {
           <CardBody className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-success/10 rounded-lg">
-                <Icon icon="solar:check-circle-bold" className="text-success" width={24} />
+                <Icon
+                  icon="solar:check-circle-bold"
+                  className="text-success"
+                  width={24}
+                />
               </div>
               <div>
                 <p className="text-small text-default-500">Attivi</p>
-                <p className="text-2xl font-semibold text-success">{documentStats.active}</p>
+                <p className="text-2xl font-semibold text-success">
+                  {documentStats.active}
+                </p>
               </div>
             </div>
           </CardBody>
@@ -431,11 +541,17 @@ export default function CompanyDocuments() {
           <CardBody className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-warning/10 rounded-lg">
-                <Icon icon="solar:clock-circle-bold" className="text-warning" width={24} />
+                <Icon
+                  icon="solar:clock-circle-bold"
+                  className="text-warning"
+                  width={24}
+                />
               </div>
               <div>
                 <p className="text-small text-default-500">In Scadenza</p>
-                <p className="text-2xl font-semibold text-warning">{documentStats.expiring}</p>
+                <p className="text-2xl font-semibold text-warning">
+                  {documentStats.expiring}
+                </p>
               </div>
             </div>
           </CardBody>
@@ -445,11 +561,17 @@ export default function CompanyDocuments() {
           <CardBody className="p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 bg-danger/10 rounded-lg">
-                <Icon icon="solar:close-circle-bold" className="text-danger" width={24} />
+                <Icon
+                  icon="solar:close-circle-bold"
+                  className="text-danger"
+                  width={24}
+                />
               </div>
               <div>
                 <p className="text-small text-default-500">Scaduti</p>
-                <p className="text-2xl font-semibold text-danger">{documentStats.expired}</p>
+                <p className="text-2xl font-semibold text-danger">
+                  {documentStats.expired}
+                </p>
               </div>
             </div>
           </CardBody>
@@ -464,50 +586,58 @@ export default function CompanyDocuments() {
         <CardBody>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div className="flex items-center gap-3 p-3 bg-default-50 rounded-lg">
-              <Avatar 
+              <Avatar
                 icon={<Icon icon="solar:shield-check-bold" />}
-                className="bg-danger/10 text-danger" 
+                className="bg-danger/10 text-danger"
                 size="sm"
               />
               <div>
                 <p className="text-sm font-medium">Sicurezza</p>
-                <p className="text-lg font-semibold">{documentStats.by_compliance.safety}</p>
+                <p className="text-lg font-semibold">
+                  {documentStats.by_compliance.safety}
+                </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 p-3 bg-default-50 rounded-lg">
-              <Avatar 
+              <Avatar
                 icon={<Icon icon="solar:leaf-bold" />}
-                className="bg-success/10 text-success" 
+                className="bg-success/10 text-success"
                 size="sm"
               />
               <div>
                 <p className="text-sm font-medium">Ambiente</p>
-                <p className="text-lg font-semibold">{documentStats.by_compliance.environment}</p>
+                <p className="text-lg font-semibold">
+                  {documentStats.by_compliance.environment}
+                </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 p-3 bg-default-50 rounded-lg">
-              <Avatar 
+              <Avatar
                 icon={<Icon icon="solar:medal-star-bold" />}
-                className="bg-warning/10 text-warning" 
+                className="bg-warning/10 text-warning"
                 size="sm"
               />
               <div>
                 <p className="text-sm font-medium">Qualità</p>
-                <p className="text-lg font-semibold">{documentStats.by_compliance.quality}</p>
+                <p className="text-lg font-semibold">
+                  {documentStats.by_compliance.quality}
+                </p>
               </div>
             </div>
 
             <div className="flex items-center gap-3 p-3 bg-default-50 rounded-lg">
-              <Avatar 
+              <Avatar
                 icon={<Icon icon="solar:court-hammer-bold" />}
-                className="bg-secondary/10 text-secondary" 
+                className="bg-secondary/10 text-secondary"
                 size="sm"
               />
               <div>
                 <p className="text-sm font-medium">Legale</p>
-                <p className="text-lg font-semibold">{documentStats.by_compliance.legal}</p>
+                <p className="text-lg font-semibold">
+                  {documentStats.by_compliance.legal}
+                </p>
               </div>
             </div>
           </div>
@@ -521,24 +651,29 @@ export default function CompanyDocuments() {
             <Input
               placeholder="Cerca per titolo, autorità o numero..."
               value={filters.search || ""}
-              onChange={(e) => setFilters(prev => ({ ...prev, search: e.target.value }))}
+              onChange={(e) =>
+                setFilters((prev) => ({ ...prev, search: e.target.value }))
+              }
               startContent={<Icon icon="solar:magnifer-bold" width={20} />}
               className="flex-1"
             />
-            
+
             <Select
               placeholder="Tipo Documento"
-              selectedKeys={filters.document_type ? [filters.document_type] : []}
+              selectedKeys={
+                filters.document_type ? [filters.document_type] : []
+              }
               onSelectionChange={(keys) => {
                 const selected = Array.from(keys)[0] as string;
-                setFilters(prev => ({ ...prev, document_type: selected || undefined }));
+                setFilters((prev) => ({
+                  ...prev,
+                  document_type: selected || undefined,
+                }));
               }}
               className="w-64"
             >
               {Object.entries(documentTypeLabels).map(([key, label]) => (
-                <SelectItem key={key} value={key}>
-                  {label}
-                </SelectItem>
+                <SelectItem key={key}>{label}</SelectItem>
               ))}
             </Select>
 
@@ -547,18 +682,21 @@ export default function CompanyDocuments() {
               selectedKeys={filters.entity_id ? [filters.entity_id] : []}
               onSelectionChange={(keys) => {
                 const selected = Array.from(keys)[0] as string;
-                setFilters(prev => ({ ...prev, entity_id: selected || undefined }));
+                setFilters((prev) => ({
+                  ...prev,
+                  entity_id: selected || undefined,
+                }));
               }}
               className="w-48"
             >
-              <SelectItem key="general" value="">
-                Generale (Azienda)
-              </SelectItem>
-              {warehouses.map((warehouse) => (
-                <SelectItem key={warehouse.warehouse_id} value={warehouse.warehouse_id}>
-                  {warehouse.name}
-                </SelectItem>
-              ))}
+              <>
+                <SelectItem key="general">Generale (Azienda)</SelectItem>
+                {warehouses.map((warehouse) => (
+                  <SelectItem key={warehouse.WarehouseID}>
+                    {warehouse.WarehouseName}
+                  </SelectItem>
+                ))}
+              </>
             </Select>
 
             <Button
@@ -582,7 +720,10 @@ export default function CompanyDocuments() {
           >
             <Tab key="all" title={`Tutti (${documentStats.total})`} />
             <Tab key="active" title={`Attivi (${documentStats.active})`} />
-            <Tab key="expiring" title={`In Scadenza (${documentStats.expiring})`} />
+            <Tab
+              key="expiring"
+              title={`In Scadenza (${documentStats.expiring})`}
+            />
             <Tab key="expired" title={`Scaduti (${documentStats.expired})`} />
             <Tab key="compliance" title="Per Conformità" />
           </Tabs>
@@ -598,13 +739,12 @@ export default function CompanyDocuments() {
               <TableColumn>EMISSIONE</TableColumn>
               <TableColumn>SCADENZA</TableColumn>
               <TableColumn>CONFORMITÀ</TableColumn>
-              <TableColumn>COSTO</TableColumn>
               <TableColumn>STATO</TableColumn>
               <TableColumn>AZIONI</TableColumn>
             </TableHeader>
             <TableBody>
               {filteredDocuments.map((document) => (
-                <TableRow key={document.id}>
+                <TableRow key={document.document_id}>
                   <TableCell>
                     <div>
                       <p className="font-medium">{document.title}</p>
@@ -625,7 +765,9 @@ export default function CompanyDocuments() {
                   <TableCell>
                     {document.facility_name ? (
                       <div>
-                        <p className="font-medium text-sm">{document.facility_name}</p>
+                        <p className="font-medium text-sm">
+                          {document.facility_name}
+                        </p>
                       </div>
                     ) : (
                       <Chip size="sm" variant="flat" color="secondary">
@@ -635,7 +777,9 @@ export default function CompanyDocuments() {
                   </TableCell>
 
                   <TableCell>
-                    {document.authority || <span className="text-default-400">-</span>}
+                    {document.authority || (
+                      <span className="text-default-400">-</span>
+                    )}
                   </TableCell>
 
                   <TableCell>
@@ -645,10 +789,19 @@ export default function CompanyDocuments() {
                   <TableCell>
                     {document.expiry_date ? (
                       <div>
-                        <p>{new Date(document.expiry_date).toLocaleDateString("it-IT")}</p>
+                        <p>
+                          {new Date(document.expiry_date).toLocaleDateString(
+                            "it-IT"
+                          )}
+                        </p>
                         {document.status === "expiring_soon" && (
                           <p className="text-small text-warning">
-                            {Math.ceil((new Date(document.expiry_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24))} giorni
+                            {Math.ceil(
+                              (new Date(document.expiry_date).getTime() -
+                                new Date().getTime()) /
+                                (1000 * 60 * 60 * 24)
+                            )}{" "}
+                            giorni
                           </p>
                         )}
                       </div>
@@ -659,25 +812,25 @@ export default function CompanyDocuments() {
 
                   <TableCell>
                     {document.compliance_area ? (
-                      <Chip 
-                        size="sm" 
+                      <Chip
+                        size="sm"
                         variant="flat"
                         color={
-                          document.compliance_area === "safety" ? "danger" :
-                          document.compliance_area === "environment" ? "success" :
-                          document.compliance_area === "quality" ? "warning" :
-                          "secondary"
+                          document.compliance_area === "safety"
+                            ? "danger"
+                            : document.compliance_area === "environment"
+                            ? "success"
+                            : document.compliance_area === "quality"
+                            ? "warning"
+                            : "secondary"
                         }
                       >
-                        {complianceAreaLabels[document.compliance_area] || document.compliance_area}
+                        {complianceAreaLabels[document.compliance_area] ||
+                          document.compliance_area}
                       </Chip>
                     ) : (
                       <span className="text-default-400">-</span>
                     )}
-                  </TableCell>
-
-                  <TableCell>
-                    {document.cost ? `€${document.cost.toFixed(2)}` : <span className="text-default-400">-</span>}
                   </TableCell>
 
                   <TableCell>
@@ -715,29 +868,33 @@ export default function CompanyDocuments() {
                         <DropdownMenu>
                           <DropdownItem
                             key="download"
-                            startContent={<Icon icon="solar:download-bold" width={16} />}
+                            startContent={
+                              <Icon icon="solar:download-bold" width={16} />
+                            }
                             onPress={() => downloadDocument(document)}
                           >
                             Scarica
                           </DropdownItem>
                           <DropdownItem
                             key="edit"
-                            startContent={<Icon icon="solar:pen-bold" width={16} />}
+                            startContent={
+                              <Icon icon="solar:pen-bold" width={16} />
+                            }
+                            onPress={() => handleEditDocument(document)}
                           >
                             Modifica
-                          </DropdownItem>
-                          <DropdownItem
-                            key="renewal"
-                            startContent={<Icon icon="solar:refresh-circle-bold" width={16} />}
-                          >
-                            Rinnova
                           </DropdownItem>
                           <DropdownItem
                             key="delete"
                             className="text-danger"
                             color="danger"
-                            startContent={<Icon icon="solar:trash-bin-trash-bold" width={16} />}
-                            onPress={() => deleteDocument(document.id)}
+                            startContent={
+                              <Icon
+                                icon="solar:trash-bin-trash-bold"
+                                width={16}
+                              />
+                            }
+                            onPress={() => handleDeleteClick(document)}
                           >
                             Elimina
                           </DropdownItem>
@@ -761,7 +918,9 @@ export default function CompanyDocuments() {
       >
         <ModalContent>
           <ModalHeader>
-            <h3 className="text-xl font-semibold">Carica Nuovo Documento Aziendale</h3>
+            <h3 className="text-xl font-semibold">
+              Carica Nuovo Documento Aziendale
+            </h3>
           </ModalHeader>
           <ModalBody>
             <div className="space-y-4">
@@ -769,7 +928,9 @@ export default function CompanyDocuments() {
                 label="Titolo Documento"
                 placeholder="Es. Licenza Commerciale CosmicHub"
                 value={uploadForm.title || ""}
-                onChange={(e) => setUploadForm(prev => ({ ...prev, title: e.target.value }))}
+                onChange={(e) =>
+                  setUploadForm((prev) => ({ ...prev, title: e.target.value }))
+                }
                 isRequired
               />
 
@@ -777,33 +938,41 @@ export default function CompanyDocuments() {
                 <Select
                   label="Tipo Documento"
                   placeholder="Seleziona tipo"
-                  selectedKeys={uploadForm.document_type ? [uploadForm.document_type] : []}
+                  selectedKeys={
+                    uploadForm.document_type ? [uploadForm.document_type] : []
+                  }
                   onSelectionChange={(keys) => {
                     const selected = Array.from(keys)[0] as string;
-                    setUploadForm(prev => ({ ...prev, document_type: selected }));
+                    setUploadForm((prev) => ({
+                      ...prev,
+                      document_type: selected,
+                    }));
                   }}
                   isRequired
                 >
                   {Object.entries(documentTypeLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
-                    </SelectItem>
+                    <SelectItem key={key}>{label}</SelectItem>
                   ))}
                 </Select>
 
                 <Select
                   label="Area di Conformità"
                   placeholder="Seleziona area"
-                  selectedKeys={uploadForm.compliance_area ? [uploadForm.compliance_area] : []}
+                  selectedKeys={
+                    uploadForm.compliance_area
+                      ? [uploadForm.compliance_area]
+                      : []
+                  }
                   onSelectionChange={(keys) => {
                     const selected = Array.from(keys)[0] as string;
-                    setUploadForm(prev => ({ ...prev, compliance_area: selected }));
+                    setUploadForm((prev) => ({
+                      ...prev,
+                      compliance_area: selected,
+                    }));
                   }}
                 >
                   {Object.entries(complianceAreaLabels).map(([key, label]) => (
-                    <SelectItem key={key} value={key}>
-                      {label}
-                    </SelectItem>
+                    <SelectItem key={key}>{label}</SelectItem>
                   ))}
                 </Select>
               </div>
@@ -811,15 +980,17 @@ export default function CompanyDocuments() {
               <Select
                 label="Sede/Magazzino (Opzionale)"
                 placeholder="Generale (applicabile a tutta l'azienda)"
-                selectedKeys={uploadForm.entity_id ? [uploadForm.entity_id] : []}
+                selectedKeys={
+                  uploadForm.entity_id ? [uploadForm.entity_id] : []
+                }
                 onSelectionChange={(keys) => {
                   const selected = Array.from(keys)[0] as string;
-                  setUploadForm(prev => ({ ...prev, entity_id: selected }));
+                  setUploadForm((prev) => ({ ...prev, entity_id: selected }));
                 }}
               >
                 {warehouses.map((warehouse) => (
-                  <SelectItem key={warehouse.warehouse_id} value={warehouse.warehouse_id}>
-                    {warehouse.name}
+                  <SelectItem key={warehouse.WarehouseID}>
+                    {warehouse.WarehouseName}
                   </SelectItem>
                 ))}
               </Select>
@@ -827,11 +998,20 @@ export default function CompanyDocuments() {
               <div className="grid grid-cols-2 gap-4">
                 <DatePicker
                   label="Data Emissione"
-                  value={uploadForm.issue_date ? parseDate(uploadForm.issue_date) : null}
-                  onChange={(date) => {
+                  value={
+                    uploadForm.issue_date
+                      ? (parseDate(uploadForm.issue_date) as any)
+                      : undefined
+                  }
+                  onChange={(date: any) => {
                     if (date) {
-                      const dateString = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
-                      setUploadForm(prev => ({ ...prev, issue_date: dateString }));
+                      const dateString = `${date.year}-${String(
+                        date.month
+                      ).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+                      setUploadForm((prev) => ({
+                        ...prev,
+                        issue_date: dateString,
+                      }));
                     }
                   }}
                   isRequired
@@ -839,11 +1019,20 @@ export default function CompanyDocuments() {
 
                 <DatePicker
                   label="Data Scadenza (Opzionale)"
-                  value={uploadForm.expiry_date ? parseDate(uploadForm.expiry_date) : null}
-                  onChange={(date) => {
+                  value={
+                    uploadForm.expiry_date
+                      ? (parseDate(uploadForm.expiry_date) as any)
+                      : undefined
+                  }
+                  onChange={(date: any) => {
                     if (date) {
-                      const dateString = `${date.year}-${String(date.month).padStart(2, '0')}-${String(date.day).padStart(2, '0')}`;
-                      setUploadForm(prev => ({ ...prev, expiry_date: dateString }));
+                      const dateString = `${date.year}-${String(
+                        date.month
+                      ).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+                      setUploadForm((prev) => ({
+                        ...prev,
+                        expiry_date: dateString,
+                      }));
                     }
                   }}
                 />
@@ -854,34 +1043,40 @@ export default function CompanyDocuments() {
                   label="Autorità/Ente Emittente"
                   placeholder="Es. Camera di Commercio"
                   value={uploadForm.authority || ""}
-                  onChange={(e) => setUploadForm(prev => ({ ...prev, authority: e.target.value }))}
+                  onChange={(e) =>
+                    setUploadForm((prev) => ({
+                      ...prev,
+                      authority: e.target.value,
+                    }))
+                  }
                 />
 
                 <Input
                   label="Numero Licenza/Certificato"
                   placeholder="Es. LC2024001"
                   value={uploadForm.license_number || ""}
-                  onChange={(e) => setUploadForm(prev => ({ ...prev, license_number: e.target.value }))}
+                  onChange={(e) =>
+                    setUploadForm((prev) => ({
+                      ...prev,
+                      license_number: e.target.value,
+                    }))
+                  }
                 />
               </div>
-
-              <Input
-                label="Costo (€)"
-                type="number"
-                placeholder="0.00"
-                value={uploadForm.cost?.toString() || ""}
-                onChange={(e) => setUploadForm(prev => ({ ...prev, cost: parseFloat(e.target.value) || undefined }))}
-              />
 
               <Textarea
                 label="Note"
                 placeholder="Note aggiuntive sul documento..."
                 value={uploadForm.notes || ""}
-                onChange={(e) => setUploadForm(prev => ({ ...prev, notes: e.target.value }))}
+                onChange={(e) =>
+                  setUploadForm((prev) => ({ ...prev, notes: e.target.value }))
+                }
               />
 
               <div>
-                <label className="block text-sm font-medium mb-2">File Documento</label>
+                <label className="block text-sm font-medium mb-2">
+                  File Documento
+                </label>
                 <input
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
@@ -890,28 +1085,41 @@ export default function CompanyDocuments() {
                 />
                 {uploadFile && (
                   <p className="text-sm text-default-500 mt-1">
-                    {uploadFile.name} ({(uploadFile.size / 1024 / 1024).toFixed(2)} MB)
+                    {uploadFile.name} (
+                    {(uploadFile.size / 1024 / 1024).toFixed(2)} MB)
                   </p>
                 )}
               </div>
 
               {isUploading && (
                 <div>
-                  <Progress value={uploadProgress} color="primary" className="mb-2" />
-                  <p className="text-sm text-center">Caricamento in corso... {uploadProgress}%</p>
+                  <Progress
+                    value={uploadProgress}
+                    color="primary"
+                    className="mb-2"
+                  />
+                  <p className="text-sm text-center">
+                    Caricamento in corso... {uploadProgress}%
+                  </p>
                 </div>
               )}
             </div>
           </ModalBody>
           <ModalFooter>
-            <Button variant="light" onPress={onUploadModalClose} isDisabled={isUploading}>
+            <Button
+              variant="light"
+              onPress={onUploadModalClose}
+              isDisabled={isUploading}
+            >
               Annulla
             </Button>
             <Button
               color="primary"
               onPress={handleFileUpload}
               isLoading={isUploading}
-              isDisabled={!uploadForm.title || !uploadForm.document_type || !uploadFile}
+              isDisabled={
+                !uploadForm.title || !uploadForm.document_type || !uploadFile
+              }
             >
               Carica Documento
             </Button>
@@ -931,7 +1139,9 @@ export default function CompanyDocuments() {
             <>
               <ModalHeader>
                 <div className="flex items-center gap-3">
-                  <h3 className="text-xl font-semibold">{selectedDocument.title}</h3>
+                  <h3 className="text-xl font-semibold">
+                    {selectedDocument.title}
+                  </h3>
                   <Chip
                     color={statusColors[selectedDocument.status]}
                     variant="flat"
@@ -941,10 +1151,13 @@ export default function CompanyDocuments() {
                   {selectedDocument.compliance_area && (
                     <Chip
                       color={
-                        selectedDocument.compliance_area === "safety" ? "danger" :
-                        selectedDocument.compliance_area === "environment" ? "success" :
-                        selectedDocument.compliance_area === "quality" ? "warning" :
-                        "secondary"
+                        selectedDocument.compliance_area === "safety"
+                          ? "danger"
+                          : selectedDocument.compliance_area === "environment"
+                          ? "success"
+                          : selectedDocument.compliance_area === "quality"
+                          ? "warning"
+                          : "secondary"
                       }
                       variant="flat"
                     >
@@ -958,7 +1171,9 @@ export default function CompanyDocuments() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-default-500">Tipo Documento</p>
-                      <p className="font-medium">{documentTypeLabels[selectedDocument.document_type]}</p>
+                      <p className="font-medium">
+                        {documentTypeLabels[selectedDocument.document_type]}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-default-500">Sede/Magazzino</p>
@@ -971,48 +1186,61 @@ export default function CompanyDocuments() {
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-sm text-default-500">Data Emissione</p>
-                      <p className="font-medium">{new Date(selectedDocument.issue_date).toLocaleDateString("it-IT")}</p>
+                      <p className="font-medium">
+                        {new Date(
+                          selectedDocument.issue_date
+                        ).toLocaleDateString("it-IT")}
+                      </p>
                     </div>
                     <div>
                       <p className="text-sm text-default-500">Data Scadenza</p>
                       <p className="font-medium">
-                        {selectedDocument.expiry_date 
-                          ? new Date(selectedDocument.expiry_date).toLocaleDateString("it-IT")
-                          : "Non specificata"
-                        }
+                        {selectedDocument.expiry_date
+                          ? new Date(
+                              selectedDocument.expiry_date
+                            ).toLocaleDateString("it-IT")
+                          : "Non specificata"}
                       </p>
                     </div>
                   </div>
 
-                  {(selectedDocument.authority || selectedDocument.license_number) && (
+                  {(selectedDocument.authority ||
+                    selectedDocument.license_number) && (
                     <div className="grid grid-cols-2 gap-4">
                       {selectedDocument.authority && (
                         <div>
-                          <p className="text-sm text-default-500">Autorità Emittente</p>
-                          <p className="font-medium">{selectedDocument.authority}</p>
+                          <p className="text-sm text-default-500">
+                            Autorità Emittente
+                          </p>
+                          <p className="font-medium">
+                            {selectedDocument.authority}
+                          </p>
                         </div>
                       )}
                       {selectedDocument.license_number && (
                         <div>
-                          <p className="text-sm text-default-500">Numero Licenza</p>
-                          <p className="font-medium">{selectedDocument.license_number}</p>
+                          <p className="text-sm text-default-500">
+                            Numero Licenza
+                          </p>
+                          <p className="font-medium">
+                            {selectedDocument.license_number}
+                          </p>
                         </div>
                       )}
-                    </div>
-                  )}
-
-                  {selectedDocument.cost && (
-                    <div>
-                      <p className="text-sm text-default-500">Costo</p>
-                      <p className="font-medium">€{selectedDocument.cost.toFixed(2)}</p>
                     </div>
                   )}
 
                   {selectedDocument.renewal_required && (
                     <div className="p-3 bg-warning-50 rounded-lg border border-warning-200">
                       <div className="flex items-center gap-2">
-                        <Icon icon="solar:clock-circle-bold" className="text-warning" width={20} />
-                        <p className="text-sm font-medium text-warning">Rinnovo Richiesto</p>
+                        <Icon
+                          icon="solar:clock-circle-bold"
+                          className="text-warning"
+                          width={20}
+                        />
+                        <p className="text-sm font-medium text-warning">
+                          Rinnovo Richiesto
+                        </p>
                       </div>
                       <p className="text-xs text-warning mt-1">
                         Questo documento richiede un rinnovo periodico
@@ -1027,18 +1255,21 @@ export default function CompanyDocuments() {
                     </div>
                   )}
 
-                  {selectedDocument.reminder_days && selectedDocument.reminder_days.length > 0 && (
-                    <div>
-                      <p className="text-sm text-default-500">Reminder Attivi</p>
-                      <div className="flex gap-2 flex-wrap">
-                        {selectedDocument.reminder_days.map((days) => (
-                          <Chip key={days} size="sm" variant="flat">
-                            {days} giorni prima
-                          </Chip>
-                        ))}
+                  {selectedDocument.reminder_days &&
+                    selectedDocument.reminder_days.length > 0 && (
+                      <div>
+                        <p className="text-sm text-default-500">
+                          Reminder Attivi
+                        </p>
+                        <div className="flex gap-2 flex-wrap">
+                          {selectedDocument.reminder_days.map((days) => (
+                            <Chip key={days} size="sm" variant="flat">
+                              {days} giorni prima
+                            </Chip>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
                 </div>
               </ModalBody>
               <ModalFooter>
@@ -1057,6 +1288,299 @@ export default function CompanyDocuments() {
           )}
         </ModalContent>
       </Modal>
+
+      {/* Edit Document Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={onEditModalClose}
+        size="3xl"
+        scrollBehavior="inside"
+      >
+        <ModalContent>
+          <ModalHeader>
+            <h3 className="text-xl font-semibold">
+              Modifica Documento Aziendale
+            </h3>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-4">
+              <Input
+                label="Titolo Documento"
+                placeholder="Es. Licenza Commerciale CosmicHub"
+                value={editForm.title || ""}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, title: e.target.value }))
+                }
+                isRequired
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  label="Tipo Documento"
+                  placeholder="Seleziona tipo"
+                  selectedKeys={
+                    editForm.document_type ? [editForm.document_type] : []
+                  }
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0] as string;
+                    setEditForm((prev) => ({
+                      ...prev,
+                      document_type: selected,
+                    }));
+                  }}
+                  isRequired
+                >
+                  {Object.entries(documentTypeLabels).map(([key, label]) => (
+                    <SelectItem key={key}>{label}</SelectItem>
+                  ))}
+                </Select>
+
+                <Select
+                  label="Area di Conformità"
+                  placeholder="Seleziona area"
+                  selectedKeys={
+                    editForm.compliance_area ? [editForm.compliance_area] : []
+                  }
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0] as string;
+                    setEditForm((prev) => ({
+                      ...prev,
+                      compliance_area: selected,
+                    }));
+                  }}
+                >
+                  {Object.entries(complianceAreaLabels).map(([key, label]) => (
+                    <SelectItem key={key}>{label}</SelectItem>
+                  ))}
+                </Select>
+              </div>
+
+              <Select
+                label="Sede/Magazzino (Opzionale)"
+                placeholder="Generale (applicabile a tutta l'azienda)"
+                selectedKeys={editForm.entity_id ? [editForm.entity_id] : []}
+                onSelectionChange={(keys) => {
+                  const selected = Array.from(keys)[0] as string;
+                  setEditForm((prev) => ({ ...prev, entity_id: selected }));
+                }}
+              >
+                {warehouses.map((warehouse) => (
+                  <SelectItem key={warehouse.WarehouseID}>
+                    {warehouse.WarehouseName}
+                  </SelectItem>
+                ))}
+              </Select>
+
+              <div className="grid grid-cols-2 gap-4">
+                <DatePicker
+                  label="Data Emissione"
+                  value={
+                    editForm.issue_date
+                      ? (parseDate(editForm.issue_date) as any)
+                      : undefined
+                  }
+                  onChange={(date: any) => {
+                    if (date) {
+                      const dateString = `${date.year}-${String(
+                        date.month
+                      ).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+                      setEditForm((prev) => ({
+                        ...prev,
+                        issue_date: dateString,
+                      }));
+                    }
+                  }}
+                  isRequired
+                />
+
+                <DatePicker
+                  label="Data Scadenza (Opzionale)"
+                  value={
+                    editForm.expiry_date
+                      ? (parseDate(editForm.expiry_date) as any)
+                      : undefined
+                  }
+                  onChange={(date: any) => {
+                    if (date) {
+                      const dateString = `${date.year}-${String(
+                        date.month
+                      ).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+                      setEditForm((prev) => ({
+                        ...prev,
+                        expiry_date: dateString,
+                      }));
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Autorità/Ente Emittente"
+                  placeholder="Es. Camera di Commercio"
+                  value={editForm.authority || ""}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      authority: e.target.value,
+                    }))
+                  }
+                />
+
+                <Input
+                  label="Numero Licenza/Certificato"
+                  placeholder="Es. LC2024001"
+                  value={editForm.license_number || ""}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      license_number: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <Textarea
+                label="Note"
+                placeholder="Note aggiuntive sul documento..."
+                value={editForm.notes || ""}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, notes: e.target.value }))
+                }
+              />
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  File Documento
+                </label>
+
+                {/* Mostra file esistente se presente e non è stato eliminato */}
+                {editForm.file_path && !fileChanged && (
+                  <div className="mb-4 p-3 border rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon
+                          icon="solar:file-bold"
+                          className="text-primary"
+                          width={20}
+                        />
+                        <span className="text-sm font-medium">
+                          {editForm.file_path.split("/").pop() || "Documento"}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        color="danger"
+                        variant="light"
+                        startContent={
+                          <Icon icon="solar:trash-bin-trash-bold" width={16} />
+                        }
+                        onPress={handleFileDelete}
+                      >
+                        Elimina
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mostra upload solo se non c'è file esistente o se è stato eliminato */}
+                {(!editForm.file_path || fileChanged) && (
+                  <div>
+                    <input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      onChange={(e) =>
+                        handleEditFileUpload(e.target.files?.[0] || null)
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                    />
+                    {editFile && (
+                      <p className="text-sm text-default-500 mt-1">
+                        {editFile.name} (
+                        {(editFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {isEditing && (
+                <div>
+                  <Progress value={0} color="primary" className="mb-2" />
+                  <p className="text-sm text-center">
+                    Aggiornamento in corso...
+                  </p>
+                </div>
+              )}
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="light"
+              onPress={onEditModalClose}
+              isDisabled={isEditing}
+            >
+              Annulla
+            </Button>
+            <Button
+              color="primary"
+              onPress={handleEditSubmit}
+              isLoading={isEditing}
+              isDisabled={
+                !editForm.title ||
+                !editForm.document_type ||
+                (!editFile &&
+                  !editForm.authority &&
+                  !editForm.license_number &&
+                  !editForm.notes)
+              }
+            >
+              Salva Modifiche
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={onDeleteModalClose}
+        isDismissable={false}
+        onOpenChange={onDeleteModalClose}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <Icon
+                icon="solar:trash-bin-trash-bold"
+                className="text-danger"
+                width={30}
+              />
+              <h3 className="text-xl font-semibold">Conferma Eliminazione</h3>
+            </div>
+            <p className="text-small text-default-500">
+              Sei sicuro di voler eliminare il documento "
+              {documentToDelete?.title}"? Questa azione è irreversibile.
+            </p>
+          </ModalHeader>
+          <ModalFooter>
+            <Button
+              variant="light"
+              onPress={handleCancelDelete}
+              isDisabled={isDeleting}
+            >
+              Annulla
+            </Button>
+            <Button
+              color="danger"
+              onPress={handleConfirmDelete}
+              isLoading={isDeleting}
+            >
+              Elimina
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
     </div>
   );
-} 
+}

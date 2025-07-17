@@ -430,7 +430,9 @@ export default function VehicleDocuments() {
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = doc.title || doc.file_path;
+      a.download = document.title
+        ? doc.title + "." + doc.file_path.split("/").pop()?.split(".")[1]
+        : doc.file_path;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
