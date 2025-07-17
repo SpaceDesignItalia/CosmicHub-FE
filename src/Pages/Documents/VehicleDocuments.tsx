@@ -101,8 +101,26 @@ export default function VehicleDocuments() {
     onOpen: onViewModalOpen,
     onClose: onViewModalClose,
   } = useDisclosure();
+  const {
+    isOpen: isEditModalOpen,
+    onOpen: onEditModalOpen,
+    onClose: onEditModalClose,
+  } = useDisclosure();
+  const {
+    isOpen: isDeleteModalOpen,
+    onOpen: onDeleteModalOpen,
+    onClose: onDeleteModalClose,
+  } = useDisclosure();
   const [selectedDocument, setSelectedDocument] =
     useState<VehicleDocument | null>(null);
+  const [documentToDelete, setDocumentToDelete] =
+    useState<VehicleDocument | null>(null);
+
+  // Helper function per formattare le date
+  const formatDateForPicker = (dateString?: string) => {
+    if (!dateString) return undefined;
+    return new Date(dateString).toISOString().split("T")[0];
+  };
 
   // Upload form
   const [uploadForm, setUploadForm] = useState<Partial<DocumentUploadRequest>>({
@@ -113,6 +131,25 @@ export default function VehicleDocuments() {
   const [uploadFile, setUploadFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Edit form
+  const [editForm, setEditForm] = useState<{
+    title?: string;
+    document_type?: string;
+    vehicle_id?: string;
+    issue_date?: string;
+    expiry_date?: string;
+    provider?: string;
+    certificate_number?: string;
+    cost?: number;
+    notes?: string;
+    reminder_days?: number[];
+    file_path?: string;
+  }>({});
+  const [editFile, setEditFile] = useState<File | null>(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [fileChanged, setFileChanged] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Load data
   useEffect(() => {
@@ -240,16 +277,141 @@ export default function VehicleDocuments() {
     setUploadFile(null);
   };
 
+  console.log(documents);
+
+  // Handle edit document
+  const handleEditDocument = (document: VehicleDocument) => {
+    setSelectedDocument(document);
+
+    setEditForm({
+      title: document.title,
+      document_type: document.document_type,
+      vehicle_id: document.vehicle_id,
+      issue_date: formatDateForPicker(document.issue_date),
+      expiry_date: formatDateForPicker(document.expiry_date),
+      provider: document.provider,
+      certificate_number: document.certificate_number,
+      cost: document.cost,
+      notes: document.notes,
+      reminder_days: document.reminder_days,
+      file_path: document.file_path,
+    });
+    setEditFile(null);
+    setFileChanged(false);
+    onEditModalOpen();
+  };
+
+  const resetEditForm = () => {
+    setEditForm({});
+    setEditFile(null);
+    setFileChanged(false);
+    setSelectedDocument(null);
+  };
+
+  // Handle file operations in edit modal
+  const handleEditFileUpload = (file: File | null) => {
+    setEditFile(file);
+    setFileChanged(true);
+  };
+
+  const handleFileDelete = () => {
+    setEditForm((prev) => ({ ...prev, file_path: undefined }));
+    setEditFile(null);
+    setFileChanged(true);
+  };
+
+  const handleEditSubmit = async () => {
+    if (
+      !selectedDocument ||
+      !editForm.title ||
+      !editForm.document_type ||
+      !editForm.vehicle_id
+    ) {
+      return;
+    }
+
+    setIsEditing(true);
+
+    try {
+      const updateData = {
+        document_id: selectedDocument.document_id,
+        title: editForm.title,
+        document_type: editForm.document_type,
+        vehicle_id: editForm.vehicle_id,
+        issue_date: editForm.issue_date,
+        expiry_date: editForm.expiry_date,
+        provider: editForm.provider,
+        certificate_number: editForm.certificate_number,
+        cost: editForm.cost,
+        notes: editForm.notes,
+        reminder_days: editForm.reminder_days,
+        fileChanged: fileChanged,
+      };
+
+      // Se c'è un nuovo file o il file è stato eliminato, usa FormData
+      if (editFile || (fileChanged && !editForm.file_path)) {
+        const formData = new FormData();
+        if (editFile) {
+          formData.append("file", editFile);
+        }
+        formData.append("data", JSON.stringify(updateData));
+
+        await axios.put(`/Document/UPDATE/UpdateVehicleDocument`, formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
+      } else {
+        // Altrimenti invia solo i dati JSON
+        await axios.put(`/Document/UPDATE/UpdateVehicleDocument`, updateData);
+      }
+
+      await loadData();
+      onEditModalClose();
+      resetEditForm();
+    } catch (error) {
+      console.error("Errore nell'aggiornamento del documento:", error);
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
   // Delete document
   const deleteDocument = async (documentId: string) => {
+    setIsDeleting(true);
     try {
       await axios.delete(
-        `/Documents/Vehicle/DELETE/DeleteDocument/${documentId}`
+        `/Document/DELETE/DeleteVehicleDocument/${documentId}`
       );
       await loadData();
     } catch (error) {
       console.error("Errore nell'eliminazione del documento:", error);
+    } finally {
+      setIsDeleting(false);
     }
+  };
+
+  // Handle delete confirmation
+  const handleDeleteClick = (document: VehicleDocument) => {
+    setDocumentToDelete(document);
+    onDeleteModalOpen();
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!documentToDelete) return;
+
+    try {
+      await deleteDocument(documentToDelete.document_id);
+      onDeleteModalClose();
+      setDocumentToDelete(null);
+    } catch (error) {
+      console.error("Errore nell'eliminazione del documento:", error);
+    }
+  };
+
+  const handleCancelDelete = () => {
+    onDeleteModalClose();
+    setDocumentToDelete(null);
   };
 
   // Download document
@@ -286,12 +448,14 @@ export default function VehicleDocuments() {
     );
   }
 
+  console.log(editForm);
+
   return (
     <div className="w-full flex flex-col p-4 gap-6 min-h-screen">
       <PageHeader
         title="Documenti Veicoli"
         description="Gestione completa dei documenti per furgoni e veicoli aziendali"
-        icon="solar:car-bold-duotone"
+        icon="mingcute:truck-line"
         size="md"
         actions={[
           {
@@ -613,6 +777,7 @@ export default function VehicleDocuments() {
                             startContent={
                               <Icon icon="solar:pen-bold" width={16} />
                             }
+                            onPress={() => handleEditDocument(document)}
                           >
                             Modifica
                           </DropdownItem>
@@ -626,7 +791,7 @@ export default function VehicleDocuments() {
                                 width={16}
                               />
                             }
-                            onPress={() => deleteDocument(document.id)}
+                            onPress={() => handleDeleteClick(document)}
                           >
                             Elimina
                           </DropdownItem>
@@ -820,14 +985,14 @@ export default function VehicleDocuments() {
                 <label className="block text-sm font-medium mb-2">
                   File Documento
                 </label>
-                <input
+                <Input
                   type="file"
                   accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
                   onChange={(e) => setUploadFile(e.target.files?.[0] || null)}
                   className="w-full p-2 border border-gray-300 rounded-lg"
                 />
                 {uploadFile && (
-                  <p className="text-sm text-default-500 mt-1">
+                  <p className="text-sm mt-1">
                     {uploadFile.name} (
                     {(uploadFile.size / 1024 / 1024).toFixed(2)} MB)
                   </p>
@@ -1006,6 +1171,320 @@ export default function VehicleDocuments() {
               </ModalFooter>
             </>
           )}
+        </ModalContent>
+      </Modal>
+
+      {/* Edit Document Modal */}
+      <Modal
+        isOpen={isEditModalOpen}
+        onClose={onEditModalClose}
+        size="2xl"
+        scrollBehavior="inside"
+      >
+        <ModalContent>
+          <ModalHeader>
+            <h3 className="text-xl font-semibold">Modifica Documento</h3>
+          </ModalHeader>
+          <ModalBody>
+            <div className="space-y-4">
+              <Input
+                label="Titolo Documento"
+                placeholder="Es. Assicurazione Furgone Milano"
+                value={editForm.title || ""}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, title: e.target.value }))
+                }
+                isRequired
+              />
+
+              <div className="grid grid-cols-2 gap-4">
+                <Select
+                  label="Tipo Documento"
+                  placeholder="Seleziona tipo"
+                  selectedKeys={
+                    editForm.document_type ? [editForm.document_type] : []
+                  }
+                  onSelectionChange={(keys) => {
+                    const selected = Array.from(keys)[0] as string;
+                    setEditForm((prev) => ({
+                      ...prev,
+                      document_type: selected,
+                    }));
+                  }}
+                  isRequired
+                >
+                  {Object.entries(documentTypeLabels).map(([key, label]) => (
+                    <SelectItem key={key}>{label}</SelectItem>
+                  ))}
+                </Select>
+
+                <Select
+                  label="Veicolo"
+                  placeholder="Seleziona veicolo"
+                  selectedKeys={
+                    editForm.vehicle_id
+                      ? new Set([editForm.vehicle_id])
+                      : new Set()
+                  }
+                  renderValue={() => {
+                    const selectedVehicle = vehicles.find(
+                      (v) => v.vehicle_id === editForm.vehicle_id
+                    );
+                    return selectedVehicle ? (
+                      <div className="flex flex-col gap-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-small">
+                            {selectedVehicle.name} -{" "}
+                            {selectedVehicle.license_plate}
+                          </span>
+                        </div>
+                      </div>
+                    ) : null;
+                  }}
+                  onSelectionChange={(keys) => {
+                    const vehicleId = Array.from(keys)[0] as string;
+                    setEditForm((prev) => ({
+                      ...prev,
+                      vehicle_id: vehicleId,
+                    }));
+                  }}
+                  isRequired
+                >
+                  {vehicles.map((vehicle) => (
+                    <SelectItem key={vehicle.vehicle_id}>
+                      {vehicle.name} - {vehicle.license_plate}
+                    </SelectItem>
+                  ))}
+                </Select>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <DatePicker
+                  label="Data Emissione"
+                  value={
+                    editForm.issue_date
+                      ? (parseDate(editForm.issue_date) as any)
+                      : (today(getLocalTimeZone()) as any)
+                  }
+                  onChange={(date: any) => {
+                    if (date) {
+                      const dateString = `${date.year}-${String(
+                        date.month
+                      ).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+                      setEditForm((prev) => ({
+                        ...prev,
+                        issue_date: dateString,
+                      }));
+                    }
+                  }}
+                  isRequired
+                />
+
+                <DatePicker
+                  label="Data Scadenza"
+                  value={
+                    editForm.expiry_date
+                      ? (parseDate(editForm.expiry_date) as any)
+                      : undefined
+                  }
+                  onChange={(date: any) => {
+                    if (date) {
+                      const dateString = `${date.year}-${String(
+                        date.month
+                      ).padStart(2, "0")}-${String(date.day).padStart(2, "0")}`;
+                      setEditForm((prev) => ({
+                        ...prev,
+                        expiry_date: dateString,
+                      }));
+                    }
+                  }}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <Input
+                  label="Fornitore/Ente"
+                  placeholder="Es. Generali Assicurazioni"
+                  value={editForm.provider || ""}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      provider: e.target.value,
+                    }))
+                  }
+                />
+
+                <Input
+                  label="Numero Certificato"
+                  placeholder="Es. POL123456789"
+                  value={editForm.certificate_number || ""}
+                  onChange={(e) =>
+                    setEditForm((prev) => ({
+                      ...prev,
+                      certificate_number: e.target.value,
+                    }))
+                  }
+                />
+              </div>
+
+              <Input
+                label="Costo (€)"
+                type="number"
+                placeholder="0.00"
+                value={editForm.cost?.toString() || ""}
+                onChange={(e) =>
+                  setEditForm((prev) => ({
+                    ...prev,
+                    cost: parseFloat(e.target.value) || undefined,
+                  }))
+                }
+              />
+
+              <Textarea
+                label="Note"
+                placeholder="Note aggiuntive..."
+                value={editForm.notes || ""}
+                onChange={(e) =>
+                  setEditForm((prev) => ({ ...prev, notes: e.target.value }))
+                }
+              />
+
+              <div>
+                <label className="block text-sm font-medium mb-2">
+                  File Documento
+                </label>
+
+                {/* Mostra file esistente se presente e non è stato eliminato */}
+                {editForm.file_path && !fileChanged && (
+                  <div className="mb-4 p-3 border rounded-lg ">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Icon
+                          icon="solar:file-bold"
+                          className="text-primary"
+                          width={20}
+                        />
+                        <span className="text-sm font-medium">
+                          {editForm.file_path.split("/").pop() || "Documento"}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        color="danger"
+                        variant="light"
+                        startContent={
+                          <Icon icon="solar:trash-bin-trash-bold" width={16} />
+                        }
+                        onPress={handleFileDelete}
+                      >
+                        Elimina
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Mostra upload solo se non c'è file esistente o se è stato eliminato */}
+                {(!editForm.file_path || fileChanged) && (
+                  <div>
+                    <Input
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.doc,.docx"
+                      onChange={(e) =>
+                        handleEditFileUpload(e.target.files?.[0] || null)
+                      }
+                      className="w-full p-2 border border-gray-300 rounded-lg"
+                    />
+                    {editFile && (
+                      <p className="text-sm text-default-500 mt-1">
+                        {editFile.name} (
+                        {(editFile.size / 1024 / 1024).toFixed(2)} MB)
+                      </p>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {isEditing && (
+                <div>
+                  <Progress
+                    value={0} // Placeholder for progress, actual progress handled by axios
+                    color="primary"
+                    className="mb-2"
+                  />
+                  <p className="text-sm text-center">
+                    Aggiornamento in corso...
+                  </p>
+                </div>
+              )}
+            </div>
+          </ModalBody>
+          <ModalFooter>
+            <Button
+              variant="light"
+              onPress={onEditModalClose}
+              isDisabled={isEditing}
+            >
+              Annulla
+            </Button>
+            <Button
+              color="primary"
+              onPress={handleEditSubmit}
+              isLoading={isEditing}
+              isDisabled={
+                !editForm.title ||
+                !editForm.document_type ||
+                !editForm.vehicle_id ||
+                (!editFile &&
+                  !editForm.cost &&
+                  !editForm.provider &&
+                  !editForm.certificate_number &&
+                  !editForm.notes)
+              }
+            >
+              Salva Modifiche
+            </Button>
+          </ModalFooter>
+        </ModalContent>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={isDeleteModalOpen}
+        onClose={onDeleteModalClose}
+        isDismissable={false}
+        onOpenChange={onDeleteModalClose}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1">
+            <div className="flex items-center gap-3">
+              <Icon
+                icon="solar:trash-bin-trash-bold"
+                className="text-danger"
+                width={30}
+              />
+              <h3 className="text-xl font-semibold">Conferma Eliminazione</h3>
+            </div>
+            <p className="text-small text-default-500">
+              Sei sicuro di voler eliminare il documento "
+              {documentToDelete?.title}"? Questa azione è irreversibile.
+            </p>
+          </ModalHeader>
+          <ModalFooter>
+            <Button
+              variant="light"
+              onPress={handleCancelDelete}
+              isDisabled={isDeleting}
+            >
+              Annulla
+            </Button>
+            <Button
+              color="danger"
+              onPress={handleConfirmDelete}
+              isLoading={isDeleting}
+            >
+              Elimina
+            </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
     </div>
