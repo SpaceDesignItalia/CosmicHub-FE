@@ -76,6 +76,7 @@ export interface CompanyDocument extends BaseDocument {
 
 // Documenti Dipendenti
 export interface EmployeeDocument extends BaseDocument {
+  document_id: string;
   employee_id: string;
   employee_name: string;
   employee_email?: string;
@@ -102,6 +103,8 @@ export interface EmployeeDocument extends BaseDocument {
   training_hours?: number;
   instructor?: string;
   renewal_required?: boolean;
+  status: "active" | "expired" | "expiring_soon" | "draft" | "cancelled";
+  file_path: string;
 }
 
 // Reminder/Notifiche
