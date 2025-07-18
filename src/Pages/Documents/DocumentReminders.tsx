@@ -38,7 +38,7 @@ import {
 import { Icon } from "@iconify/react";
 import axios from "axios";
 import PageHeader from "../../Components/Layout/PageHeader";
-import { DocumentReminder, ReminderConfig, DocumentAnalytics } from "../../types/Documents";
+import type { DocumentReminder, ReminderConfig, DocumentAnalytics } from "../../types/Documents";
 
 interface ReminderDashboardData {
   critical_expiring: DocumentReminder[];
@@ -76,25 +76,48 @@ export default function DocumentReminders() {
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState("dashboard");
 
+  // Raw document data from APIs
+  const [vehicleDocuments, setVehicleDocuments] = useState<any[]>([]);
+  const [employeeDocuments, setEmployeeDocuments] = useState<any[]>([]);
+  const [companyDocuments, setCompanyDocuments] = useState<any[]>([]);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
   // Modals
   const { isOpen: isConfigModalOpen, onOpen: onConfigModalOpen, onClose: onConfigModalClose } = useDisclosure();
-  const { isOpen: isReminderModalOpen, onOpen: onReminderModalOpen, onClose: onReminderModalClose } = useDisclosure();
-  const [selectedReminder, setSelectedReminder] = useState<DocumentReminder | null>(null);
 
   // Load data
   useEffect(() => {
-    loadDashboardData();
+    loadAllDocuments();
     loadReminderConfigs();
   }, []);
 
-  const loadDashboardData = async () => {
+  // Load all documents from the 3 categories using existing APIs
+  const loadAllDocuments = async () => {
     setIsLoading(true);
     try {
-      const response = await axios.get("/Documents/Reminders/GET/GetDashboardData");
-      setDashboardData(response.data);
+      // Load documents from all categories in parallel
+      const [vehicleResponse, employeeResponse, companyResponse] = await Promise.all([
+        axios.get("/Document/GET/GetAllVehicleDocuments"),
+        axios.get("/Document/GET/GetAllEmployeeDocuments"),
+        axios.get("/Document/GET/GetAllCompanyDocuments")
+      ]);
+
+      const vehicleDocs = vehicleResponse.data || [];
+      const employeeDocs = employeeResponse.data || [];
+      const companyDocs = companyResponse.data || [];
+
+      setVehicleDocuments(vehicleDocs);
+      setEmployeeDocuments(employeeDocs);
+      setCompanyDocuments(companyDocs);
+
+      // Process data to create dashboard
+      const processedData = processDashboardData(vehicleDocs, employeeDocs, companyDocs);
+      setDashboardData(processedData);
+      setLastUpdated(new Date());
+
     } catch (error) {
-      console.error("Errore nel caricamento dashboard:", error);
-      // Load mock data for development
+      console.error("Errore nel caricamento documenti:", error);
+      // Load mock data as fallback
       loadMockDashboardData();
     } finally {
       setIsLoading(false);
@@ -109,6 +132,88 @@ export default function DocumentReminders() {
       console.error("Errore nel caricamento configurazioni:", error);
       loadMockConfigs();
     }
+  };
+
+  // Process all documents to create dashboard data
+  const processDashboardData = (vehicleDocs: any[], employeeDocs: any[], companyDocs: any[]): ReminderDashboardData => {
+    const allDocuments = [
+      ...vehicleDocs.map(doc => ({ ...doc, entity_type: 'vehicle' as const })),
+      ...employeeDocs.map(doc => ({ ...doc, entity_type: 'employee' as const })),
+      ...companyDocs.map(doc => ({ ...doc, entity_type: 'company' as const }))
+    ];
+
+    const now = new Date();
+    const documentsWithExpiry = allDocuments.filter(doc => doc.expiry_date);
+
+    // Calculate days until expiry for each document
+    const processedDocuments = documentsWithExpiry.map(doc => {
+      const expiryDate = new Date(doc.expiry_date);
+      const timeDiff = expiryDate.getTime() - now.getTime();
+      const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+
+      return {
+        id: doc.document_id || doc.id,
+        document_id: doc.document_id || doc.id,
+        document_type: doc.entity_type,
+        document_title: doc.title,
+        expiry_date: doc.expiry_date,
+        days_until_expiry: daysDiff,
+        reminder_type: "email" as const,
+        status: daysDiff < 0 ? "expired" as const : daysDiff <= 7 ? "pending" as const : "sent" as const,
+        recipients: ["admin@cosmichub.it"],
+        created_at: new Date().toISOString(),
+      };
+    });
+
+    // Categorize documents
+    const critical_expiring = processedDocuments.filter(doc => 
+      doc.days_until_expiry >= 0 && doc.days_until_expiry <= 7
+    );
+    
+    const upcoming_reminders = processedDocuments.filter(doc => 
+      doc.days_until_expiry > 7 && doc.days_until_expiry <= 30
+    );
+    
+    const overdue_documents = processedDocuments.filter(doc => 
+      doc.days_until_expiry < 0
+    );
+
+    const recent_sent = processedDocuments.filter(doc => 
+      doc.days_until_expiry > 30 && doc.days_until_expiry <= 60
+    );
+
+    // Calculate analytics
+    const analytics: DocumentAnalytics = {
+      total_documents: allDocuments.length,
+      expiring_soon: critical_expiring.length + upcoming_reminders.length,
+      expired: overdue_documents.length,
+      by_type: {
+        vehicle_documents: vehicleDocs.length,
+        company_documents: companyDocs.length,
+        employee_documents: employeeDocs.length,
+      },
+      by_status: {
+        active: allDocuments.filter(d => d.status === "active").length,
+        expiring_soon: critical_expiring.length + upcoming_reminders.length,
+        expired: overdue_documents.length,
+        draft: allDocuments.filter(d => d.status === "draft").length,
+      },
+      recent_uploads: allDocuments.filter(doc => {
+        if (!doc.created_at) return false;
+        const createdDate = new Date(doc.created_at);
+        const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+        return createdDate > weekAgo;
+      }).length,
+      pending_renewals: critical_expiring.length + upcoming_reminders.length + overdue_documents.length,
+    };
+
+    return {
+      critical_expiring,
+      upcoming_reminders,
+      overdue_documents,
+      recent_sent,
+      analytics
+    };
   };
 
   const loadMockDashboardData = () => {
@@ -259,7 +364,7 @@ export default function DocumentReminders() {
         document_id: documentId,
         reminder_type: reminderType,
       });
-      await loadDashboardData();
+      await loadAllDocuments();
     } catch (error) {
       console.error("Errore nell'invio reminder:", error);
     }
@@ -269,7 +374,7 @@ export default function DocumentReminders() {
   const acknowledgeReminder = async (reminderId: string) => {
     try {
       await axios.put(`/Documents/Reminders/PUT/AcknowledgeReminder/${reminderId}`);
-      await loadDashboardData();
+      await loadAllDocuments();
     } catch (error) {
       console.error("Errore nella conferma reminder:", error);
     }
@@ -301,10 +406,17 @@ export default function DocumentReminders() {
     <div className="w-full flex flex-col p-4 gap-6 min-h-screen">
       <PageHeader
         title="Scadenze & Reminder"
-        description="Monitoraggio scadenze documenti e gestione notifiche automatiche"
+        description={`Monitoraggio scadenze documenti e gestione notifiche automatiche${lastUpdated ? ` • Ultimo aggiornamento: ${lastUpdated.toLocaleTimeString('it-IT')}` : ''}`}
         icon="solar:bell-bing-bold-duotone"
         size="md"
         actions={[
+          {
+            label: "Ricarica Dati",
+            icon: "solar:refresh-bold",
+            color: "default",
+            variant: "flat",
+            onClick: loadAllDocuments,
+          },
           {
             label: "Configura Reminder",
             icon: "solar:settings-bold",
@@ -441,6 +553,49 @@ export default function DocumentReminders() {
               </CardBody>
             </Card>
           </div>
+
+          {/* Data Sources Summary */}
+          <Card className="mb-6">
+            <CardHeader>
+              <h3 className="text-lg font-semibold">Fonti Dati Caricate</h3>
+            </CardHeader>
+            <CardBody>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg">
+                  <Icon icon="solar:car-bold" className="text-primary" width={24} />
+                  <div>
+                    <p className="text-sm font-medium">Documenti Veicoli</p>
+                    <p className="text-lg font-semibold">{vehicleDocuments.length}</p>
+                    <p className="text-xs text-default-500">
+                      {vehicleDocuments.filter(d => d.expiry_date).length} con scadenza
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 bg-warning-50 rounded-lg">
+                  <Icon icon="solar:user-id-bold" className="text-warning" width={24} />
+                  <div>
+                    <p className="text-sm font-medium">Documenti Dipendenti</p>
+                    <p className="text-lg font-semibold">{employeeDocuments.length}</p>
+                    <p className="text-xs text-default-500">
+                      {employeeDocuments.filter(d => d.expiry_date).length} con scadenza
+                    </p>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-3 p-3 bg-secondary-50 rounded-lg">
+                  <Icon icon="solar:buildings-2-bold" className="text-secondary" width={24} />
+                  <div>
+                    <p className="text-sm font-medium">Documenti Azienda</p>
+                    <p className="text-lg font-semibold">{companyDocuments.length}</p>
+                    <p className="text-xs text-default-500">
+                      {companyDocuments.filter(d => d.expiry_date).length} con scadenza
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </CardBody>
+          </Card>
 
           {/* Distribution Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
