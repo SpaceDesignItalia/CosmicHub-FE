@@ -35,6 +35,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 // Sostituisco l'import della chiave del localStorage con l'import del custom hook
 import { useCustomTheme } from "../../providers/ThemeProvider";
+import { useSidebar } from "../../providers/SidebarProvider";
 
 export enum SidebarItemType {
   Nest = "nest",
@@ -309,6 +310,14 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     // Usiamo la nuova API del tema
     const { isDark, toggleTheme } = useCustomTheme();
 
+    // Usiamo il sidebar provider
+    const sidebarContext = useSidebar();
+    const { mode, toggleMode } = sidebarContext;
+    
+    // Test debug
+    console.log("🔍 Sidebar Context:", sidebarContext);
+    console.log("🔍 Current mode:", mode);
+
     // Memoizzo la selezione corrente per evitare ricalcoli non necessari
     const currentSelection = useMemo(() => {
       const currentPath = location.pathname;
@@ -582,17 +591,17 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       () => (
         <div className="fixed left-0 top-0 z-40 h-screen w-64 max-w-64 bg-background text-foreground border-r border-divider">
           <div className="relative flex h-full w-full flex-1 flex-col bg-background p-4 overflow-hidden">
-            <div
-              className="flex items-center justify-between gap-2 px-2 cursor-pointer hover:opacity-80"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                if (location.pathname !== "/dashboard") {
-                  navigate("/dashboard");
-                }
-              }}
-            >
-              <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2 px-2">
+              <div
+                className="flex items-center gap-2 cursor-pointer hover:opacity-80 flex-1"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  if (location.pathname !== "/dashboard") {
+                    navigate("/dashboard");
+                  }
+                }}
+              >
                 <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground">
                   <Icon
                     className="text-background"
@@ -604,17 +613,51 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                   CosmicHub
                 </span>
               </div>
-              {isMobile && (
-                <Button
-                  isIconOnly
-                  variant="light"
-                  size="sm"
-                  onPress={onClose}
-                  className="md:hidden"
-                >
-                  <Icon icon="solar:close-circle-line-linear" width={24} />
-                </Button>
-              )}
+              
+              <div className="flex items-center gap-1">
+                {/* Pulsante toggle modalità sidebar */}
+                {!isMobile && (
+                  <Tooltip 
+                    content={mode === 'pinned' ? 'Nascondi automaticamente' : 'Tieni fissa'} 
+                    placement="right"
+                    delay={0}
+                    closeDelay={0}
+                  >
+                    <Button
+                      isIconOnly
+                      variant="light"
+                      size="sm"
+                      onPress={() => {
+                        console.log('Toggle clicked! Current mode:', mode);
+                        toggleMode();
+                        console.log('Mode after toggle:', mode);
+                        // Forza un reflow del DOM per evitare glitch visivi
+                        requestAnimationFrame(() => {
+                          window.dispatchEvent(new Event('resize'));
+                        });
+                      }}
+                      className="text-default-600 hover:text-foreground transition-colors"
+                    >
+                      <Icon 
+                        icon={mode === 'pinned' ? 'solar:sidebar-minimalistic-bold' : 'solar:sidebar-minimalistic-outline'} 
+                        width={18} 
+                      />
+                    </Button>
+                  </Tooltip>
+                )}
+                
+                {isMobile && (
+                  <Button
+                    isIconOnly
+                    variant="light"
+                    size="sm"
+                    onPress={onClose}
+                    className="md:hidden"
+                  >
+                    <Icon icon="solar:close-circle-line-linear" width={24} />
+                  </Button>
+                )}
+              </div>
             </div>
 
             <Spacer y={8} />

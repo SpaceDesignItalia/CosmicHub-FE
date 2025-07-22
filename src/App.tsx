@@ -1,7 +1,7 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
-import Sidebar, { sectionNestedItems } from "./Components/Layout/Sidebar";
+import AppLayout from "./Components/Layout/AppLayout";
 import Analytics from "./Pages/Analytics/Analytics";
 import Authentication from "./Pages/Authentication/Authentication";
 import Dashboard from "./Pages/Dashboard/Dashboard";
@@ -30,6 +30,7 @@ import Customers from "./Pages/Customers/Customers";
 import AddCustomer from "./Pages/Customers/AddCustomer";
 // CalendarAurora system imports
 import CalendarAurora from "./Pages/CalendarAurora/Calendar";
+import { SidebarProvider } from "./providers/SidebarProvider";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_API_URL;
@@ -78,82 +79,47 @@ function App() {
 
   console.log(isAuth);
 
-  const EmployeeProtectedRoutes: React.FC = () => {
-    return (
-      <Routes>
-        <Route element={<Outlet />}>
-          <Route path="/" element={<Dashboard />} />
-          <Route path="/dashboard" element={<Dashboard />} />
-          <Route path="/inventory/products" element={<Products />} />
-          <Route path="/inventory/products/search" element={<GlobalProductSearch />} />
-          <Route path="/inventory/products/add" element={<ProductAdd />} />
-          <Route
-            path="/inventory/products/edit/:id"
-            element={<ProductEdit />}
-          />
-          <Route path="/inventory/categories" element={<Categories />} />
-          <Route path="/inventory/categories/add" element={<CategoryAdd />} />
-          <Route path="/inventory/vehicles" element={<Vehicles />} />
-          <Route path="/inventory/vehicles/add" element={<AddVehicle />} />
-          <Route
-            path="/inventory/vehicles/edit/:id"
-            element={<EditVehicle />}
-          />
-          <Route
-            path="/inventory/warehouses/edit/:UUID"
-            element={<EditWarehouse />}
-          />
-          <Route path="/inventory/warehouses/add" element={<AddWarehouse />} />
-          <Route path="/inventory/movements" element={<WarehouseMovement />} />
-          <Route path="/documents/ddt" element={<DDTManagement />} />
-          <Route path="/documents/vehicles" element={<VehicleDocuments />} />
-          <Route path="/documents/company" element={<CompanyDocuments />} />
-          <Route path="/documents/employees" element={<EmployeeDocuments />} />
-          <Route path="/documents/reminders" element={<DocumentReminders />} />
-          <Route path="/analytics" element={<Analytics />} />
-          <Route path="/suppliers" element={<Suppliers />} />
-          <Route path="/customers" element={<Customers />} />
-          <Route path="/customers/add" element={<AddCustomer />} />
-          
-          {/* CalendarAurora routes */}
-          <Route path="/calendar" element={<CalendarAurora />} />
-          <Route path="/calendar/new" element={<CalendarAurora />} />
-
-          <Route path="/team" element={<Team />} />
-          <Route path="/warehouses/:UUID" element={<WarehouseDetail />} />
-        </Route>
-      </Routes>
-    );
-  };
-
   return (
-    <div className="flex h-screen w-full flex-row">
-      {isAuth && (
-        <Sidebar defaultSelectedKey="dashboard" items={sectionNestedItems} />
-      )}
-
-      <div className={`flex-1 ${isAuth ? "ml-64" : ""}`}>
-        <Routes>
-          {!isAuth ? (
-            <>
-              <Route path="*" element={<Navigate to="/login" replace />} />
-              <Route path="/" element={<Authentication />} />
-              <Route path="/login" element={<Authentication />} />
-            </>
-          ) : (
-            <>
-              <Route path="/" element={<Navigate to="/dashboard" replace />} />
-              <Route
-                path="/login"
-                element={<Navigate to="/dashboard" replace />}
-              />
-              <Route path="/*" element={<EmployeeProtectedRoutes />} />
-              <Route path="/settings" element={<Settings />} />
-            </>
-          )}
-        </Routes>
-      </div>
-    </div>
+    <SidebarProvider>
+      <Routes>
+        {!isAuth ? (
+          <>
+            <Route path="/login" element={<Authentication />} />
+            <Route path="*" element={<Navigate to="/login" replace />} />
+          </>
+        ) : (
+          <Route path="/" element={<AppLayout />}>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/calendar" element={<CalendarAurora />} />
+            <Route path="/customers" element={<Customers />} />
+            <Route path="/customers/add" element={<AddCustomer />} />
+            <Route path="/inventory/products" element={<Products />} />
+            <Route path="/inventory/products/search" element={<GlobalProductSearch />} />
+            <Route path="/inventory/products/add" element={<ProductAdd />} />
+            <Route path="/inventory/products/edit/:id" element={<ProductEdit />} />
+            <Route path="/inventory/categories" element={<Categories />} />
+            <Route path="/inventory/categories/add" element={<CategoryAdd />} />
+            <Route path="/inventory/vehicles" element={<Vehicles />} />
+            <Route path="/inventory/vehicles/add" element={<AddVehicle />} />
+            <Route path="/inventory/vehicles/edit/:id" element={<EditVehicle />} />
+            <Route path="/inventory/warehouses/add" element={<AddWarehouse />} />
+            <Route path="/inventory/warehouses/edit/:id" element={<EditWarehouse />} />
+            <Route path="/inventory/movements" element={<WarehouseMovement />} />
+            <Route path="/suppliers" element={<Suppliers />} />
+            <Route path="/team" element={<Team />} />
+            <Route path="/documents/ddt" element={<DDTManagement />} />
+            <Route path="/documents/vehicles" element={<VehicleDocuments />} />
+            <Route path="/documents/company" element={<CompanyDocuments />} />
+            <Route path="/documents/employees" element={<EmployeeDocuments />} />
+            <Route path="/documents/reminders" element={<DocumentReminders />} />
+            <Route path="/warehouses/:id" element={<WarehouseDetail />} />
+            <Route path="/analytics" element={<Analytics />} />
+            <Route path="/settings" element={<Settings />} />
+          </Route>
+        )}
+      </Routes>
+    </SidebarProvider>
   );
 }
 
