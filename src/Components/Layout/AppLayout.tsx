@@ -89,10 +89,10 @@ export default function AppLayout() {
                 {/* Sidebar content con altezza adattiva */}
                 <div className={`${
                   mode === 'auto-hide'
-                    ? 'h-[calc(100vh-8rem)] rounded-xl shadow-xl bg-background/98 border border-default-200/50 dark:border-default-300/50 backdrop-blur-md overflow-hidden' // Container con overflow hidden per bordi
+                    ? 'h-full rounded-xl shadow-xl bg-background/98 border border-default-200/50 dark:border-default-300/50 backdrop-blur-md overflow-hidden' // Container con overflow hidden per bordi
                     : 'h-full' // Altezza piena in modalità pinned
                 }`}>
-                  <div className="h-full overflow-y-auto overflow-x-hidden">
+                  <div className="h-[calc(100vh-6rem)] overflow-y-auto overflow-x-hidden">
                     <Sidebar defaultSelectedKey="home" items={sectionNestedItems} />
                   </div>
                 </div>

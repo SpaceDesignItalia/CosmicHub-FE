@@ -590,7 +590,8 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     const SidebarContent = useMemo(
       () => (
         <div className="fixed left-0 top-0 z-40 h-screen w-64 max-w-64 bg-background text-foreground border-r border-divider">
-          <div className="relative flex h-full w-full flex-1 flex-col bg-background p-4 overflow-hidden">
+          <div className="relative flex h-full w-full flex-1 flex-col bg-background p-4 pb-10 overflow-y-auto">
+            {/* padding-bottom extra per evitare che il selettore magazzino tocchi il bordo */}
             <div className="flex items-center justify-between gap-2 px-2">
               <div
                 className="flex items-center gap-2 cursor-pointer hover:opacity-80 flex-1"
@@ -944,7 +945,9 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
 
             <Spacer y={8} />
 
-            <div className="mt-auto flex flex-col gap-4">
+            <div className="mt-auto flex flex-col gap-4 px-2 pb-2">
+              {/* Spazio extra dal bordo inferiore */}
+              <div className="h-0 mb-4" />
               <Dropdown placement="top-start">
                 <DropdownTrigger>
                   <Button
