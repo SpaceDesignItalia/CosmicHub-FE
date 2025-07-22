@@ -53,7 +53,7 @@ export default function AppLayout() {
           {/* Area di hover per attivare la sidebar in modalità auto-hide */}
           {mode === 'auto-hide' && !isVisible && (
             <div 
-              className="fixed left-0 top-0 w-4 h-full z-50"
+              className="fixed left-0 top-0 w-16 h-full z-50"
               onMouseEnter={() => {
                 console.log("🖱️ Hover area activated");
                 setIsHovered(true);
@@ -73,10 +73,12 @@ export default function AppLayout() {
                 initial={mode === 'pinned' ? 'visible' : 'hidden'}
                 animate="visible"
                 exit="hidden"
-                className={`h-screen flex-shrink-0 ${
-                  mode === 'auto-hide' ? 'fixed left-0 top-0 z-40' : 'relative'
+                className={`flex-shrink-0 ${
+                  mode === 'auto-hide' 
+                    ? 'fixed left-0 top-0 z-40 h-screen p-6 pt-8 pb-8' // Ridotto padding per più spazio interno
+                    : 'relative h-screen'
                 }`}
-                style={{ width: '16rem' }}
+                style={{ width: mode === 'auto-hide' ? '18rem' : '16rem' }} // Sidebar più larga in auto-hide
                 onMouseLeave={() => {
                   if (mode === 'auto-hide') {
                     console.log("🖱️ Left sidebar area");
@@ -84,7 +86,16 @@ export default function AppLayout() {
                   }
                 }}
               >
-                <Sidebar defaultSelectedKey="home" items={sectionNestedItems} />
+                {/* Sidebar content con altezza adattiva */}
+                <div className={`${
+                  mode === 'auto-hide'
+                    ? 'h-[calc(100vh-8rem)] rounded-xl shadow-xl bg-background/98 border border-default-200/50 dark:border-default-300/50 backdrop-blur-md overflow-hidden' // Container con overflow hidden per bordi
+                    : 'h-full' // Altezza piena in modalità pinned
+                }`}>
+                  <div className="h-full overflow-y-auto overflow-x-hidden">
+                    <Sidebar defaultSelectedKey="home" items={sectionNestedItems} />
+                  </div>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
