@@ -28,9 +28,8 @@ import EmployeeDocuments from "./Pages/Documents/EmployeeDocuments";
 import DocumentReminders from "./Pages/Documents/DocumentReminders";
 import Customers from "./Pages/Customers/Customers";
 import AddCustomer from "./Pages/Customers/AddCustomer";
-import Calendar from "./Pages/Calendar/Calendar";
-import NewAppointment from "./Pages/Calendar/NewAppointment";
-
+// CalendarAurora system imports
+import CalendarAurora from "./Pages/CalendarAurora/Calendar";
 
 function App() {
   axios.defaults.baseURL = import.meta.env.VITE_API_URL;
@@ -115,8 +114,10 @@ function App() {
           <Route path="/suppliers" element={<Suppliers />} />
           <Route path="/customers" element={<Customers />} />
           <Route path="/customers/add" element={<AddCustomer />} />
-          <Route path="/calendar" element={<Calendar />} />
-          <Route path="/calendar/new" element={<NewAppointment />} />
+          
+          {/* CalendarAurora routes */}
+          <Route path="/calendar" element={<CalendarAurora />} />
+          <Route path="/calendar/new" element={<CalendarAurora />} />
 
           <Route path="/team" element={<Team />} />
           <Route path="/warehouses/:UUID" element={<WarehouseDetail />} />
