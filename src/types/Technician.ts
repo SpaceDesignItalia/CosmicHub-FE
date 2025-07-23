@@ -1,7 +1,12 @@
-import type { Employee } from './Employee';
+import type { Employee } from "./Employee";
 
 export interface Technician extends Employee {
   technician_id: string;
+  phone: string;
+  email: string;
+  profile_image: string;
+  created_at: Date;
+  updated_at: Date;
   specializations: TechnicianSpecialization[];
   skill_level: "junior" | "senior" | "expert";
   hourly_rate?: number;
@@ -23,7 +28,14 @@ export interface Technician extends Employee {
 export interface TechnicianSpecialization {
   specialization_id: string;
   name: string;
-  category: "electrical" | "plumbing" | "hvac" | "appliances" | "electronics" | "carpentry" | "other";
+  category:
+    | "electrical"
+    | "plumbing"
+    | "hvac"
+    | "appliances"
+    | "electronics"
+    | "carpentry"
+    | "other";
   skill_level: "basic" | "intermediate" | "advanced" | "expert";
 }
 
@@ -73,6 +85,6 @@ export interface TechnicianFormData {
   specializations: string[]; // IDs delle specializzazioni
   skill_level: "junior" | "senior" | "expert";
   hourly_rate?: number;
-  certifications?: Omit<TechnicianCertification, 'certification_id'>[];
+  certifications?: Omit<TechnicianCertification, "certification_id">[];
   working_hours: WorkingHours;
-} 
+}

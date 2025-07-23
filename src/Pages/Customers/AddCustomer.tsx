@@ -1,25 +1,24 @@
-import React, { useState } from "react";
 import {
+  Autocomplete,
+  AutocompleteItem,
   Button,
   Card,
   CardBody,
   CardHeader,
+  Divider,
   Input,
   Select,
   SelectItem,
-  Textarea,
   Spacer,
   Switch,
-  Divider,
-  CheckboxGroup,
-  Checkbox,
-  Autocomplete,
-  AutocompleteItem,
+  Textarea,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { CustomerFormData } from "../../types/Customer";
 import PageHeader from "../../Components/Layout/PageHeader";
+import type { CustomerFormData } from "../../types/Customer";
+import axios from "axios";
 
 const initialFormData: CustomerFormData = {
   name: "",
@@ -61,7 +60,13 @@ const contactMethods = [
 ];
 
 const countries = [
-  "Italia", "Francia", "Germania", "Spagna", "Svizzera", "Austria", "Regno Unito"
+  "Italia",
+  "Francia",
+  "Germania",
+  "Spagna",
+  "Svizzera",
+  "Austria",
+  "Regno Unito",
 ];
 
 export default function AddCustomer() {
@@ -79,7 +84,13 @@ export default function AddCustomer() {
     }
   };
 
-  const handleCommunicationPreferenceChange = (field: "receive_reminders" | "receive_promotions" | "receive_maintenance_alerts", value: boolean) => {
+  const handleCommunicationPreferenceChange = (
+    field:
+      | "receive_reminders"
+      | "receive_promotions"
+      | "receive_maintenance_alerts",
+    value: boolean
+  ) => {
     if (formData.communication_preferences) {
       setFormData({
         ...formData,
@@ -119,7 +130,10 @@ export default function AddCustomer() {
       }
 
       // Validazione email se presente
-      if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
+      if (
+        formData.email &&
+        !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)
+      ) {
         newErrors.email = "Email non valida";
       }
     }
@@ -159,22 +173,28 @@ export default function AddCustomer() {
       console.log("Submit blocked - not on final step");
       return;
     }
-    
+
     if (!validateStep(1) || !validateStep(2)) return;
 
     setLoading(true);
     try {
       // Qui implementare la chiamata API per salvare il cliente
       console.log("Saving customer:", formData);
-      
+
       // Simulazione API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      // Mostra notifica di successo
-      // TODO: Implementare toast notification
-      
-      // Redirect alla lista clienti
-      navigate("/customers");
+      const response = await axios.post(
+        "/Customer/POST/CreateCustomer",
+        formData
+      );
+
+      if (response.status === 200) {
+        // Redirect alla lista clienti
+        navigate("/customers");
+        // TODO: Implementare toast notification
+      } else {
+        // Mostra notifica di errore
+        // TODO: Implementare toast notification
+      }
     } catch (error) {
       console.error("Errore nel salvataggio del cliente:", error);
       // TODO: Mostrare errore all'utente
@@ -199,14 +219,13 @@ export default function AddCustomer() {
             <Switch
               isSelected={formData.customer_type === "business"}
               onValueChange={(checked) =>
-                handleInputChange("customer_type", checked ? "business" : "private")
+                handleInputChange(
+                  "customer_type",
+                  checked ? "business" : "private"
+                )
               }
-              startContent={
-                <Icon icon="solar:user-bold" width={16} />
-              }
-              endContent={
-                <Icon icon="solar:buildings-2-bold" width={16} />
-              }
+              startContent={<Icon icon="solar:user-bold" width={16} />}
+              endContent={<Icon icon="solar:buildings-2-bold" width={16} />}
             >
               {formData.customer_type === "business" ? "Azienda" : "Privato"}
             </Switch>
@@ -218,14 +237,20 @@ export default function AddCustomer() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <Icon 
-              icon={formData.customer_type === "business" ? "solar:buildings-2-bold" : "solar:user-bold"} 
-              width={24} 
-              className="text-primary" 
+            <Icon
+              icon={
+                formData.customer_type === "business"
+                  ? "solar:buildings-2-bold"
+                  : "solar:user-bold"
+              }
+              width={24}
+              className="text-primary"
             />
             <div>
               <h4 className="text-lg font-semibold">
-                {formData.customer_type === "business" ? "Informazioni Azienda" : "Informazioni Personali"}
+                {formData.customer_type === "business"
+                  ? "Informazioni Azienda"
+                  : "Informazioni Personali"}
               </h4>
               <p className="text-small text-default-500">
                 Inserisci i dati principali del cliente
@@ -264,19 +289,27 @@ export default function AddCustomer() {
                   label="Nome Azienda *"
                   placeholder="Inserisci il nome dell'azienda"
                   value={formData.company_name || ""}
-                  onValueChange={(value) => handleInputChange("company_name", value)}
+                  onValueChange={(value) =>
+                    handleInputChange("company_name", value)
+                  }
                   isInvalid={!!errors.company_name}
                   errorMessage={errors.company_name}
-                  startContent={<Icon icon="solar:buildings-2-bold" width={16} />}
+                  startContent={
+                    <Icon icon="solar:buildings-2-bold" width={16} />
+                  }
                 />
                 <Input
                   label="Partita IVA *"
                   placeholder="IT00000000000"
                   value={formData.vat_number || ""}
-                  onValueChange={(value) => handleInputChange("vat_number", value)}
+                  onValueChange={(value) =>
+                    handleInputChange("vat_number", value)
+                  }
                   isInvalid={!!errors.vat_number}
                   errorMessage={errors.vat_number}
-                  startContent={<Icon icon="solar:document-text-bold" width={16} />}
+                  startContent={
+                    <Icon icon="solar:document-text-bold" width={16} />
+                  }
                 />
               </div>
               <Input
@@ -284,7 +317,9 @@ export default function AddCustomer() {
                 placeholder="Inserisci il codice fiscale"
                 value={formData.tax_code || ""}
                 onValueChange={(value) => handleInputChange("tax_code", value)}
-                startContent={<Icon icon="solar:document-text-bold" width={16} />}
+                startContent={
+                  <Icon icon="solar:document-text-bold" width={16} />
+                }
               />
             </>
           )}
@@ -324,7 +359,11 @@ export default function AddCustomer() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <Icon icon="solar:map-point-bold" width={24} className="text-primary" />
+            <Icon
+              icon="solar:map-point-bold"
+              width={24}
+              className="text-primary"
+            />
             <div>
               <h4 className="text-lg font-semibold">Indirizzo</h4>
               <p className="text-small text-default-500">
@@ -374,9 +413,7 @@ export default function AddCustomer() {
               startContent={<Icon icon="solar:global-bold" width={16} />}
             >
               {countries.map((country) => (
-                <SelectItem key={country}>
-                  {country}
-                </SelectItem>
+                <SelectItem key={country}>{country}</SelectItem>
               ))}
             </Select>
           </div>
@@ -391,7 +428,11 @@ export default function AddCustomer() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <Icon icon="solar:users-group-rounded-bold" width={24} className="text-primary" />
+            <Icon
+              icon="solar:users-group-rounded-bold"
+              width={24}
+              className="text-primary"
+            />
             <div>
               <h4 className="text-lg font-semibold">Sistema Referenze</h4>
               <p className="text-small text-default-500">
@@ -409,13 +450,12 @@ export default function AddCustomer() {
             startContent={<Icon icon="solar:user-check-bold" width={16} />}
           >
             {existingCustomers.map((customer) => (
-              <AutocompleteItem
-                key={customer.id}
-                textValue={customer.name}
-              >
+              <AutocompleteItem key={customer.id} textValue={customer.name}>
                 <div className="flex flex-col">
                   <span className="text-small">{customer.name}</span>
-                  <span className="text-tiny text-default-400">{customer.phone}</span>
+                  <span className="text-tiny text-default-400">
+                    {customer.phone}
+                  </span>
                 </div>
               </AutocompleteItem>
             ))}
@@ -427,9 +467,15 @@ export default function AddCustomer() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <Icon icon="solar:chat-round-bold" width={24} className="text-primary" />
+            <Icon
+              icon="solar:chat-round-bold"
+              width={24}
+              className="text-primary"
+            />
             <div>
-              <h4 className="text-lg font-semibold">Preferenze di Comunicazione</h4>
+              <h4 className="text-lg font-semibold">
+                Preferenze di Comunicazione
+              </h4>
               <p className="text-small text-default-500">
                 Come preferisce essere contattato?
               </p>
@@ -441,13 +487,17 @@ export default function AddCustomer() {
             label="Metodo di contatto preferito"
             selectedKeys={[formData.preferred_contact_method || "phone"]}
             onSelectionChange={(keys) => {
-              const method = Array.from(keys)[0] as "phone" | "email" | "whatsapp" | "sms";
+              const method = Array.from(keys)[0] as
+                | "phone"
+                | "email"
+                | "whatsapp"
+                | "sms";
               handleInputChange("preferred_contact_method", method);
             }}
           >
             {contactMethods.map((method) => (
-              <SelectItem 
-                key={method.key} 
+              <SelectItem
+                key={method.key}
                 startContent={<Icon icon={method.icon} width={16} />}
               >
                 {method.label}
@@ -459,12 +509,17 @@ export default function AddCustomer() {
 
           <div className="space-y-3">
             <p className="text-sm font-medium">Consensi comunicazione:</p>
-            
+
             <div className="space-y-2">
               <Switch
-                isSelected={formData.communication_preferences?.receive_reminders || false}
-                onValueChange={(checked) => 
-                  handleCommunicationPreferenceChange("receive_reminders", checked)
+                isSelected={
+                  formData.communication_preferences?.receive_reminders || false
+                }
+                onValueChange={(checked) =>
+                  handleCommunicationPreferenceChange(
+                    "receive_reminders",
+                    checked
+                  )
                 }
                 startContent={<Icon icon="solar:bell-bold" width={16} />}
               >
@@ -477,9 +532,15 @@ export default function AddCustomer() {
               </Switch>
 
               <Switch
-                isSelected={formData.communication_preferences?.receive_promotions || false}
-                onValueChange={(checked) => 
-                  handleCommunicationPreferenceChange("receive_promotions", checked)
+                isSelected={
+                  formData.communication_preferences?.receive_promotions ||
+                  false
+                }
+                onValueChange={(checked) =>
+                  handleCommunicationPreferenceChange(
+                    "receive_promotions",
+                    checked
+                  )
                 }
                 startContent={<Icon icon="solar:gift-bold" width={16} />}
               >
@@ -492,9 +553,15 @@ export default function AddCustomer() {
               </Switch>
 
               <Switch
-                isSelected={formData.communication_preferences?.receive_maintenance_alerts || false}
-                onValueChange={(checked) => 
-                  handleCommunicationPreferenceChange("receive_maintenance_alerts", checked)
+                isSelected={
+                  formData.communication_preferences
+                    ?.receive_maintenance_alerts || false
+                }
+                onValueChange={(checked) =>
+                  handleCommunicationPreferenceChange(
+                    "receive_maintenance_alerts",
+                    checked
+                  )
                 }
                 startContent={<Icon icon="solar:settings-bold" width={16} />}
               >
@@ -558,7 +625,15 @@ export default function AddCustomer() {
                   )}
                 </div>
                 <div className="ml-2 text-sm">
-                  <div className={`font-medium ${step === currentStep ? "text-primary" : step < currentStep ? "text-success" : "text-default-500"}`}>
+                  <div
+                    className={`font-medium ${
+                      step === currentStep
+                        ? "text-primary"
+                        : step < currentStep
+                        ? "text-success"
+                        : "text-default-500"
+                    }`}
+                  >
                     {step === 1 && "Informazioni"}
                     {step === 2 && "Indirizzo"}
                     {step === 3 && "Preferenze"}
@@ -566,7 +641,11 @@ export default function AddCustomer() {
                 </div>
               </div>
               {step < 3 && (
-                <div className={`flex-1 h-px mx-4 ${step < currentStep ? "bg-success" : "bg-default-200"}`} />
+                <div
+                  className={`flex-1 h-px mx-4 ${
+                    step < currentStep ? "bg-success" : "bg-default-200"
+                  }`}
+                />
               )}
             </React.Fragment>
           ))}
@@ -576,18 +655,18 @@ export default function AddCustomer() {
   );
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="w-full flex flex-col p-4 gap-6 min-h-screen">
       <PageHeader
         title="Nuovo Cliente"
         description="Aggiungi un nuovo cliente al sistema"
         icon="solar:user-plus-rounded-bold-duotone"
       />
-      
+
       <div className="flex-1 p-6 overflow-auto">
         <div className="max-w-4xl mx-auto">
           <div>
             {renderStepIndicator()}
-            
+
             {currentStep === 1 && renderStep1()}
             {currentStep === 2 && renderStep2()}
             {currentStep === 3 && renderStep3()}
@@ -604,7 +683,9 @@ export default function AddCustomer() {
                       color="default"
                       variant="light"
                       onPress={handleCancel}
-                      startContent={<Icon icon="solar:close-circle-bold" width={16} />}
+                      startContent={
+                        <Icon icon="solar:close-circle-bold" width={16} />
+                      }
                     >
                       Annulla
                     </Button>
@@ -614,20 +695,24 @@ export default function AddCustomer() {
                         color="default"
                         variant="flat"
                         onPress={handlePrevStep}
-                        startContent={<Icon icon="solar:arrow-left-bold" width={16} />}
+                        startContent={
+                          <Icon icon="solar:arrow-left-bold" width={16} />
+                        }
                       >
                         Indietro
                       </Button>
                     )}
                   </div>
-                  
+
                   <div className="flex gap-3">
                     {currentStep < 3 ? (
                       <Button
                         type="button"
                         color="primary"
                         onPress={handleNextStep}
-                        endContent={<Icon icon="solar:arrow-right-bold" width={16} />}
+                        endContent={
+                          <Icon icon="solar:arrow-right-bold" width={16} />
+                        }
                       >
                         Avanti
                       </Button>
@@ -638,7 +723,9 @@ export default function AddCustomer() {
                         onPress={handleSubmit}
                         isLoading={loading}
                         startContent={
-                          !loading && <Icon icon="solar:check-circle-bold" width={16} />
+                          !loading && (
+                            <Icon icon="solar:check-circle-bold" width={16} />
+                          )
                         }
                       >
                         {loading ? "Salvataggio..." : "Salva Cliente"}
@@ -653,4 +740,4 @@ export default function AddCustomer() {
       </div>
     </div>
   );
-} 
+}
