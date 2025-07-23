@@ -14,10 +14,10 @@ import {
   Textarea,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../Components/Layout/PageHeader";
-import type { CustomerFormData } from "../../types/Customer";
+import type { Customer, CustomerFormData } from "../../types/Customer";
 import axios from "axios";
 
 const initialFormData: CustomerFormData = {
@@ -43,15 +43,6 @@ const initialFormData: CustomerFormData = {
   },
 };
 
-// Mock data per i clienti esistenti (per il sistema referenze)
-const existingCustomers = [
-  { id: "1", name: "Mario Rossi", phone: "+39 333 1234567" },
-  { id: "2", name: "Laura Bianchi", phone: "+39 335 7654321" },
-  { id: "3", name: "Giuseppe Neri", phone: "+39 339 9876543" },
-  { id: "4", name: "Tech Solutions S.r.l.", phone: "+39 02 87654321" },
-  { id: "5", name: "Hotel Luxury S.p.A.", phone: "+39 06 98765432" },
-];
-
 const contactMethods = [
   { key: "phone", label: "Telefono", icon: "solar:phone-bold" },
   { key: "email", label: "Email", icon: "solar:letter-bold" },
@@ -75,6 +66,15 @@ export default function AddCustomer() {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [currentStep, setCurrentStep] = useState(1);
+  const [existingCustomers, setExistingCustomers] = useState<Customer[]>([]);
+
+  useEffect(() => {
+    const fetchCustomers = async () => {
+      const response = await axios.get("Customer/GET/GetAllCustomers");
+      setExistingCustomers(response.data);
+    };
+    fetchCustomers();
+  }, []);
 
   const handleInputChange = (field: keyof CustomerFormData, value: any) => {
     setFormData({ ...formData, [field]: value });
@@ -450,10 +450,13 @@ export default function AddCustomer() {
             startContent={<Icon icon="solar:user-check-bold" width={16} />}
           >
             {existingCustomers.map((customer) => (
-              <AutocompleteItem key={customer.id} textValue={customer.name}>
+              <AutocompleteItem
+                key={customer.customer_id}
+                textValue={customer.name}
+              >
                 <div className="flex flex-col">
                   <span className="text-small">{customer.name}</span>
-                  <span className="text-tiny text-default-400">
+                  <span className="text-tiny text-default-700">
                     {customer.phone}
                   </span>
                 </div>

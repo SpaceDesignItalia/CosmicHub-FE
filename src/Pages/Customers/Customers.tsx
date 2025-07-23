@@ -943,6 +943,54 @@ export default function Customers() {
                         ))}
                       </div>
                     </Tab>
+                    <Tab key="references" title="Referenze">
+                      {(() => {
+                        const refCustomer = selectedCustomer.referred_by
+                          ? customers.find(
+                              (c) =>
+                                c.customer_id === selectedCustomer.referred_by
+                            )
+                          : null;
+                        const segnalati = customers.filter(
+                          (c) => c.referred_by === selectedCustomer.customer_id
+                        );
+                        const hasReferences =
+                          !!refCustomer || segnalati.length > 0;
+                        return (
+                          <div className="space-y-4 pt-4">
+                            {refCustomer && (
+                              <div className="p-3 bg-default-50 rounded-lg">
+                                <p className="text-default-500 text-sm mb-1">
+                                  Cliente segnalato da:
+                                </p>
+                                <p className="font-medium">
+                                  {refCustomer.name} {refCustomer.surname}
+                                </p>
+                              </div>
+                            )}
+                            {segnalati.length > 0 && (
+                              <div className="p-3 bg-default-50 rounded-lg">
+                                <p className="text-default-500 text-sm mb-1">
+                                  Clienti segnalati da questo cliente:
+                                </p>
+                                <ul className="list-disc list-inside">
+                                  {segnalati.map((c) => (
+                                    <li key={c.customer_id}>
+                                      {c.name} {c.surname}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            )}
+                            {!hasReferences && (
+                              <div className="text-default-500 text-sm">
+                                Nessuna referenza.
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
+                    </Tab>
                   </Tabs>
                 </CardBody>
               </Card>
