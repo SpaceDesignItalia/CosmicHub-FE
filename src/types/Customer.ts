@@ -15,20 +15,19 @@ export interface Customer {
   status: "active" | "inactive";
   customer_type: "private" | "business";
   created_at: Date;
-  updated_at: Date;
   created_by: string;
-  
+
   // Metadati per analytics
   total_interventions?: number;
   last_intervention_date?: Date;
   customer_value?: number;
-  
+
   // Sistema di referenze
   referred_by?: string; // ID del cliente che ha fatto la referenza
   referred_by_name?: string; // Nome del cliente che ha fatto la referenza
   referrals?: CustomerReferral[]; // Clienti portati da questo cliente
   referral_discount?: number; // Sconto per referenze
-  
+
   // Storico dettagliato
   intervention_history?: InterventionSummary[];
   payment_history?: PaymentSummary[];
@@ -36,7 +35,7 @@ export interface Customer {
   preferred_technician_name?: string;
   recurring_problems?: string[];
   customer_rating?: number; // 1-5 stelle
-  
+
   // Comunicazione
   preferred_contact_method?: "phone" | "email" | "whatsapp" | "sms";
   communication_preferences?: {
@@ -44,13 +43,13 @@ export interface Customer {
     receive_promotions: boolean;
     receive_maintenance_alerts: boolean;
   };
-  
+
   // Geolocalizzazione
   coordinates?: {
     lat: number;
     lng: number;
   };
-  
+
   // Statistiche
   stats?: {
     total_spent: number;
@@ -131,5 +130,10 @@ export interface QuickBookingData {
   location?: string;
   notes?: string;
   estimated_duration?: number;
-  intervention_type: "inspection" | "repair" | "maintenance" | "installation" | "consultation";
-} 
+  intervention_type:
+    | "inspection"
+    | "repair"
+    | "maintenance"
+    | "installation"
+    | "consultation";
+}
