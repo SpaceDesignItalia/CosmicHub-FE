@@ -709,7 +709,7 @@ export default function DDTManagement() {
   console.log(filteredDDTs[0].DDT_id);
 
   return (
-    <div className="w-full flex flex-col p-4 gap-6 min-h-screen">
+    <div className="w-full flex flex-col p-6 gap-6 min-h-screen">
       <PageHeader
         title="Gestione DDT"
         description="Documenti di Trasporto per furgoni e caldaie"

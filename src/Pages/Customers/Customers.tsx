@@ -498,7 +498,7 @@ export default function Customers() {
   }
 
   return (
-    <div className="w-full flex flex-col gap-6 min-h-screen">
+    <div className="w-full flex flex-col gap-6 min-h-screen p-6">
       <PageHeader
         title="Customer Control Center"
         description="Centro di controllo completo per la gestione clienti e prenotazioni"

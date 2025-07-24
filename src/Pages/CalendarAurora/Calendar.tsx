@@ -630,18 +630,13 @@ export default function CalendarAurora() {
   const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
 
   return (
-    <div className="h-screen flex flex-col bg-background" ref={container}>
-      {/* Header with responsive theme */}
-      <Card className="border-none shadow-sm bg-background">
-        <CardHeader className="pb-3">
-          <PageHeader
-            title="Calendario"
-            description={`${getEventsCount()} eventi trovati`}
-            icon="solar:calendar-bold-duotone"
-          />
-
-        </CardHeader>
-      </Card>
+    <div className="h-screen flex flex-col bg-background p-6 gap-6" ref={container}>
+      <PageHeader
+        title="Calendario"
+        description={`${getEventsCount()} eventi trovati`}
+        icon="solar:calendar-bold-duotone"
+        size="md"
+      />
 
 
 

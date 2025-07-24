@@ -2,6 +2,8 @@ import { useState, useEffect } from "react";
 import MovementData from "../../Components/Inventory/WarehouseMovement/MovementData";
 import MovementTable from "../../Components/Inventory/WarehouseMovement/MovementTable";
 import axios from "axios";
+import { Spinner, Button } from "@heroui/react";
+import PageHeader from "../../Components/Layout/PageHeader";
 
 // Types
 interface Movement {
@@ -148,16 +150,13 @@ export default function WarehouseMovement() {
   console.log(movements);
 
   return (
-    <div className="min-h-screen h-full w-full flex-1 flex flex-col p-3 md:p-6 gap-6">
-      {/* Header */}
-      <header className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Movimenti Magazzino</h1>
-          <p className="text-default-900">
-            Gestione dei movimenti di carico, scarico e trasferimenti
-          </p>
-        </div>
-      </header>
+    <div className="min-h-screen h-full w-full flex-1 flex flex-col p-6 gap-6">
+      <PageHeader
+        title="Movimenti Magazzino"
+        description="Gestione dei movimenti di carico, scarico e trasferimenti"
+        icon="solar:arrows-right-left-bold"
+        size="md"
+      />
 
       <MovementData />
 

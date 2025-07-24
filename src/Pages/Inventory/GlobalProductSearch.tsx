@@ -308,7 +308,7 @@ export default function GlobalProductSearch() {
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col p-6 gap-8">
+    <div className="w-full flex-1 flex flex-col p-6 gap-6">
       {/* Header */}
       <PageHeader
         title="Distribuzione Globale Prodotti"

@@ -355,7 +355,7 @@ export default function Products() {
   };
 
   return (
-    <div className="w-full flex flex-col p-2 sm:p-4 gap-4 sm:gap-6 min-h-screen h-full overflow-auto">
+    <div className="w-full flex flex-col p-6 gap-6 min-h-screen h-full overflow-auto">
       <PageHeader
         title="Inventario Prodotti"
         description="Gestisci i prodotti del tuo inventario"
