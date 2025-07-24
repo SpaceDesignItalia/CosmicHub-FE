@@ -115,22 +115,25 @@ export default function CalendarAurora() {
   const [isViewOpen, setIsViewOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
   const [prefilledEventData, setPrefilledEventData] = useState<any>(null);
+  const [pendingEventData, setPendingEventData] = useState<any>(null);
+  const [showPrefilledBanner, setShowPrefilledBanner] = useState(false);
 
   // CosmicHub specific state
   const [loading, setLoading] = useState(true);
   const [technicians, setTechnicians] = useState<TechnicianAssignment[]>([]);
   const [selectedTechnician, setSelectedTechnician] = useState<string>("");
 
-  // Check if coming from CCC workflow
+  // Check if coming from CCC workflow or creating new event
   const isFromCCC = searchParams.get("from_ccc") === "true";
+  const isCreatingEvent = searchParams.get("creating_event") === "true";
   const isNewAppointment = window.location.pathname.includes("/new");
 
   useEffect(() => {
     loadMockData();
     
-    // Handle CCC workflow
-    if (isFromCCC || isNewAppointment) {
-      handleCCCWorkflow();
+    // Handle CCC workflow or new event creation
+    if (isFromCCC || isCreatingEvent || isNewAppointment) {
+      handleEventCreationWorkflow();
     }
 
     // Keyboard shortcuts
@@ -490,9 +493,9 @@ export default function CalendarAurora() {
     setLoading(false);
   };
 
-  const handleCCCWorkflow = () => {
+  const handleEventCreationWorkflow = () => {
     if (isFromCCC) {
-      // Pre-fill data from CCC
+      // Pre-fill data from CCC - salva i dati ma NON aprire il modal
       const cccData = {
         customer_id: searchParams.get("customer_id"),
         customer_name: searchParams.get("customer_name"),
@@ -510,8 +513,41 @@ export default function CalendarAurora() {
         customer_type: searchParams.get("customer_type"),
       };
 
-      setPrefilledEventData(cccData);
-        setIsOpen(true);
+      setPendingEventData(cccData);
+      setShowPrefilledBanner(true);
+      // NON aprire il modal automaticamente
+    } else if (isCreatingEvent) {
+      // Pre-fill data from NewEvent form - salva i dati ma NON aprire il modal
+      const eventData = {
+        // Dati evento
+        title: searchParams.get("title"),
+        description: searchParams.get("description"),
+        event_type: searchParams.get("event_type"),
+        priority: searchParams.get("priority"),
+        estimated_duration: searchParams.get("estimated_duration"),
+        
+        // Dati cliente  
+        customer_name: searchParams.get("customer_name"),
+        customer_phone: searchParams.get("customer_phone"),
+        customer_email: searchParams.get("customer_email"),
+        customer_address: searchParams.get("customer_address"),
+        customer_type: searchParams.get("customer_type"),
+        
+        // Dettagli intervento
+        assigned_technician: searchParams.get("assigned_technician"),
+        location: searchParams.get("location"),
+        notes: searchParams.get("notes"),
+        contact_method: searchParams.get("contact_method"),
+        send_reminder: searchParams.get("send_reminder") === "true",
+        from_external: searchParams.get("from_external") === "true",
+        
+        // Flag per indicare che viene dal form di preparazione
+        from_preparation: true
+      };
+
+      setPendingEventData(eventData);
+      setShowPrefilledBanner(true);
+      // NON aprire il modal automaticamente
     } else if (isNewAppointment) {
       handleNewAppointment();
     }
@@ -538,7 +574,16 @@ export default function CalendarAurora() {
 
   const handleDateClick = (date: Date) => {
     setCurrentDate(date);
-    setView("day");
+    
+    // Se ci sono dati precompilati, apri il modal per quella data
+    if (pendingEventData) {
+      setPrefilledEventData(pendingEventData);
+      setIsOpen(true);
+      // NON pulire i dati pending - li manterremo fino al salvataggio
+    } else {
+      // Se non ci sono dati precompilati, cambia solo la vista
+      setView("day");
+    }
   };
 
   const handleEventClick = (event: CalendarEvent) => {
@@ -594,20 +639,11 @@ export default function CalendarAurora() {
             description={`${getEventsCount()} eventi trovati`}
             icon="solar:calendar-bold-duotone"
           />
-          {isFromCCC && (
-            <Card className="mt-4 bg-primary/10 border-primary/20">
-              <CardBody className="py-3">
-                <div className="flex items-center gap-2">
-                  <Icon icon="solar:user-check-bold" className="text-primary" width={20} />
-                  <span className="text-sm font-medium text-primary">
-                    Calendario aperto con dati pre-compilati dal Customer Control Center
-                  </span>
-                </div>
-              </CardBody>
-            </Card>
-          )}
+
         </CardHeader>
       </Card>
+
+
 
       {/* Navigation and Controls with proper theme support */}
       <Card className="border-none shadow-sm bg-background">
@@ -748,20 +784,22 @@ export default function CalendarAurora() {
             </div>
           ) : (
             <>
-              {view === "day" && (
-                <CalendarDay
-                  currentDate={currentDate}
-                  events={events}
-                    onDateClick={handleDateClick}
-                />
-              )}
-              {view === "week" && (
-                <CalendarWeek
-                  currentDate={currentDate}
-                    events={events}
-                  onDateClick={handleDateClick}
-                />
-              )}
+                          {view === "day" && (
+              <CalendarDay
+                currentDate={currentDate}
+                onDateClick={handleDateClick}
+                redLineBehavior="show"
+                events={events}
+              />
+            )}
+                             {view === "week" && (
+                 <CalendarWeek
+                   currentDate={currentDate}
+                   onDateClick={handleDateClick}
+                   redLineBehavior="show"
+                   events={events}
+                 />
+               )}
               {view === "month" && (
                 <CalendarMonth
                   currentDate={currentDate}
@@ -769,13 +807,17 @@ export default function CalendarAurora() {
                   onDateClick={handleDateClick}
                 />
               )}
-              {view === "year" && (
-                <CalendarYear
-                  currentDate={currentDate}
-                    events={events}
-                  onDateClick={handleDateClick}
-                />
-              )}
+                             {view === "year" && (
+                 <CalendarYear
+                   currentDate={currentDate}
+                   events={events}
+                   onDateClick={handleDateClick}
+                   onMonthClick={(date) => {
+                     setCurrentDate(date);
+                     setView("month");
+                   }}
+                 />
+               )}
             </>
           )}
         </div>
@@ -812,6 +854,24 @@ export default function CalendarAurora() {
           setEvents(prev => prev.filter(e => e.EventId !== deletedEventId));
           setIsViewOpen(false);
           setSelectedEvent(null);
+        }}
+      />
+
+      <AddEventModal
+        isOpen={isOpen}
+        isClosed={() => {
+          setIsOpen(false);
+          setPrefilledEventData(null);
+          // NON pulire pendingEventData qui - permettiamo all'utente di scegliere un altro giorno
+        }}
+        prefilledData={prefilledEventData}
+        eventTags={eventTags}
+        technicians={technicians}
+        onEventCreated={(event) => {
+          setEvents(prev => [...prev, event]);
+          // Solo ora puliamo i dati pending dopo il salvataggio
+          setPendingEventData(null);
+          setShowPrefilledBanner(false);
         }}
       />
       </div>

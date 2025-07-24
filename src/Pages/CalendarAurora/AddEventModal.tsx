@@ -100,22 +100,30 @@ const appointmentColors = [
   { color: "#6366F1", name: "Programmata" },
 ];
 
-const interventionTypes = [
-  "Riparazione",
-  "Manutenzione",
-  "Installazione", 
-  "Controllo",
-  "Preventivo",
-  "Emergenza"
-];
+const interventionTypes = ["Riparazione", "Manutenzione", "Ispezione", "Installazione", "Consulenza", "Intervento Tecnico"];
+const priorityLevels = ["Bassa", "Normale", "Alta", "Urgente", "Critica"];
 
-const priorityLevels = [
-  "Bassa",
-  "Normale", 
-  "Alta",
-  "Urgente",
-  "Critica"
-];
+// Mapping functions for data conversion
+const getEventTypeMapping = (eventType: string) => {
+  const typeMap: { [key: string]: string } = {
+    "appointment": "Intervento Tecnico",
+    "intervention": "Riparazione", 
+    "inspection": "Ispezione",
+    "maintenance": "Manutenzione",
+    "consultation": "Consulenza"
+  };
+  return typeMap[eventType] || "Intervento Tecnico";
+};
+
+const getPriorityMapping = (priority: string) => {
+  const priorityMap: { [key: string]: string } = {
+    "low": "Bassa",
+    "medium": "Normale",
+    "high": "Alta", 
+    "emergency": "Urgente"
+  };
+  return priorityMap[priority] || "Normale";
+};
 
 const INITIAL_EVENT_DATA: CalendarEvent = {
   EventId: 0,
@@ -150,6 +158,7 @@ export default function AddEventModal({
     EventPartecipantRole: "",
   });
   const [showCCCBanner, setShowCCCBanner] = useState(false);
+  const [showPreparationBanner, setShowPreparationBanner] = useState(false);
   
   const navigate = useNavigate();
 
@@ -158,32 +167,63 @@ export default function AddEventModal({
       // Reset form when modal opens
       setEventData(INITIAL_EVENT_DATA);
       setShowCCCBanner(false);
+      setShowPreparationBanner(false);
       
-      // Apply prefilled data if coming from CCC
+      // Apply prefilled data if coming from CCC or New Event Form
       if (prefilledData) {
-        setShowCCCBanner(true);
-        const updatedEventData = {
-          ...INITIAL_EVENT_DATA,
-          EventTitle: prefilledData.problem_description || "",
-          EventDescription: prefilledData.notes || "",
-          EventLocation: prefilledData.location || "",
-          EventType: prefilledData.intervention_type || "Intervento Tecnico",
-          EventPriority: prefilledData.urgency_level || "Normale",
-          EstimatedDuration: prefilledData.estimated_duration || "60",
-          CustomerInfo: {
-            customer_id: prefilledData.customer_id || "",
-            customer_name: prefilledData.customer_name || "",
-            customer_phone: prefilledData.customer_phone || "",
-            customer_email: prefilledData.customer_email || "",
-          },
-          TechnicianAssignment: prefilledData.technician_id ? {
-            technician_id: prefilledData.technician_id,
-            technician_name: prefilledData.technician_name || "",
-          } : undefined,
-          InterventionNotes: prefilledData.notes || "",
-          IsFromCCC: true,
-          CCCData: prefilledData,
-        };
+        // Check if data comes from preparation form or CCC
+        const isFromPreparation = prefilledData.from_preparation;
+        setShowCCCBanner(!isFromPreparation);
+        setShowPreparationBanner(isFromPreparation);
+        
+        let updatedEventData;
+        
+                 if (isFromPreparation) {
+           // Handle data from NewEvent preparation form
+           updatedEventData = {
+             ...INITIAL_EVENT_DATA,
+             EventTitle: prefilledData.title || "",
+             EventDescription: prefilledData.description || "",
+             EventLocation: prefilledData.location || "",
+             EventType: getEventTypeMapping(prefilledData.event_type) || "Intervento Tecnico",
+             EventPriority: getPriorityMapping(prefilledData.priority) || "Normale",
+             EstimatedDuration: prefilledData.estimated_duration || "60",
+             CustomerInfo: {
+               customer_id: "", // Non abbiamo ID dal form
+               customer_name: prefilledData.customer_name || "",
+               customer_phone: prefilledData.customer_phone || "",
+               customer_email: prefilledData.customer_email || "",
+             },
+             TechnicianAssignment: prefilledData.assigned_technician ? {
+               technician_id: "",
+               technician_name: prefilledData.assigned_technician,
+             } : undefined,
+             InterventionNotes: prefilledData.notes || "",
+           };
+        } else {
+          // Handle data from CCC (existing logic)
+          updatedEventData = {
+            ...INITIAL_EVENT_DATA,
+            EventTitle: prefilledData.problem_description || "",
+            EventDescription: prefilledData.notes || "",
+            EventLocation: prefilledData.location || "",
+            EventType: prefilledData.intervention_type || "Intervento Tecnico",
+            EventPriority: prefilledData.urgency_level || "Normale",
+            EstimatedDuration: prefilledData.estimated_duration || "60",
+            CustomerInfo: {
+              customer_id: prefilledData.customer_id || "",
+              customer_name: prefilledData.customer_name || "",
+              customer_phone: prefilledData.customer_phone || "",
+              customer_email: prefilledData.customer_email || "",
+            },
+            TechnicianAssignment: prefilledData.technician_id ? {
+              technician_id: prefilledData.technician_id,
+              technician_name: prefilledData.technician_name || "",
+            } : undefined,
+            InterventionNotes: prefilledData.notes || "",
+                         // Nota: rimuovo le proprietà extra che non esistono nel tipo CalendarEvent
+          };
+        }
         
         setEventData(updatedEventData);
       }
@@ -276,23 +316,9 @@ export default function AddEventModal({
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
           <h2 className="text-xl font-bold">
-            {eventData.IsFromCCC ? "Nuovo Appuntamento da CCC" : "Nuovo Evento"}
+            Nuovo Evento
           </h2>
-          {showCCCBanner && (
-            <div className="bg-primary-50 border border-primary-200 rounded-lg p-3 mt-2">
-              <div className="flex items-center gap-2">
-                <Icon icon="solar:user-check-bold" className="text-primary-600" width={20} />
-                <span className="text-sm text-primary-700 font-medium">
-                  Dati precompilati da Customer Control Center
-                </span>
-              </div>
-              {eventData.CustomerInfo && (
-                <p className="text-xs text-primary-600 mt-1">
-                  Cliente: {eventData.CustomerInfo.customer_name}
-                </p>
-              )}
-            </div>
-          )}
+          
         </ModalHeader>
         
         <ModalBody className="gap-4">

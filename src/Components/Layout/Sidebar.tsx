@@ -220,13 +220,12 @@ export const sectionNestedItems = [
 const handleLogout = async () => {
   try {
     const res = await axios.post("/Authentication/POST/Logout");
-    console.log(res);
 
     if (res.status == 200) {
       window.location.href = "/login";
     }
   } catch (error) {
-    console.log(error);
+    console.error("Errore durante il logout:", error);
   }
 };
 
@@ -313,10 +312,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     // Usiamo il sidebar provider
     const sidebarContext = useSidebar();
     const { mode, toggleMode } = sidebarContext;
-    
-    // Test debug
-    console.log("🔍 Sidebar Context:", sidebarContext);
-    console.log("🔍 Current mode:", mode);
 
     // Memoizzo la selezione corrente per evitare ricalcoli non necessari
     const currentSelection = useMemo(() => {
@@ -629,9 +624,7 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
                       variant="light"
                       size="sm"
                       onPress={() => {
-                        console.log('Toggle clicked! Current mode:', mode);
                         toggleMode();
-                        console.log('Mode after toggle:', mode);
                         // Forza un reflow del DOM per evitare glitch visivi
                         requestAnimationFrame(() => {
                           window.dispatchEvent(new Event('resize'));

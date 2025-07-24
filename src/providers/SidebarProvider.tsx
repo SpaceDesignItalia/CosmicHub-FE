@@ -34,26 +34,21 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
   // Salva la modalità nel localStorage quando cambia
   useEffect(() => {
     localStorage.setItem('sidebar-mode', mode);
-    console.log('Sidebar mode changed to:', mode);
   }, [mode]);
 
   // Gestione visibilità in base alla modalità
   useEffect(() => {
     if (mode === 'pinned') {
       setIsVisible(true);
-      console.log('Mode is pinned, setting visible to true');
     } else {
       // In modalità auto-hide, mostra solo se è hovered
       setIsVisible(isHovered);
-      console.log('Mode is auto-hide, setting visible to:', isHovered);
     }
   }, [mode, isHovered]);
 
   const toggleMode = () => {
-    console.log('toggleMode called, current mode:', mode);
     setMode(current => {
       const newMode = current === 'pinned' ? 'auto-hide' : 'pinned';
-      console.log('Setting new mode to:', newMode);
       return newMode;
     });
   };
@@ -66,8 +61,6 @@ export const SidebarProvider: React.FC<{ children: React.ReactNode }> = ({ child
     setIsVisible,
     setIsHovered,
   };
-
-  console.log('SidebarProvider render:', { mode, isVisible, isHovered });
 
   return <SidebarContext.Provider value={value}>{children}</SidebarContext.Provider>;
 }; 

@@ -28,8 +28,19 @@ import EmployeeDocuments from "./Pages/Documents/EmployeeDocuments";
 import DocumentReminders from "./Pages/Documents/DocumentReminders";
 import Customers from "./Pages/Customers/Customers";
 import AddCustomer from "./Pages/Customers/AddCustomer";
+// Interventions imports
+import InterventionsList from "./Pages/Interventions/InterventionsList";
+import InterventionsMap from "./Pages/Interventions/InterventionsMap";
+import AddIntervention from "./Pages/Interventions/AddIntervention";
+import InterventionAssign from "./Pages/Interventions/InterventionAssign";
+import InterventionDetail from "./Pages/Interventions/InterventionDetail";
+import InterventionEdit from "./Pages/Interventions/InterventionEdit";
+import InterventionStart from "./Pages/Interventions/InterventionStart";
+import InterventionComplete from "./Pages/Interventions/InterventionComplete";
+import InterventionReassign from "./Pages/Interventions/InterventionReassign";
 // CalendarAurora system imports
 import CalendarAurora from "./Pages/CalendarAurora/Calendar";
+import NewEvent from "./Pages/CalendarAurora/NewEvent";
 import { SidebarProvider } from "./providers/SidebarProvider";
 
 function App() {
@@ -77,8 +88,6 @@ function App() {
     return <div>Loading...</div>;
   }
 
-  console.log(isAuth);
-
   return (
     <SidebarProvider>
       <Routes>
@@ -92,8 +101,19 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<CalendarAurora />} />
+            <Route path="/calendar/new" element={<NewEvent />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/customers/add" element={<AddCustomer />} />
+            {/* Interventions routes */}
+            <Route path="/interventions" element={<InterventionsList />} />
+            <Route path="/interventions/map" element={<InterventionsMap />} />
+            <Route path="/interventions/add" element={<AddIntervention />} />
+            <Route path="/interventions/assign" element={<InterventionAssign />} />
+            <Route path="/interventions/:id" element={<InterventionDetail />} />
+            <Route path="/interventions/edit/:id" element={<InterventionEdit />} />
+            <Route path="/interventions/start/:id" element={<InterventionStart />} />
+            <Route path="/interventions/complete/:id" element={<InterventionComplete />} />
+            <Route path="/interventions/reassign/:id" element={<InterventionReassign />} />
             <Route path="/inventory/products" element={<Products />} />
             <Route path="/inventory/products/search" element={<GlobalProductSearch />} />
             <Route path="/inventory/products/add" element={<ProductAdd />} />

@@ -177,7 +177,7 @@ export default function Customers() {
     });
 
     // Navigate to calendar with all the data
-    navigate(`/calendar/new?${bookingParams.toString()}`);
+    navigate(`/calendar?${bookingParams.toString()}`);
   };
 
   // Update booking data when customer changes
@@ -498,7 +498,7 @@ export default function Customers() {
   }
 
   return (
-    <div className="w-full flex flex-col p-4 gap-6 min-h-screen">
+    <div className="w-full flex flex-col gap-6 min-h-screen">
       <PageHeader
         title="Customer Control Center"
         description="Centro di controllo completo per la gestione clienti e prenotazioni"
@@ -515,324 +515,192 @@ export default function Customers() {
         ]}
       />
 
-      {/* Search and Customer List */}
-      {!selectedCustomer && (
-        <div className="space-y-6">
-          {/* Enhanced Search */}
-          <Card>
-            <CardHeader>
-              <div className="flex items-center gap-2">
-                <Icon icon="solar:magnifer-bold" width={20} />
-                <h3 className="text-lg font-semibold">Ricerca Cliente</h3>
-              </div>
-            </CardHeader>
-            <CardBody>
-              <div className="space-y-4">
-                <Input
-                  placeholder="Cerca per nome, cognome, telefono, email..."
-                  value={searchQuery}
-                  onValueChange={handleSearch}
-                  startContent={<Icon icon="solar:magnifer-bold" width={20} />}
-                  size="lg"
-                  isClearable
-                  onClear={() => {
-                    setSearchQuery("");
-                    setSearchResults([]);
-                  }}
-                />
+      {/* SEZIONE 1: RICERCA CLIENTE */}
+      <div className="px-6">
+        <Card className="shadow-sm">
+          <CardHeader>
+            <div className="flex items-center gap-2">
+              <Icon icon="solar:magnifer-bold" width={20} />
+              <h3 className="text-lg font-semibold">Ricerca Cliente</h3>
+            </div>
+          </CardHeader>
+          <CardBody>
+            <div className="space-y-4">
+              <Input
+                placeholder="Cerca per nome, cognome, telefono, email..."
+                value={searchQuery}
+                onValueChange={handleSearch}
+                startContent={<Icon icon="solar:magnifer-bold" width={20} />}
+                size="lg"
+                isClearable
+                onClear={() => {
+                  setSearchQuery("");
+                  setSearchResults([]);
+                }}
+              />
 
-                {/* Search Results */}
-                {searchResults.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-sm text-default-600">
-                      {searchResults.length} risultati trovati
-                    </p>
-                    <div className="grid gap-2">
-                      {searchResults.map((result) => (
-                        <Card
-                          key={result.customer.customer_id}
-                          isPressable
-                          onPress={() => selectCustomer(result)}
-                          className="hover:shadow-md transition-shadow"
-                        >
-                          <CardBody className="p-3">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-3">
-                                <Avatar
-                                  name={`${result.customer.name.charAt(
-                                    0
-                                  )}${result.customer.surname.charAt(0)}`}
-                                  size="sm"
-                                  className="bg-primary text-white"
-                                />
-                                <div>
-                                  <p className="font-medium">
-                                    {result.customer.name}{" "}
-                                    {result.customer.surname}
-                                  </p>
-                                  <p className="text-sm text-default-600">
-                                    {result.customer.phone} •{" "}
-                                    {result.customer.city}
-                                  </p>
-                                  <p className="text-xs text-default-500">
-                                    {result.match_reasons.join(", ")}
-                                  </p>
-                                </div>
-                              </div>
-                              <div className="flex items-center gap-2">
-                                <Chip
-                                  size="sm"
-                                  color={
-                                    customerTypeColorMap[
-                                      result.customer.customer_type
-                                    ]
-                                  }
-                                  variant="flat"
-                                >
-                                  {result.customer.customer_type === "private"
-                                    ? "Privato"
-                                    : "Azienda"}
-                                </Chip>
-                                <Chip
-                                  size="sm"
-                                  color={statusColorMap[result.customer.status]}
-                                  variant="flat"
-                                >
-                                  {result.customer.status === "active"
-                                    ? "Attivo"
-                                    : "Inattivo"}
-                                </Chip>
-                              </div>
-                            </div>
-                          </CardBody>
-                        </Card>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            </CardBody>
-          </Card>
-
-          {/* Customer Grid - when no search */}
-          {searchQuery === "" && (
-            <Card>
-              <CardHeader>
-                <h3 className="text-lg font-semibold">
-                  Tutti i Clienti ({customers.length})
-                </h3>
-              </CardHeader>
-              <CardBody>
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {customers.map((customer) => (
-                    <Card
-                      key={customer.customer_id}
-                      isPressable
-                      onPress={() => selectCustomer(customer)}
-                      className="hover:shadow-md transition-shadow"
-                    >
-                      <CardBody className="p-4">
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-3">
-                            <Avatar
-                              name={`${customer.name.charAt(
-                                0
-                              )}${customer.surname.charAt(0)}`}
-                              size="md"
-                              className="bg-primary text-white"
-                            />
-                            <div className="flex-1">
-                              <p className="font-medium">
-                                {customer.name} {customer.surname}
-                              </p>
-                              <p className="text-sm text-default-600">
-                                {customer.phone}
-                              </p>
-                            </div>
-                            <Chip
-                              size="sm"
-                              color={statusColorMap[customer.status]}
-                              variant="flat"
-                            >
-                              {customer.status === "active"
-                                ? "Attivo"
-                                : "Inattivo"}
-                            </Chip>
-                          </div>
-
-                          <div className="text-sm text-default-600">
-                            <p>{customer.address}</p>
-                            <p>{customer.city}</p>
-                          </div>
-
+              {/* Risultati Ricerca */}
+              {searchResults.length > 0 && (
+                <div className="space-y-3">
+                  <p className="text-sm text-default-600 font-medium">
+                    {searchResults.length} risultati trovati
+                  </p>
+                  <div className="grid gap-3 max-h-96 overflow-y-auto">
+                    {searchResults.map((result) => (
+                      <Card
+                        key={result.customer.customer_id}
+                        isPressable
+                        onPress={() => selectCustomer(result)}
+                        className="hover:shadow-md transition-all duration-200 border-l-4 border-l-primary"
+                      >
+                        <CardBody className="p-4">
                           <div className="flex items-center justify-between">
-                            <Chip
-                              size="sm"
-                              color={
-                                customerTypeColorMap[customer.customer_type]
-                              }
-                              variant="flat"
-                            >
-                              {customer.customer_type === "private"
-                                ? "Privato"
-                                : "Azienda"}
-                            </Chip>
-                            {customer.last_intervention_date && (
-                              <p className="text-xs text-default-500">
-                                Ultimo:{" "}
-                                {customer.last_intervention_date.toLocaleDateString(
-                                  "it-IT"
-                                )}
-                              </p>
-                            )}
+                            <div className="flex items-center gap-3">
+                              <Avatar
+                                name={`${result.customer.name.charAt(0)}${result.customer.surname.charAt(0)}`}
+                                size="md"
+                                className="bg-primary text-white"
+                              />
+                              <div>
+                                <p className="font-semibold text-base">
+                                  {result.customer.name} {result.customer.surname}
+                                </p>
+                                <p className="text-sm text-default-600">
+                                  📞 {result.customer.phone} • 📍 {result.customer.city}
+                                </p>
+                                <p className="text-xs text-primary">
+                                  Corrispondenza: {result.match_reasons.join(", ")}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-2">
+                              <Chip
+                                size="sm"
+                                color={customerTypeColorMap[result.customer.customer_type]}
+                                variant="flat"
+                                className="font-medium"
+                              >
+                                {result.customer.customer_type === "private" ? "Privato" : "Azienda"}
+                              </Chip>
+                              <Chip
+                                size="sm"
+                                color={statusColorMap[result.customer.status]}
+                                variant="flat"
+                              >
+                                {result.customer.status === "active" ? "Attivo" : "Inattivo"}
+                              </Chip>
+                            </div>
                           </div>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  ))}
-                </div>
-              </CardBody>
-            </Card>
-          )}
-        </div>
-      )}
-
-      {/* Customer Dashboard */}
-      {selectedCustomer && (
-        <div className="space-y-6">
-          {/* Back to List */}
-          <div className="flex items-center gap-3">
-            <Button
-              variant="light"
-              startContent={<Icon icon="solar:arrow-left-bold" width={16} />}
-              onPress={() => setSelectedCustomer(null)}
-            >
-              Torna alla Lista
-            </Button>
-            <Divider orientation="vertical" className="h-6" />
-            <p className="text-sm text-default-600">Dashboard Cliente</p>
-          </div>
-
-          {/* Customer Header */}
-          <Card>
-            <CardBody className="p-6">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-4">
-                  <Avatar
-                    name={`${selectedCustomer.name.charAt(
-                      0
-                    )}${selectedCustomer.surname.charAt(0)}`}
-                    size="lg"
-                    className="bg-primary text-white text-xl"
-                  />
-                  <div>
-                    <h2 className="text-2xl font-bold">
-                      {selectedCustomer.name} {selectedCustomer.surname}
-                    </h2>
-                    {selectedCustomer.company_name && (
-                      <p className="text-lg text-primary font-medium">
-                        {selectedCustomer.company_name}
-                      </p>
-                    )}
-                    <div className="flex items-center gap-2 mt-2">
-                      <Chip
-                        color={statusColorMap[selectedCustomer.status]}
-                        variant="flat"
-                        size="sm"
-                      >
-                        {selectedCustomer.status === "active"
-                          ? "Cliente Attivo"
-                          : "Cliente Inattivo"}
-                      </Chip>
-                      <Chip
-                        color={
-                          customerTypeColorMap[selectedCustomer.customer_type]
-                        }
-                        variant="flat"
-                        size="sm"
-                      >
-                        {selectedCustomer.customer_type === "private"
-                          ? "Privato"
-                          : "Azienda"}
-                      </Chip>
-                    </div>
+                        </CardBody>
+                      </Card>
+                    ))}
                   </div>
                 </div>
-                <div className="flex gap-2">
-                  <Button
-                    variant="flat"
-                    size="sm"
-                    startContent={<Icon icon="solar:phone-bold" width={16} />}
-                  >
-                    <a href={`tel:${selectedCustomer.phone}`}>Chiama</a>
-                  </Button>
-                  {selectedCustomer.email && (
-                    <Button
-                      variant="flat"
-                      size="sm"
-                      startContent={
-                        <Icon icon="solar:letter-bold" width={16} />
-                      }
-                    >
-                      <a href={`mailto:${selectedCustomer.email}`}>Email</a>
-                    </Button>
-                  )}
-                </div>
-              </div>
-            </CardBody>
-          </Card>
+              )}
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Customer Info & Stats */}
-            <div className="lg:col-span-2 space-y-6">
-              {/* Stats */}
+              {/* Nessun risultato */}
+              {searchQuery && searchResults.length === 0 && (
+                <div className="text-center py-8">
+                  <Icon icon="solar:user-cross-bold" width={48} className="text-default-300 mx-auto mb-2" />
+                  <p className="text-default-500">Nessun cliente trovato</p>
+                  <p className="text-sm text-default-400">Prova con un altro termine di ricerca</p>
+                </div>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      </div>
+
+      {/* SEZIONE 2: DETTAGLI CLIENTE (solo se selezionato) */}
+      {selectedCustomer && (
+        <div className="px-6">
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+            
+            {/* COLONNA PRINCIPALE: Dettagli Cliente */}
+            <div className="xl:col-span-2 space-y-6">
+              
+              {/* Header Cliente */}
+              <Card className="bg-gradient-to-r from-primary-50 to-primary-100 border border-primary-200">
+                <CardBody className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <Avatar
+                        name={`${selectedCustomer.name.charAt(0)}${selectedCustomer.surname.charAt(0)}`}
+                        size="lg"
+                        className="bg-primary text-white text-xl"
+                      />
+                      <div>
+                        <h2 className="text-2xl font-bold text-primary-800">
+                          {selectedCustomer.name} {selectedCustomer.surname}
+                        </h2>
+                        <div className="flex items-center gap-4 mt-1">
+                          <p className="text-primary-600 font-medium">
+                            📞 {selectedCustomer.phone}
+                          </p>
+                          {selectedCustomer.email && (
+                            <p className="text-primary-600 font-medium">
+                              ✉️ {selectedCustomer.email}
+                            </p>
+                          )}
+                        </div>
+                        <p className="text-primary-600 mt-1">
+                          📍 {selectedCustomer.address}, {selectedCustomer.city} {selectedCustomer.zip_code}
+                        </p>
+                      </div>
+                    </div>
+                    <Button
+                      color="danger"
+                      variant="light"
+                      onPress={() => setSelectedCustomer(null)}
+                      isIconOnly
+                    >
+                      <Icon icon="solar:close-circle-bold" width={20} />
+                    </Button>
+                  </div>
+                </CardBody>
+              </Card>
+
+              {/* Statistiche Cliente */}
               {customerStats && (
                 <Card>
                   <CardHeader>
-                    <h4 className="font-semibold">Statistiche Cliente</h4>
+                    <h4 className="font-semibold flex items-center gap-2">
+                      <Icon icon="solar:chart-square-bold" width={20} />
+                      Statistiche Cliente
+                    </h4>
                   </CardHeader>
                   <CardBody>
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      <div className="text-center p-3 bg-primary-50 rounded-lg">
+                      <div className="text-center p-4 bg-primary-50 rounded-lg border border-primary-100">
                         <p className="text-2xl font-bold text-primary">
                           {customerStats.totalInterventions}
                         </p>
-                        <p className="text-sm text-default-600">
-                          Interventi Totali
-                        </p>
+                        <p className="text-sm text-primary-700">Interventi</p>
                       </div>
-                      <div className="text-center p-3 bg-success-50 rounded-lg">
+                      <div className="text-center p-4 bg-success-50 rounded-lg border border-success-100">
                         <p className="text-2xl font-bold text-success">
                           €{customerStats.totalSpent.toFixed(0)}
                         </p>
-                        <p className="text-sm text-default-600">Spesa Totale</p>
+                        <p className="text-sm text-success-700">Spesa Totale</p>
                       </div>
-                      <div className="text-center p-3 bg-warning-50 rounded-lg">
+                      <div className="text-center p-4 bg-warning-50 rounded-lg border border-warning-100">
                         <p className="text-2xl font-bold text-warning">
                           €{customerStats.averagePerIntervention.toFixed(0)}
                         </p>
-                        <p className="text-sm text-default-600">
-                          Media per Intervento
-                        </p>
+                        <p className="text-sm text-warning-700">Media/Intervento</p>
                       </div>
-                      <div className="text-center p-3 bg-default-50 rounded-lg">
-                        <p className="text-lg font-bold text-default-600">
-                          {Math.floor(
-                            (new Date().getTime() -
-                              customerStats.customerSince.getTime()) /
-                              (1000 * 60 * 60 * 24)
-                          )}
+                      <div className="text-center p-4 bg-default-50 rounded-lg border border-default-200">
+                        <p className="text-xl font-bold text-default-600">
+                          {Math.floor((new Date().getTime() - customerStats.customerSince.getTime()) / (1000 * 60 * 60 * 24))}
                         </p>
-                        <p className="text-sm text-default-600">
-                          Giorni Cliente
-                        </p>
+                        <p className="text-sm text-default-600">Giorni Cliente</p>
                       </div>
                     </div>
                   </CardBody>
                 </Card>
               )}
 
-              {/* Customer Details Tabs */}
+              {/* Tabs Dettagli */}
               <Card>
                 <CardHeader>
                   <h4 className="font-semibold">Dettagli Cliente</h4>
@@ -842,45 +710,33 @@ export default function Customers() {
                     selectedKey={selectedTab}
                     onSelectionChange={(key) => setSelectedTab(key as string)}
                     fullWidth
+                    color="primary"
                   >
-                    <Tab key="overview" title="Panoramica">
+                    <Tab key="overview" title="📋 Panoramica">
                       <div className="space-y-4 pt-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <p className="text-default-500 text-sm">
-                              Indirizzo
-                            </p>
-                            <p className="font-medium">
-                              {selectedCustomer.address}
-                            </p>
-                            <p className="font-medium">
-                              {selectedCustomer.city},{" "}
-                              {selectedCustomer.zip_code}
-                            </p>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="p-4 bg-default-50 rounded-lg">
+                            <h5 className="font-medium text-default-700 mb-2">📍 Indirizzo</h5>
+                            <p className="font-medium">{selectedCustomer.address}</p>
+                            <p className="font-medium">{selectedCustomer.city}, {selectedCustomer.zip_code}</p>
                           </div>
-                          <div>
-                            <p className="text-default-500 text-sm">Contatti</p>
-                            <p className="font-medium">
-                              {selectedCustomer.phone}
-                            </p>
+                          <div className="p-4 bg-default-50 rounded-lg">
+                            <h5 className="font-medium text-default-700 mb-2">📞 Contatti</h5>
+                            <p className="font-medium">{selectedCustomer.phone}</p>
                             {selectedCustomer.email && (
-                              <p className="font-medium">
-                                {selectedCustomer.email}
-                              </p>
+                              <p className="font-medium">{selectedCustomer.email}</p>
                             )}
                           </div>
                         </div>
                         {selectedCustomer.notes && (
-                          <div>
-                            <p className="text-default-500 text-sm">Note</p>
-                            <p className="font-medium">
-                              {selectedCustomer.notes}
-                            </p>
+                          <div className="p-4 bg-warning-50 rounded-lg border border-warning-200">
+                            <h5 className="font-medium text-warning-700 mb-2">📝 Note</h5>
+                            <p className="text-warning-800">{selectedCustomer.notes}</p>
                           </div>
                         )}
                       </div>
                     </Tab>
-                    <Tab key="interventions" title="Interventi">
+                    <Tab key="interventions" title="🔧 Interventi">
                       <div className="space-y-3 pt-4">
                         {mockInterventions.map((intervention) => (
                           <Card
@@ -914,7 +770,7 @@ export default function Customers() {
                         ))}
                       </div>
                     </Tab>
-                    <Tab key="payments" title="Pagamenti">
+                    <Tab key="payments" title="💳 Pagamenti">
                       <div className="space-y-3 pt-4">
                         {mockPayments.map((payment) => (
                           <Card key={payment.payment_id} className="p-3">
@@ -943,7 +799,7 @@ export default function Customers() {
                         ))}
                       </div>
                     </Tab>
-                    <Tab key="references" title="Referenze">
+                    <Tab key="references" title="👥 Referenze">
                       {(() => {
                         const refCustomer = selectedCustomer.referred_by
                           ? customers.find(
@@ -996,331 +852,193 @@ export default function Customers() {
               </Card>
             </div>
 
-            {/* Enhanced Sidebar - Focused on Data Collection */}
+            {/* COLONNA SIDEBAR: Panel Azioni */}
             <div className="space-y-6">
-              {/* Booking Preparation Form */}
-              <Card>
-                <CardHeader>
-                  <h4 className="font-semibold flex items-center gap-2">
+              
+              {/* Panel Preparazione Appuntamento */}
+              <Card className="shadow-lg border-2 border-primary-200">
+                <CardHeader className="bg-primary-50">
+                  <h4 className="font-bold text-primary-800 flex items-center gap-2">
                     <Icon icon="solar:calendar-add-bold" width={20} />
                     Prepara Appuntamento
                   </h4>
                 </CardHeader>
-                <CardBody>
+                <CardBody className="space-y-4">
                   <div className="space-y-4">
-                    {/* Customer Info Display */}
-                    <div className="p-3 bg-primary-50 rounded-lg">
-                      <div className="flex items-center gap-2 mb-2">
-                        <Icon
-                          icon="solar:user-bold"
-                          width={16}
-                          className="text-primary"
-                        />
-                        <span className="font-medium text-sm">
-                          {selectedCustomer.name} {selectedCustomer.surname}
-                        </span>
-                      </div>
-                      <div className="text-xs text-default-600 space-y-1">
-                        <div className="flex items-center gap-1">
-                          <Icon icon="solar:phone-bold" width={12} />
-                          <span>{selectedCustomer.phone}</span>
-                        </div>
-                        <div className="flex items-center gap-1">
-                          <Icon icon="solar:map-point-bold" width={12} />
-                          <span>
-                            {selectedCustomer.address}, {selectedCustomer.city}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Problem Description */}
+                    {/* Descrizione Problema */}
                     <Textarea
-                      label="Descrizione Problema *"
+                      label="Descrizione Problema"
                       placeholder="Descrivi il problema del cliente..."
                       value={quickBookingData.problem_description}
                       onValueChange={(value) =>
-                        setQuickBookingData((prev) => ({
-                          ...prev,
-                          problem_description: value,
-                        }))
+                        setQuickBookingData(prev => ({ ...prev, problem_description: value }))
                       }
-                      rows={3}
                       isRequired
+                      size="sm"
+                      rows={3}
                     />
 
-                    {/* Intervention Type and Urgency */}
-                    <div className="grid grid-cols-2 gap-3">
+                    {/* Tipo e Urgenza */}
+                    <div className="grid grid-cols-1 gap-3">
                       <Select
-                        label="Tipo"
+                        label="Tipo Intervento"
                         selectedKeys={[quickBookingData.intervention_type]}
-                        onSelectionChange={(keys) => {
-                          const type = Array.from(keys)[0] as
-                            | "inspection"
-                            | "repair"
-                            | "maintenance"
-                            | "installation"
-                            | "consultation";
-                          setQuickBookingData((prev) => ({
+                        onSelectionChange={(keys) =>
+                          setQuickBookingData(prev => ({
                             ...prev,
-                            intervention_type: type,
-                          }));
-                        }}
+                            intervention_type: Array.from(keys)[0] as "inspection" | "repair" | "maintenance" | "installation" | "consultation",
+                          }))
+                        }
                         size="sm"
                       >
-                        <SelectItem key="inspection">Sopralluogo</SelectItem>
+                        <SelectItem key="inspection">Ispezione</SelectItem>
                         <SelectItem key="repair">Riparazione</SelectItem>
                         <SelectItem key="maintenance">Manutenzione</SelectItem>
-                        <SelectItem key="installation">
-                          Installazione
-                        </SelectItem>
+                        <SelectItem key="installation">Installazione</SelectItem>
                         <SelectItem key="consultation">Consulenza</SelectItem>
                       </Select>
 
                       <Select
-                        label="Urgenza"
+                        label="Livello Urgenza"
                         selectedKeys={[quickBookingData.urgency_level]}
-                        onSelectionChange={(keys) => {
-                          const level = Array.from(keys)[0] as
-                            | "low"
-                            | "medium"
-                            | "high"
-                            | "emergency";
-                          setQuickBookingData((prev) => ({
+                        onSelectionChange={(keys) =>
+                          setQuickBookingData(prev => ({
                             ...prev,
-                            urgency_level: level,
-                          }));
-                        }}
+                            urgency_level: Array.from(keys)[0] as "low" | "medium" | "high" | "emergency",
+                          }))
+                        }
                         size="sm"
                       >
-                        <SelectItem key="low">Bassa</SelectItem>
-                        <SelectItem key="medium">Media</SelectItem>
-                        <SelectItem key="high">Alta</SelectItem>
-                        <SelectItem key="emergency">Emergenza</SelectItem>
+                        <SelectItem key="low">🟢 Bassa</SelectItem>
+                        <SelectItem key="medium">🟡 Media</SelectItem>
+                        <SelectItem key="high">🟠 Alta</SelectItem>
+                        <SelectItem key="emergency">🔴 Emergenza</SelectItem>
                       </Select>
                     </div>
 
-                    {/* Technician Assignment */}
-                    <Select
-                      label="Tecnico Preferito"
-                      placeholder="Seleziona tecnico..."
-                      selectedKeys={
-                        selectedTechnician ? [selectedTechnician] : []
-                      }
-                      onSelectionChange={(keys) => {
-                        const techId = Array.from(keys)[0] as string;
-                        setSelectedTechnician(techId);
-                      }}
-                      size="sm"
-                      startContent={<Icon icon="solar:user-bold" width={16} />}
-                    >
-                      {technicians.map((tech) => (
-                        <SelectItem
-                          key={tech.technician_id}
-                          textValue={tech.name}
-                          className={
-                            tech.technician_id ===
-                            selectedCustomer.preferred_technician_id
-                              ? "bg-success-50"
-                              : ""
-                          }
-                        >
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <span className="text-sm">{tech.name}</span>
-                              <div className="text-xs text-default-500">
-                                {tech.role}
-                              </div>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <Chip
-                                size="sm"
-                                variant="flat"
-                                color={
-                                  tech.availability_status === "available"
-                                    ? "success"
-                                    : tech.availability_status === "busy"
-                                    ? "warning"
-                                    : "danger"
-                                }
-                              >
-                                {tech.availability_status === "available"
-                                  ? "Libero"
-                                  : tech.availability_status === "busy"
-                                  ? "Occupato"
-                                  : "Non Disponibile"}
-                              </Chip>
-                              {tech.technician_id ===
-                                selectedCustomer.preferred_technician_id && (
-                                <Icon
-                                  icon="solar:star-bold"
-                                  width={12}
-                                  className="text-warning"
-                                />
-                              )}
-                            </div>
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </Select>
+                    {/* Durata e Tecnico */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <Input
+                        label="Durata (min)"
+                        type="number"
+                        value={(quickBookingData.estimated_duration || 60).toString()}
+                        onValueChange={(value) =>
+                          setQuickBookingData(prev => ({
+                            ...prev,
+                            estimated_duration: parseInt(value) || 60,
+                          }))
+                        }
+                        size="sm"
+                      />
 
-                    {/* Duration */}
-                    <Input
-                      label="Durata Stimata (minuti)"
-                      type="number"
-                      value={
-                        quickBookingData.estimated_duration?.toString() || "60"
-                      }
-                      onValueChange={(value) =>
-                        setQuickBookingData((prev) => ({
-                          ...prev,
-                          estimated_duration: parseInt(value) || 60,
-                        }))
-                      }
-                      min={15}
-                      max={480}
-                      step={15}
-                      size="sm"
-                      startContent={<Icon icon="solar:timer-bold" width={16} />}
-                    />
+                      <Select
+                        label="Tecnico"
+                        selectedKeys={selectedTechnician ? [selectedTechnician] : []}
+                        onSelectionChange={(keys) => setSelectedTechnician(Array.from(keys)[0] as string)}
+                        size="sm"
+                      >
+                        {technicians.map(tech => (
+                          <SelectItem key={tech.technician_id}>
+                            {tech.name}
+                          </SelectItem>
+                        ))}
+                      </Select>
+                    </div>
 
-                    {/* Location Override */}
+                    {/* Ubicazione */}
                     <Input
-                      label="Indirizzo (se diverso)"
-                      placeholder="Lascia vuoto per usare indirizzo cliente"
+                      label="Ubicazione Specifica"
+                      placeholder="Es: Piano terra, garage..."
                       value={quickBookingData.location || ""}
                       onValueChange={(value) =>
-                        setQuickBookingData((prev) => ({
-                          ...prev,
-                          location: value,
-                        }))
+                        setQuickBookingData(prev => ({ ...prev, location: value }))
                       }
                       size="sm"
-                      startContent={
-                        <Icon icon="solar:map-point-bold" width={16} />
-                      }
+                      startContent={<Icon icon="solar:map-point-bold" width={16} />}
                     />
 
-                    {/* Notes */}
+                    {/* Note */}
                     <Textarea
                       label="Note per il tecnico"
-                      placeholder="Istruzioni speciali, materiali necessari, ecc..."
+                      placeholder="Istruzioni speciali, materiali necessari..."
                       value={quickBookingData.notes || ""}
                       onValueChange={(value) =>
-                        setQuickBookingData((prev) => ({
-                          ...prev,
-                          notes: value,
-                        }))
+                        setQuickBookingData(prev => ({ ...prev, notes: value }))
                       }
                       rows={2}
                       size="sm"
                     />
 
-                    {/* Booking Summary */}
+                    {/* Riepilogo */}
                     {quickBookingData.problem_description && (
-                      <div className="p-3 bg-default-50 rounded-lg">
-                        <div className="text-sm font-medium mb-2">
-                          Riepilogo Preparazione:
+                      <div className="p-3 bg-primary-50 rounded-lg border border-primary-200">
+                        <div className="text-sm font-medium mb-2 text-primary-800">
+                          📋 Riepilogo:
                         </div>
-                        <div className="text-xs space-y-1 text-default-600">
-                          <div>
-                            <strong>Cliente:</strong> {selectedCustomer.name}{" "}
-                            {selectedCustomer.surname}
-                          </div>
-                          <div>
-                            <strong>Problema:</strong>{" "}
-                            {quickBookingData.problem_description}
-                          </div>
-                          <div>
-                            <strong>Tipo:</strong>{" "}
-                            {quickBookingData.intervention_type}
-                          </div>
-                          <div>
-                            <strong>Urgenza:</strong>{" "}
-                            {quickBookingData.urgency_level}
-                          </div>
-                          <div>
-                            <strong>Durata:</strong>{" "}
-                            {quickBookingData.estimated_duration} min
-                          </div>
+                        <div className="text-xs space-y-1 text-primary-700">
+                          <div><strong>Cliente:</strong> {selectedCustomer.name} {selectedCustomer.surname}</div>
+                          <div><strong>Problema:</strong> {quickBookingData.problem_description}</div>
+                          <div><strong>Tipo:</strong> {quickBookingData.intervention_type}</div>
+                          <div><strong>Urgenza:</strong> {quickBookingData.urgency_level}</div>
+                          <div><strong>Durata:</strong> {quickBookingData.estimated_duration} min</div>
                           {selectedTechnician && (
-                            <div>
-                              <strong>Tecnico:</strong>{" "}
-                              {
-                                technicians.find(
-                                  (t) => t.technician_id === selectedTechnician
-                                )?.name
-                              }
-                            </div>
+                            <div><strong>Tecnico:</strong> {technicians.find(t => t.technician_id === selectedTechnician)?.name}</div>
                           )}
                         </div>
                       </div>
                     )}
 
-                    {/* Navigation Button */}
+                    {/* Pulsante Principale */}
                     <Button
                       color="primary"
-                      className="w-full"
+                      size="lg"
+                      className="w-full font-semibold"
                       onPress={handleBookingNavigation}
                       isDisabled={!quickBookingData.problem_description.trim()}
-                      startContent={
-                        <Icon icon="solar:calendar-search-bold" width={16} />
-                      }
+                      startContent={<Icon icon="solar:calendar-search-bold" width={20} />}
                     >
                       Apri Calendario per Prenotare
                     </Button>
-
-                    <div className="text-xs text-default-500 text-center">
-                      💡 Ti porteremo al calendario con tutti i dati già pronti
-                    </div>
                   </div>
                 </CardBody>
               </Card>
 
-              {/* Contatti Rapidi */}
+              {/* Panel Contatti Rapidi */}
               <Card>
                 <CardHeader>
                   <h4 className="font-semibold flex items-center gap-2">
                     <Icon icon="solar:phone-bold" width={20} />
-                    Contatti
+                    Contatti Rapidi
                   </h4>
                 </CardHeader>
                 <CardBody>
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2 p-2 bg-default-50 rounded">
-                      <Icon
-                        icon="solar:phone-bold"
-                        width={16}
-                        className="text-primary"
-                      />
-                      <a
-                        href={`tel:${selectedCustomer.phone}`}
-                        className="text-sm font-medium text-primary hover:text-primary-600"
-                      >
-                        {selectedCustomer.phone}
-                      </a>
-                    </div>
-
+                    <Button
+                      variant="flat"
+                      color="primary"
+                      className="w-full justify-start"
+                      startContent={<Icon icon="solar:phone-bold" width={16} />}
+                      onPress={() => window.open(`tel:${selectedCustomer.phone}`)}
+                    >
+                      Chiama {selectedCustomer.phone}
+                    </Button>
+                    
                     {selectedCustomer.email && (
-                      <div className="flex items-center gap-2 p-2 bg-default-50 rounded">
-                        <Icon
-                          icon="solar:letter-bold"
-                          width={16}
-                          className="text-primary"
-                        />
-                        <a
-                          href={`mailto:${selectedCustomer.email}`}
-                          className="text-sm font-medium text-primary hover:text-primary-600 truncate"
-                        >
-                          {selectedCustomer.email}
-                        </a>
-                      </div>
+                      <Button
+                        variant="flat"
+                        color="primary"
+                        className="w-full justify-start"
+                        startContent={<Icon icon="solar:letter-bold" width={16} />}
+                        onPress={() => window.open(`mailto:${selectedCustomer.email}`)}
+                      >
+                        Email
+                      </Button>
                     )}
                   </div>
                 </CardBody>
               </Card>
 
-              {/* Customer Info */}
+              {/* Panel Info Cliente */}
               <Card>
                 <CardHeader>
                   <h4 className="font-semibold flex items-center gap-2">
@@ -1330,42 +1048,32 @@ export default function Customers() {
                 </CardHeader>
                 <CardBody>
                   <div className="space-y-3 text-sm">
-                    <div>
-                      <p className="text-default-500">Cliente dal:</p>
-                      <p className="font-medium">
-                        {new Date(
-                          selectedCustomer.created_at
-                        ).toLocaleDateString("it-IT")}
-                      </p>
+                    <div className="flex justify-between">
+                      <span className="text-default-500">Cliente dal:</span>
+                      <span className="font-medium">
+                        {new Date(selectedCustomer.created_at).toLocaleDateString("it-IT")}
+                      </span>
                     </div>
-
+                    
                     {selectedCustomer.last_intervention_date && (
-                      <div>
-                        <p className="text-default-500">Ultimo intervento:</p>
-                        <p className="font-medium">
-                          {new Date(
-                            selectedCustomer.last_intervention_date
-                          ).toLocaleDateString("it-IT")}
-                        </p>
+                      <div className="flex justify-between">
+                        <span className="text-default-500">Ultimo intervento:</span>
+                        <span className="font-medium">
+                          {new Date(selectedCustomer.last_intervention_date).toLocaleDateString("it-IT")}
+                        </span>
                       </div>
                     )}
-
+                    
                     {selectedCustomer.vat_number && (
-                      <div>
-                        <p className="text-default-500">Partita IVA:</p>
-                        <p className="font-medium">
-                          {selectedCustomer.vat_number}
-                        </p>
+                      <div className="flex justify-between">
+                        <span className="text-default-500">P.IVA:</span>
+                        <span className="font-medium">{selectedCustomer.vat_number}</span>
                       </div>
                     )}
-
-                    <div>
-                      <p className="text-default-500">
-                        Metodo contatto preferito:
-                      </p>
-                      <p className="font-medium capitalize">
-                        {selectedCustomer.preferred_contact_method}
-                      </p>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-default-500">Contatto preferito:</span>
+                      <span className="font-medium capitalize">{selectedCustomer.preferred_contact_method}</span>
                     </div>
                   </div>
                 </CardBody>

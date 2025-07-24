@@ -35,6 +35,7 @@ interface CalendarEvent {
 
 interface CalendarDayProps {
   currentDate: Date;
+  onDateClick: (date: Date) => void;
   redLineBehavior: string;
   events: CalendarEvent[];
 }
@@ -47,6 +48,7 @@ const stripHtml = (html: string) => {
 
 const CalendarDay: React.FC<CalendarDayProps> = ({
   currentDate,
+  onDateClick,
   redLineBehavior,
   events,
 }) => {
@@ -162,8 +164,9 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
             {HOURS.map((hour) => (
               <div
                 key={hour}
-                className="group hover:bg-default-100 dark:hover:bg-default-200 relative transition-colors"
+                className="group hover:bg-default-100 dark:hover:bg-default-200 relative transition-colors cursor-pointer"
                 style={{ height: `${ROW_HEIGHT}px` }}
+                onClick={() => onDateClick(currentDate)}
               >
                 {/* Eventi nelle celle orarie */}
                 {(() => {

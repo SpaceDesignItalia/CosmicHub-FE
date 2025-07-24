@@ -245,10 +245,15 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
                 {HOURS.map((hour) => (
                   <div
                     key={`${dayIndex}-${hour}`}
-                    className={`group hover:bg-default-100 dark:hover:bg-default-200 relative transition-colors ${
+                    className={`group hover:bg-default-100 dark:hover:bg-default-200 relative transition-colors cursor-pointer ${
                       isPastDay ? "bg-default-50 dark:bg-default-100" : ""
                     }`}
                     style={{ height: `${ROW_HEIGHT}px` }}
+                    onClick={() => {
+                      const dayDate = new Date(startOfWeek);
+                      dayDate.setDate(startOfWeek.getDate() + dayIndex);
+                      onDateClick(dayDate);
+                    }}
                   >
                     {/* Eventi nelle celle orarie */}
                     {(() => {
