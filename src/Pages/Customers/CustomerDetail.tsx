@@ -305,30 +305,30 @@ export default function CustomerDetail() {
           <div className="xl:col-span-2 space-y-6">
             
             {/* Header Cliente */}
-            <Card className="bg-gradient-to-r from-primary-50 to-primary-100 border border-primary-200">
-              <CardBody className="p-6">
+            <Card className="bg-default-50 dark:bg-default-100/60 backdrop-blur-lg border border-default-200 shadow-sm rounded-xl">
+              <CardBody className="px-4 py-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <Avatar
                       name={`${customer.name.charAt(0)}${customer.surname.charAt(0)}`}
                       size="lg"
-                      className="bg-primary text-white text-xl"
+                      className="bg-primary text-white text-xl ring-2 ring-primary/40"
                     />
                     <div>
-                      <h2 className="text-2xl font-bold text-primary-800">
+                      <h2 className="text-xl md:text-2xl font-bold text-foreground">
                         {customer.name} {customer.surname}
                       </h2>
                       <div className="flex items-center gap-4 mt-1">
-                        <p className="text-primary-600 font-medium">
+                        <p className="text-default-700 dark:text-default-300 font-medium">
                           📞 {customer.phone}
                         </p>
                         {customer.email && (
-                          <p className="text-primary-600 font-medium">
+                          <p className="text-default-700 dark:text-default-300 font-medium">
                             ✉️ {customer.email}
                           </p>
                         )}
                       </div>
-                      <p className="text-primary-600 mt-1">
+                      <p className="text-default-700 dark:text-default-300 mt-1">
                         📍 {customer.address}, {customer.city} {customer.zip_code}
                       </p>
                     </div>

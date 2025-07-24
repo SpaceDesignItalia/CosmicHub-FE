@@ -578,7 +578,7 @@ export default function Customers() {
                   key={customer.customer_id}
                   isPressable
                   onPress={() => navigate(`/customers/${customer.customer_id}`)}
-                  className="hover:shadow-lg transition-all duration-300 hover:scale-105 border-l-4 border-l-primary"
+                  className="group bg-white/5 backdrop-blur-lg border border-default-200 rounded-xl transition-shadow hover:shadow-xl cursor-pointer"
                 >
                   <CardBody className="p-4">
                     <div className="flex flex-col items-center text-center space-y-3">
@@ -586,7 +586,7 @@ export default function Customers() {
                       <Avatar
                         name={`${customer.name.charAt(0)}${customer.surname.charAt(0)}`}
                         size="lg"
-                        className="bg-primary text-white text-xl"
+                        className="bg-primary text-white text-xl ring-4 ring-primary/30 group-hover:ring-primary/50 transition-all"
                       />
                       
                       {/* Nome e cognome */}
