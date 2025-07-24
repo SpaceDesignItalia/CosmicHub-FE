@@ -28,6 +28,7 @@ import EmployeeDocuments from "./Pages/Documents/EmployeeDocuments";
 import DocumentReminders from "./Pages/Documents/DocumentReminders";
 import Customers from "./Pages/Customers/Customers";
 import AddCustomer from "./Pages/Customers/AddCustomer";
+import CustomerDetail from "./Pages/Customers/CustomerDetail";
 // Interventions imports
 import InterventionsList from "./Pages/Interventions/InterventionsList";
 import InterventionsMap from "./Pages/Interventions/InterventionsMap";
@@ -103,6 +104,7 @@ function App() {
             <Route path="/calendar" element={<CalendarAurora />} />
             <Route path="/calendar/new" element={<NewEvent />} />
             <Route path="/customers" element={<Customers />} />
+            <Route path="/customers/:customerId" element={<CustomerDetail />} />
             <Route path="/customers/add" element={<AddCustomer />} />
             {/* Interventions routes */}
             <Route path="/interventions" element={<InterventionsList />} />
