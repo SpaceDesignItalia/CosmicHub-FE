@@ -69,41 +69,8 @@ export default function CustomerDetail() {
   const [selectedTechnician, setSelectedTechnician] = useState<string>("");
 
   // Mock data
-  const mockInterventions: InterventionSummary[] = [
-    {
-      intervention_id: "1",
-      date: new Date("2024-01-15"),
-      problem_description: "Riparazione impianto elettrico",
-      status: "completed",
-      cost: 180.0,
-      technician_name: "Marco Rossi",
-    },
-    {
-      intervention_id: "2",
-      date: new Date("2024-02-20"),
-      problem_description: "Manutenzione caldaia",
-      status: "completed",
-      cost: 120.0,
-      technician_name: "Laura Bianchi",
-    },
-  ];
-
-  const mockPayments: PaymentSummary[] = [
-    {
-      payment_id: "1",
-      date: new Date("2024-01-16"),
-      amount: 180.0,
-      method: "card",
-      invoice_number: "INV-2024-001",
-    },
-    {
-      payment_id: "2",
-      date: new Date("2024-02-21"),
-      amount: 120.0,
-      method: "bank_transfer",
-      invoice_number: "INV-2024-002",
-    },
-  ];
+  const [mockInterventions, setMockInterventions] = useState<InterventionSummary[]>([]);
+  const [mockPayments, setMockPayments] = useState<PaymentSummary[]>([]);
 
   // Load data
   useEffect(() => {
@@ -114,76 +81,118 @@ export default function CustomerDetail() {
     try {
       setLoading(true);
       
-      // Mock data for customers and technicians
-      const mockCustomers: Customer[] = [
-        {
-          customer_id: "1",
-          name: "Mario",
-          surname: "Rossi",
-          email: "mario.rossi@email.com",
-          phone: "+39 331 123 4567",
-          address: "Via Roma 123",
-          city: "Milano",
-          zip_code: "20121",
-          customer_type: "private",
-          status: "active",
-          created_at: "2023-01-15T00:00:00.000Z",
-          last_intervention_date: "2024-02-20T00:00:00.000Z",
-          preferred_contact_method: "phone",
-          notes: "Cliente molto puntuale, preferisce appuntamenti mattutini",
-          vat_number: null,
-          referred_by: null,
-        },
-        {
-          customer_id: "2",
-          name: "Anna",
-          surname: "Verdi",
-          email: "anna.verdi@email.com",
-          phone: "+39 334 567 8901",
-          address: "Corso Italia 45",
-          city: "Roma",
-          zip_code: "00184",
-          customer_type: "business",
-          status: "active",
-          created_at: "2023-03-20T00:00:00.000Z",
-          last_intervention_date: "2024-01-10T00:00:00.000Z",
-          preferred_contact_method: "email",
-          notes: null,
-          vat_number: "IT12345678901",
-          referred_by: "1",
-        },
-      ];
+      // Chiamate API reali per recuperare i dati
+      const [customersResponse, techniciansResponse] = await Promise.all([
+        axios.get("Customer/GET/GetAllCustomers"),
+        axios.get("Employee/GET/GetAllEmployees") // Assumendo che i tecnici siano dipendenti
+      ]);
 
-      const mockTechnicians: Technician[] = [
-        {
-          technician_id: "1",
-          name: "Marco Rossi",
-          email: "marco.rossi@company.com",
-          phone: "+39 345 123 4567",
-          specializations: ["Elettrico", "Idraulico"],
-          status: "active",
-        },
-        {
-          technician_id: "2",
-          name: "Laura Bianchi",
-          email: "laura.bianchi@company.com",
-          phone: "+39 345 234 5678",
-          specializations: ["Riscaldamento", "Climatizzazione"],
-          status: "active",
-        },
-      ];
+      // Processa i dati dei clienti
+      let customers: Customer[] = [];
+      if (Array.isArray(customersResponse.data)) {
+        customers = customersResponse.data;
+      } else if (customersResponse.data && typeof customersResponse.data === "object") {
+        if (customersResponse.data.customer_id) {
+          customers = [customersResponse.data];
+        } else if (customersResponse.data.customers) {
+          customers = Array.isArray(customersResponse.data.customers)
+            ? customersResponse.data.customers
+            : [];
+        } else if (customersResponse.data.data) {
+          customers = Array.isArray(customersResponse.data.data)
+            ? customersResponse.data.data
+            : [];
+        }
+      }
 
-      setCustomers(mockCustomers);
-      setTechnicians(mockTechnicians);
+      // Processa i dati dei tecnici
+      let technicians: Technician[] = [];
+      if (Array.isArray(techniciansResponse.data)) {
+        technicians = techniciansResponse.data.map((emp: any) => ({
+          user_id: emp.employee_id,
+          technician_id: emp.employee_id,
+          name: emp.name,
+          surname: emp.surname || "",
+          role: emp.role || "technician",
+          status: emp.status || "active",
+          email: emp.email,
+          phone: emp.phone,
+          profile_image: emp.profile_image || "",
+          created_at: new Date(emp.created_at || Date.now()),
+          updated_at: new Date(emp.updated_at || Date.now()),
+          specializations: emp.specializations || [{ specialization_id: "1", name: "Generale", category: "other", skill_level: "basic" }],
+          skill_level: emp.skill_level || "junior",
+          availability_status: emp.availability_status || "available",
+          working_hours: emp.working_hours || {
+            monday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+            tuesday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+            wednesday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+            thursday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+            friday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+            saturday: { is_working_day: false },
+            sunday: { is_working_day: false }
+          }
+        }));
+      }
+
+      setCustomers(customers);
+      setTechnicians(technicians);
       
-      // Find specific customer
-      const foundCustomer = mockCustomers.find(c => c.customer_id === customerId);
+      // Trova il cliente specifico
+      const foundCustomer = customers.find(c => c.customer_id === customerId);
       if (foundCustomer) {
         setCustomer(foundCustomer);
         setQuickBookingData(prev => ({
           ...prev,
           customer_id: foundCustomer.customer_id,
         }));
+
+        // Carica interventi e pagamenti per questo cliente
+        try {
+          const [interventionsResponse, paymentsResponse] = await Promise.all([
+            axios.get(`Intervention/GET/GetInterventionsByCustomerId`, {
+              params: { customer_id: customerId }
+            }),
+            axios.get(`Payment/GET/GetPaymentsByCustomerId`, {
+              params: { customer_id: customerId }
+            })
+          ]);
+
+          // Processa interventi
+          let interventions: InterventionSummary[] = [];
+          if (interventionsResponse.data && Array.isArray(interventionsResponse.data)) {
+            interventions = interventionsResponse.data.map((int: any) => ({
+              intervention_id: int.intervention_id,
+              date: new Date(int.date),
+              type: int.type || "repair",
+              problem_description: int.problem_description,
+              status: int.status,
+              cost: int.cost || 0,
+              technician_name: int.technician_name || "N/A"
+            }));
+          }
+
+          // Processa pagamenti
+          let payments: PaymentSummary[] = [];
+          if (paymentsResponse.data && Array.isArray(paymentsResponse.data)) {
+            payments = paymentsResponse.data.map((pay: any) => ({
+              payment_id: pay.payment_id,
+              intervention_id: pay.intervention_id || "",
+              date: new Date(pay.date),
+              amount: pay.amount,
+              method: pay.method,
+              status: pay.status || "paid",
+              invoice_number: pay.invoice_number
+            }));
+          }
+
+          // Aggiorna i dati mock con quelli reali
+          setMockInterventions(interventions);
+          setMockPayments(payments);
+        } catch (error) {
+          console.error("Errore nel caricamento interventi/pagamenti:", error);
+          // Mantieni i dati mock in caso di errore
+        }
       }
     } catch (error) {
       console.error("Errore nel caricamento dati cliente:", error);
@@ -204,7 +213,7 @@ export default function CustomerDetail() {
       description: quickBookingData.notes || "",
       event_type: quickBookingData.intervention_type,
       priority: quickBookingData.urgency_level,
-      estimated_duration: quickBookingData.estimated_duration.toString(),
+      estimated_duration: (quickBookingData.estimated_duration || 60).toString(),
       
       // Dati cliente
       customer_name: `${customer.name} ${customer.surname}`,
@@ -217,7 +226,7 @@ export default function CustomerDetail() {
       assigned_technician: selectedTechnician ? technicians.find(t => t.technician_id === selectedTechnician)?.name || "" : "",
       location: quickBookingData.location || customer.address,
       notes: quickBookingData.notes || "",
-      contact_method: customer.preferred_contact_method,
+      contact_method: customer.preferred_contact_method || "phone",
       send_reminder: "true",
       from_external: "false",
     });
@@ -241,7 +250,7 @@ export default function CustomerDetail() {
       lastInterventionDate: customer.last_intervention_date,
       customerSince: new Date(customer.created_at),
     };
-  }, [customer]);
+  }, [customer, mockInterventions, mockPayments]);
 
   if (loading) {
     return (
