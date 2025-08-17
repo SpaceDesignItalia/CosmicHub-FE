@@ -12,7 +12,15 @@ import {
   Avatar,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
-import { format, startOfWeek, endOfWeek, isSameDay, isSameWeek, isSameMonth, isSameYear } from "date-fns";
+import {
+  format,
+  startOfWeek,
+  endOfWeek,
+  isSameDay,
+  isSameWeek,
+  isSameMonth,
+  isSameYear,
+} from "date-fns";
 import { it } from "date-fns/locale";
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -68,7 +76,13 @@ interface CalendarEvent {
   EventAttachments: EventAttachment[];
   EventPartecipants: EventPartecipant[];
   // CosmicHub specific fields
-  EventType?: "appointment" | "maintenance" | "inspection" | "repair" | "installation" | "consultation";
+  EventType?:
+    | "appointment"
+    | "maintenance"
+    | "inspection"
+    | "repair"
+    | "installation"
+    | "consultation";
   EventPriority?: "low" | "medium" | "high" | "emergency";
   EstimatedDuration?: number;
   CustomerInfo?: CustomerInfo;
@@ -86,26 +100,56 @@ interface EventTag {
 
 // CosmicHub color scheme ottimizzato per visibilità in entrambi i temi
 const appointmentColors = [
-  { color: "#60A5FA", name: "Blu - Sopralluogo", type: "inspection", textColor: "#FFFFFF" },     // Blu chiaro
-  { color: "#34D399", name: "Verde - Manutenzione", type: "maintenance", textColor: "#1F2937" }, // Verde chiaro
-  { color: "#FBBF24", name: "Giallo - Riparazione", type: "repair", textColor: "#1F2937" },     // Giallo visibile
-  { color: "#A78BFA", name: "Viola - Installazione", type: "installation", textColor: "#FFFFFF" }, // Viola chiaro
-  { color: "#22D3EE", name: "Ciano - Consulenza", type: "consultation", textColor: "#1F2937" },   // Ciano chiaro
-  { color: "#F87171", name: "Rosso - Emergenza", type: "emergency", textColor: "#FFFFFF" },       // Rosso emergenza
+  {
+    color: "#60A5FA",
+    name: "Blu - Sopralluogo",
+    type: "inspection",
+    textColor: "#FFFFFF",
+  }, // Blu chiaro
+  {
+    color: "#34D399",
+    name: "Verde - Manutenzione",
+    type: "maintenance",
+    textColor: "#1F2937",
+  }, // Verde chiaro
+  {
+    color: "#FBBF24",
+    name: "Giallo - Riparazione",
+    type: "repair",
+    textColor: "#1F2937",
+  }, // Giallo visibile
+  {
+    color: "#A78BFA",
+    name: "Viola - Installazione",
+    type: "installation",
+    textColor: "#FFFFFF",
+  }, // Viola chiaro
+  {
+    color: "#22D3EE",
+    name: "Ciano - Consulenza",
+    type: "consultation",
+    textColor: "#1F2937",
+  }, // Ciano chiaro
+  {
+    color: "#F87171",
+    name: "Rosso - Emergenza",
+    type: "emergency",
+    textColor: "#FFFFFF",
+  }, // Rosso emergenza
 ];
 
 const priorityColors = {
-  low: { bg: "#E2E8F0", text: "#475569", border: "#94A3B8" },      // Grigio chiaro
-  medium: { bg: "#FED7AA", text: "#9A3412", border: "#FBBF24" },   // Arancione chiaro
-  high: { bg: "#FECACA", text: "#991B1B", border: "#F87171" },     // Rosso chiaro
-  emergency: { bg: "#FCA5A5", text: "#7F1D1D", border: "#EF4444" } // Rosso scuro
+  low: { bg: "#E2E8F0", text: "#475569", border: "#94A3B8" }, // Grigio chiaro
+  medium: { bg: "#FED7AA", text: "#9A3412", border: "#FBBF24" }, // Arancione chiaro
+  high: { bg: "#FECACA", text: "#991B1B", border: "#F87171" }, // Rosso chiaro
+  emergency: { bg: "#FCA5A5", text: "#7F1D1D", border: "#EF4444" }, // Rosso scuro
 };
 
 export default function CalendarAurora() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const container = useRef<HTMLDivElement>(null);
-  
+
   // Calendar state
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<"day" | "week" | "month" | "year">("month");
@@ -113,7 +157,9 @@ export default function CalendarAurora() {
   const [eventTags, setEventTags] = useState<EventTag[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isViewOpen, setIsViewOpen] = useState(false);
-  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
+    null
+  );
   const [prefilledEventData, setPrefilledEventData] = useState<any>(null);
   const [pendingEventData, setPendingEventData] = useState<any>(null);
   const [showPrefilledBanner, setShowPrefilledBanner] = useState(false);
@@ -130,7 +176,7 @@ export default function CalendarAurora() {
 
   useEffect(() => {
     loadMockData();
-    
+
     // Handle CCC workflow or new event creation
     if (isFromCCC || isCreatingEvent || isNewAppointment) {
       handleEventCreationWorkflow();
@@ -174,33 +220,33 @@ export default function CalendarAurora() {
 
   const loadMockData = async () => {
     setLoading(true);
-    
+
     // Mock technicians
     const mockTechnicians: TechnicianAssignment[] = [
       {
         technician_id: "1",
         technician_name: "Marco Fontana",
         role: "Tecnico Senior",
-        availability_status: "available"
+        availability_status: "available",
       },
       {
-        technician_id: "2", 
+        technician_id: "2",
         technician_name: "Andrea Lombardi",
         role: "Tecnico Specializzato",
-        availability_status: "busy"
+        availability_status: "busy",
       },
       {
         technician_id: "3",
-        technician_name: "Simone Ricci", 
+        technician_name: "Simone Ricci",
         role: "Tecnico Junior",
-        availability_status: "available"
+        availability_status: "available",
       },
       {
         technician_id: "4",
         technician_name: "Giulia Ferri",
         role: "Tecnico Esperto",
-        availability_status: "available"
-      }
+        availability_status: "available",
+      },
     ];
 
     // Mock events/appointments - Many more examples con colori ottimizzati
@@ -219,12 +265,18 @@ export default function CalendarAurora() {
         EventStartTime: "08:30",
         EventEndTime: "10:30",
         EventColor: "#F87171", // Rosso emergenza visibile
-        EventDescription: "Riparazione urgente caldaia con perdita di pressione. Cliente senza riscaldamento.",
+        EventDescription:
+          "Riparazione urgente caldaia con perdita di pressione. Cliente senza riscaldamento.",
         EventLocation: "Via Roma 123, Milano",
         EventTagName: "Riparazione",
         EventAttachments: [],
         EventPartecipants: [
-          { EventPartecipantId: 1, EventPartecipantEmail: "marco.fontana@cosmichub.it", EventPartecipantRole: "Tecnico Principale", EventPartecipantStatus: "confirmed" }
+          {
+            EventPartecipantId: 1,
+            EventPartecipantEmail: "marco.fontana@cosmichub.it",
+            EventPartecipantRole: "Tecnico Principale",
+            EventPartecipantStatus: "confirmed",
+          },
         ],
         EventType: "repair",
         EventPriority: "high",
@@ -235,9 +287,9 @@ export default function CalendarAurora() {
           customer_phone: "+39 333 1234567",
           customer_email: "mario.rossi@email.com",
           customer_address: "Via Roma 123, Milano",
-          customer_type: "private"
+          customer_type: "private",
         },
-        TechnicianAssignment: mockTechnicians[0]
+        TechnicianAssignment: mockTechnicians[0],
       },
       {
         EventId: 2,
@@ -247,13 +299,24 @@ export default function CalendarAurora() {
         EventStartTime: "14:00",
         EventEndTime: "17:30",
         EventColor: "#A78BFA", // Viola installazione visibile
-        EventDescription: "Installazione nuovo condizionatore dual split in appartamento al 3° piano",
+        EventDescription:
+          "Installazione nuovo condizionatore dual split in appartamento al 3° piano",
         EventLocation: "Corso Venezia 89, Milano",
         EventTagName: "Installazione",
         EventAttachments: [],
         EventPartecipants: [
-          { EventPartecipantId: 2, EventPartecipantEmail: "simone.ricci@cosmichub.it", EventPartecipantRole: "Tecnico Installatore", EventPartecipantStatus: "confirmed" },
-          { EventPartecipantId: 3, EventPartecipantEmail: "lucia.neri@email.it", EventPartecipantRole: "Cliente", EventPartecipantStatus: "pending" }
+          {
+            EventPartecipantId: 2,
+            EventPartecipantEmail: "simone.ricci@cosmichub.it",
+            EventPartecipantRole: "Tecnico Installatore",
+            EventPartecipantStatus: "confirmed",
+          },
+          {
+            EventPartecipantId: 3,
+            EventPartecipantEmail: "lucia.neri@email.it",
+            EventPartecipantRole: "Cliente",
+            EventPartecipantStatus: "pending",
+          },
         ],
         EventType: "installation",
         EventPriority: "medium",
@@ -264,9 +327,9 @@ export default function CalendarAurora() {
           customer_phone: "+39 987 654 321",
           customer_email: "lucia.neri@email.it",
           customer_address: "Corso Venezia 89, Milano",
-          customer_type: "private"
+          customer_type: "private",
         },
-        TechnicianAssignment: mockTechnicians[2]
+        TechnicianAssignment: mockTechnicians[2],
       },
       {
         EventId: 3,
@@ -276,7 +339,8 @@ export default function CalendarAurora() {
         EventStartTime: "11:00",
         EventEndTime: "12:30",
         EventColor: "#60A5FA", // Blu sopralluogo visibile
-        EventDescription: "Sopralluogo e preventivo per ristrutturazione completa impianto idraulico",
+        EventDescription:
+          "Sopralluogo e preventivo per ristrutturazione completa impianto idraulico",
         EventLocation: "Via Manzoni 67, Milano",
         EventTagName: "Preventivo",
         EventAttachments: [],
@@ -290,9 +354,9 @@ export default function CalendarAurora() {
           customer_phone: "+39 345 678 901",
           customer_email: "casa.verdi@email.it",
           customer_address: "Via Manzoni 67, Milano",
-          customer_type: "private"
+          customer_type: "private",
         },
-        TechnicianAssignment: mockTechnicians[0]
+        TechnicianAssignment: mockTechnicians[0],
       },
 
       // DOMANI
@@ -304,14 +368,30 @@ export default function CalendarAurora() {
         EventStartTime: "09:00",
         EventEndTime: "12:30",
         EventColor: "#34D399", // Verde manutenzione visibile
-        EventDescription: "Controllo annuale impianti climatizzazione di tutto il condominio (15 unità)",
+        EventDescription:
+          "Controllo annuale impianti climatizzazione di tutto il condominio (15 unità)",
         EventLocation: "Via Milano 456, Roma",
         EventTagName: "Manutenzione",
         EventAttachments: [],
         EventPartecipants: [
-          { EventPartecipantId: 4, EventPartecipantEmail: "andrea.lombardi@cosmichub.it", EventPartecipantRole: "Tecnico Responsabile", EventPartecipantStatus: "confirmed" },
-          { EventPartecipantId: 5, EventPartecipantEmail: "giulia.ferri@cosmichub.it", EventPartecipantRole: "Assistente", EventPartecipantStatus: "confirmed" },
-          { EventPartecipantId: 6, EventPartecipantEmail: "admin@condominioverde.it", EventPartecipantRole: "Amministratore", EventPartecipantStatus: "pending" }
+          {
+            EventPartecipantId: 4,
+            EventPartecipantEmail: "andrea.lombardi@cosmichub.it",
+            EventPartecipantRole: "Tecnico Responsabile",
+            EventPartecipantStatus: "confirmed",
+          },
+          {
+            EventPartecipantId: 5,
+            EventPartecipantEmail: "giulia.ferri@cosmichub.it",
+            EventPartecipantRole: "Assistente",
+            EventPartecipantStatus: "confirmed",
+          },
+          {
+            EventPartecipantId: 6,
+            EventPartecipantEmail: "admin@condominioverde.it",
+            EventPartecipantRole: "Amministratore",
+            EventPartecipantStatus: "pending",
+          },
         ],
         EventType: "maintenance",
         EventPriority: "medium",
@@ -322,9 +402,9 @@ export default function CalendarAurora() {
           customer_phone: "+39 06 1234567",
           customer_email: "amministratore@condominioverde.it",
           customer_address: "Via Milano 456, Roma",
-          customer_type: "business"
+          customer_type: "business",
         },
-        TechnicianAssignment: mockTechnicians[1]
+        TechnicianAssignment: mockTechnicians[1],
       },
       {
         EventId: 5,
@@ -334,12 +414,18 @@ export default function CalendarAurora() {
         EventStartTime: "15:30",
         EventEndTime: "17:00",
         EventColor: "#FBBF24", // Giallo riparazione visibile
-        EventDescription: "Riparazione perdita nella tubatura principale che sta allagando il seminterrato",
+        EventDescription:
+          "Riparazione perdita nella tubatura principale che sta allagando il seminterrato",
         EventLocation: "Via Dante 45, Napoli",
         EventTagName: "Riparazione",
         EventAttachments: [],
         EventPartecipants: [
-          { EventPartecipantId: 7, EventPartecipantEmail: "marco.fontana@cosmichub.it", EventPartecipantRole: "Tecnico Emergenze", EventPartecipantStatus: "confirmed" }
+          {
+            EventPartecipantId: 7,
+            EventPartecipantEmail: "marco.fontana@cosmichub.it",
+            EventPartecipantRole: "Tecnico Emergenze",
+            EventPartecipantStatus: "confirmed",
+          },
         ],
         EventType: "repair",
         EventPriority: "high",
@@ -350,9 +436,9 @@ export default function CalendarAurora() {
           customer_phone: "+39 333 111 222",
           customer_email: "giuseppe.ferrari@email.it",
           customer_address: "Via Dante 45, Napoli",
-          customer_type: "private"
+          customer_type: "private",
         },
-        TechnicianAssignment: mockTechnicians[0]
+        TechnicianAssignment: mockTechnicians[0],
       },
 
       // DOPODOMANI
@@ -364,12 +450,18 @@ export default function CalendarAurora() {
         EventStartTime: "10:00",
         EventEndTime: "11:30",
         EventColor: "#22D3EE", // Ciano consulenza visibile
-        EventDescription: "Controllo annuale obbligatorio impianto elettrico e gas domestico",
+        EventDescription:
+          "Controllo annuale obbligatorio impianto elettrico e gas domestico",
         EventLocation: "Piazza Garibaldi 12, Bologna",
         EventTagName: "Controllo",
         EventAttachments: [],
         EventPartecipants: [
-          { EventPartecipantId: 8, EventPartecipantEmail: "giulia.ferri@cosmichub.it", EventPartecipantRole: "Tecnico Certificato", EventPartecipantStatus: "confirmed" }
+          {
+            EventPartecipantId: 8,
+            EventPartecipantEmail: "giulia.ferri@cosmichub.it",
+            EventPartecipantRole: "Tecnico Certificato",
+            EventPartecipantStatus: "confirmed",
+          },
         ],
         EventType: "inspection",
         EventPriority: "medium",
@@ -380,9 +472,9 @@ export default function CalendarAurora() {
           customer_phone: "+39 051 987 654",
           customer_email: "anna.bianchi@email.it",
           customer_address: "Piazza Garibaldi 12, Bologna",
-          customer_type: "private"
+          customer_type: "private",
         },
-        TechnicianAssignment: mockTechnicians[3]
+        TechnicianAssignment: mockTechnicians[3],
       },
       {
         EventId: 7,
@@ -392,14 +484,30 @@ export default function CalendarAurora() {
         EventStartTime: "14:00",
         EventEndTime: "18:00",
         EventColor: "#34D399", // Verde manutenzione visibile
-        EventDescription: "Manutenzione programmata sistemi HVAC dello stabilimento produttivo",
+        EventDescription:
+          "Manutenzione programmata sistemi HVAC dello stabilimento produttivo",
         EventLocation: "Zona Industriale, Torino",
         EventTagName: "Manutenzione",
         EventAttachments: [],
         EventPartecipants: [
-          { EventPartecipantId: 9, EventPartecipantEmail: "andrea.lombardi@cosmichub.it", EventPartecipantRole: "Capo Squadra", EventPartecipantStatus: "confirmed" },
-          { EventPartecipantId: 10, EventPartecipantEmail: "simone.ricci@cosmichub.it", EventPartecipantRole: "Assistente", EventPartecipantStatus: "confirmed" },
-          { EventPartecipantId: 11, EventPartecipantEmail: "responsabile@aziendaxyz.it", EventPartecipantRole: "Responsabile Tecnico", EventPartecipantStatus: "pending" }
+          {
+            EventPartecipantId: 9,
+            EventPartecipantEmail: "andrea.lombardi@cosmichub.it",
+            EventPartecipantRole: "Capo Squadra",
+            EventPartecipantStatus: "confirmed",
+          },
+          {
+            EventPartecipantId: 10,
+            EventPartecipantEmail: "simone.ricci@cosmichub.it",
+            EventPartecipantRole: "Assistente",
+            EventPartecipantStatus: "confirmed",
+          },
+          {
+            EventPartecipantId: 11,
+            EventPartecipantEmail: "responsabile@aziendaxyz.it",
+            EventPartecipantRole: "Responsabile Tecnico",
+            EventPartecipantStatus: "pending",
+          },
         ],
         EventType: "maintenance",
         EventPriority: "medium",
@@ -410,9 +518,9 @@ export default function CalendarAurora() {
           customer_phone: "+39 011 555 777",
           customer_email: "manutenzioni@aziendaxyz.it",
           customer_address: "Zona Industriale, Torino",
-          customer_type: "business"
+          customer_type: "business",
         },
-        TechnicianAssignment: mockTechnicians[1]
+        TechnicianAssignment: mockTechnicians[1],
       },
 
       // SETTIMANA PROSSIMA
@@ -424,15 +532,36 @@ export default function CalendarAurora() {
         EventStartTime: "08:00",
         EventEndTime: "17:00",
         EventColor: "#A78BFA", // Viola installazione visibile
-        EventDescription: "Installazione completa impianto solare termico su tetto condominiale (20 unità)",
+        EventDescription:
+          "Installazione completa impianto solare termico su tetto condominiale (20 unità)",
         EventLocation: "Via del Sole 88, Firenze",
         EventTagName: "Installazione",
         EventAttachments: [],
         EventPartecipants: [
-          { EventPartecipantId: 12, EventPartecipantEmail: "marco.fontana@cosmichub.it", EventPartecipantRole: "Capo Progetto", EventPartecipantStatus: "confirmed" },
-          { EventPartecipantId: 13, EventPartecipantEmail: "andrea.lombardi@cosmichub.it", EventPartecipantRole: "Tecnico Specializzato", EventPartecipantStatus: "confirmed" },
-          { EventPartecipantId: 14, EventPartecipantEmail: "simone.ricci@cosmichub.it", EventPartecipantRole: "Assistente", EventPartecipantStatus: "confirmed" },
-          { EventPartecipantId: 15, EventPartecipantEmail: "giulia.ferri@cosmichub.it", EventPartecipantRole: "Coordinatore", EventPartecipantStatus: "confirmed" }
+          {
+            EventPartecipantId: 12,
+            EventPartecipantEmail: "marco.fontana@cosmichub.it",
+            EventPartecipantRole: "Capo Progetto",
+            EventPartecipantStatus: "confirmed",
+          },
+          {
+            EventPartecipantId: 13,
+            EventPartecipantEmail: "andrea.lombardi@cosmichub.it",
+            EventPartecipantRole: "Tecnico Specializzato",
+            EventPartecipantStatus: "confirmed",
+          },
+          {
+            EventPartecipantId: 14,
+            EventPartecipantEmail: "simone.ricci@cosmichub.it",
+            EventPartecipantRole: "Assistente",
+            EventPartecipantStatus: "confirmed",
+          },
+          {
+            EventPartecipantId: 15,
+            EventPartecipantEmail: "giulia.ferri@cosmichub.it",
+            EventPartecipantRole: "Coordinatore",
+            EventPartecipantStatus: "confirmed",
+          },
         ],
         EventType: "installation",
         EventPriority: "medium",
@@ -443,9 +572,9 @@ export default function CalendarAurora() {
           customer_phone: "+39 055 123 456",
           customer_email: "amministratore@condominiosole.it",
           customer_address: "Via del Sole 88, Firenze",
-          customer_type: "business"
+          customer_type: "business",
         },
-        TechnicianAssignment: mockTechnicians[0]
+        TechnicianAssignment: mockTechnicians[0],
       },
       {
         EventId: 9,
@@ -455,13 +584,24 @@ export default function CalendarAurora() {
         EventStartTime: "20:00",
         EventEndTime: "23:30",
         EventColor: "#F87171", // Rosso emergenza visibile
-        EventDescription: "Intervento d'emergenza notturno per allagamento seminterrato causa rottura tubazione principale",
+        EventDescription:
+          "Intervento d'emergenza notturno per allagamento seminterrato causa rottura tubazione principale",
         EventLocation: "Via Emergenza 999, Milano",
         EventTagName: "Emergenza",
         EventAttachments: [],
         EventPartecipants: [
-          { EventPartecipantId: 16, EventPartecipantEmail: "marco.fontana@cosmichub.it", EventPartecipantRole: "Tecnico Emergenze", EventPartecipantStatus: "confirmed" },
-          { EventPartecipantId: 17, EventPartecipantEmail: "andrea.lombardi@cosmichub.it", EventPartecipantRole: "Supporto", EventPartecipantStatus: "confirmed" }
+          {
+            EventPartecipantId: 16,
+            EventPartecipantEmail: "marco.fontana@cosmichub.it",
+            EventPartecipantRole: "Tecnico Emergenze",
+            EventPartecipantStatus: "confirmed",
+          },
+          {
+            EventPartecipantId: 17,
+            EventPartecipantEmail: "andrea.lombardi@cosmichub.it",
+            EventPartecipantRole: "Supporto",
+            EventPartecipantStatus: "confirmed",
+          },
         ],
         EventType: "repair",
         EventPriority: "emergency",
@@ -472,19 +612,39 @@ export default function CalendarAurora() {
           customer_phone: "+39 800 911 911",
           customer_email: "emergenze@ufficicentro.it",
           customer_address: "Via Emergenza 999, Milano",
-          customer_type: "business"
+          customer_type: "business",
         },
-        TechnicianAssignment: mockTechnicians[0]
-      }
+        TechnicianAssignment: mockTechnicians[0],
+      },
     ];
 
     // Mock event tags con colori coordinati
     const mockEventTags: EventTag[] = [
-      { EventTagId: 1, EventTagName: "Intervento Tecnico", EventTagColor: appointmentColors[0].color },
-      { EventTagId: 2, EventTagName: "Manutenzione", EventTagColor: appointmentColors[1].color },
-      { EventTagId: 3, EventTagName: "Riparazione", EventTagColor: appointmentColors[2].color },
-      { EventTagId: 4, EventTagName: "Installazione", EventTagColor: appointmentColors[3].color },
-      { EventTagId: 5, EventTagName: "Consulenza", EventTagColor: appointmentColors[4].color },
+      {
+        EventTagId: 1,
+        EventTagName: "Intervento Tecnico",
+        EventTagColor: appointmentColors[0].color,
+      },
+      {
+        EventTagId: 2,
+        EventTagName: "Manutenzione",
+        EventTagColor: appointmentColors[1].color,
+      },
+      {
+        EventTagId: 3,
+        EventTagName: "Riparazione",
+        EventTagColor: appointmentColors[2].color,
+      },
+      {
+        EventTagId: 4,
+        EventTagName: "Installazione",
+        EventTagColor: appointmentColors[3].color,
+      },
+      {
+        EventTagId: 5,
+        EventTagName: "Consulenza",
+        EventTagColor: appointmentColors[4].color,
+      },
     ];
 
     setTechnicians(mockTechnicians);
@@ -509,6 +669,7 @@ export default function CalendarAurora() {
         notes: searchParams.get("notes"),
         location: searchParams.get("location"),
         assigned_technician: searchParams.get("assigned_technician"),
+        assigned_technician_id: searchParams.get("assigned_technician_id"),
         preferred_technician: searchParams.get("preferred_technician"),
         customer_type: searchParams.get("customer_type"),
       };
@@ -525,24 +686,26 @@ export default function CalendarAurora() {
         event_type: searchParams.get("event_type"),
         priority: searchParams.get("priority"),
         estimated_duration: searchParams.get("estimated_duration"),
-        
-        // Dati cliente  
+
+        // Dati cliente
+        customer_id: searchParams.get("customer_id"),
         customer_name: searchParams.get("customer_name"),
         customer_phone: searchParams.get("customer_phone"),
         customer_email: searchParams.get("customer_email"),
         customer_address: searchParams.get("customer_address"),
         customer_type: searchParams.get("customer_type"),
-        
+
         // Dettagli intervento
         assigned_technician: searchParams.get("assigned_technician"),
+        assigned_technician_id: searchParams.get("assigned_technician_id"),
         location: searchParams.get("location"),
         notes: searchParams.get("notes"),
         contact_method: searchParams.get("contact_method"),
         send_reminder: searchParams.get("send_reminder") === "true",
         from_external: searchParams.get("from_external") === "true",
-        
+
         // Flag per indicare che viene dal form di preparazione
-        from_preparation: true
+        from_preparation: true,
       };
 
       setPendingEventData(eventData);
@@ -555,7 +718,7 @@ export default function CalendarAurora() {
 
   const handleNewAppointment = () => {
     setPrefilledEventData(null);
-        setIsOpen(true);
+    setIsOpen(true);
   };
 
   const changeDate = (offset: number) => {
@@ -574,7 +737,7 @@ export default function CalendarAurora() {
 
   const handleDateClick = (date: Date) => {
     setCurrentDate(date);
-    
+
     // Se ci sono dati precompilati, apri il modal per quella data
     if (pendingEventData) {
       setPrefilledEventData(pendingEventData);
@@ -598,7 +761,11 @@ export default function CalendarAurora() {
       case "week":
         const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
         const weekEnd = endOfWeek(currentDate, { weekStartsOn: 1 });
-        return `${format(weekStart, "dd MMM", { locale: it })} - ${format(weekEnd, "dd MMM yyyy", { locale: it })}`;
+        return `${format(weekStart, "dd MMM", { locale: it })} - ${format(
+          weekEnd,
+          "dd MMM yyyy",
+          { locale: it }
+        )}`;
       case "month":
         return format(currentDate, "MMMM yyyy", { locale: it });
       case "year":
@@ -609,9 +776,9 @@ export default function CalendarAurora() {
   };
 
   const getEventsCount = () => {
-    return events.filter(event => {
+    return events.filter((event) => {
       const eventDate = new Date(event.EventStartDate);
-      
+
       switch (view) {
         case "day":
           return isSameDay(eventDate, currentDate);
@@ -630,15 +797,16 @@ export default function CalendarAurora() {
   const isMac = /Mac|iPod|iPhone|iPad/.test(navigator.userAgent);
 
   return (
-    <div className="h-screen flex flex-col bg-background p-6 gap-6" ref={container}>
+    <div
+      className="h-screen flex flex-col bg-background p-6 gap-6"
+      ref={container}
+    >
       <PageHeader
         title="Calendario"
         description={`${getEventsCount()} eventi trovati`}
         icon="solar:calendar-bold-duotone"
         size="md"
       />
-
-
 
       {/* Navigation and Controls with proper theme support */}
       <Card className="border-none shadow-sm bg-background">
@@ -655,7 +823,7 @@ export default function CalendarAurora() {
               >
                 <Icon icon="solar:arrow-left-bold" width={16} />
               </Button>
-              
+
               <div className="text-center min-w-0">
                 <h1 className="text-lg font-semibold text-foreground">
                   {getViewTitle()}
@@ -699,14 +867,18 @@ export default function CalendarAurora() {
                   size="sm"
                   onPress={() => setView(viewType as any)}
                   className={`min-w-0 px-3 ${
-                    view === viewType 
-                      ? "text-primary-foreground" 
+                    view === viewType
+                      ? "text-primary-foreground"
                       : "text-foreground hover:bg-default-200"
                   }`}
                 >
-                  {viewType === "day" ? "Giorno" : 
-                   viewType === "week" ? "Settimana" :
-                   viewType === "month" ? "Mese" : "Anno"}
+                  {viewType === "day"
+                    ? "Giorno"
+                    : viewType === "week"
+                    ? "Settimana"
+                    : viewType === "month"
+                    ? "Mese"
+                    : "Anno"}
                 </Button>
               ))}
             </div>
@@ -716,7 +888,9 @@ export default function CalendarAurora() {
               <Button
                 color="primary"
                 onPress={handleNewAppointment}
-                startContent={<Icon icon="solar:calendar-add-bold" width={16} />}
+                startContent={
+                  <Icon icon="solar:calendar-add-bold" width={16} />
+                }
                 className="font-medium"
               >
                 Nuovo Appuntamento
@@ -733,12 +907,12 @@ export default function CalendarAurora() {
                     <Icon icon="solar:menu-dots-bold" width={16} />
                   </Button>
                 </DropdownTrigger>
-                <DropdownMenu
-                  className="bg-background border border-default-200"
-                >
+                <DropdownMenu className="bg-background border border-default-200">
                   <DropdownItem
                     key="shortcuts"
-                    startContent={<Icon icon="solar:keyboard-bold" width={16} />}
+                    startContent={
+                      <Icon icon="solar:keyboard-bold" width={16} />
+                    }
                     className="text-foreground"
                   >
                     <div>
@@ -771,67 +945,71 @@ export default function CalendarAurora() {
         <CardBody className="p-0 h-full">
           <div className="h-full bg-background text-foreground">
             {loading ? (
-            <div className="flex items-center justify-center h-full">
+              <div className="flex items-center justify-center h-full">
                 <div className="flex flex-col items-center gap-3">
-                  <Icon icon="solar:loading-line-duotone" width={32} className="animate-spin text-primary" />
+                  <Icon
+                    icon="solar:loading-line-duotone"
+                    width={32}
+                    className="animate-spin text-primary"
+                  />
                   <p className="text-default-600">Caricamento calendario...</p>
                 </div>
-            </div>
-          ) : (
-            <>
-                          {view === "day" && (
-              <CalendarDay
-                currentDate={currentDate}
-                onDateClick={handleDateClick}
-                redLineBehavior="show"
-                events={events}
-              />
-            )}
-                             {view === "week" && (
-                 <CalendarWeek
-                   currentDate={currentDate}
-                   onDateClick={handleDateClick}
-                   redLineBehavior="show"
-                   events={events}
-                 />
-               )}
-              {view === "month" && (
-                <CalendarMonth
-                  currentDate={currentDate}
+              </div>
+            ) : (
+              <>
+                {view === "day" && (
+                  <CalendarDay
+                    currentDate={currentDate}
+                    onDateClick={handleDateClick}
+                    redLineBehavior="show"
                     events={events}
-                  onDateClick={handleDateClick}
-                />
-              )}
-                             {view === "year" && (
-                 <CalendarYear
-                   currentDate={currentDate}
-                   events={events}
-                   onDateClick={handleDateClick}
-                   onMonthClick={(date) => {
-                     setCurrentDate(date);
-                     setView("month");
-                   }}
-                 />
-               )}
-            </>
-          )}
-        </div>
+                  />
+                )}
+                {view === "week" && (
+                  <CalendarWeek
+                    currentDate={currentDate}
+                    onDateClick={handleDateClick}
+                    redLineBehavior="show"
+                    events={events}
+                  />
+                )}
+                {view === "month" && (
+                  <CalendarMonth
+                    currentDate={currentDate}
+                    events={events}
+                    onDateClick={handleDateClick}
+                  />
+                )}
+                {view === "year" && (
+                  <CalendarYear
+                    currentDate={currentDate}
+                    events={events}
+                    onDateClick={handleDateClick}
+                    onMonthClick={(date) => {
+                      setCurrentDate(date);
+                      setView("month");
+                    }}
+                  />
+                )}
+              </>
+            )}
+          </div>
         </CardBody>
       </Card>
 
       {/* Modals */}
-             <AddEventModal
-         isOpen={isOpen}
-         isClosed={() => {
-           setIsOpen(false);
-           setPrefilledEventData(null);
-           // Navigate back to customers if from CCC
-           if (isFromCCC) {
-             navigate("/customers");
-           }
-         }}
-         prefilledData={prefilledEventData}
-       />
+      <AddEventModal
+        isOpen={isOpen}
+        isClosed={() => {
+          setIsOpen(false);
+          setPrefilledEventData(null);
+          // Navigate back to customers if from CCC
+          if (isFromCCC) {
+            navigate("/customers");
+          }
+        }}
+        prefilledData={prefilledEventData}
+      />
 
       <ViewEventModal
         isOpen={isViewOpen}
@@ -841,12 +1019,14 @@ export default function CalendarAurora() {
         }}
         eventId={selectedEvent?.EventId || 0}
         onEventUpdated={(updatedEvent) => {
-          setEvents(prev => 
-            prev.map(e => e.EventId === updatedEvent.EventId ? updatedEvent : e)
+          setEvents((prev) =>
+            prev.map((e) =>
+              e.EventId === updatedEvent.EventId ? updatedEvent : e
+            )
           );
         }}
         onEventDeleted={(deletedEventId) => {
-          setEvents(prev => prev.filter(e => e.EventId !== deletedEventId));
+          setEvents((prev) => prev.filter((e) => e.EventId !== deletedEventId));
           setIsViewOpen(false);
           setSelectedEvent(null);
         }}
@@ -863,12 +1043,12 @@ export default function CalendarAurora() {
         eventTags={eventTags}
         technicians={technicians}
         onEventCreated={(event) => {
-          setEvents(prev => [...prev, event]);
+          setEvents((prev) => [...prev, event]);
           // Solo ora puliamo i dati pending dopo il salvataggio
           setPendingEventData(null);
           setShowPrefilledBanner(false);
         }}
       />
-      </div>
+    </div>
   );
 }

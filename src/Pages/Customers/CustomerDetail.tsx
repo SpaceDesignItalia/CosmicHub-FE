@@ -69,7 +69,9 @@ export default function CustomerDetail() {
   const [selectedTechnician, setSelectedTechnician] = useState<string>("");
 
   // Mock data
-  const [mockInterventions, setMockInterventions] = useState<InterventionSummary[]>([]);
+  const [mockInterventions, setMockInterventions] = useState<
+    InterventionSummary[]
+  >([]);
   const [mockPayments, setMockPayments] = useState<PaymentSummary[]>([]);
 
   // Load data
@@ -80,18 +82,21 @@ export default function CustomerDetail() {
   const loadCustomerData = async () => {
     try {
       setLoading(true);
-      
+
       // Chiamate API reali per recuperare i dati
       const [customersResponse, techniciansResponse] = await Promise.all([
         axios.get("Customer/GET/GetAllCustomers"),
-        axios.get("Employee/GET/GetAllEmployees") // Assumendo che i tecnici siano dipendenti
+        axios.get("Employee/GET/GetAllEmployees"), // Assumendo che i tecnici siano dipendenti
       ]);
 
       // Processa i dati dei clienti
       let customers: Customer[] = [];
       if (Array.isArray(customersResponse.data)) {
         customers = customersResponse.data;
-      } else if (customersResponse.data && typeof customersResponse.data === "object") {
+      } else if (
+        customersResponse.data &&
+        typeof customersResponse.data === "object"
+      ) {
         if (customersResponse.data.customer_id) {
           customers = [customersResponse.data];
         } else if (customersResponse.data.customers) {
@@ -109,8 +114,8 @@ export default function CustomerDetail() {
       let technicians: Technician[] = [];
       if (Array.isArray(techniciansResponse.data)) {
         technicians = techniciansResponse.data.map((emp: any) => ({
-          user_id: emp.employee_id,
-          technician_id: emp.employee_id,
+          user_id: emp.user_id,
+          technician_id: emp.user_id,
           name: emp.name,
           surname: emp.surname || "",
           role: emp.role || "technician",
@@ -120,29 +125,56 @@ export default function CustomerDetail() {
           profile_image: emp.profile_image || "",
           created_at: new Date(emp.created_at || Date.now()),
           updated_at: new Date(emp.updated_at || Date.now()),
-          specializations: emp.specializations || [{ specialization_id: "1", name: "Generale", category: "other", skill_level: "basic" }],
+          specializations: emp.specializations || [
+            {
+              specialization_id: "1",
+              name: "Generale",
+              category: "other",
+              skill_level: "basic",
+            },
+          ],
           skill_level: emp.skill_level || "junior",
           availability_status: emp.availability_status || "available",
           working_hours: emp.working_hours || {
-            monday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
-            tuesday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
-            wednesday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
-            thursday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
-            friday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+            monday: {
+              is_working_day: true,
+              start_time: "09:00",
+              end_time: "18:00",
+            },
+            tuesday: {
+              is_working_day: true,
+              start_time: "09:00",
+              end_time: "18:00",
+            },
+            wednesday: {
+              is_working_day: true,
+              start_time: "09:00",
+              end_time: "18:00",
+            },
+            thursday: {
+              is_working_day: true,
+              start_time: "09:00",
+              end_time: "18:00",
+            },
+            friday: {
+              is_working_day: true,
+              start_time: "09:00",
+              end_time: "18:00",
+            },
             saturday: { is_working_day: false },
-            sunday: { is_working_day: false }
-          }
+            sunday: { is_working_day: false },
+          },
         }));
       }
 
       setCustomers(customers);
       setTechnicians(technicians);
-      
+
       // Trova il cliente specifico
-      const foundCustomer = customers.find(c => c.customer_id === customerId);
+      const foundCustomer = customers.find((c) => c.customer_id === customerId);
       if (foundCustomer) {
         setCustomer(foundCustomer);
-        setQuickBookingData(prev => ({
+        setQuickBookingData((prev) => ({
           ...prev,
           customer_id: foundCustomer.customer_id,
         }));
@@ -151,16 +183,19 @@ export default function CustomerDetail() {
         try {
           const [interventionsResponse, paymentsResponse] = await Promise.all([
             axios.get(`Intervention/GET/GetInterventionsByCustomerId`, {
-              params: { customer_id: customerId }
+              params: { customer_id: customerId },
             }),
             axios.get(`Payment/GET/GetPaymentsByCustomerId`, {
-              params: { customer_id: customerId }
-            })
+              params: { customer_id: customerId },
+            }),
           ]);
 
           // Processa interventi
           let interventions: InterventionSummary[] = [];
-          if (interventionsResponse.data && Array.isArray(interventionsResponse.data)) {
+          if (
+            interventionsResponse.data &&
+            Array.isArray(interventionsResponse.data)
+          ) {
             interventions = interventionsResponse.data.map((int: any) => ({
               intervention_id: int.intervention_id,
               date: new Date(int.date),
@@ -168,7 +203,7 @@ export default function CustomerDetail() {
               problem_description: int.problem_description,
               status: int.status,
               cost: int.cost || 0,
-              technician_name: int.technician_name || "N/A"
+              technician_name: int.technician_name || "N/A",
             }));
           }
 
@@ -182,7 +217,7 @@ export default function CustomerDetail() {
               amount: pay.amount,
               method: pay.method,
               status: pay.status || "paid",
-              invoice_number: pay.invoice_number
+              invoice_number: pay.invoice_number,
             }));
           }
 
@@ -207,29 +242,41 @@ export default function CustomerDetail() {
 
     const bookingParams = new URLSearchParams({
       creating_event: "true",
-      
+
       // Dati evento base
       title: quickBookingData.problem_description,
       description: quickBookingData.notes || "",
       event_type: quickBookingData.intervention_type,
       priority: quickBookingData.urgency_level,
-      estimated_duration: (quickBookingData.estimated_duration || 60).toString(),
-      
+      estimated_duration: (
+        quickBookingData.estimated_duration || 60
+      ).toString(),
+
       // Dati cliente
+      customer_id: customer.customer_id,
       customer_name: `${customer.name} ${customer.surname}`,
       customer_phone: customer.phone,
       customer_email: customer.email || "",
       customer_address: `${customer.address}, ${customer.city} ${customer.zip_code}`,
       customer_type: customer.customer_type,
-      
+
       // Dettagli intervento
-      assigned_technician: selectedTechnician ? technicians.find(t => t.technician_id === selectedTechnician)?.name || "" : "",
+      assigned_technician: selectedTechnician
+        ? technicians.find((t) => t.technician_id === selectedTechnician)
+            ?.name || ""
+        : "",
+      assigned_technician_id: selectedTechnician
+        ? technicians.find((t) => t.technician_id === selectedTechnician)
+            ?.technician_id || ""
+        : "",
       location: quickBookingData.location || customer.address,
       notes: quickBookingData.notes || "",
       contact_method: customer.preferred_contact_method || "phone",
       send_reminder: "true",
       from_external: "false",
     });
+
+    console.log(bookingParams.toString());
 
     // Navigate to calendar with all the data
     navigate(`/calendar?${bookingParams.toString()}`);
@@ -240,8 +287,12 @@ export default function CustomerDetail() {
     if (!customer) return null;
 
     const interventions = mockInterventions.length;
-    const totalSpent = mockPayments.reduce((sum, payment) => sum + payment.amount, 0);
-    const avgPerIntervention = interventions > 0 ? totalSpent / interventions : 0;
+    const totalSpent = mockPayments.reduce(
+      (sum, payment) => sum + payment.amount,
+      0
+    );
+    const avgPerIntervention =
+      interventions > 0 ? totalSpent / interventions : 0;
 
     return {
       totalInterventions: interventions,
@@ -267,9 +318,17 @@ export default function CustomerDetail() {
     return (
       <div className="flex justify-center items-center h-screen">
         <div className="text-center">
-          <Icon icon="solar:user-cross-bold" width={64} className="text-default-300 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-default-600 mb-2">Cliente non trovato</h2>
-          <p className="text-default-400 mb-4">Il cliente richiesto non esiste o è stato eliminato</p>
+          <Icon
+            icon="solar:user-cross-bold"
+            width={64}
+            className="text-default-300 mx-auto mb-4"
+          />
+          <h2 className="text-xl font-semibold text-default-600 mb-2">
+            Cliente non trovato
+          </h2>
+          <p className="text-default-400 mb-4">
+            Il cliente richiesto non esiste o è stato eliminato
+          </p>
           <Button
             color="primary"
             onPress={() => navigate("/customers")}
@@ -309,17 +368,17 @@ export default function CustomerDetail() {
 
       <div className="px-6">
         <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          
           {/* COLONNA PRINCIPALE: Dettagli Cliente */}
           <div className="xl:col-span-2 space-y-6">
-            
             {/* Header Cliente */}
             <Card className="bg-default-50 dark:bg-default-100/60 backdrop-blur-lg border border-default-200 shadow-sm rounded-xl">
               <CardBody className="px-4 py-5">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-4">
                     <Avatar
-                      name={`${customer.name.charAt(0)}${customer.surname.charAt(0)}`}
+                      name={`${customer.name.charAt(
+                        0
+                      )}${customer.surname.charAt(0)}`}
                       size="lg"
                       className="bg-primary text-white text-xl ring-2 ring-primary/40"
                     />
@@ -338,7 +397,8 @@ export default function CustomerDetail() {
                         )}
                       </div>
                       <p className="text-default-700 dark:text-default-300 mt-1">
-                        📍 {customer.address}, {customer.city} {customer.zip_code}
+                        📍 {customer.address}, {customer.city}{" "}
+                        {customer.zip_code}
                       </p>
                     </div>
                   </div>
@@ -349,7 +409,9 @@ export default function CustomerDetail() {
                       variant="flat"
                       className="font-medium"
                     >
-                      {customer.customer_type === "private" ? "Privato" : "Azienda"}
+                      {customer.customer_type === "private"
+                        ? "Privato"
+                        : "Azienda"}
                     </Chip>
                     <Chip
                       size="sm"
@@ -390,11 +452,17 @@ export default function CustomerDetail() {
                       <p className="text-2xl font-bold text-warning">
                         €{customerStats.averagePerIntervention.toFixed(0)}
                       </p>
-                      <p className="text-sm text-warning-700">Media/Intervento</p>
+                      <p className="text-sm text-warning-700">
+                        Media/Intervento
+                      </p>
                     </div>
                     <div className="text-center p-4 bg-default-50 rounded-lg border border-default-200">
                       <p className="text-xl font-bold text-default-600">
-                        {Math.floor((new Date().getTime() - customerStats.customerSince.getTime()) / (1000 * 60 * 60 * 24))}
+                        {Math.floor(
+                          (new Date().getTime() -
+                            customerStats.customerSince.getTime()) /
+                            (1000 * 60 * 60 * 24)
+                        )}
                       </p>
                       <p className="text-sm text-default-600">Giorni Cliente</p>
                     </div>
@@ -419,12 +487,18 @@ export default function CustomerDetail() {
                     <div className="space-y-4 pt-4">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="p-4 bg-default-50 rounded-lg">
-                          <h5 className="font-medium text-default-700 mb-2">📍 Indirizzo</h5>
+                          <h5 className="font-medium text-default-700 mb-2">
+                            📍 Indirizzo
+                          </h5>
                           <p className="font-medium">{customer.address}</p>
-                          <p className="font-medium">{customer.city}, {customer.zip_code}</p>
+                          <p className="font-medium">
+                            {customer.city}, {customer.zip_code}
+                          </p>
                         </div>
                         <div className="p-4 bg-default-50 rounded-lg">
-                          <h5 className="font-medium text-default-700 mb-2">📞 Contatti</h5>
+                          <h5 className="font-medium text-default-700 mb-2">
+                            📞 Contatti
+                          </h5>
                           <p className="font-medium">{customer.phone}</p>
                           {customer.email && (
                             <p className="font-medium">{customer.email}</p>
@@ -433,7 +507,9 @@ export default function CustomerDetail() {
                       </div>
                       {customer.notes && (
                         <div className="p-4 bg-warning-50 rounded-lg border border-warning-200">
-                          <h5 className="font-medium text-warning-700 mb-2">📝 Note</h5>
+                          <h5 className="font-medium text-warning-700 mb-2">
+                            📝 Note
+                          </h5>
                           <p className="text-warning-800">{customer.notes}</p>
                         </div>
                       )}
@@ -452,9 +528,7 @@ export default function CustomerDetail() {
                                 {intervention.problem_description}
                               </p>
                               <p className="text-sm text-default-600">
-                                {intervention.date.toLocaleDateString(
-                                  "it-IT"
-                                )}{" "}
+                                {intervention.date.toLocaleDateString("it-IT")}{" "}
                                 • {intervention.technician_name}
                               </p>
                             </div>
@@ -506,8 +580,7 @@ export default function CustomerDetail() {
                     {(() => {
                       const refCustomer = customer.referred_by
                         ? customers.find(
-                            (c) =>
-                              c.customer_id === customer.referred_by
+                            (c) => c.customer_id === customer.referred_by
                           )
                         : null;
                       const segnalati = customers.filter(
@@ -557,7 +630,6 @@ export default function CustomerDetail() {
 
           {/* COLONNA SIDEBAR: Panel Azioni */}
           <div className="space-y-6">
-            
             {/* Panel Preparazione Appuntamento */}
             <Card className="shadow-lg border-2 border-primary-200">
               <CardHeader className="bg-primary-50">
@@ -574,7 +646,10 @@ export default function CustomerDetail() {
                     placeholder="Descrivi il problema del cliente..."
                     value={quickBookingData.problem_description}
                     onValueChange={(value) =>
-                      setQuickBookingData(prev => ({ ...prev, problem_description: value }))
+                      setQuickBookingData((prev) => ({
+                        ...prev,
+                        problem_description: value,
+                      }))
                     }
                     isRequired
                     size="sm"
@@ -587,9 +662,14 @@ export default function CustomerDetail() {
                       label="Tipo Intervento"
                       selectedKeys={[quickBookingData.intervention_type]}
                       onSelectionChange={(keys) =>
-                        setQuickBookingData(prev => ({
+                        setQuickBookingData((prev) => ({
                           ...prev,
-                          intervention_type: Array.from(keys)[0] as "inspection" | "repair" | "maintenance" | "installation" | "consultation",
+                          intervention_type: Array.from(keys)[0] as
+                            | "inspection"
+                            | "repair"
+                            | "maintenance"
+                            | "installation"
+                            | "consultation",
                         }))
                       }
                       size="sm"
@@ -605,9 +685,13 @@ export default function CustomerDetail() {
                       label="Livello Urgenza"
                       selectedKeys={[quickBookingData.urgency_level]}
                       onSelectionChange={(keys) =>
-                        setQuickBookingData(prev => ({
+                        setQuickBookingData((prev) => ({
                           ...prev,
-                          urgency_level: Array.from(keys)[0] as "low" | "medium" | "high" | "emergency",
+                          urgency_level: Array.from(keys)[0] as
+                            | "low"
+                            | "medium"
+                            | "high"
+                            | "emergency",
                         }))
                       }
                       size="sm"
@@ -619,34 +703,23 @@ export default function CustomerDetail() {
                     </Select>
                   </div>
 
-                  {/* Durata e Tecnico */}
-                  <div className="grid grid-cols-2 gap-3">
-                    <Input
-                      label="Durata (min)"
-                      type="number"
-                      value={(quickBookingData.estimated_duration || 60).toString()}
-                      onValueChange={(value) =>
-                        setQuickBookingData(prev => ({
-                          ...prev,
-                          estimated_duration: parseInt(value) || 60,
-                        }))
-                      }
-                      size="sm"
-                    />
-
-                    <Select
-                      label="Tecnico"
-                      selectedKeys={selectedTechnician ? [selectedTechnician] : []}
-                      onSelectionChange={(keys) => setSelectedTechnician(Array.from(keys)[0] as string)}
-                      size="sm"
-                    >
-                      {technicians.map(tech => (
-                        <SelectItem key={tech.technician_id}>
-                          {tech.name}
-                        </SelectItem>
-                      ))}
-                    </Select>
-                  </div>
+                  {/* Tecnico */}
+                  <Select
+                    label="Tecnico"
+                    selectedKeys={
+                      selectedTechnician ? [selectedTechnician] : []
+                    }
+                    onSelectionChange={(keys) =>
+                      setSelectedTechnician(Array.from(keys)[0] as string)
+                    }
+                    size="sm"
+                  >
+                    {technicians.map((tech) => (
+                      <SelectItem key={tech.technician_id}>
+                        {tech.name}
+                      </SelectItem>
+                    ))}
+                  </Select>
 
                   {/* Ubicazione */}
                   <Input
@@ -654,10 +727,15 @@ export default function CustomerDetail() {
                     placeholder="Es: Piano terra, garage..."
                     value={quickBookingData.location || ""}
                     onValueChange={(value) =>
-                      setQuickBookingData(prev => ({ ...prev, location: value }))
+                      setQuickBookingData((prev) => ({
+                        ...prev,
+                        location: value,
+                      }))
                     }
                     size="sm"
-                    startContent={<Icon icon="solar:map-point-bold" width={16} />}
+                    startContent={
+                      <Icon icon="solar:map-point-bold" width={16} />
+                    }
                   />
 
                   {/* Note */}
@@ -666,7 +744,7 @@ export default function CustomerDetail() {
                     placeholder="Istruzioni speciali, materiali necessari..."
                     value={quickBookingData.notes || ""}
                     onValueChange={(value) =>
-                      setQuickBookingData(prev => ({ ...prev, notes: value }))
+                      setQuickBookingData((prev) => ({ ...prev, notes: value }))
                     }
                     rows={2}
                     size="sm"
@@ -679,13 +757,31 @@ export default function CustomerDetail() {
                         📋 Riepilogo:
                       </div>
                       <div className="text-xs space-y-1 text-primary-700">
-                        <div><strong>Cliente:</strong> {customer.name} {customer.surname}</div>
-                        <div><strong>Problema:</strong> {quickBookingData.problem_description}</div>
-                        <div><strong>Tipo:</strong> {quickBookingData.intervention_type}</div>
-                        <div><strong>Urgenza:</strong> {quickBookingData.urgency_level}</div>
-                        <div><strong>Durata:</strong> {quickBookingData.estimated_duration} min</div>
+                        <div>
+                          <strong>Cliente:</strong> {customer.name}{" "}
+                          {customer.surname}
+                        </div>
+                        <div>
+                          <strong>Problema:</strong>{" "}
+                          {quickBookingData.problem_description}
+                        </div>
+                        <div>
+                          <strong>Tipo:</strong>{" "}
+                          {quickBookingData.intervention_type}
+                        </div>
+                        <div>
+                          <strong>Urgenza:</strong>{" "}
+                          {quickBookingData.urgency_level}
+                        </div>
                         {selectedTechnician && (
-                          <div><strong>Tecnico:</strong> {technicians.find(t => t.technician_id === selectedTechnician)?.name}</div>
+                          <div>
+                            <strong>Tecnico:</strong>{" "}
+                            {
+                              technicians.find(
+                                (t) => t.technician_id === selectedTechnician
+                              )?.name
+                            }
+                          </div>
                         )}
                       </div>
                     </div>
@@ -698,7 +794,9 @@ export default function CustomerDetail() {
                     className="w-full font-semibold"
                     onPress={handleBookingNavigation}
                     isDisabled={!quickBookingData.problem_description.trim()}
-                    startContent={<Icon icon="solar:calendar-search-bold" width={20} />}
+                    startContent={
+                      <Icon icon="solar:calendar-search-bold" width={20} />
+                    }
                   >
                     Apri Calendario per Prenotare
                   </Button>
@@ -725,13 +823,15 @@ export default function CustomerDetail() {
                   >
                     Chiama {customer.phone}
                   </Button>
-                  
+
                   {customer.email && (
                     <Button
                       variant="flat"
                       color="primary"
                       className="w-full justify-start"
-                      startContent={<Icon icon="solar:letter-bold" width={16} />}
+                      startContent={
+                        <Icon icon="solar:letter-bold" width={16} />
+                      }
                       onPress={() => window.open(`mailto:${customer.email}`)}
                     >
                       Email
@@ -754,29 +854,39 @@ export default function CustomerDetail() {
                   <div className="flex justify-between">
                     <span className="text-default-500">Cliente dal:</span>
                     <span className="font-medium">
-                      {new Date(customer.created_at).toLocaleDateString("it-IT")}
+                      {new Date(customer.created_at).toLocaleDateString(
+                        "it-IT"
+                      )}
                     </span>
                   </div>
-                  
+
                   {customer.last_intervention_date && (
                     <div className="flex justify-between">
-                      <span className="text-default-500">Ultimo intervento:</span>
+                      <span className="text-default-500">
+                        Ultimo intervento:
+                      </span>
                       <span className="font-medium">
-                        {new Date(customer.last_intervention_date).toLocaleDateString("it-IT")}
+                        {new Date(
+                          customer.last_intervention_date
+                        ).toLocaleDateString("it-IT")}
                       </span>
                     </div>
                   )}
-                  
+
                   {customer.vat_number && (
                     <div className="flex justify-between">
                       <span className="text-default-500">P.IVA:</span>
                       <span className="font-medium">{customer.vat_number}</span>
                     </div>
                   )}
-                  
+
                   <div className="flex justify-between">
-                    <span className="text-default-500">Contatto preferito:</span>
-                    <span className="font-medium capitalize">{customer.preferred_contact_method}</span>
+                    <span className="text-default-500">
+                      Contatto preferito:
+                    </span>
+                    <span className="font-medium capitalize">
+                      {customer.preferred_contact_method}
+                    </span>
                   </div>
                 </div>
               </CardBody>
@@ -786,4 +896,4 @@ export default function CustomerDetail() {
       </div>
     </div>
   );
-} 
+}
