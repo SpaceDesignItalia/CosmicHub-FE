@@ -7,3 +7,37 @@
   padding-top: 0 !important;
   padding-bottom: 0 !important;
 }
+
+/* Scrollbar personalizzata per la vista mensile del calendario */
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: hsl(var(--nextui-default-300));
+  border-radius: 2px;
+}
+
+.scrollbar-thin:hover::-webkit-scrollbar-thumb {
+  background: hsl(var(--nextui-default-400));
+}
+
+.scrollbar-thumb-default-300::-webkit-scrollbar-thumb {
+  background: hsl(var(--nextui-default-300));
+}
+
+.scrollbar-thumb-default-400::-webkit-scrollbar-thumb {
+  background: hsl(var(--nextui-default-400));
+}
+
+.scrollbar-track-transparent::-webkit-scrollbar-track {
+  background: transparent;
+}

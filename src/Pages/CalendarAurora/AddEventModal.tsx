@@ -261,30 +261,34 @@ export default function AddEventModal({
     setLoading(true);
 
     try {
-      // Mock save - simulate API call
-      const newEvent: CalendarEvent = {
-        ...eventData,
-        EventId: Date.now(), // Mock ID generation
-      };
+      // Chiamata API per salvare l'evento
+      const response = await axios.post("Customer/POST/AddEvent", eventData);
+      
+      if (response.status === 200) {
+        // Usa i dati restituiti dall'API se disponibili, altrimenti usa quelli locali
+        const savedEvent = response.data || {
+          ...eventData,
+          EventId: Date.now(), // Fallback ID se l'API non restituisce l'evento
+        };
 
-      console.log(newEvent);
+        console.log("Evento salvato:", savedEvent);
 
-      axios.post("Customer/POST/AddEvent", newEvent).then((res) => {
-        if (res.status === 200) {
-          // Call parent callback if provided
-          if (onEventCreated) {
-            onEventCreated(newEvent);
-          }
-
-          // Navigate back to customers if from CCC
-          if (eventData.IsFromCCC) {
-            navigate("/customers");
-          }
-
-          // Close modal
-          isClosed();
+        // Call parent callback if provided
+        if (onEventCreated) {
+          onEventCreated(savedEvent);
         }
-      });
+
+        // Navigate back to customers if from CCC
+        if (eventData.IsFromCCC) {
+          navigate("/customers");
+        }
+
+        // Close modal
+        isClosed();
+        
+        // Mostra messaggio di successo
+        alert("Evento creato con successo!");
+      }
     } catch (error) {
       console.error("Errore nella creazione dell'evento:", error);
       alert("Errore nella creazione dell'evento");

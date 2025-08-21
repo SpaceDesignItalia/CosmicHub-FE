@@ -607,16 +607,28 @@ export default function CalendarAurora() {
         }}
         eventId={selectedEvent?.EventId || 0}
         onEventUpdated={(updatedEvent) => {
+          // Aggiorna l'evento nella lista
           setEvents((prev) =>
             prev.map((e) =>
               e.EventId === updatedEvent.EventId ? updatedEvent : e
             )
           );
+          
+          // Ricarica i dati dal server per essere sicuri
+          setTimeout(() => {
+            loadData();
+          }, 500);
         }}
         onEventDeleted={(deletedEventId) => {
+          // Rimuovi l'evento dalla lista
           setEvents((prev) => prev.filter((e) => e.EventId !== deletedEventId));
           setIsViewOpen(false);
           setSelectedEvent(null);
+          
+          // Ricarica i dati dal server per essere sicuri
+          setTimeout(() => {
+            loadData();
+          }, 500);
         }}
       />
 
@@ -631,7 +643,14 @@ export default function CalendarAurora() {
         eventTags={eventTags}
         technicians={technicians}
         onEventCreated={(event) => {
+          // Aggiungi il nuovo evento alla lista
           setEvents((prev) => [...prev, event]);
+          
+          // Ricarica i dati dal server per essere sicuri di avere tutto aggiornato
+          setTimeout(() => {
+            loadData();
+          }, 500);
+          
           // Solo ora puliamo i dati pending dopo il salvataggio
           setPendingEventData(null);
           setShowPrefilledBanner(false);
