@@ -40,12 +40,6 @@ interface CalendarDayProps {
   events: CalendarEvent[];
 }
 
-const stripHtml = (html: string) => {
-  const tmp = document.createElement("div");
-  tmp.innerHTML = html;
-  return tmp.textContent || tmp.innerText || "";
-};
-
 const CalendarDay: React.FC<CalendarDayProps> = ({
   currentDate,
   onDateClick,
@@ -88,9 +82,9 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
 
   return (
     <div className="h-full bg-background flex flex-col">
-      {/* Sezione "Tutto il giorno" con tema responsive */}
+      {/* Sezione "Tutto il giorno" */}
       <div className="flex-none flex border-b border-default-200 dark:border-default-300">
-        <div className="w-[8.33%] bg-background dark:bg-default-50 text-center py-3 text-sm leading-5 text-default-600 dark:text-default-700 border-r border-default-200 dark:border-default-300">
+        <div className="w-16 bg-background dark:bg-default-50 text-center py-3 text-xs text-default-600 dark:text-default-700 border-r border-default-200 dark:border-default-300">
           Tutto il giorno
         </div>
         <div className="flex-1">
@@ -143,15 +137,15 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
         </div>
       </div>
 
-      {/* Griglia delle ore con tema responsive e scroll */}
+      {/* Area principale con scroll sincronizzato */}
       <div className="flex-1 overflow-y-auto bg-background" ref={scrollRef}>
-        <div className="grid grid-cols-12 divide-x divide-default-200 dark:divide-default-300 relative min-h-full">
-          {/* Colonna delle ore */}
-          <div className="col-span-1 divide-y divide-default-200 dark:divide-default-300">
+        <div className="flex relative" style={{ height: `${24 * ROW_HEIGHT}px` }}>
+          {/* Colonna delle ore - sticky */}
+          <div className="w-16 flex-shrink-0">
             {HOURS.map((hour) => (
               <div
                 key={hour}
-                className="sticky left-0 bg-background dark:bg-default-50 text-center py-3 text-sm leading-5 text-default-600 dark:text-default-700 border-r border-default-200 dark:border-default-300"
+                className="sticky left-0 z-20 text-center py-3 text-xs text-default-600 dark:text-default-700 border-b border-r border-default-200 dark:border-default-300 bg-background"
                 style={{ height: `${ROW_HEIGHT}px` }}
               >
                 {`${hour.toString().padStart(2, "0")}:00`}
@@ -159,193 +153,128 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
             ))}
           </div>
 
-          {/* Colonna del giorno */}
-          <div className="col-span-11 divide-y divide-default-200 dark:divide-default-300">
+          {/* Area eventi */}
+          <div className="flex-1 relative">
+            {/* Righe delle ore */}
             {HOURS.map((hour) => (
               <div
                 key={hour}
-                className="group hover:bg-default-100 dark:hover:bg-default-200 relative transition-colors cursor-pointer"
-                style={{ height: `${ROW_HEIGHT}px` }}
+                className="absolute w-full group hover:bg-default-100 dark:hover:bg-default-200 transition-colors cursor-pointer border-b border-default-200 dark:border-default-300"
+                style={{ 
+                  height: `${ROW_HEIGHT}px`,
+                  top: `${hour * ROW_HEIGHT}px`
+                }}
                 onClick={() => onDateClick(currentDate)}
-              >
-                {/* Eventi nelle celle orarie */}
-                {(() => {
-                  const eventsAtThisHour = events.filter((event) => {
-                    const eventStartDate = new Date(event.EventStartDate);
-                    const eventEndDate = new Date(event.EventEndDate);
-                    const eventStartHour = parseInt(
-                      event.EventStartTime.split(":")[0]
-                    );
-
-                    // Non includere eventi di tutto il giorno
-                    if (
-                      eventStartHour === 0 &&
-                      event.EventEndTime === "00:00"
-                    ) {
-                      return false;
-                    }
-
-                    const isMiddleDay =
-                      currentDate.toDateString() !==
-                        eventStartDate.toDateString() &&
-                      currentDate.toDateString() !==
-                        eventEndDate.toDateString() &&
-                      currentDate >= eventStartDate &&
-                      currentDate <= eventEndDate;
-
-                    if (isMiddleDay) {
-                      return hour === 0;
-                    }
-
-                    if (
-                      currentDate.toDateString() ===
-                      eventStartDate.toDateString()
-                    ) {
-                      return Math.floor(eventStartHour) === hour;
-                    }
-
-                    if (
-                      currentDate.toDateString() ===
-                      eventEndDate.toDateString()
-                    ) {
-                      return hour === 0;
-                    }
-
-                    return false;
-                  });
-
-                  const width =
-                    eventsAtThisHour.length > 1
-                      ? 100 / eventsAtThisHour.length
-                      : 100;
-
-                  return eventsAtThisHour.map((event, index) => {
-                    const eventStartDate = new Date(event.EventStartDate);
-                    const eventEndDate = new Date(event.EventEndDate);
-                    const eventStartHour = parseInt(
-                      event.EventStartTime.split(":")[0]
-                    );
-                    const eventEndHour = parseInt(
-                      event.EventEndTime.split(":")[0]
-                    );
-                    const eventStartMinutes = parseInt(
-                      event.EventStartTime.split(":")[1]
-                    );
-                    const eventEndMinutes = parseInt(
-                      event.EventEndTime.split(":")[1]
-                    );
-
-                    let duration = 0;
-                    let topOffset = 0;
-
-                    if (
-                      currentDate.toDateString() ===
-                      eventStartDate.toDateString()
-                    ) {
-                      if (
-                        eventStartDate.toDateString() ===
-                        eventEndDate.toDateString()
-                      ) {
-                        duration =
-                          eventEndHour +
-                          eventEndMinutes / 60 -
-                          (eventStartHour + eventStartMinutes / 60);
-                        topOffset = (eventStartMinutes / 60) * ROW_HEIGHT;
-                      } else {
-                        duration =
-                          24 - (eventStartHour + eventStartMinutes / 60);
-                        topOffset = (eventStartMinutes / 60) * ROW_HEIGHT;
-                      }
-                    } else if (
-                      currentDate.toDateString() ===
-                      eventEndDate.toDateString()
-                    ) {
-                      duration = eventEndHour + eventEndMinutes / 60;
-                      topOffset = 0; // Inizia a mezzanotte
-                    } else {
-                      duration = 24;
-                      topOffset = 0; // Inizia a mezzanotte
-                    }
-
-                    return (
-                      <div
-                        onClick={() => {
-                          setIsOpen(true);
-                          setSelectedEventId(event.EventId);
-                        }}
-                        key={event.EventId}
-                        className="absolute mx-1 rounded-lg p-2 text-sm cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 border border-opacity-30"
-                        style={{
-                          backgroundColor: event.EventColor + '15',
-                          borderColor: event.EventColor,
-                          zIndex: 10,
-                          height: `${duration * ROW_HEIGHT}px`,
-                          top: `${topOffset}px`,
-                          width: `${width}%`,
-                          left: index * (width + 2) + "%",
-                        }}
-                      >
-                        <div className="h-full flex flex-col">
-                          <div
-                            className={`flex flex-col ${
-                              duration <= 1.5 ? "h-full justify-center" : ""
-                            }`}
-                          >
-                            <div className="font-semibold text-foreground truncate">
-                              {event.EventTitle}
-                            </div>
-                            {duration > 1 && (
-                              <div className="text-xs text-default-600 opacity-90 mt-1">
-                                {event.EventStartTime} - {event.EventEndTime}
-                              </div>
-                            )}
-                            {duration > 2 && event.EventLocation && (
-                              <div className="text-xs text-default-500 truncate mt-1">
-                                📍 {event.EventLocation}
-                              </div>
-                            )}
-                            {duration > 3 && event.EventDescription && (
-                              <div className="text-xs text-default-600 mt-1 line-clamp-2">
-                                {stripHtml(event.EventDescription)}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  });
-                })()}
-              </div>
+              />
             ))}
+
+            {/* Eventi posizionati assolutamente */}
+            {(() => {
+              // Raggruppa eventi per ora per gestire sovrapposizioni
+              const eventsByHour: { [hour: number]: CalendarEvent[] } = {};
+              
+              events.forEach((event) => {
+                const eventStartDate = new Date(event.EventStartDate);
+                const eventStartHour = parseInt(event.EventStartTime.split(":")[0]);
+                
+                // Verifica se l'evento è nel giorno corrente
+                if (currentDate.toDateString() === eventStartDate.toDateString()) {
+                  // Non includere eventi di tutto il giorno
+                  if (!(eventStartHour === 0 && event.EventEndTime === "00:00")) {
+                    if (!eventsByHour[eventStartHour]) {
+                      eventsByHour[eventStartHour] = [];
+                    }
+                    eventsByHour[eventStartHour].push(event);
+                  }
+                }
+              });
+
+              // Renderizza tutti gli eventi
+              return Object.entries(eventsByHour).flatMap(([hourStr, hourEvents]) => {
+                return hourEvents.map((event, index) => {
+                  const eventStartHour = parseInt(event.EventStartTime.split(":")[0]);
+                  const eventEndHour = parseInt(event.EventEndTime.split(":")[0]);
+                  const eventStartMinutes = parseInt(event.EventStartTime.split(":")[1]);
+                  const eventEndMinutes = parseInt(event.EventEndTime.split(":")[1]);
+
+                  const duration = eventEndHour + eventEndMinutes / 60 - (eventStartHour + eventStartMinutes / 60);
+                  const topOffset = (eventStartHour + eventStartMinutes / 60) * ROW_HEIGHT;
+                  
+                  // Calcola posizione per eventi sovrapposti
+                  const totalEvents = hourEvents.length;
+                  const eventWidth = totalEvents > 1 ? `calc(${95 / totalEvents}% - 2px)` : 'calc(95% - 4px)';
+                  const leftOffset = totalEvents > 1 ? `calc(${(95 / totalEvents) * index}% + 4px)` : '4px';
+
+                  return (
+                    <div
+                      key={event.EventId}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsOpen(true);
+                        setSelectedEventId(event.EventId);
+                      }}
+                      className="absolute rounded-lg p-2 text-sm cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 border border-opacity-50 overflow-hidden"
+                      style={{
+                        backgroundColor: event.EventColor + '20',
+                        borderColor: event.EventColor,
+                        borderLeftWidth: '3px',
+                        borderLeftColor: event.EventColor,
+                        zIndex: 10 + index,
+                        height: `${Math.max(duration * ROW_HEIGHT - 2, ROW_HEIGHT * 0.8)}px`,
+                        top: `${topOffset + 1}px`,
+                        width: eventWidth,
+                        left: leftOffset,
+                      }}
+                    >
+                      <div className="h-full flex flex-col justify-start overflow-hidden">
+                        <div className="font-medium text-foreground text-xs truncate">
+                          {event.EventTitle}
+                        </div>
+                        {duration > 1 && (
+                          <div className="text-xs text-default-600 opacity-90 mt-1">
+                            {event.EventStartTime} - {event.EventEndTime}
+                          </div>
+                        )}
+                        {duration > 2 && event.EventLocation && (
+                          <div className="text-xs text-default-500 truncate mt-1">
+                            📍 {event.EventLocation}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  );
+                });
+              });
+            })()}
+
+            {/* Linea rossa per l'ora corrente */}
+            {isToday && redLineBehavior === "show" && (
+              <div
+                className="absolute z-30 pointer-events-none"
+                style={{
+                  top: `${currentHour * ROW_HEIGHT}px`,
+                  left: "0",
+                  right: "0",
+                  height: "2px",
+                  backgroundColor: "#ef4444",
+                  boxShadow: "0 0 6px rgba(239, 68, 68, 0.6)",
+                }}
+              >
+                <div
+                  className="absolute left-0 top-0"
+                  style={{
+                    width: "8px",
+                    height: "8px",
+                    backgroundColor: "#ef4444",
+                    borderRadius: "50%",
+                    transform: "translate(-50%, -25%)",
+                    boxShadow: "0 0 4px rgba(239, 68, 68, 0.8)",
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
-
-        {/* Linea rossa per l'ora corrente */}
-        {isToday && redLineBehavior === "show" && (
-          <div
-            className="absolute z-30 pointer-events-none"
-            style={{
-              top: `${currentHour * ROW_HEIGHT}px`,
-              left: "8.33%",
-              width: "91.67%",
-              height: "2px",
-              backgroundColor: "#ef4444",
-              boxShadow: "0 0 6px rgba(239, 68, 68, 0.6)",
-            }}
-          >
-            <div
-              className="absolute left-0 top-0"
-              style={{
-                width: "8px",
-                height: "8px",
-                backgroundColor: "#ef4444",
-                borderRadius: "50%",
-                transform: "translate(-50%, -25%)",
-                boxShadow: "0 0 4px rgba(239, 68, 68, 0.8)",
-              }}
-            />
-          </div>
-        )}
       </div>
 
       {/* Modal evento */}

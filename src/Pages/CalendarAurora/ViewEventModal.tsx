@@ -19,6 +19,7 @@ import { Icon } from "@iconify/react";
 import { useEffect, useState } from "react";
 import FileCard from "./FileCard";
 import ConfirmDeleteEventModal from "./ConfirmDeleteEventModal";
+import axios from "axios";
 
 interface EventPartecipant {
   EventPartecipantId: number;
@@ -151,87 +152,76 @@ export default function ViewEventModal({
     setLoading(true);
     
     try {
-      // Mock eventi - simuliamo il caricamento di un evento specifico
-      const mockEvents: CalendarEvent[] = [
-        {
-          EventId: 1,
-          EventTitle: "🔧 Riparazione Urgente Caldaia",
-          EventStartDate: new Date().toISOString().split('T')[0],
-          EventEndDate: new Date().toISOString().split('T')[0],
-          EventStartTime: "08:30",
-          EventEndTime: "10:30",
-          EventColor: "#EF4444",
-          EventDescription: "Riparazione urgente caldaia con perdita di pressione. Cliente senza riscaldamento da 2 giorni. Necessario intervento immediato per ripristinare il servizio.",
-          EventLocation: "Via Roma 123, Milano",
-          EventTagName: "Riparazione",
-          EventAttachments: [
-            {
-              EventAttachmentId: 1,
-              EventAttachmentUrl: "/mock/documento-caldaia.pdf",
-              EventAttachmentName: "Scheda Tecnica Caldaia.pdf"
-            },
-            {
-              EventAttachmentId: 2,
-              EventAttachmentUrl: "/mock/foto-perdita.jpg",
-              EventAttachmentName: "Foto Perdita.jpg"
-            }
-          ],
-          EventPartecipants: [
-            { 
-              EventPartecipantId: 1,
-              EventPartecipantEmail: "marco.fontana@cosmichub.it", 
-              EventPartecipantRole: "Tecnico Principale",
-              EventPartecipantStatus: "confirmed"
-            },
-            { 
-              EventPartecipantId: 2,
-              EventPartecipantEmail: "mario.rossi@email.com", 
-              EventPartecipantRole: "Cliente",
-              EventPartecipantStatus: "confirmed"
-            }
-          ],
-          EventType: "repair",
-          EventPriority: "Urgente",
-          EstimatedDuration: 120,
-          CustomerInfo: {
-            customer_id: "1",
-            customer_name: "Mario Rossi",
-            customer_phone: "+39 333 1234567",
-            customer_email: "mario.rossi@email.com",
-            customer_address: "Via Roma 123, Milano",
-            customer_type: "private"
-          },
-          TechnicianAssignment: {
-            technician_id: "1",
-            technician_name: "Marco Fontana",
-            role: "Tecnico Senior",
-            availability_status: "available"
-          },
-          InterventionNotes: "Cliente riferisce che la perdita è iniziata ieri sera. Pressione scesa a zero. Verificare valvole e guarnizioni."
-        },
-        // Aggiungi altri eventi mock se necessario
-      ];
-
-      const event = mockEvents.find(e => e.EventId === eventId);
-      if (event) {
-        setEventData(event);
-        setOriginalEventData(event);
-      } else {
-        // Se l'evento non esiste nei mock, crea uno di default
-        const defaultEvent = {
-          ...INITIAL_EVENT_DATA,
-          EventId: eventId,
-          EventTitle: `Evento Mock #${eventId}`,
-          EventDescription: "Questo è un evento di esempio creato per testing",
-          EventLocation: "Location di esempio",
-          EventTagName: "Intervento Tecnico",
-          EventColor: "#3B82F6",
+      // Chiamata API reale per caricare tutti gli eventi e filtrare per ID
+      const response = await axios.get("Customer/GET/GetAllEvents");
+      
+      console.log("Risposta API GetAllEvents:", response.data);
+      
+      // Trova l'evento specifico per ID
+      let eventData = null;
+      if (Array.isArray(response.data)) {
+        eventData = response.data.find(event => event.EventId === eventId);
+      } else if (response.data && response.data.events) {
+        eventData = response.data.events.find(event => event.EventId === eventId);
+      } else if (response.data && response.data.data) {
+        eventData = response.data.data.find(event => event.EventId === eventId);
+      }
+      
+      console.log("Evento trovato per ID", eventId, ":", eventData);
+      
+      // Processa i dati dell'evento
+      if (eventData) {
+        console.log("Dati evento ricevuti dall'API:", eventData);
+        
+        // Mappa i dati dall'API al formato interno
+        const processedEvent: CalendarEvent = {
+          EventId: eventData.EventId || eventId,
+          EventTitle: eventData.EventTitle || eventData.title || `Evento #${eventId}`,
+          EventStartDate: eventData.EventStartDate ? new Date(eventData.EventStartDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          EventEndDate: eventData.EventEndDate ? new Date(eventData.EventEndDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          EventStartTime: eventData.EventStartTime || eventData.startTime || "",
+          EventEndTime: eventData.EventEndTime || eventData.endTime || "",
+          EventColor: eventData.EventColor || eventData.color || "#3B82F6",
+          EventDescription: eventData.EventDescription || eventData.description || "",
+          EventLocation: eventData.EventLocation || eventData.location || "",
+          EventTagName: eventData.EventTagName || eventData.tagName || eventData.category || "Intervento Tecnico",
+          EventAttachments: eventData.EventAttachments || eventData.attachments || [],
+          EventPartecipants: eventData.EventPartecipants || eventData.participants || [],
+          EventType: eventData.EventType || eventData.type,
+          EventPriority: eventData.EventPriority || eventData.priority,
+          EstimatedDuration: eventData.EstimatedDuration || eventData.estimatedDuration,
+          CustomerInfo: eventData.CustomerInfo || eventData.customerInfo,
+          TechnicianAssignment: eventData.TechnicianAssignment || eventData.technicianAssignment,
+          InterventionNotes: eventData.InterventionNotes || eventData.interventionNotes || eventData.notes
         };
-        setEventData(defaultEvent);
-        setOriginalEventData(defaultEvent);
+        
+        console.log("Evento processato:", processedEvent);
+        setEventData(processedEvent);
+        setOriginalEventData(processedEvent);
+      } else {
+        // Se l'evento non esiste, mostra un messaggio di errore
+        console.error(`Evento con ID ${eventId} non trovato nella lista eventi`);
+        alert(`Evento con ID ${eventId} non trovato`);
+        isClosed();
       }
     } catch (error) {
       console.error("Errore caricamento evento:", error);
+      
+      // Fallback: se l'API non è disponibile, usa dati di esempio per testing
+      console.warn("API non disponibile, uso dati di fallback per testing");
+      const fallbackEvent = {
+        ...INITIAL_EVENT_DATA,
+        EventId: eventId,
+        EventTitle: `Evento Fallback #${eventId}`,
+        EventDescription: "⚠️ Questo evento è caricato da fallback perché l'API non è disponibile",
+        EventLocation: "Ubicazione non disponibile",
+        EventTagName: "Intervento Tecnico",
+        EventColor: "#F59E0B", // Colore arancione per indicare fallback
+        EventStartTime: "09:00",
+        EventEndTime: "10:00",
+      };
+      setEventData(fallbackEvent);
+      setOriginalEventData(fallbackEvent);
     } finally {
       setLoading(false);
     }
@@ -241,14 +231,13 @@ export default function ViewEventModal({
     setLoading(true);
     
     try {
-      // Mock save - simula aggiornamento evento
-      console.log("Aggiornamento evento:", eventData);
+      // Chiamata API reale per aggiornare l'evento
+      const response = await axios.put('Customer/PUT/UpdateEvent', eventData);
       
-      // Simula delay API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const updatedEvent = response.data;
       
       if (onEventUpdated) {
-        onEventUpdated(eventData);
+        onEventUpdated(updatedEvent);
       }
       
       setOriginalEventData(eventData);
@@ -257,7 +246,7 @@ export default function ViewEventModal({
       
     } catch (error) {
       console.error("Errore aggiornamento evento:", error);
-      alert("Errore durante l'aggiornamento");
+      alert("Errore durante l'aggiornamento dell'evento");
     } finally {
       setLoading(false);
     }
@@ -267,23 +256,22 @@ export default function ViewEventModal({
     setLoading(true);
     
     try {
-      // Mock delete - simula eliminazione evento
-      console.log("Eliminazione evento:", eventId);
-      
-      // Simula delay API
-      await new Promise(resolve => setTimeout(resolve, 500));
+      // Chiamata API reale per eliminare l'evento
+      await axios.delete(`Customer/DELETE/DeleteEvent`, {
+        params: { eventId: eventId }
+      });
       
       if (onEventDeleted) {
         onEventDeleted(eventId);
       }
       
       setShowDeleteModal(false);
-    isClosed();
+      isClosed();
       alert("Evento eliminato con successo!");
       
     } catch (error) {
       console.error("Errore eliminazione evento:", error);
-      alert("Errore durante l'eliminazione");
+      alert("Errore durante l'eliminazione dell'evento");
     } finally {
       setLoading(false);
     }
