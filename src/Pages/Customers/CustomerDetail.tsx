@@ -170,14 +170,15 @@ export default function CustomerDetail() {
       setCustomers(customers);
       setTechnicians(technicians);
 
-      // Trova il cliente specifico
-      const foundCustomer = customers.find((c) => c.customer_id === customerId);
-      if (foundCustomer) {
-        setCustomer(foundCustomer);
-        setQuickBookingData((prev) => ({
-          ...prev,
-          customer_id: foundCustomer.customer_id,
-        }));
+              // Trova il cliente specifico
+        const foundCustomer = customers.find((c) => c.customer_id === customerId);
+        if (foundCustomer) {
+          setCustomer(foundCustomer);
+          setQuickBookingData((prev) => ({
+            ...prev,
+            customer_id: foundCustomer.customer_id,
+            location: foundCustomer.address, // Pre-compila l'ubicazione con l'indirizzo del cliente
+          }));
 
         // Carica interventi e pagamenti per questo cliente
         try {
