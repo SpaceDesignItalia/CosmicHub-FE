@@ -560,6 +560,7 @@ export default function InterventionStart() {
                     value={[checkinData.materials_check, checkinData.tools_check, checkinData.safety_check].filter(Boolean).length * 33.33}
                     className="w-32"
                     color="success"
+                    aria-label="Completamento controlli"
                   />
                 </div>
                 {canStartIntervention() && (

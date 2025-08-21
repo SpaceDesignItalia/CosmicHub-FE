@@ -470,6 +470,7 @@ export default function ExpiryAlerts({ showOnlyHeader = false, maxItems = 5 }: E
             value={(expiryData.critical.length + expiryData.warning.length) * 20} 
             color={expiryData.critical.length > 0 ? "danger" : "warning"}
             className="max-w-full"
+            aria-label="Livello di allerta documenti"
           />
           <div className="flex justify-between text-xs text-default-500">
             <span>Critici: {expiryData.critical.length}</span>

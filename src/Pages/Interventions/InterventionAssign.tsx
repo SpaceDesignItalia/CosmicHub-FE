@@ -467,6 +467,7 @@ export default function InterventionAssign() {
                             value={(workload / 3) * 100}
                             color={workload >= 3 ? "danger" : workload >= 2 ? "warning" : "success"}
                             className="w-full"
+                            aria-label="Carico di lavoro tecnico"
                           />
                         </div>
                         

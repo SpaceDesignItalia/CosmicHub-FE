@@ -1007,6 +1007,7 @@ export default function VehicleDocuments() {
                     value={uploadProgress}
                     color="primary"
                     className="mb-2"
+                    aria-label="Progresso caricamento"
                   />
                   <p className="text-sm text-center">
                     Caricamento in corso... {uploadProgress}%
@@ -1411,6 +1412,7 @@ export default function VehicleDocuments() {
                   <Progress
                     value={0} // Placeholder for progress, actual progress handled by axios
                     color="primary"
+                    aria-label="Progresso modifica"
                     className="mb-2"
                   />
                   <p className="text-sm text-center">

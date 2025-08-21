@@ -546,6 +546,7 @@ export default function Settings({
                           value={passwordStrength}
                           color={getStrengthColor(passwordStrength)}
                           size="sm"
+                          aria-label="Forza password"
                           className="h-1"
                         />
                         <p className="mt-1 text-xs text-foreground-500">

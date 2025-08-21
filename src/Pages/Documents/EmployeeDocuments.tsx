@@ -1259,6 +1259,7 @@ export default function EmployeeDocuments() {
                     value={uploadProgress}
                     color="primary"
                     className="mb-2"
+                    aria-label="Progresso caricamento"
                   />
                   <p className="text-sm text-center">
                     Caricamento in corso... {uploadProgress}%
@@ -1767,7 +1768,7 @@ export default function EmployeeDocuments() {
 
               {isEditing && (
                 <div>
-                  <Progress value={0} color="primary" className="mb-2" />
+                  <Progress value={0} color="primary" className="mb-2" aria-label="Progresso modifica" />
                   <p className="text-sm text-center">
                     Aggiornamento in corso...
                   </p>

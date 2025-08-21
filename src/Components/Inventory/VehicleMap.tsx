@@ -1332,6 +1332,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                       value={capacityUsed}
                       color="primary"
                       size="md"
+                      aria-label="Capacità veicolo utilizzata"
                       showValueLabel={false}
                       classNames={{
                         base: "bg-zinc-200 dark:bg-zinc-800",

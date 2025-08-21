@@ -682,6 +682,7 @@ export default function InterventionReassign() {
                             value={suitability.score} 
                             color={getSuitabilityColor(suitability.score) as any}
                             className="w-full"
+                            aria-label="Idoneità tecnico"
                           />
                           
                           <div className="space-y-2">

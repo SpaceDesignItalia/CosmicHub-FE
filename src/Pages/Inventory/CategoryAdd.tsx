@@ -445,6 +445,7 @@ export default function CategoryAdd() {
                   value={categoryName.trim() ? (attributes.length > 0 ? 100 : 50) : 0}
                   color="primary"
                   size="sm"
+                  aria-label="Progresso creazione categoria"
                 />
               </div>
               

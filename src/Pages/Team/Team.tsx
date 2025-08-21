@@ -691,7 +691,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                           92%
                         </span>
                       </div>
-                      <Progress value={92} color="success" size="md" />
+                      <Progress value={92} color="success" size="md" aria-label="Efficienza membro team" />
                     </div>
                     <div>
                       <div className="flex justify-between mb-2">
@@ -702,7 +702,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                           87%
                         </span>
                       </div>
-                      <Progress value={87} color="primary" size="md" />
+                      <Progress value={87} color="primary" size="md" aria-label="Progetti completati" />
                     </div>
                     <div>
                       <div className="flex justify-between mb-2">
@@ -713,7 +713,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                           95%
                         </span>
                       </div>
-                      <Progress value={95} color="warning" size="md" />
+                      <Progress value={95} color="warning" size="md" aria-label="Valutazione performance" />
                     </div>
                   </div>
                 </div>

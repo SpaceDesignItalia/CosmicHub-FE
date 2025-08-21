@@ -934,7 +934,7 @@ export default function AddIntervention() {
                 </span>
               </div>
               
-              <Progress value={getStepProgress()} className="w-full mb-4" color="primary" />
+              <Progress value={getStepProgress()} className="w-full mb-4" color="primary" aria-label="Progresso creazione intervento" />
               
               <div className="flex justify-between">
                 {steps.map((step, index) => {

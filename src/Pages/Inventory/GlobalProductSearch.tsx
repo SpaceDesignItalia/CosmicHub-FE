@@ -783,6 +783,7 @@ export default function GlobalProductSearch() {
                               value={(location.quantity / selectedProduct.total_quantity) * 100}
                               color={location.location_type === "vehicle" ? "warning" : "primary"}
                               size="sm"
+                              aria-label="Percentuale quantità"
                             />
                           </div>
                         </CardBody>

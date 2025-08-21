@@ -582,563 +582,558 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
     };
 
     // Memoizzo il contenuto della sidebar per evitare re-render
-    const SidebarContent = useMemo(
-      () => (
-        <div className="fixed left-0 top-0 z-40 h-screen w-64 max-w-64 bg-background text-foreground border-r border-divider">
-          <div className="relative flex h-full w-full flex-1 flex-col bg-background p-4 pb-10 overflow-y-auto">
-            {/* padding-bottom extra per evitare che il selettore magazzino tocchi il bordo */}
-            <div className="flex items-center justify-between gap-2 px-2">
-              <div
-                className="flex items-center gap-2 cursor-pointer hover:opacity-80 flex-1"
-                onClick={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  if (location.pathname !== "/dashboard") {
-                    navigate("/dashboard");
-                  }
-                }}
-              >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground">
-                  <Icon
-                    className="text-background"
-                    icon="solar:rocket-2-linear"
-                    width={24}
-                  />
-                </div>
-                <span className="text-small font-bold uppercase text-foreground">
-                  CosmicHub
-                </span>
+    const SidebarContent = useMemo(() => {
+      return (
+        <div className="relative flex h-full w-full flex-1 flex-col bg-background text-foreground p-4 pb-10 min-h-0">
+          {/* padding-bottom extra per evitare che il selettore magazzino tocchi il bordo */}
+          <div className="flex items-center justify-between gap-2 px-2">
+            <div
+              className="flex items-center gap-2 cursor-pointer hover:opacity-80 flex-1"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (location.pathname !== "/dashboard") {
+                  navigate("/dashboard");
+                }
+              }}
+            >
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-foreground">
+                <Icon
+                  className="text-background"
+                  icon="solar:rocket-2-linear"
+                  width={24}
+                />
               </div>
-              
-              <div className="flex items-center gap-1">
-                {/* Pulsante toggle modalità sidebar */}
-                {!isMobile && (
-                  <Tooltip 
-                    content={mode === 'pinned' ? 'Nascondi automaticamente' : 'Tieni fissa'} 
-                    placement="right"
-                    delay={0}
-                    closeDelay={0}
-                  >
-                    <Button
-                      isIconOnly
-                      variant="light"
-                      size="sm"
-                      onPress={() => {
-                        toggleMode();
-                        // Forza un reflow del DOM per evitare glitch visivi
-                        requestAnimationFrame(() => {
-                          window.dispatchEvent(new Event('resize'));
-                        });
-                      }}
-                      className="text-default-600 hover:text-foreground transition-colors"
-                    >
-                      <Icon 
-                        icon={mode === 'pinned' ? 'solar:sidebar-minimalistic-bold' : 'solar:sidebar-minimalistic-outline'} 
-                        width={18} 
-                      />
-                    </Button>
-                  </Tooltip>
-                )}
-                
-                {isMobile && (
+              <span className="text-small font-bold uppercase text-foreground">
+                CosmicHub
+              </span>
+            </div>
+            
+            <div className="flex items-center gap-1">
+              {/* Pulsante toggle modalità sidebar */}
+              {!isMobile && (
+                <Tooltip 
+                  content={mode === 'pinned' ? 'Nascondi automaticamente' : 'Tieni fissa'} 
+                  placement="right"
+                  delay={0}
+                  closeDelay={0}
+                >
                   <Button
                     isIconOnly
                     variant="light"
                     size="sm"
-                    onPress={onClose}
-                    className="md:hidden"
+                    onPress={() => {
+                      toggleMode();
+                      // Forza un reflow del DOM per evitare glitch visivi
+                      requestAnimationFrame(() => {
+                        window.dispatchEvent(new Event('resize'));
+                      });
+                    }}
+                    className="text-default-600 hover:text-foreground transition-colors"
                   >
-                    <Icon icon="solar:close-circle-line-linear" width={24} />
+                    <Icon 
+                      icon={mode === 'pinned' ? 'solar:sidebar-minimalistic-bold' : 'solar:sidebar-minimalistic-outline'} 
+                      width={18} 
+                    />
                   </Button>
-                )}
-              </div>
-            </div>
-
-            <Spacer y={8} />
-
-            <div
-              className="flex cursor-pointer items-center gap-3 px-2 transition-opacity hover:opacity-80"
-              onClick={() => {
-                navigate("/settings");
-              }}
-            >
-              <Dropdown showArrow>
-                <DropdownTrigger>
-                  <Button
-                    fullWidth
-                    className="h-[60px] justify-start gap-3 rounded-[14px] border-1 border-default-300 bg-transparent px-3 py-[10px]"
-                  >
-                    <div className="flex w-full items-center gap-3">
-                      <Avatar
-                        size="sm"
-                        src="https://nextuipro.nyc3.cdn.digitaloceanspaces.com/components-images/avatars/3a906b3de8eaa53e14582edf5c918b5d.jpg"
-                      />
-                      <div className="flex flex-col text-left">
-                        <p className="text-small font-semibold leading-5 text-foreground">
-                          {user?.name} {user?.surname}
-                        </p>
-                        <p className="text-tiny">{user?.email}</p>
-                      </div>
-                    </div>
-                  </Button>
-                </DropdownTrigger>
-                <DropdownMenu
-                  aria-label="Profile Actions"
-                  className="w-[210px] bg-content1 px-[8px] py-[8px]"
-                  variant="flat"
+                </Tooltip>
+              )}
+              
+              {isMobile && (
+                <Button
+                  isIconOnly
+                  variant="light"
+                  size="sm"
+                  onPress={onClose}
+                  className="md:hidden"
                 >
-                  <DropdownSection showDivider aria-label="profile-section-1">
-                    <DropdownItem key="settings" href="/settings">
-                      <div className="flex flex-row gap-2 items-center">
-                        <Icon icon="solar:settings-bold" />
-                        Impostazioni
-                      </div>
-                    </DropdownItem>
-                    <DropdownItem
-                      key="theme-toggle"
-                      startContent={
-                        <Icon
-                          icon={
-                            isDark ? "solar:moon-linear" : "solar:sun-2-linear"
-                          }
-                          width={18}
-                          className=""
-                        />
-                      }
-                      onPress={toggleTheme}
-                    >
-                      {isDark ? "Tema Scuro" : "Tema Chiaro"}
-                    </DropdownItem>
-                  </DropdownSection>
-
-                  <DropdownSection
-                    aria-label="profile-section-3"
-                    className="mb-0"
-                  >
-                    <DropdownItem
-                      key="logout"
-                      onPress={handleLogout}
-                      color="danger"
-                    >
-                      <div className="py-[4px] flex flex-row gap-2 items-center">
-                        <Icon icon="solar:logout-2-outline" />
-                        Esci
-                      </div>
-                    </DropdownItem>
-                  </DropdownSection>
-                </DropdownMenu>
-              </Dropdown>
-            </div>
-
-          
-
-            <ScrollShadow className="-mr-6 h-full max-h-full py-6 pr-6">
-              <div className="flex flex-col -space-y-1">
-                {sectionNestedItems.map((item) => {
-                  // Se è un accordion (tipo Nest), renderizzalo direttamente
-                  if (
-                    !isCompact &&
-                    item.type === SidebarItemType.Nest &&
-                    item.items?.length
-                  ) {
-                    return (
-                      <div key={item.key} className="w-full">
-                        <Accordion
-                          selectedKeys={expandedKeys}
-                          onSelectionChange={(keys) => {
-                            setExpandedKeys(
-                              new Set(Array.from(keys).map(String))
-                            );
-                          }}
-                          selectionMode="multiple"
-                          variant="light"
-                        >
-                          <AccordionItem
-                            key={item.key}
-                            aria-label={item.title}
-                            classNames={{
-                              base: "px-0 my-0",
-                              trigger:
-                                "px-0 min-h-11 h-[44px] data-[hover=true]:bg-default-100 hover:bg-default-100 transition-colors rounded-large",
-                              content: "px-0 pb-0",
-                            }}
-                            title={
-                              <div className="flex items-center gap-5 pl-1 pr-3">
-                                {item.icon && (
-                                  <Icon
-                                    className={cn(
-                                      "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0",
-                                      iconClassName
-                                    )}
-                                    icon={item.icon ?? ""}
-                                    width={24}
-                                  />
-                                )}
-                                <span className="text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 data-[hover=true]:text-foreground-900 transition-colors whitespace-nowrap overflow-hidden text-ellipsis">
-                                  {item.title}
-                                </span>
-                              </div>
-                            }
-                          >
-                            <AnimatePresence initial={false}>
-                              {expandedKeys.has(item.key) && (
-                                <motion.div
-                                  key="accordion-content"
-                                  initial={{ height: 0, opacity: 0 }}
-                                  animate={{ height: "auto", opacity: 1 }}
-                                  exit={{ height: 0, opacity: 0 }}
-                                  transition={{
-                                    duration: 0.25,
-                                    ease: "easeInOut",
-                                  }}
-                                  style={{ overflow: "hidden" }}
-                                >
-                                  {item.items && item.items?.length > 0 ? (
-                                    <div
-                                      className={`flex flex-col -space-y-1 mt-1 pl-3 border-l-1 ml-3 ${
-                                        isDark
-                                          ? "border-default-400"
-                                          : "border-default-500"
-                                      }`}
-                                    >
-                                      {item.items.map((subItem) => (
-                                        <div
-                                          key={`${item.key}-${subItem.key}`}
-                                          className={cn(
-                                            "flex items-center px-3 min-h-11 h-[44px] transition-colors cursor-pointer rounded-large",
-                                            "hover:bg-default-100",
-                                            subItem.href === location.pathname
-                                              ? "bg-default-100 text-foreground-900"
-                                              : "text-default-700 hover:text-foreground-900"
-                                          )}
-                                          onClick={() => {
-                                            if (
-                                              subItem.href &&
-                                              location.pathname !== subItem.href
-                                            ) {
-                                              navigate(subItem.href);
-                                            }
-                                            if (isMobile) {
-                                              onClose();
-                                            }
-                                          }}
-                                        >
-                                          {subItem.icon && (
-                                            <Icon
-                                              className={cn(
-                                                "mr-3 flex-shrink-0",
-                                                subItem.href ===
-                                                  location.pathname
-                                                  ? "text-foreground-900"
-                                                  : "text-default-700"
-                                              )}
-                                              icon={subItem.icon}
-                                              width={24}
-                                            />
-                                          )}
-                                          <span className="text-small font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                                            {subItem.title}
-                                          </span>
-                                        </div>
-                                      ))}
-                                    </div>
-                                  ) : null}
-                                </motion.div>
-                              )}
-                            </AnimatePresence>
-                          </AccordionItem>
-                        </Accordion>
-                      </div>
-                    );
-                  }
-
-                  // Per gli elementi normali, usa un singolo ListboxItem
-                  return (
-                    <div key={`listbox-${item.key}`} className="w-full">
-                      <Listbox
-                        hideSelectedIcon
-                        aria-label={`Elemento ${item.title}`}
-                        className="list-none"
-                        classNames={{
-                          list: "items-center gap-0",
-                        }}
-                        color="default"
-                        selectedKeys={
-                          item.href === location.pathname ? [item.key] : []
-                        }
-                        selectionMode="single"
-                        variant="flat"
-                        onSelectionChange={(keys) => {
-                          const key = Array.from(keys)[0] as string;
-                          if (key === item.key) {
-                            setSelected(key as React.Key);
-                            onSelect?.(key);
-                            if (item.href && location.pathname !== item.href) {
-                              navigate(item.href);
-                            }
-                            if (isMobile) {
-                              onClose();
-                            }
-                          }
-                        }}
-                      >
-                        <ListboxItem
-                          key={item.key}
-                          textValue={item.title}
-                          aria-label={item.title}
-                          classNames={{
-                            base: cn(
-                              "flex items-center pl-2 pr-3 min-h-11 rounded-large h-[44px] data-[selected=true]:bg-default-100 data-[selected=true]:text-foreground-900 data-[hover=true]:bg-default-100 transition-colors"
-                            ),
-                            title: cn(
-                              "text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 data-[hover=true]:text-foreground-900 transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
-                            ),
-                          }}
-                          startContent={
-                            isCompact ? null : item.icon ? (
-                              <Icon
-                                className={cn(
-                                  "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0 mr-3",
-                                  iconClassName
-                                )}
-                                icon={item.icon}
-                                width={24}
-                              />
-                            ) : (
-                              (item as SidebarItem).startContent ?? null
-                            )
-                          }
-                          title={isCompact ? null : item.title}
-                        >
-                          {isCompact ? (
-                            <Tooltip content={item.title} placement="right">
-                              <div className="flex w-full items-center justify-center">
-                                {item.icon ? (
-                                  <Icon
-                                    className={cn(
-                                      "text-default-700 group-data-[selected=true]:text-foreground-900",
-                                      iconClassName
-                                    )}
-                                    icon={item.icon}
-                                    width={24}
-                                  />
-                                ) : (
-                                  (item as SidebarItem).startContent ?? null
-                                )}
-                              </div>
-                            </Tooltip>
-                          ) : null}
-                        </ListboxItem>
-                      </Listbox>
-                    </div>
-                  );
-                })}
-              </div>
-            </ScrollShadow>
-
-            <Spacer y={8} />
-
-            <div className="mt-auto flex flex-col gap-4 px-2 pb-2">
-              {/* Spazio extra dal bordo inferiore */}
-              <div className="h-0 mb-4" />
-              <Dropdown placement="top-start">
-                <DropdownTrigger>
-                  <Button
-                    fullWidth
-                    variant={selectedWarehouse ? "solid" : "bordered"}
-                    color={selectedWarehouse ? "primary" : "default"}
-                    className={cn(
-                      "justify-between transition-all duration-200",
-                      selectedWarehouse
-                        ? "bg-primary text-primary-foreground shadow-lg"
-                        : isDark
-                        ? " data-[hover=true]:text-foreground"
-                        : "text-default-700 data-[hover=true]:text-foreground-900"
-                    )}
-                    endContent={
-                      <Icon
-                        className={
-                          selectedWarehouse
-                            ? "text-primary-foreground"
-                            : isDark
-                            ? ""
-                            : "text-default-700"
-                        }
-                        icon="solar:alt-arrow-down-linear"
-                        width={16}
-                      />
-                    }
-                  >
-                    <div className="flex items-center gap-2">
-                      <Icon
-                        className={
-                          selectedWarehouse
-                            ? "text-primary-foreground"
-                            : isDark
-                            ? ""
-                            : "text-default-700"
-                        }
-                        icon="mdi:warehouse"
-                        width={24}
-                      />
-                      <span className="truncate">
-                        {selectedWarehouse
-                          ? (() => {
-                              const warehouse = warehouses.find(
-                                (w) =>
-                                  (w.WarehouseUUID || w.warehouse_id) ===
-                                  selectedWarehouse
-                              );
-                              return warehouse
-                                ? `${
-                                    warehouse.name ||
-                                    warehouse.WarehouseName ||
-                                    "Magazzino"
-                                  }${
-                                    warehouse.WarehouseCode
-                                      ? ` (${warehouse.WarehouseCode})`
-                                      : ""
-                                  }`
-                                : "Magazzino Selezionato";
-                            })()
-                          : "Magazzini"}
-                      </span>
-                    </div>
-                  </Button>
-                </DropdownTrigger>
-                <DropdownMenu
-                  aria-label="Lista Magazzini"
-                  className="py-2 min-w-[280px]"
-                  variant="flat"
-                  selectedKeys={selectedWarehouse ? [selectedWarehouse] : []}
-                  selectionMode="single"
-                  items={[
-                    ...warehouses.map((warehouse) => ({
-                      key: String(
-                        warehouse.WarehouseUUID ||
-                          warehouse.warehouse_id ||
-                          warehouse.WarehouseID ||
-                          warehouse.name ||
-                          Math.random()
-                      ),
-                      warehouse,
-                      type: "warehouse",
-                    })),
-                    ...(warehouses.length === 0
-                      ? [{ key: "no-warehouses", type: "empty" }]
-                      : []),
-                    { key: "add-warehouse", type: "add" },
-                  ]}
-                  onSelectionChange={(keys) => {
-                    const selectedKey = Array.from(keys)[0] as string;
-                    if (
-                      selectedKey &&
-                      selectedKey !== "no-warehouses" &&
-                      selectedKey !== "add-warehouse"
-                    ) {
-                      setSelectedWarehouse(selectedKey);
-                    }
-                  }}
-                >
-                  {(dropdownItem: any) => (
-                    <DropdownItem
-                      key={dropdownItem.key}
-                      className={cn(
-                        "transition-all duration-200 relative group",
-                        dropdownItem.type === "add"
-                          ? "text-warning font-medium data-[hover=true]:bg-warning/10"
-                          : dropdownItem.type === "empty"
-                          ? ""
-                          : selectedWarehouse === dropdownItem.key
-                          ? "bg-primary/10 text-primary font-medium"
-                          : "data-[hover=true]:bg-default-100"
-                      )}
-                      isDisabled={dropdownItem.type === "empty"}
-                      startContent={
-                        dropdownItem.type === "add" ? (
-                          <Icon
-                            icon="solar:add-circle-bold"
-                            width={20}
-                            className="text-warning"
-                          />
-                        ) : dropdownItem.type === "empty" ? null : (
-                          <Icon
-                            icon="solar:warehouse-bold"
-                            width={20}
-                            className={cn(
-                              selectedWarehouse === dropdownItem.key
-                                ? "text-primary"
-                                : "text-default-700"
-                            )}
-                          />
-                        )
-                      }
-                      endContent={
-                        dropdownItem.warehouse?.IsActive === false ? (
-                          <Icon
-                            icon="solar:close-circle-bold"
-                            width={16}
-                            className="text-danger"
-                          />
-                        ) : null
-                      }
-                      onPress={() => {
-                        if (dropdownItem.type === "add") {
-                          navigate("/inventory/warehouses/add");
-                        } else if (dropdownItem.warehouse) {
-                          const warehouseId =
-                            dropdownItem.warehouse.WarehouseUUID ||
-                            dropdownItem.warehouse.warehouse_id ||
-                            "";
-                          setSelectedWarehouse(warehouseId);
-                        }
-                        if (isMobile) onClose();
-                      }}
-                    >
-                      {dropdownItem.type === "add"
-                        ? "Aggiungi magazzino"
-                        : dropdownItem.type === "empty"
-                        ? "Nessun magazzino disponibile"
-                        : `${
-                            dropdownItem.warehouse?.name ||
-                            dropdownItem.warehouse?.WarehouseName ||
-                            "Magazzino senza nome"
-                          }${
-                            dropdownItem.warehouse?.WarehouseCode
-                              ? ` (${dropdownItem.warehouse.WarehouseCode})`
-                              : ""
-                          }`}
-                    </DropdownItem>
-                  )}
-                </DropdownMenu>
-              </Dropdown>
+                  <Icon icon="solar:close-circle-line-linear" width={24} />
+                </Button>
+              )}
             </div>
           </div>
+
+          <Spacer y={8} />
+
+          <div
+            className="flex cursor-pointer items-center gap-3 px-2 transition-opacity hover:opacity-80"
+            onClick={() => {
+              navigate("/settings");
+            }}
+          >
+            <Dropdown showArrow>
+              <DropdownTrigger>
+                <Button
+                  fullWidth
+                  className="h-[60px] justify-start gap-3 rounded-[14px] border-1 border-default-300 bg-transparent px-3 py-[10px]"
+                >
+                  <div className="flex w-full items-center gap-3">
+                    <Avatar
+                      size="sm"
+                      src="https://nextuipro.nyc3.cdn.digitaloceanspaces.com/components-images/avatars/3a906b3de8eaa53e14582edf5c918b5d.jpg"
+                    />
+                    <div className="flex flex-col text-left">
+                      <p className="text-small font-semibold leading-5 text-foreground">
+                        {user?.name} {user?.surname}
+                      </p>
+                      <p className="text-tiny">{user?.email}</p>
+                    </div>
+                  </div>
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu
+                aria-label="Profile Actions"
+                className="w-[210px] bg-content1 px-[8px] py-[8px]"
+                variant="flat"
+              >
+                <DropdownSection showDivider aria-label="profile-section-1">
+                  <DropdownItem key="settings" href="/settings">
+                    <div className="flex flex-row gap-2 items-center">
+                      <Icon icon="solar:settings-bold" />
+                      Impostazioni
+                    </div>
+                  </DropdownItem>
+                  <DropdownItem
+                    key="theme-toggle"
+                    startContent={
+                      <Icon
+                        icon={
+                          isDark ? "solar:moon-linear" : "solar:sun-2-linear"
+                        }
+                        width={18}
+                        className=""
+                      />
+                    }
+                    onPress={toggleTheme}
+                  >
+                    {isDark ? "Tema Scuro" : "Tema Chiaro"}
+                  </DropdownItem>
+                </DropdownSection>
+
+                <DropdownSection
+                  aria-label="profile-section-3"
+                  className="mb-0"
+                >
+                  <DropdownItem
+                    key="logout"
+                    onPress={handleLogout}
+                    color="danger"
+                  >
+                    <div className="py-[4px] flex flex-row gap-2 items-center">
+                      <Icon icon="solar:logout-2-outline" />
+                      Esci
+                    </div>
+                  </DropdownItem>
+                </DropdownSection>
+              </DropdownMenu>
+            </Dropdown>
+          </div>
+
+          <ScrollShadow className="flex-1 min-h-0 -mr-6 py-6 pr-6 overflow-y-auto">
+            <div className="flex flex-col -space-y-1">
+              {sectionNestedItems.map((item) => {
+                // Se è un accordion (tipo Nest), renderizzalo direttamente
+                if (
+                  !isCompact &&
+                  item.type === SidebarItemType.Nest &&
+                  item.items?.length
+                ) {
+                  return (
+                    <div key={item.key} className="w-full">
+                      <Accordion
+                        selectedKeys={expandedKeys}
+                        onSelectionChange={(keys) => {
+                          setExpandedKeys(
+                            new Set(Array.from(keys).map(String))
+                          );
+                        }}
+                        selectionMode="multiple"
+                        variant="light"
+                      >
+                        <AccordionItem
+                          key={item.key}
+                          aria-label={item.title}
+                          classNames={{
+                            base: "px-0 my-0",
+                            trigger:
+                              "px-0 min-h-11 h-[44px] data-[hover=true]:bg-default-100 hover:bg-default-100 transition-colors rounded-large",
+                            content: "px-0 pb-0",
+                          }}
+                          title={
+                            <div className="flex items-center gap-5 pl-1 pr-3">
+                              {item.icon && (
+                                <Icon
+                                  className={cn(
+                                    "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0",
+                                    iconClassName
+                                  )}
+                                  icon={item.icon ?? ""}
+                                  width={24}
+                                />
+                              )}
+                              <span className="text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 data-[hover=true]:text-foreground-900 transition-colors whitespace-nowrap overflow-hidden text-ellipsis">
+                                {item.title}
+                              </span>
+                            </div>
+                          }
+                        >
+                          <AnimatePresence initial={false}>
+                            {expandedKeys.has(item.key) && (
+                              <motion.div
+                                key="accordion-content"
+                                initial={{ height: 0, opacity: 0 }}
+                                animate={{ height: "auto", opacity: 1 }}
+                                exit={{ height: 0, opacity: 0 }}
+                                transition={{
+                                  duration: 0.25,
+                                  ease: "easeInOut",
+                                }}
+                                style={{ overflow: "hidden" }}
+                              >
+                                {item.items && item.items?.length > 0 ? (
+                                  <div
+                                    className={`flex flex-col -space-y-1 mt-1 pl-3 border-l-1 ml-3 ${
+                                      isDark
+                                        ? "border-default-400"
+                                        : "border-default-500"
+                                    }`}
+                                  >
+                                    {item.items.map((subItem) => (
+                                      <div
+                                        key={`${item.key}-${subItem.key}`}
+                                        className={cn(
+                                          "flex items-center px-3 min-h-11 h-[44px] transition-colors cursor-pointer rounded-large",
+                                          "hover:bg-default-100",
+                                          subItem.href === location.pathname
+                                            ? "bg-default-100 text-foreground-900"
+                                            : "text-default-700 hover:text-foreground-900"
+                                        )}
+                                        onClick={() => {
+                                          if (
+                                            subItem.href &&
+                                            location.pathname !== subItem.href
+                                          ) {
+                                            navigate(subItem.href);
+                                          }
+                                          if (isMobile) {
+                                            onClose();
+                                          }
+                                        }}
+                                      >
+                                        {subItem.icon && (
+                                          <Icon
+                                            className={cn(
+                                              "mr-3 flex-shrink-0",
+                                              subItem.href ===
+                                                location.pathname
+                                                ? "text-foreground-900"
+                                                : "text-default-700"
+                                            )}
+                                            icon={subItem.icon}
+                                            width={24}
+                                          />
+                                        )}
+                                        <span className="text-small font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                                          {subItem.title}
+                                        </span>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : null}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </AccordionItem>
+                      </Accordion>
+                    </div>
+                  );
+                }
+
+                // Per gli elementi normali, usa un singolo ListboxItem
+                return (
+                  <div key={`listbox-${item.key}`} className="w-full">
+                    <Listbox
+                      hideSelectedIcon
+                      aria-label={`Elemento ${item.title}`}
+                      className="list-none"
+                      classNames={{
+                        list: "items-center gap-0",
+                      }}
+                      color="default"
+                      selectedKeys={
+                        item.href === location.pathname ? [item.key] : []
+                      }
+                      selectionMode="single"
+                      variant="flat"
+                      onSelectionChange={(keys) => {
+                        const key = Array.from(keys)[0] as string;
+                        if (key === item.key) {
+                          setSelected(key as React.Key);
+                          onSelect?.(key);
+                          if (item.href && location.pathname !== item.href) {
+                            navigate(item.href);
+                          }
+                          if (isMobile) {
+                            onClose();
+                          }
+                        }
+                      }}
+                    >
+                      <ListboxItem
+                        key={item.key}
+                        textValue={item.title}
+                        aria-label={item.title}
+                        classNames={{
+                          base: cn(
+                            "flex items-center pl-2 pr-3 min-h-11 rounded-large h-[44px] data-[selected=true]:bg-default-100 data-[selected=true]:text-foreground-900 data-[hover=true]:bg-default-100 transition-colors"
+                          ),
+                          title: cn(
+                            "text-small font-medium text-default-700 group-data-[selected=true]:text-foreground-900 data-[hover=true]:text-foreground-900 transition-colors whitespace-nowrap overflow-hidden text-ellipsis"
+                          ),
+                        }}
+                        startContent={
+                          isCompact ? null : item.icon ? (
+                            <Icon
+                              className={cn(
+                                "text-default-700 group-data-[selected=true]:text-foreground-900 flex-shrink-0 mr-3",
+                                iconClassName
+                              )}
+                              icon={item.icon}
+                              width={24}
+                            />
+                          ) : (
+                            (item as SidebarItem).startContent ?? null
+                          )
+                        }
+                        title={isCompact ? null : item.title}
+                      >
+                        {isCompact ? (
+                          <Tooltip content={item.title} placement="right">
+                            <div className="flex w-full items-center justify-center">
+                              {item.icon ? (
+                                <Icon
+                                  className={cn(
+                                    "text-default-700 group-data-[selected=true]:text-foreground-900",
+                                    iconClassName
+                                  )}
+                                  icon={item.icon}
+                                  width={24}
+                                />
+                              ) : (
+                                (item as SidebarItem).startContent ?? null
+                              )}
+                            </div>
+                          </Tooltip>
+                        ) : null}
+                      </ListboxItem>
+                    </Listbox>
+                  </div>
+                );
+              })}
+            </div>
+          </ScrollShadow>
+
+          <Spacer y={8} />
+
+          <div className="mt-auto flex flex-col gap-4 px-2 pb-2">
+            {/* Spazio extra dal bordo inferiore */}
+            <div className="h-0 mb-4" />
+            <Dropdown placement="top-start">
+              <DropdownTrigger>
+                <Button
+                  fullWidth
+                  variant={selectedWarehouse ? "solid" : "bordered"}
+                  color={selectedWarehouse ? "primary" : "default"}
+                  className={cn(
+                    "justify-between transition-all duration-200",
+                    selectedWarehouse
+                      ? "bg-primary text-primary-foreground shadow-lg"
+                      : isDark
+                      ? " data-[hover=true]:text-foreground"
+                      : "text-default-700 data-[hover=true]:text-foreground-900"
+                  )}
+                  endContent={
+                    <Icon
+                      className={
+                        selectedWarehouse
+                          ? "text-primary-foreground"
+                          : isDark
+                          ? ""
+                          : "text-default-700"
+                      }
+                      icon="solar:alt-arrow-down-linear"
+                      width={16}
+                    />
+                  }
+                >
+                  <div className="flex items-center gap-2">
+                    <Icon
+                      className={
+                        selectedWarehouse
+                          ? "text-primary-foreground"
+                          : isDark
+                          ? ""
+                          : "text-default-700"
+                      }
+                      icon="mdi:warehouse"
+                      width={24}
+                    />
+                    <span className="truncate">
+                      {selectedWarehouse
+                        ? (() => {
+                            const warehouse = warehouses.find(
+                              (w) =>
+                                (w.WarehouseUUID || w.warehouse_id) ===
+                                selectedWarehouse
+                            );
+                            return warehouse
+                              ? `${
+                                  warehouse.name ||
+                                  warehouse.WarehouseName ||
+                                  "Magazzino"
+                                }${
+                                  warehouse.WarehouseCode
+                                    ? ` (${warehouse.WarehouseCode})`
+                                    : ""
+                                }`
+                              : "Magazzino Selezionato";
+                          })()
+                        : "Magazzini"}
+                    </span>
+                  </div>
+                </Button>
+              </DropdownTrigger>
+              <DropdownMenu
+                aria-label="Lista Magazzini"
+                className="py-2 min-w-[280px]"
+                variant="flat"
+                selectedKeys={selectedWarehouse ? [selectedWarehouse] : []}
+                selectionMode="single"
+                items={[
+                  ...warehouses.map((warehouse) => ({
+                    key: String(
+                      warehouse.WarehouseUUID ||
+                        warehouse.warehouse_id ||
+                        warehouse.WarehouseID ||
+                        warehouse.name ||
+                        Math.random()
+                    ),
+                    warehouse,
+                    type: "warehouse",
+                  })),
+                  ...(warehouses.length === 0
+                    ? [{ key: "no-warehouses", type: "empty" }]
+                    : []),
+                  { key: "add-warehouse", type: "add" },
+                ]}
+                onSelectionChange={(keys) => {
+                  const selectedKey = Array.from(keys)[0] as string;
+                  if (
+                    selectedKey &&
+                    selectedKey !== "no-warehouses" &&
+                    selectedKey !== "add-warehouse"
+                  ) {
+                    setSelectedWarehouse(selectedKey);
+                  }
+                }}
+              >
+                {(dropdownItem: any) => (
+                  <DropdownItem
+                    key={dropdownItem.key}
+                    className={cn(
+                      "transition-all duration-200 relative group",
+                      dropdownItem.type === "add"
+                        ? "text-warning font-medium data-[hover=true]:bg-warning/10"
+                        : dropdownItem.type === "empty"
+                        ? ""
+                        : selectedWarehouse === dropdownItem.key
+                        ? "bg-primary/10 text-primary font-medium"
+                        : "data-[hover=true]:bg-default-100"
+                    )}
+                    isDisabled={dropdownItem.type === "empty"}
+                    startContent={
+                      dropdownItem.type === "add" ? (
+                        <Icon
+                          icon="solar:add-circle-bold"
+                          width={20}
+                          className="text-warning"
+                        />
+                      ) : dropdownItem.type === "empty" ? null : (
+                        <Icon
+                          icon="solar:warehouse-bold"
+                          width={20}
+                          className={cn(
+                            selectedWarehouse === dropdownItem.key
+                              ? "text-primary"
+                              : "text-default-700"
+                          )}
+                        />
+                      )
+                    }
+                    endContent={
+                      dropdownItem.warehouse?.IsActive === false ? (
+                        <Icon
+                          icon="solar:close-circle-bold"
+                          width={16}
+                          className="text-danger"
+                        />
+                      ) : null
+                    }
+                    onPress={() => {
+                      if (dropdownItem.type === "add") {
+                        navigate("/inventory/warehouses/add");
+                      } else if (dropdownItem.warehouse) {
+                        const warehouseId =
+                          dropdownItem.warehouse.WarehouseUUID ||
+                          dropdownItem.warehouse.warehouse_id ||
+                          "";
+                        setSelectedWarehouse(warehouseId);
+                      }
+                      if (isMobile) onClose();
+                    }}
+                  >
+                    {dropdownItem.type === "add"
+                      ? "Aggiungi magazzino"
+                      : dropdownItem.type === "empty"
+                      ? "Nessun magazzino disponibile"
+                      : `${
+                          dropdownItem.warehouse?.name ||
+                          dropdownItem.warehouse?.WarehouseName ||
+                          "Magazzino senza nome"
+                        }${
+                          dropdownItem.warehouse?.WarehouseCode
+                            ? ` (${dropdownItem.warehouse.WarehouseCode})`
+                            : ""
+                        }`}
+                  </DropdownItem>
+                )}
+              </DropdownMenu>
+            </Dropdown>
+          </div>
         </div>
-      ),
-      [
-        isMobile,
-        onClose,
-        location.pathname,
-        navigate,
-        user,
-        isDark,
-        toggleTheme,
-        ref,
-        className,
-        classNames,
-        itemClasses,
-        sectionClasses,
-        selected,
-        handleSelectionChange,
-        selectedWarehouse,
-        warehouses,
-        setSelectedWarehouse,
-        isDeleteModalOpen,
-        onDeleteModalOpen,
-        onDeleteModalClose,
-      ]
-    );
+      );
+    }, [
+      isMobile,
+      onClose,
+      location.pathname,
+      navigate,
+      user,
+      isDark,
+      toggleTheme,
+      ref,
+      className,
+      classNames,
+      itemClasses,
+      sectionClasses,
+      selected,
+      handleSelectionChange,
+      selectedWarehouse,
+      warehouses,
+      setSelectedWarehouse,
+      isDeleteModalOpen,
+      onDeleteModalOpen,
+      onDeleteModalClose,
+    ]);
 
     if (isMobile) {
       return (

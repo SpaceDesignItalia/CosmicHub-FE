@@ -67,36 +67,32 @@ export default function AppLayout() {
           
           <AnimatePresence>
             {(mode === 'pinned' || isVisible) && (
-              <motion.div
+              <motion.aside
                 key="sidebar"
                 variants={sidebarVariants}
                 initial={mode === 'pinned' ? 'visible' : 'hidden'}
                 animate="visible"
                 exit="hidden"
                 className={`flex-shrink-0 ${
-                  mode === 'auto-hide' 
-                    ? 'fixed left-0 top-0 z-40 h-screen p-6 pt-8 pb-8' // Ridotto padding per più spazio interno
-                    : 'relative h-screen'
+                  mode === 'auto-hide'
+                    ? 'fixed left-0 top-0 z-40 h-screen p-4'
+                    : 'relative h-screen border-r border-divider'
                 }`}
-                style={{ width: mode === 'auto-hide' ? '18rem' : '16rem' }} // Sidebar più larga in auto-hide
+                style={{ width: mode === 'auto-hide' ? '18rem' : '16rem' }}
                 onMouseLeave={() => {
                   if (mode === 'auto-hide') {
-                    console.log("🖱️ Left sidebar area");
                     setIsHovered(false);
                   }
                 }}
               >
-                {/* Sidebar content con altezza adattiva */}
                 <div className={`${
                   mode === 'auto-hide'
-                    ? 'h-full rounded-xl shadow-xl bg-background/98 border border-default-200/50 dark:border-default-300/50 backdrop-blur-md overflow-hidden' // Container con overflow hidden per bordi
-                    : 'h-full' // Altezza piena in modalità pinned
+                    ? 'h-full rounded-xl shadow-xl bg-background/98 border border-default-200/50 dark:border-default-300/50 backdrop-blur-md overflow-hidden'
+                    : 'h-full'
                 }`}>
-                  <div className="h-[calc(100vh-6rem)] overflow-y-auto overflow-x-hidden">
-                    <Sidebar defaultSelectedKey="home" items={sectionNestedItems} />
-                  </div>
+                  <Sidebar defaultSelectedKey="home" items={sectionNestedItems} />
                 </div>
-              </motion.div>
+              </motion.aside>
             )}
           </AnimatePresence>
         </>

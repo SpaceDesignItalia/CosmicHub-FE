@@ -615,6 +615,7 @@ export default function DocumentReminders() {
                         value={(dashboardData.analytics.by_type.vehicle_documents / dashboardData.analytics.total_documents) * 100} 
                         className="w-20" 
                         color="primary"
+                        aria-label="Documenti veicoli"
                       />
                       <span className="text-sm font-medium">{dashboardData.analytics.by_type.vehicle_documents}</span>
                     </div>
@@ -630,6 +631,7 @@ export default function DocumentReminders() {
                         value={(dashboardData.analytics.by_type.company_documents / dashboardData.analytics.total_documents) * 100} 
                         className="w-20" 
                         color="secondary"
+                        aria-label="Documenti aziendali"
                       />
                       <span className="text-sm font-medium">{dashboardData.analytics.by_type.company_documents}</span>
                     </div>
@@ -645,6 +647,7 @@ export default function DocumentReminders() {
                         value={(dashboardData.analytics.by_type.employee_documents / dashboardData.analytics.total_documents) * 100} 
                         className="w-20" 
                         color="warning"
+                        aria-label="Documenti dipendenti"
                       />
                       <span className="text-sm font-medium">{dashboardData.analytics.by_type.employee_documents}</span>
                     </div>
@@ -669,6 +672,7 @@ export default function DocumentReminders() {
                         value={(dashboardData.analytics.by_status.active / dashboardData.analytics.total_documents) * 100} 
                         className="w-20" 
                         color="success"
+                        aria-label="Documenti attivi"
                       />
                       <span className="text-sm font-medium">{dashboardData.analytics.by_status.active}</span>
                     </div>
@@ -684,6 +688,7 @@ export default function DocumentReminders() {
                         value={(dashboardData.analytics.by_status.expiring_soon / dashboardData.analytics.total_documents) * 100} 
                         className="w-20" 
                         color="warning"
+                        aria-label="Documenti in scadenza"
                       />
                       <span className="text-sm font-medium">{dashboardData.analytics.by_status.expiring_soon}</span>
                     </div>
@@ -699,6 +704,7 @@ export default function DocumentReminders() {
                         value={(dashboardData.analytics.by_status.expired / dashboardData.analytics.total_documents) * 100} 
                         className="w-20" 
                         color="danger"
+                        aria-label="Documenti scaduti"
                       />
                       <span className="text-sm font-medium">{dashboardData.analytics.by_status.expired}</span>
                     </div>

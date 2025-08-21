@@ -390,6 +390,7 @@ export default function InterventionDetail() {
                     value={calculateProgress()} 
                     color={statusColorMap[intervention.status]}
                     className="w-full"
+                    aria-label="Progresso intervento"
                   />
                 </div>
               </div>

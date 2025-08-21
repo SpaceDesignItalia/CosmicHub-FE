@@ -25,6 +25,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Responsive, WidthProvider, type Layout } from "react-grid-layout";
 import axios from "axios";
 import PageHeader from "../../Components/Layout/PageHeader";
+import CitySelector from "../../Components/Dashboard/CitySelector";
+import { weatherService, type WeatherData as WeatherServiceData } from "../../services/weatherService";
 
 // Import CSS per react-grid-layout
 import "react-grid-layout/css/styles.css";
@@ -307,6 +309,11 @@ export default function Dashboard() {
     humidity: 65,
     windSpeed: 12
   });
+  
+  // Stati per il selettore di città
+  const [isCitySelectorOpen, setIsCitySelectorOpen] = useState(false);
+  const [selectedCity, setSelectedCity] = useState<string>("Milano");
+  const [isLoadingWeather, setIsLoadingWeather] = useState(false);
   
   // Dati del backend
   const [warehouses, setWarehouses] = useState<Warehouse[]>([]);
@@ -762,6 +769,117 @@ export default function Dashboard() {
     return new Date(date.getFullYear(), date.getMonth(), 1).getDay();
   };
 
+  // Gestione selezione città
+  const handleCitySelect = async (city: any) => {
+    setSelectedCity(city.name);
+    setIsLoadingWeather(true);
+    
+    try {
+      let weatherData: WeatherServiceData;
+      
+      if (city.lat && city.lon) {
+        // Usa coordinate se disponibili
+        weatherData = await weatherService.getWeatherByCoordinates(city.lat, city.lon);
+      } else {
+        // Altrimenti usa il nome della città
+        weatherData = await weatherService.getWeatherByCity(city.name);
+      }
+      
+      setWeather({
+        temperature: weatherData.temperature,
+        condition: weatherData.condition,
+        icon: weatherData.icon,
+        location: weatherData.location,
+        humidity: weatherData.humidity,
+        windSpeed: weatherData.windSpeed
+      });
+      
+    } catch (error) {
+      console.error('Errore nel caricamento dati meteo:', error);
+      // Fallback ai dati simulati
+      setWeather(prev => ({
+        ...prev,
+        location: city.name,
+        condition: "Dati non disponibili"
+      }));
+    } finally {
+      setIsLoadingWeather(false);
+    }
+    
+    // Salva la città selezionata nel localStorage
+    localStorage.setItem('dashboard-selected-city', city.name);
+    localStorage.setItem('dashboard-selected-city-coords', JSON.stringify({ lat: city.lat, lon: city.lon }));
+  };
+
+  // Carica città salvata all'avvio e dati meteo reali
+  useEffect(() => {
+    const loadInitialWeather = async () => {
+      const savedCity = localStorage.getItem('dashboard-selected-city');
+      const savedCoords = localStorage.getItem('dashboard-selected-city-coords');
+      
+      if (savedCity) {
+        setSelectedCity(savedCity);
+        
+        try {
+          let weatherData: WeatherServiceData;
+          
+          if (savedCoords) {
+            const coords = JSON.parse(savedCoords);
+            weatherData = await weatherService.getWeatherByCoordinates(coords.lat, coords.lon);
+          } else {
+            weatherData = await weatherService.getWeatherByCity(savedCity);
+          }
+          
+          setWeather({
+            temperature: weatherData.temperature,
+            condition: weatherData.condition,
+            icon: weatherData.icon,
+            location: weatherData.location,
+            humidity: weatherData.humidity,
+            windSpeed: weatherData.windSpeed
+          });
+          
+        } catch (error) {
+          console.error('Errore nel caricamento dati meteo iniziali:', error);
+          // Mantieni i dati di default se l'API non funziona
+        }
+      } else {
+        // Se non c'è città salvata, prova con la geolocalizzazione
+        if (navigator.geolocation) {
+          navigator.geolocation.getCurrentPosition(
+            async (position) => {
+              try {
+                const weatherData = await weatherService.getWeatherByCoordinates(
+                  position.coords.latitude,
+                  position.coords.longitude
+                );
+                
+                setWeather({
+                  temperature: weatherData.temperature,
+                  condition: weatherData.condition,
+                  icon: weatherData.icon,
+                  location: weatherData.location,
+                  humidity: weatherData.humidity,
+                  windSpeed: weatherData.windSpeed
+                });
+                
+                setSelectedCity(weatherData.location);
+                
+              } catch (error) {
+                console.error('Errore nel caricamento dati meteo GPS:', error);
+              }
+            },
+            (error) => {
+              console.log('Geolocalizzazione non disponibile:', error);
+            }
+          );
+        }
+      }
+    };
+    
+    loadInitialWeather();
+  }, []);
+
   // Gestione layout change
   const onLayoutChange = useCallback((_: Layout[], layouts: { [key: string]: Layout[] }) => {
     setLayouts(layouts);
@@ -815,6 +933,14 @@ export default function Dashboard() {
     saveConfiguration(newWidgets, newLayouts);
   };
 
+  // Handler per rimozione widget che previene il drag
+  const handleRemoveWidget = (widgetId: string) => {
+    // Conferma prima di rimuovere
+    if (window.confirm(`Vuoi rimuovere il widget "${AVAILABLE_WIDGETS.find(w => w.id === widgetId)?.title}"?`)) {
+      removeWidget(widgetId);
+    }
+  };
+
   // Reset configurazione
   const resetConfiguration = () => {
     const defaultWidgets = ["clock-weather", "kpi-value", "kpi-products", "kpi-movements", "kpi-efficiency", "warehouses-status", "vehicles-status", "recent-activities", "quick-actions", "notifications", "mini-calendar"];
@@ -853,21 +979,41 @@ export default function Dashboard() {
                 {/* Separatore */}
                 <div className="h-8 w-px bg-default-200 dark:bg-default-700" />
 
-                {/* Meteo */}
+                                 {/* Meteo */}
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-warning-100 dark:bg-warning-900/30 rounded-xl">
-                    <Icon icon={weather.icon} className="text-warning text-xl" />
+                    {isLoadingWeather ? (
+                      <Spinner size="sm" color="warning" />
+                    ) : (
+                      <Icon icon={weather.icon} className="text-warning text-xl" />
+                    )}
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <p className="text-xl font-bold">{weather.temperature}°C</p>
-                      <p className="text-xs text-default-600">{weather.condition}</p>
+                      <p className="text-xl font-bold">
+                        {isLoadingWeather ? "--" : weather.temperature}°C
+                      </p>
+                      <p className="text-xs text-default-600">
+                        {isLoadingWeather ? "Caricamento..." : weather.condition}
+                      </p>
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-default-500">
-                      <span className="flex items-center gap-1">
+                    <div className="flex items-center justify-between w-full">
+                      <span className="flex items-center gap-1 text-xs text-default-500">
                         <Icon icon="solar:map-point-bold" width={10} />
                         {weather.location}
                       </span>
+                      <Button 
+                        isIconOnly 
+                        size="sm" 
+                        variant="flat" 
+                        color="primary"
+                        onPress={() => setIsCitySelectorOpen(true)}
+                        className="min-w-unit-6 w-6 h-6 opacity-70 hover:opacity-100 transition-opacity"
+                        title="Cambia città"
+                        isDisabled={isLoadingWeather}
+                      >
+                        <Icon icon="solar:map-point-search-bold-duotone" width={14} />
+                      </Button>
                     </div>
                   </div>
                 </div>
@@ -878,9 +1024,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -955,9 +1101,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -991,9 +1137,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1027,9 +1173,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1090,9 +1236,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1151,9 +1297,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1215,9 +1361,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1303,9 +1449,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1372,9 +1518,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1401,9 +1547,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1454,9 +1600,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1514,9 +1660,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1549,9 +1695,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1595,9 +1741,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1673,9 +1819,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1730,9 +1876,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1772,9 +1918,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1819,9 +1965,9 @@ export default function Dashboard() {
                 isIconOnly
                 size="sm"
                 color="danger"
-                variant="light"
-                className="absolute top-2 right-2"
-                onPress={() => removeWidget(widgetId)}
+                variant="solid"
+                className="absolute top-2 right-2 z-10 shadow-lg widget-remove-button"
+                onPress={() => handleRemoveWidget(widgetId)}
               >
                 <Icon icon="solar:close-circle-bold" width={16} />
               </Button>
@@ -1921,6 +2067,7 @@ export default function Dashboard() {
           isResizable={isEditMode}
           compactType="vertical"
           preventCollision={false}
+          draggableCancel=".widget-remove-button"
         >
           {activeWidgets.map((widgetId) => (
             <div key={widgetId} className="relative">
@@ -2000,6 +2147,14 @@ export default function Dashboard() {
           </ModalFooter>
         </ModalContent>
       </Modal>
+
+      {/* Selettore città per il widget meteo */}
+      <CitySelector
+        isOpen={isCitySelectorOpen}
+        onClose={() => setIsCitySelectorOpen(false)}
+        onCitySelect={handleCitySelect}
+        currentCity={selectedCity}
+      />
     </div>
   );
 }

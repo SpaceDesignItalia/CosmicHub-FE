@@ -460,6 +460,7 @@ export default function Categories() {
                           value={(category.attributes.length / Math.max(...groupedCategories.map(c => c.attributes.length))) * 100}
                           color="primary"
                           size="sm"
+                          aria-label="Completezza categoria"
                         />
                         <div className="flex flex-wrap gap-1">
                           {category.attributes.slice(0, 3).map((attr) => (
