@@ -200,6 +200,9 @@ export default function AddEventModal({
             EventPriority:
               getPriorityMapping(prefilledData.priority) || "Normale",
             EstimatedDuration: prefilledData.estimated_duration || "60",
+            // Usa la data selezionata se disponibile, altrimenti usa la data corrente
+            EventStartDate: prefilledData.selectedDate || new Date().toISOString().split("T")[0],
+            EventEndDate: prefilledData.selectedDate || new Date().toISOString().split("T")[0],
             CustomerInfo: {
               customer_id: prefilledData.customer_id || "",
               customer_name: prefilledData.customer_name || "",
@@ -224,6 +227,9 @@ export default function AddEventModal({
             EventType: prefilledData.intervention_type || "Intervento Tecnico",
             EventPriority: prefilledData.urgency_level || "Normale",
             EstimatedDuration: prefilledData.estimated_duration || "60",
+            // Usa la data selezionata se disponibile, altrimenti usa la data corrente
+            EventStartDate: prefilledData.selectedDate || new Date().toISOString().split("T")[0],
+            EventEndDate: prefilledData.selectedDate || new Date().toISOString().split("T")[0],
             CustomerInfo: {
               customer_id: prefilledData.customer_id || "",
               customer_name: prefilledData.customer_name || "",

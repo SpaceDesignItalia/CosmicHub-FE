@@ -794,7 +794,7 @@ export default function CustomerDetail() {
                     size="lg"
                     className="w-full font-semibold"
                     onPress={handleBookingNavigation}
-                    isDisabled={!quickBookingData.problem_description.trim()}
+                    isDisabled={!quickBookingData.problem_description.trim() || !selectedTechnician}
                     startContent={
                       <Icon icon="solar:calendar-search-bold" width={20} />
                     }

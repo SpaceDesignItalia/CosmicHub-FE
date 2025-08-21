@@ -317,7 +317,18 @@ export default function CalendarAurora() {
 
     // Se ci sono dati precompilati, apri il modal per quella data
     if (pendingEventData) {
-      setPrefilledEventData(pendingEventData);
+      // Aggiungi la data selezionata ai dati precompilati
+      // Usa toLocaleDateString per evitare problemi di fuso orario
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const selectedDate = `${year}-${month}-${day}`;
+      
+      const dataWithSelectedDate = {
+        ...pendingEventData,
+        selectedDate: selectedDate
+      };
+      setPrefilledEventData(dataWithSelectedDate);
       setIsOpen(true);
       // NON pulire i dati pending - li manterremo fino al salvataggio
     } else {
