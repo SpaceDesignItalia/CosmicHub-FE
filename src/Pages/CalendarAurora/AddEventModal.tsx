@@ -15,6 +15,7 @@ import {
   Textarea,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
@@ -100,27 +101,34 @@ const appointmentColors = [
   { color: "#6366F1", name: "Programmata" },
 ];
 
-const interventionTypes = ["Riparazione", "Manutenzione", "Ispezione", "Installazione", "Consulenza", "Intervento Tecnico"];
+const interventionTypes = [
+  "Riparazione",
+  "Manutenzione",
+  "Ispezione",
+  "Installazione",
+  "Consulenza",
+  "Intervento Tecnico",
+];
 const priorityLevels = ["Bassa", "Normale", "Alta", "Urgente", "Critica"];
 
 // Mapping functions for data conversion
 const getEventTypeMapping = (eventType: string) => {
   const typeMap: { [key: string]: string } = {
-    "appointment": "Intervento Tecnico",
-    "intervention": "Riparazione", 
-    "inspection": "Ispezione",
-    "maintenance": "Manutenzione",
-    "consultation": "Consulenza"
+    appointment: "Intervento Tecnico",
+    intervention: "Riparazione",
+    inspection: "Ispezione",
+    maintenance: "Manutenzione",
+    consultation: "Consulenza",
   };
   return typeMap[eventType] || "Intervento Tecnico";
 };
 
 const getPriorityMapping = (priority: string) => {
   const priorityMap: { [key: string]: string } = {
-    "low": "Bassa",
-    "medium": "Normale",
-    "high": "Alta", 
-    "emergency": "Urgente"
+    low: "Bassa",
+    medium: "Normale",
+    high: "Alta",
+    emergency: "Urgente",
   };
   return priorityMap[priority] || "Normale";
 };
@@ -128,8 +136,8 @@ const getPriorityMapping = (priority: string) => {
 const INITIAL_EVENT_DATA: CalendarEvent = {
   EventId: 0,
   EventTitle: "",
-  EventStartDate: new Date().toISOString().split('T')[0],
-  EventEndDate: new Date().toISOString().split('T')[0],
+  EventStartDate: new Date().toISOString().split("T")[0],
+  EventEndDate: new Date().toISOString().split("T")[0],
   EventStartTime: "09:00",
   EventEndTime: "10:00",
   EventColor: appointmentColors[2].color,
@@ -159,7 +167,7 @@ export default function AddEventModal({
   });
   const [showCCCBanner, setShowCCCBanner] = useState(false);
   const [showPreparationBanner, setShowPreparationBanner] = useState(false);
-  
+
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -168,38 +176,44 @@ export default function AddEventModal({
       setEventData(INITIAL_EVENT_DATA);
       setShowCCCBanner(false);
       setShowPreparationBanner(false);
-      
+
       // Apply prefilled data if coming from CCC or New Event Form
+      console.log(prefilledData);
       if (prefilledData) {
         // Check if data comes from preparation form or CCC
         const isFromPreparation = prefilledData.from_preparation;
         setShowCCCBanner(!isFromPreparation);
         setShowPreparationBanner(isFromPreparation);
-        
+
         let updatedEventData;
-        
-                 if (isFromPreparation) {
-           // Handle data from NewEvent preparation form
-           updatedEventData = {
-             ...INITIAL_EVENT_DATA,
-             EventTitle: prefilledData.title || "",
-             EventDescription: prefilledData.description || "",
-             EventLocation: prefilledData.location || "",
-             EventType: getEventTypeMapping(prefilledData.event_type) || "Intervento Tecnico",
-             EventPriority: getPriorityMapping(prefilledData.priority) || "Normale",
-             EstimatedDuration: prefilledData.estimated_duration || "60",
-             CustomerInfo: {
-               customer_id: "", // Non abbiamo ID dal form
-               customer_name: prefilledData.customer_name || "",
-               customer_phone: prefilledData.customer_phone || "",
-               customer_email: prefilledData.customer_email || "",
-             },
-             TechnicianAssignment: prefilledData.assigned_technician ? {
-               technician_id: "",
-               technician_name: prefilledData.assigned_technician,
-             } : undefined,
-             InterventionNotes: prefilledData.notes || "",
-           };
+
+        if (isFromPreparation) {
+          // Handle data from NewEvent preparation form
+          updatedEventData = {
+            ...INITIAL_EVENT_DATA,
+            EventTitle: prefilledData.title || "",
+            EventDescription: prefilledData.description || "",
+            EventLocation: prefilledData.location || "",
+            EventType:
+              getEventTypeMapping(prefilledData.event_type) ||
+              "Intervento Tecnico",
+            EventPriority:
+              getPriorityMapping(prefilledData.priority) || "Normale",
+            EstimatedDuration: prefilledData.estimated_duration || "60",
+            CustomerInfo: {
+              customer_id: prefilledData.customer_id || "",
+              customer_name: prefilledData.customer_name || "",
+              customer_phone: prefilledData.customer_phone || "",
+              customer_email: prefilledData.customer_email || "",
+            },
+            TechnicianAssignment: prefilledData.assigned_technician
+              ? {
+                  technician_id: prefilledData.assigned_technician_id || "",
+                  technician_name: prefilledData.assigned_technician,
+                }
+              : undefined,
+            InterventionNotes: prefilledData.notes || "",
+          };
         } else {
           // Handle data from CCC (existing logic)
           updatedEventData = {
@@ -216,15 +230,17 @@ export default function AddEventModal({
               customer_phone: prefilledData.customer_phone || "",
               customer_email: prefilledData.customer_email || "",
             },
-            TechnicianAssignment: prefilledData.technician_id ? {
-              technician_id: prefilledData.technician_id,
-              technician_name: prefilledData.technician_name || "",
-            } : undefined,
+            TechnicianAssignment: prefilledData.technician_id
+              ? {
+                  technician_id: prefilledData.technician_id,
+                  technician_name: prefilledData.technician_name || "",
+                }
+              : undefined,
             InterventionNotes: prefilledData.notes || "",
-                         // Nota: rimuovo le proprietà extra che non esistono nel tipo CalendarEvent
+            // Nota: rimuovo le proprietà extra che non esistono nel tipo CalendarEvent
           };
         }
-        
+
         setEventData(updatedEventData);
       }
     }
@@ -237,35 +253,32 @@ export default function AddEventModal({
     }
 
     setLoading(true);
-    
+
     try {
       // Mock save - simulate API call
       const newEvent: CalendarEvent = {
         ...eventData,
         EventId: Date.now(), // Mock ID generation
       };
-      
-      console.log("Nuovo evento creato:", newEvent);
-      
-      // Simulate API delay
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Call parent callback if provided
-      if (onEventCreated) {
-        onEventCreated(newEvent);
-      }
-      
-      // Navigate back to customers if from CCC
-      if (eventData.IsFromCCC) {
-        navigate("/customers");
-      }
-      
-      // Close modal
-      isClosed();
-      
-      // Show success message
-      alert("Evento creato con successo!");
-      
+
+      console.log(newEvent);
+
+      axios.post("Customer/POST/AddEvent", newEvent).then((res) => {
+        if (res.status === 200) {
+          // Call parent callback if provided
+          if (onEventCreated) {
+            onEventCreated(newEvent);
+          }
+
+          // Navigate back to customers if from CCC
+          if (eventData.IsFromCCC) {
+            navigate("/customers");
+          }
+
+          // Close modal
+          isClosed();
+        }
+      });
     } catch (error) {
       console.error("Errore nella creazione dell'evento:", error);
       alert("Errore nella creazione dell'evento");
@@ -276,12 +289,12 @@ export default function AddEventModal({
 
   const addPartecipant = () => {
     if (!newPartecipant.EventPartecipantEmail.trim()) return;
-    
-    setEventData(prev => ({
+
+    setEventData((prev) => ({
       ...prev,
-      EventPartecipants: [...prev.EventPartecipants, { ...newPartecipant }]
+      EventPartecipants: [...prev.EventPartecipants, { ...newPartecipant }],
     }));
-    
+
     setNewPartecipant({
       EventPartecipantEmail: "",
       EventPartecipantRole: "",
@@ -289,38 +302,35 @@ export default function AddEventModal({
   };
 
   const removePartecipant = (index: number) => {
-    setEventData(prev => ({
+    setEventData((prev) => ({
       ...prev,
-      EventPartecipants: prev.EventPartecipants.filter((_, i) => i !== index)
+      EventPartecipants: prev.EventPartecipants.filter((_, i) => i !== index),
     }));
   };
 
   const getPriorityColor = (priority: string) => {
     const colorMap: { [key: string]: string } = {
-      "Bassa": "#10B981",
-      "Normale": "#3B82F6", 
-      "Alta": "#F59E0B",
-      "Urgente": "#EF4444",
-      "Critica": "#DC2626",
+      Bassa: "#10B981",
+      Normale: "#3B82F6",
+      Alta: "#F59E0B",
+      Urgente: "#EF4444",
+      Critica: "#DC2626",
     };
     return colorMap[priority] || "#3B82F6";
   };
 
   return (
-    <Modal 
-      isOpen={isOpen} 
+    <Modal
+      isOpen={isOpen}
       onClose={isClosed}
       size="2xl"
       scrollBehavior="inside"
     >
       <ModalContent>
         <ModalHeader className="flex flex-col gap-1">
-          <h2 className="text-xl font-bold">
-            Nuovo Evento
-          </h2>
-          
+          <h2 className="text-xl font-bold">Nuovo Evento</h2>
         </ModalHeader>
-        
+
         <ModalBody className="gap-4">
           {/* Basic Event Info */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -328,18 +338,23 @@ export default function AddEventModal({
               label="Titolo Evento"
               placeholder="Inserisci il titolo..."
               value={eventData.EventTitle}
-              onChange={(e) => setEventData(prev => ({ ...prev, EventTitle: e.target.value }))}
+              onChange={(e) =>
+                setEventData((prev) => ({
+                  ...prev,
+                  EventTitle: e.target.value,
+                }))
+              }
               isRequired
               startContent={<Icon icon="solar:calendar-bold" width={20} />}
             />
-            
+
             <Select
               label="Categoria"
               placeholder="Seleziona categoria"
               selectedKeys={[eventData.EventTagId.toString()]}
               onSelectionChange={(keys) => {
                 const tagId = Number(Array.from(keys)[0]);
-                setEventData(prev => ({ ...prev, EventTagId: tagId }));
+                setEventData((prev) => ({ ...prev, EventTagId: tagId }));
               }}
             >
               {eventTags.map((tag) => (
@@ -356,15 +371,25 @@ export default function AddEventModal({
               label="Data Inizio"
               type="date"
               value={eventData.EventStartDate}
-              onChange={(e) => setEventData(prev => ({ ...prev, EventStartDate: e.target.value }))}
+              onChange={(e) =>
+                setEventData((prev) => ({
+                  ...prev,
+                  EventStartDate: e.target.value,
+                }))
+              }
               isRequired
             />
-            
+
             <Input
               label="Data Fine"
               type="date"
               value={eventData.EventEndDate}
-              onChange={(e) => setEventData(prev => ({ ...prev, EventEndDate: e.target.value }))}
+              onChange={(e) =>
+                setEventData((prev) => ({
+                  ...prev,
+                  EventEndDate: e.target.value,
+                }))
+              }
               isRequired
             />
           </div>
@@ -374,15 +399,25 @@ export default function AddEventModal({
               label="Ora Inizio"
               type="time"
               value={eventData.EventStartTime}
-              onChange={(e) => setEventData(prev => ({ ...prev, EventStartTime: e.target.value }))}
+              onChange={(e) =>
+                setEventData((prev) => ({
+                  ...prev,
+                  EventStartTime: e.target.value,
+                }))
+              }
               isRequired
             />
-            
+
             <Input
               label="Ora Fine"
               type="time"
               value={eventData.EventEndTime}
-              onChange={(e) => setEventData(prev => ({ ...prev, EventEndTime: e.target.value }))}
+              onChange={(e) =>
+                setEventData((prev) => ({
+                  ...prev,
+                  EventEndTime: e.target.value,
+                }))
+              }
               isRequired
             />
           </div>
@@ -395,33 +430,33 @@ export default function AddEventModal({
               selectedKeys={eventData.EventType ? [eventData.EventType] : []}
               onSelectionChange={(keys) => {
                 const type = Array.from(keys)[0] as string;
-                setEventData(prev => ({ ...prev, EventType: type }));
+                setEventData((prev) => ({ ...prev, EventType: type }));
               }}
             >
               {interventionTypes.map((type) => (
-                <SelectItem key={type}>
-                  {type}
-                </SelectItem>
+                <SelectItem key={type}>{type}</SelectItem>
               ))}
             </Select>
-            
+
             <Select
               label="Priorità"
               placeholder="Seleziona priorità"
-              selectedKeys={eventData.EventPriority ? [eventData.EventPriority] : []}
+              selectedKeys={
+                eventData.EventPriority ? [eventData.EventPriority] : []
+              }
               onSelectionChange={(keys) => {
                 const priority = Array.from(keys)[0] as string;
-                setEventData(prev => ({ 
-                  ...prev, 
+                setEventData((prev) => ({
+                  ...prev,
                   EventPriority: priority,
-                  EventColor: getPriorityColor(priority)
+                  EventColor: getPriorityColor(priority),
                 }));
               }}
             >
               {priorityLevels.map((priority) => (
                 <SelectItem key={priority}>
                   <div className="flex items-center gap-2">
-                    <div 
+                    <div
                       className="w-3 h-3 rounded-full"
                       style={{ backgroundColor: getPriorityColor(priority) }}
                     />
@@ -432,20 +467,17 @@ export default function AddEventModal({
             </Select>
           </div>
 
-          <Input
-            label="Durata Stimata (minuti)"
-            type="number"
-            value={eventData.EstimatedDuration}
-            onChange={(e) => setEventData(prev => ({ ...prev, EstimatedDuration: e.target.value }))}
-            placeholder="60"
-          />
-
           {/* Location */}
           <Input
             label="Luogo"
             placeholder="Inserisci il luogo..."
             value={eventData.EventLocation}
-            onChange={(e) => setEventData(prev => ({ ...prev, EventLocation: e.target.value }))}
+            onChange={(e) =>
+              setEventData((prev) => ({
+                ...prev,
+                EventLocation: e.target.value,
+              }))
+            }
             startContent={<Icon icon="solar:map-point-bold" width={20} />}
           />
 
@@ -454,7 +486,12 @@ export default function AddEventModal({
             label="Descrizione"
             placeholder="Inserisci una descrizione..."
             value={eventData.EventDescription}
-            onChange={(e) => setEventData(prev => ({ ...prev, EventDescription: e.target.value }))}
+            onChange={(e) =>
+              setEventData((prev) => ({
+                ...prev,
+                EventDescription: e.target.value,
+              }))
+            }
             rows={3}
           />
 
@@ -467,13 +504,16 @@ export default function AddEventModal({
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
                 <div>
-                  <span className="text-default-500">Nome:</span> {eventData.CustomerInfo.customer_name}
+                  <span className="text-default-500">Nome:</span>{" "}
+                  {eventData.CustomerInfo.customer_name}
                 </div>
                 <div>
-                  <span className="text-default-500">Telefono:</span> {eventData.CustomerInfo.customer_phone}
+                  <span className="text-default-500">Telefono:</span>{" "}
+                  {eventData.CustomerInfo.customer_phone}
                 </div>
                 <div className="md:col-span-2">
-                  <span className="text-default-500">Email:</span> {eventData.CustomerInfo.customer_email}
+                  <span className="text-default-500">Email:</span>{" "}
+                  {eventData.CustomerInfo.customer_email}
                 </div>
               </div>
             </div>
@@ -487,7 +527,8 @@ export default function AddEventModal({
                 Tecnico Assegnato
               </h3>
               <div className="text-sm">
-                <span className="text-default-500">Tecnico:</span> {eventData.TechnicianAssignment.technician_name}
+                <span className="text-default-500">Tecnico:</span>{" "}
+                {eventData.TechnicianAssignment.technician_name}
               </div>
             </div>
           )}
@@ -495,19 +536,29 @@ export default function AddEventModal({
           {/* Participants */}
           <div>
             <h3 className="font-semibold text-sm mb-3">Partecipanti</h3>
-            
+
             {/* Add new participant */}
             <div className="flex gap-2 mb-3">
               <Input
                 placeholder="Email partecipante"
                 value={newPartecipant.EventPartecipantEmail}
-                onChange={(e) => setNewPartecipant(prev => ({ ...prev, EventPartecipantEmail: e.target.value }))}
+                onChange={(e) =>
+                  setNewPartecipant((prev) => ({
+                    ...prev,
+                    EventPartecipantEmail: e.target.value,
+                  }))
+                }
                 className="flex-1"
               />
               <Input
                 placeholder="Ruolo"
                 value={newPartecipant.EventPartecipantRole}
-                onChange={(e) => setNewPartecipant(prev => ({ ...prev, EventPartecipantRole: e.target.value }))}
+                onChange={(e) =>
+                  setNewPartecipant((prev) => ({
+                    ...prev,
+                    EventPartecipantRole: e.target.value,
+                  }))
+                }
                 className="w-32"
               />
               <Button
@@ -522,10 +573,17 @@ export default function AddEventModal({
 
             {/* Participants list */}
             {eventData.EventPartecipants.map((participant, index) => (
-              <div key={index} className="flex items-center justify-between bg-default-100 rounded-lg p-2 mb-2">
+              <div
+                key={index}
+                className="flex items-center justify-between bg-default-100 rounded-lg p-2 mb-2"
+              >
                 <div>
-                  <div className="font-medium text-sm">{participant.EventPartecipantEmail}</div>
-                  <div className="text-xs text-default-500">{participant.EventPartecipantRole}</div>
+                  <div className="font-medium text-sm">
+                    {participant.EventPartecipantEmail}
+                  </div>
+                  <div className="text-xs text-default-500">
+                    {participant.EventPartecipantRole}
+                  </div>
                 </div>
                 <Button
                   onPress={() => removePartecipant(index)}
@@ -540,7 +598,7 @@ export default function AddEventModal({
             ))}
           </div>
         </ModalBody>
-        
+
         <ModalFooter>
           <Button
             variant="light"
