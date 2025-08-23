@@ -682,6 +682,7 @@ export default function CalendarAurora() {
           setSelectedEvent(null);
         }}
         eventId={selectedEvent?.EventId || 0}
+        eventData={selectedEvent || undefined}
         onEventUpdated={(updatedEvent) => {
           // Aggiorna l'evento nella lista
           setEvents((prev) =>

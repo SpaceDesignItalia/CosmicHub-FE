@@ -71,6 +71,7 @@ interface CalendarEvent {
 interface ViewEventModalProps {
   isOpen: boolean;
   eventId: number;
+  eventData?: CalendarEvent; // Dati evento opzionali per evitare chiamata API
   isClosed: () => void;
   onEventUpdated?: (event: CalendarEvent) => void;
   onEventDeleted?: (eventId: number) => void;
@@ -120,6 +121,7 @@ const interventionTypes = [
 export default function ViewEventModal({
   isOpen,
   eventId,
+  eventData: providedEventData,
   isClosed,
   onEventUpdated,
   onEventDeleted,
@@ -139,9 +141,23 @@ export default function ViewEventModal({
 
   useEffect(() => {
     if (isOpen && eventId) {
-      loadEvent();
+      // Se abbiamo i dati dell'evento, usali direttamente
+      if (providedEventData) {
+        // Normalizza i dati per assicurarsi che gli array siano sempre definiti
+        const normalizedEventData = {
+          ...providedEventData,
+          EventAttachments: providedEventData.EventAttachments || [],
+          EventPartecipants: providedEventData.EventPartecipants || [],
+        };
+        setEventData(normalizedEventData);
+        setOriginalEventData(normalizedEventData);
+        setLoading(false);
+      } else {
+        // Altrimenti fai la chiamata API (fallback)
+        loadEvent();
+      }
     }
-  }, [isOpen, eventId]);
+  }, [isOpen, eventId, providedEventData]);
 
   const loadEvent = async () => {
     setLoading(true);
@@ -304,14 +320,14 @@ export default function ViewEventModal({
 
     const newId =
       Math.max(
-        ...eventData.EventPartecipants.map((p) => p.EventPartecipantId),
+        ...(eventData.EventPartecipants || []).map((p) => p.EventPartecipantId),
         0
       ) + 1;
 
     setEventData((prev) => ({
       ...prev,
       EventPartecipants: [
-        ...prev.EventPartecipants,
+        ...(prev.EventPartecipants || []),
         {
           ...newPartecipant,
           EventPartecipantId: newId,
@@ -330,7 +346,7 @@ export default function ViewEventModal({
   const removePartecipant = (id: number) => {
     setEventData((prev) => ({
       ...prev,
-      EventPartecipants: prev.EventPartecipants.filter(
+      EventPartecipants: (prev.EventPartecipants || []).filter(
         (p) => p.EventPartecipantId !== id
       ),
     }));
@@ -339,7 +355,7 @@ export default function ViewEventModal({
   const removeAttachment = (attachmentId: number) => {
     setEventData((prev) => ({
       ...prev,
-      EventAttachments: prev.EventAttachments.filter(
+      EventAttachments: (prev.EventAttachments || []).filter(
         (a) => a.EventAttachmentId !== attachmentId
       ),
     }));
@@ -380,6 +396,26 @@ export default function ViewEventModal({
         onClose={isClosed}
         size="3xl"
         scrollBehavior="inside"
+        motionProps={{
+          variants: {
+            enter: {
+              y: 0,
+              opacity: 1,
+              transition: {
+                duration: 0.15,
+                ease: "easeOut",
+              },
+            },
+            exit: {
+              y: -20,
+              opacity: 0,
+              transition: {
+                duration: 0.1,
+                ease: "easeIn",
+              },
+            },
+          },
+        }}
       >
         <ModalContent>
           <ModalHeader className="flex flex-col gap-1">
@@ -747,16 +783,16 @@ export default function ViewEventModal({
                 )}
 
                 {/* Accordion for Advanced Info */}
-                {(eventData.EventPartecipants.length > 0 ||
+                {((eventData.EventPartecipants?.length || 0) > 0 ||
                   isEditing ||
-                  eventData.EventAttachments.length > 0 ||
+                  (eventData.EventAttachments?.length || 0) > 0 ||
                   eventData.InterventionNotes) && (
                   <Accordion>
                     {[
-                      eventData.EventPartecipants.length > 0 || isEditing ? (
+                      (eventData.EventPartecipants?.length || 0) > 0 || isEditing ? (
                         <AccordionItem
                           key="participants"
-                          title={`Partecipanti (${eventData.EventPartecipants.length})`}
+                          title={`Partecipanti (${eventData.EventPartecipants?.length || 0})`}
                           startContent={
                             <Icon
                               icon="solar:users-group-rounded-bold"
@@ -800,7 +836,7 @@ export default function ViewEventModal({
                               </div>
                             )}
 
-                            {eventData.EventPartecipants.map((participant) => (
+                            {(eventData.EventPartecipants || []).map((participant) => (
                               <div
                                 key={participant.EventPartecipantId}
                                 className="flex items-center justify-between bg-default-100 rounded-lg p-3"
@@ -856,16 +892,16 @@ export default function ViewEventModal({
                         </AccordionItem>
                       ) : null,
 
-                      eventData.EventAttachments.length > 0 ? (
+                      (eventData.EventAttachments?.length || 0) > 0 ? (
                         <AccordionItem
                           key="attachments"
-                          title={`Allegati (${eventData.EventAttachments.length})`}
+                          title={`Allegati (${eventData.EventAttachments?.length || 0})`}
                           startContent={
                             <Icon icon="solar:paperclip-bold" width={20} />
                           }
                         >
                           <div className="space-y-3">
-                            {eventData.EventAttachments.map((attachment) => (
+                            {(eventData.EventAttachments || []).map((attachment) => (
                               <FileCard
                                 key={attachment.EventAttachmentId}
                                 file={attachment}

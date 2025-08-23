@@ -75,6 +75,7 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(0);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [groupDropdown, setGroupDropdown] = useState<{
     isOpen: boolean;
     events: any[];
@@ -407,6 +408,7 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
                             e.stopPropagation();
                             setIsOpen(true);
                             setSelectedEventId(event.EventId);
+                            setSelectedEvent(event);
                           }}
                           onMouseEnter={(e) => {
                             const rect = e.currentTarget.getBoundingClientRect();
@@ -540,6 +542,7 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
                     onClick={() => {
                       setIsOpen(true);
                       setSelectedEventId(event.EventId);
+                      setSelectedEvent(event);
                       setGroupDropdown({ isOpen: false, events: [], position: { x: 0, y: 0 } });
                     }}
                     className="flex items-start gap-3 p-2 rounded-md hover:bg-default-100 dark:hover:bg-default-200 cursor-pointer transition-colors"
@@ -641,7 +644,11 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
       <ViewEventModal
         isOpen={isOpen}
         eventId={selectedEventId}
-        isClosed={() => setIsOpen(false)}
+        eventData={selectedEvent}
+        isClosed={() => {
+          setIsOpen(false);
+          setSelectedEvent(null);
+        }}
       />
     </div>
   );

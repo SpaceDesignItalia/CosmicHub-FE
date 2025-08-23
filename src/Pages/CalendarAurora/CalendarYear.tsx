@@ -61,6 +61,7 @@ const CalendarYear: React.FC<CalendarYearProps> = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(0);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [hoveredDay, setHoveredDay] = useState<Date | null>(null);
   const [popoverPosition, setPopoverPosition] = useState({
     x: 0,
@@ -306,6 +307,7 @@ const CalendarYear: React.FC<CalendarYearProps> = ({
                     onClick={() => {
                       setIsOpen(true);
                       setSelectedEventId(event.EventId);
+                      setSelectedEvent(event);
                       closePopover();
                     }}
                     className="flex items-center gap-3 p-2 rounded-md hover:bg-default-100 dark:hover:bg-default-200 cursor-pointer transition-colors"
@@ -339,7 +341,11 @@ const CalendarYear: React.FC<CalendarYearProps> = ({
       <ViewEventModal
         isOpen={isOpen}
         eventId={selectedEventId}
-        isClosed={() => setIsOpen(false)}
+        eventData={selectedEvent}
+        isClosed={() => {
+          setIsOpen(false);
+          setSelectedEvent(null);
+        }}
       />
     </div>
   );

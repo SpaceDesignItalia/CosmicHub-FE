@@ -57,6 +57,7 @@ const CalendarMonth: React.FC<{
   events: CalendarEvent[];
 }> = ({ currentDate, onDateClick, events }) => {
   const [selectedEventId, setSelectedEventId] = useState(0);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredDay, setHoveredDay] = useState<Date | null>(null);
   const [hoveredEvent, setHoveredEvent] = useState<any>(null);
@@ -280,6 +281,7 @@ const CalendarMonth: React.FC<{
                                     e.stopPropagation();
                                     setIsOpen(true);
                                     setSelectedEventId(event.EventId);
+                                    setSelectedEvent(event);
                                   }}
                                   onMouseEnter={(e) => {
                                     const rect = e.currentTarget.getBoundingClientRect();
@@ -463,6 +465,7 @@ const CalendarMonth: React.FC<{
                     key={event.EventId}
                     onClick={() => {
                       setSelectedEventId(event.EventId);
+                      setSelectedEvent(event);
                       setIsOpen(true);
                       setShowEventSelector(false);
                     }}
@@ -571,6 +574,7 @@ const CalendarMonth: React.FC<{
                     onClick={() => {
                       setIsOpen(true);
                       setSelectedEventId(event.EventId);
+                      setSelectedEvent(event);
                       closePopover();
                     }}
                     className="flex items-center gap-3 p-2 rounded-md hover:bg-default-100 dark:hover:bg-default-200 cursor-pointer transition-colors"
@@ -666,7 +670,11 @@ const CalendarMonth: React.FC<{
       <ViewEventModal
         isOpen={isOpen}
         eventId={selectedEventId}
-        isClosed={() => setIsOpen(false)}
+        eventData={selectedEvent}
+        isClosed={() => {
+          setIsOpen(false);
+          setSelectedEvent(null);
+        }}
       />
     </div>
   );

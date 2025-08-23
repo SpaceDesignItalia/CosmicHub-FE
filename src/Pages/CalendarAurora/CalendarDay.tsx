@@ -78,6 +78,7 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(0);
+  const [selectedEvent, setSelectedEvent] = useState<any>(null);
   const [hoveredEvent, setHoveredEvent] = useState<any>(null);
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const hoverRef = useRef<HTMLDivElement>(null);
@@ -285,6 +286,7 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
                           e.stopPropagation();
                           setIsOpen(true);
                           setSelectedEventId(event.EventId);
+                          setSelectedEvent(event);
                         }}
                         onMouseEnter={(e) => {
                           const rect = e.currentTarget.getBoundingClientRect();
@@ -495,7 +497,11 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
       <ViewEventModal
         isOpen={isOpen}
         eventId={selectedEventId}
-        isClosed={() => setIsOpen(false)}
+        eventData={selectedEvent}
+        isClosed={() => {
+          setIsOpen(false);
+          setSelectedEvent(null);
+        }}
       />
     </div>
   );
