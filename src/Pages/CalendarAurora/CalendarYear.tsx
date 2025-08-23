@@ -210,7 +210,7 @@ const CalendarYear: React.FC<CalendarYearProps> = ({
                     {day}
                   </div>
                 ))}
-                {Array(new Date(year, monthIndex, 1).getDay() || 7 - 1)
+                {Array((new Date(year, monthIndex, 1).getDay() + 6) % 7)
                   .fill(null)
                   .map((_, i) => (
                     <div key={`empty-${i}`} className="h-8"></div>
