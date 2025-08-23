@@ -159,7 +159,7 @@ const priorityColors = {
 
 export default function CalendarAurora() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const container = useRef<HTMLDivElement>(null);
 
   // Calendar state
@@ -185,6 +185,7 @@ export default function CalendarAurora() {
   const isFromCCC = searchParams.get("from_ccc") === "true";
   const isCreatingEvent = searchParams.get("creating_event") === "true";
   const isNewAppointment = window.location.pathname.includes("/new");
+  const callId = searchParams.get("call_id");
 
   useEffect(() => {
     loadData();
@@ -228,16 +229,12 @@ export default function CalendarAurora() {
 
     window.addEventListener("keydown", handleKeyPress);
     return () => window.removeEventListener("keydown", handleKeyPress);
-  }, []);
+  }, [searchParams]); // Aggiungo searchParams per reagire ai cambiamenti dell'URL
 
   const loadData = () => {
-    console.log("🔄 Caricamento eventi...");
     axios
       .get("Customer/GET/GetAllEvents")
       .then((res) => {
-        console.log("📅 Eventi ricevuti:", res.data);
-        console.log("📊 Numero eventi:", res.data?.length || 0);
-
         // Processa gli eventi per applicare i colori in base alla priorità
         const processedEvents = res.data.map((event: any) => ({
           ...event,
@@ -246,12 +243,10 @@ export default function CalendarAurora() {
             : event.EventColor || "#3B82F6",
         }));
 
-        console.log("🎨 Eventi processati:", processedEvents);
         setEvents(processedEvents);
 
         if (res.status === 200) {
           setLoading(false);
-          console.log("✅ Eventi caricati con successo");
         }
       })
       .catch((error) => {
@@ -277,71 +272,66 @@ export default function CalendarAurora() {
         location: searchParams.get("location"),
         assigned_technician: searchParams.get("assigned_technician"),
         assigned_technician_id: searchParams.get("assigned_technician_id"),
-        preferred_technician: searchParams.get("preferred_technician"),
-        customer_type: searchParams.get("customer_type"),
+        selectedDate: searchParams.get("selectedDate"),
+        from_ccc: true,
       };
 
       setPendingEventData(cccData);
       setShowPrefilledBanner(true);
 
-      // Apri automaticamente il modal con i dati precompilati
-      // Usa la data corrente come data selezionata
+      // APRI AUTOMATICAMENTE IL MODAL con i dati precompilati
       const currentDateString = currentDate.toISOString().split("T")[0];
       const dataWithCurrentDate = {
         ...cccData,
         selectedDate: currentDateString,
+        // Aggiungi TechnicianAssignment se c'è un tecnico assegnato
+        TechnicianAssignment: cccData.assigned_technician_id
+          ? {
+              technician_id: cccData.assigned_technician_id,
+              technician_name: cccData.assigned_technician || "",
+            }
+          : undefined,
       };
       setPrefilledEventData(dataWithCurrentDate);
       setIsOpen(true);
+    } else if (isCreatingEvent && callId) {
+      // Pre-fill data from Call - salva i dati ma NON aprire il modal
+      const callData = {
+        call_id: callId,
+        from_call: true,
+        creating_event: true,
+      };
+
+      setPendingEventData(callData);
+      setShowPrefilledBanner(true);
     } else if (isCreatingEvent) {
       // Pre-fill data from NewEvent form - salva i dati ma NON aprire il modal
-      const eventData = {
-        // Dati evento
+      const newEventData = {
         title: searchParams.get("title"),
         description: searchParams.get("description"),
+        location: searchParams.get("location"),
         event_type: searchParams.get("event_type"),
         priority: searchParams.get("priority"),
         estimated_duration: searchParams.get("estimated_duration"),
-
-        // Dati cliente
+        notes: searchParams.get("notes"),
         customer_id: searchParams.get("customer_id"),
         customer_name: searchParams.get("customer_name"),
         customer_phone: searchParams.get("customer_phone"),
         customer_email: searchParams.get("customer_email"),
-        customer_address: searchParams.get("customer_address"),
-        customer_type: searchParams.get("customer_type"),
-
-        // Dettagli intervento
         assigned_technician: searchParams.get("assigned_technician"),
         assigned_technician_id: searchParams.get("assigned_technician_id"),
-        location: searchParams.get("location"),
-        notes: searchParams.get("notes"),
-        contact_method: searchParams.get("contact_method"),
-        send_reminder: searchParams.get("send_reminder") === "true",
-        from_external: searchParams.get("from_external") === "true",
-
-        // Flag per indicare che viene dal form di preparazione
+        selectedDate: searchParams.get("selectedDate"),
         from_preparation: true,
       };
 
-      setPendingEventData(eventData);
+      setPendingEventData(newEventData);
       setShowPrefilledBanner(true);
-
-      // Apri automaticamente il modal con i dati precompilati
-      // Usa la data corrente come data selezionata
-      const currentDateString = currentDate.toISOString().split("T")[0];
-      const dataWithCurrentDate = {
-        ...eventData,
-        selectedDate: currentDateString,
-      };
-      setPrefilledEventData(dataWithCurrentDate);
-      setIsOpen(true);
-    } else if (isNewAppointment) {
-      handleNewAppointment();
     }
   };
 
   const handleNewAppointment = () => {
+    // Pulisci i parametri dell'URL per nuovo appuntamento pulito
+    setSearchParams({});
     setPrefilledEventData(null);
     setIsOpen(true);
   };
@@ -360,7 +350,7 @@ export default function CalendarAurora() {
     setCurrentDate(newDate);
   };
 
-  const handleDateClick = (date: Date) => {
+  const handleDateClick = (date: Date, hour?: number) => {
     setCurrentDate(date);
 
     // Se ci sono dati precompilati, apri il modal per quella data
@@ -375,13 +365,28 @@ export default function CalendarAurora() {
       const dataWithSelectedDate = {
         ...pendingEventData,
         selectedDate: selectedDate,
+        selectedHour: hour, // Aggiungi anche l'ora se specificata
       };
       setPrefilledEventData(dataWithSelectedDate);
       setIsOpen(true);
       // NON pulire i dati pending - li manterremo fino al salvataggio
     } else {
-      // Se non ci sono dati precompilati, cambia solo la vista
-      setView("day");
+      // Se non ci sono dati precompilati, apri il modal per creare un appuntamento per quella data
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      const selectedDate = `${year}-${month}-${day}`;
+
+      // Pulisci i parametri dell'URL per nuovo appuntamento pulito
+      setSearchParams({});
+
+      // Imposta la data selezionata e apri il modal
+      setPrefilledEventData({
+        selectedDate: selectedDate,
+        from_calendar_click: true,
+        selectedHour: hour, // Passa l'ora selezionata
+      });
+      setIsOpen(true);
     }
   };
 
@@ -604,7 +609,7 @@ export default function CalendarAurora() {
                 {view === "week" && (
                   <CalendarWeek
                     currentDate={currentDate}
-                    onDateClick={handleDateClick}
+                    onDateClick={(date) => handleDateClick(date)}
                     redLineBehavior="show"
                     events={events}
                   />
@@ -613,7 +618,7 @@ export default function CalendarAurora() {
                   <CalendarMonth
                     currentDate={currentDate}
                     events={events}
-                    onDateClick={handleDateClick}
+                    onDateClick={(date) => handleDateClick(date)}
                   />
                 )}
                 {view === "year" && (
@@ -648,15 +653,23 @@ export default function CalendarAurora() {
         eventTags={eventTags}
         technicians={technicians}
         onEventCreated={(event) => {
-          // Aggiungi il nuovo evento alla lista
-          setEvents((prev) => [...prev, event]);
+          // Se event è null, significa che è una pulizia, non un evento creato
+          if (event) {
+            // Aggiungi il nuovo evento alla lista
+            setEvents((prev) => [...prev, event]);
 
-          // Ricarica i dati dal server per essere sicuri di avere tutto aggiornato
-          setTimeout(() => {
-            loadData();
-          }, 500);
+            // Ricarica i dati dal server per essere sicuri di avere tutto aggiornato
+            setTimeout(() => {
+              loadData();
+            }, 500);
+          }
 
           // Solo ora puliamo i dati pending dopo il salvataggio
+          setPendingEventData(null);
+          setShowPrefilledBanner(false);
+        }}
+        onModalClose={() => {
+          // Pulisci i dati pending quando si esce dal modal venendo da cliente
           setPendingEventData(null);
           setShowPrefilledBanner(false);
         }}

@@ -41,7 +41,6 @@ import InterventionComplete from "./Pages/Interventions/InterventionComplete";
 import InterventionReassign from "./Pages/Interventions/InterventionReassign";
 // CalendarAurora system imports
 import CalendarAurora from "./Pages/CalendarAurora/Calendar";
-import NewEvent from "./Pages/CalendarAurora/NewEvent";
 import { SidebarProvider } from "./providers/SidebarProvider";
 
 function App() {
@@ -102,7 +101,6 @@ function App() {
             <Route index element={<Navigate to="/dashboard" replace />} />
             <Route path="/dashboard" element={<Dashboard />} />
             <Route path="/calendar" element={<CalendarAurora />} />
-            <Route path="/calendar/new" element={<NewEvent />} />
             <Route path="/customers" element={<Customers />} />
             <Route path="/customers/:customerId" element={<CustomerDetail />} />
             <Route path="/customers/add" element={<AddCustomer />} />
@@ -110,31 +108,70 @@ function App() {
             <Route path="/interventions" element={<InterventionsList />} />
             <Route path="/interventions/map" element={<InterventionsMap />} />
             <Route path="/interventions/add" element={<AddIntervention />} />
-            <Route path="/interventions/assign" element={<InterventionAssign />} />
+            <Route
+              path="/interventions/assign"
+              element={<InterventionAssign />}
+            />
             <Route path="/interventions/:id" element={<InterventionDetail />} />
-            <Route path="/interventions/edit/:id" element={<InterventionEdit />} />
-            <Route path="/interventions/start/:id" element={<InterventionStart />} />
-            <Route path="/interventions/complete/:id" element={<InterventionComplete />} />
-            <Route path="/interventions/reassign/:id" element={<InterventionReassign />} />
+            <Route
+              path="/interventions/edit/:id"
+              element={<InterventionEdit />}
+            />
+            <Route
+              path="/interventions/start/:id"
+              element={<InterventionStart />}
+            />
+            <Route
+              path="/interventions/complete/:id"
+              element={<InterventionComplete />}
+            />
+            <Route
+              path="/interventions/reassign/:id"
+              element={<InterventionReassign />}
+            />
             <Route path="/inventory/products" element={<Products />} />
-            <Route path="/inventory/products/search" element={<GlobalProductSearch />} />
+            <Route
+              path="/inventory/products/search"
+              element={<GlobalProductSearch />}
+            />
             <Route path="/inventory/products/add" element={<ProductAdd />} />
-            <Route path="/inventory/products/edit/:id" element={<ProductEdit />} />
+            <Route
+              path="/inventory/products/edit/:id"
+              element={<ProductEdit />}
+            />
             <Route path="/inventory/categories" element={<Categories />} />
             <Route path="/inventory/categories/add" element={<CategoryAdd />} />
             <Route path="/inventory/vehicles" element={<Vehicles />} />
             <Route path="/inventory/vehicles/add" element={<AddVehicle />} />
-            <Route path="/inventory/vehicles/edit/:id" element={<EditVehicle />} />
-            <Route path="/inventory/warehouses/add" element={<AddWarehouse />} />
-            <Route path="/inventory/warehouses/edit/:id" element={<EditWarehouse />} />
-            <Route path="/inventory/movements" element={<WarehouseMovement />} />
+            <Route
+              path="/inventory/vehicles/edit/:id"
+              element={<EditVehicle />}
+            />
+            <Route
+              path="/inventory/warehouses/add"
+              element={<AddWarehouse />}
+            />
+            <Route
+              path="/inventory/warehouses/edit/:id"
+              element={<EditWarehouse />}
+            />
+            <Route
+              path="/inventory/movements"
+              element={<WarehouseMovement />}
+            />
             <Route path="/suppliers" element={<Suppliers />} />
             <Route path="/team" element={<Team />} />
             <Route path="/documents/ddt" element={<DDTManagement />} />
             <Route path="/documents/vehicles" element={<VehicleDocuments />} />
             <Route path="/documents/company" element={<CompanyDocuments />} />
-            <Route path="/documents/employees" element={<EmployeeDocuments />} />
-            <Route path="/documents/reminders" element={<DocumentReminders />} />
+            <Route
+              path="/documents/employees"
+              element={<EmployeeDocuments />}
+            />
+            <Route
+              path="/documents/reminders"
+              element={<DocumentReminders />}
+            />
             <Route path="/warehouses/:id" element={<WarehouseDetail />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/settings" element={<Settings />} />

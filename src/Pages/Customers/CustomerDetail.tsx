@@ -236,6 +236,7 @@ export default function CustomerDetail() {
 
     const bookingParams = new URLSearchParams({
       creating_event: "true", // Flag per indicare che si sta creando un nuovo evento
+      from_ccc: "true", // Flag per indicare che viene da CCC e aprire automaticamente il modal
 
       // Dati evento base
       title: quickBookingData.problem_description,

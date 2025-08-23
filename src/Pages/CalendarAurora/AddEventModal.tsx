@@ -77,10 +77,11 @@ interface Technician {
 interface AddEventModalProps {
   isOpen: boolean;
   isClosed: () => void;
-  prefilledData?: any | null;
+  prefilledData?: any;
   eventTags?: EventTag[];
-  technicians?: Technician[];
-  onEventCreated?: (event: CalendarEvent) => void;
+  technicians?: any[];
+  onEventCreated?: (event: CalendarEvent | null) => void;
+  onModalClose?: () => void; // Nuovo callback per pulire dati pending
 }
 
 // Mock data per CosmicHub
@@ -167,6 +168,7 @@ export default function AddEventModal({
   eventTags = mockEventTags,
   technicians = [],
   onEventCreated,
+  onModalClose,
 }: AddEventModalProps) {
   const [eventData, setEventData] = useState<CalendarEvent>(INITIAL_EVENT_DATA);
   const [loading, setLoading] = useState(false);
@@ -214,16 +216,23 @@ export default function AddEventModal({
 
   useEffect(() => {
     if (isOpen) {
-      // Reset form when modal opens
-      setEventData(INITIAL_EVENT_DATA);
+      // Reset form when modal opens - SEMPRE pulisci tutto
+      setEventData({
+        ...INITIAL_EVENT_DATA,
+        CustomerInfo: undefined,
+        TechnicianAssignment: undefined,
+      });
       setShowCCCBanner(false);
       setShowPreparationBanner(false);
+
+      // Reset selezioni cliente e tecnico
+      setSelectedCustomerId("");
+      setSelectedTechnicianId("");
 
       // Carica clienti e tecnici disponibili
       loadCustomersAndTechnicians();
 
       // Apply prefilled data if coming from CCC or New Event Form
-      console.log(prefilledData);
       if (prefilledData) {
         // Check if data comes from preparation form or CCC
         const isFromPreparation = prefilledData.from_preparation;
@@ -254,12 +263,26 @@ export default function AddEventModal({
             EventEndDate:
               prefilledData.selectedDate ||
               new Date().toISOString().split("T")[0],
-            CustomerInfo: {
-              customer_id: prefilledData.customer_id || "",
-              customer_name: prefilledData.customer_name || "",
-              customer_phone: prefilledData.customer_phone || "",
-              customer_email: prefilledData.customer_email || "",
-            },
+            // Imposta l'orario se è stato selezionato un'ora specifica
+            EventStartTime:
+              prefilledData.selectedHour !== undefined
+                ? `${String(prefilledData.selectedHour).padStart(2, "0")}:00`
+                : "09:00",
+            EventEndTime:
+              prefilledData.selectedHour !== undefined
+                ? `${String(prefilledData.selectedHour + 1).padStart(
+                    2,
+                    "0"
+                  )}:00`
+                : "10:00",
+            CustomerInfo: prefilledData.customer_id
+              ? {
+                  customer_id: prefilledData.customer_id || "",
+                  customer_name: prefilledData.customer_name || "",
+                  customer_phone: prefilledData.customer_phone || "",
+                  customer_email: prefilledData.customer_email || "",
+                }
+              : undefined,
             TechnicianAssignment: prefilledData.assigned_technician
               ? {
                   technician_id: prefilledData.assigned_technician_id || "",
@@ -285,16 +308,30 @@ export default function AddEventModal({
             EventEndDate:
               prefilledData.selectedDate ||
               new Date().toISOString().split("T")[0],
-            CustomerInfo: {
-              customer_id: prefilledData.customer_id || "",
-              customer_name: prefilledData.customer_name || "",
-              customer_phone: prefilledData.customer_phone || "",
-              customer_email: prefilledData.customer_email || "",
-            },
-            TechnicianAssignment: prefilledData.technician_id
+            // Imposta l'orario se è stato selezionato un'ora specifica
+            EventStartTime:
+              prefilledData.selectedHour !== undefined
+                ? `${String(prefilledData.selectedHour).padStart(2, "0")}:00`
+                : "09:00",
+            EventEndTime:
+              prefilledData.selectedHour !== undefined
+                ? `${String(prefilledData.selectedHour + 1).padStart(
+                    2,
+                    "0"
+                  )}:00`
+                : "10:00",
+            CustomerInfo: prefilledData.customer_id
               ? {
-                  technician_id: prefilledData.technician_id,
-                  technician_name: prefilledData.technician_name || "",
+                  customer_id: prefilledData.customer_id || "",
+                  customer_name: prefilledData.customer_name || "",
+                  customer_phone: prefilledData.customer_phone || "",
+                  customer_email: prefilledData.customer_email || "",
+                }
+              : undefined,
+            TechnicianAssignment: prefilledData.assigned_technician_id
+              ? {
+                  technician_id: prefilledData.assigned_technician_id,
+                  technician_name: prefilledData.assigned_technician || "",
                 }
               : undefined,
             InterventionNotes: prefilledData.notes || "",
@@ -304,13 +341,13 @@ export default function AddEventModal({
 
         setEventData(updatedEventData);
 
-        // Imposta i valori selezionati per i select
-        if (prefilledData.customer_id) {
+        // Imposta i valori selezionati per i select solo se ci sono dati precompilati
+        if (prefilledData && prefilledData.customer_id) {
           setSelectedCustomerId(prefilledData.customer_id);
         }
         if (
-          prefilledData.assigned_technician_id ||
-          prefilledData.technician_id
+          prefilledData &&
+          (prefilledData.assigned_technician_id || prefilledData.technician_id)
         ) {
           setSelectedTechnicianId(
             prefilledData.assigned_technician_id || prefilledData.technician_id
@@ -350,7 +387,22 @@ export default function AddEventModal({
         if (eventData.IsFromCCC) {
           navigate("/customers");
         } else if (prefilledData) {
-          // Se viene da cliente o form preparazione, torna al calendario pulito
+          // Se viene da cliente o form preparazione, pulisci i dati e torna al calendario pulito
+          setEventData({
+            ...INITIAL_EVENT_DATA,
+            CustomerInfo: undefined,
+            TechnicianAssignment: undefined,
+          });
+          setSelectedCustomerId("");
+          setSelectedTechnicianId("");
+
+          // Pulisci anche pendingEventData per non mantenere i dati del cliente
+          if (prefilledData.from_ccc || prefilledData.from_call) {
+            if (onModalClose) {
+              onModalClose();
+            }
+          }
+
           navigate("/calendar", { replace: true });
         }
 
@@ -399,10 +451,38 @@ export default function AddEventModal({
     return colorMap[priority] || "#10B981"; // Default verde per Normale
   };
 
+  // Funzione personalizzata per gestire la chiusura del modal
+  const handleModalClose = () => {
+    // Se si viene da cliente o form preparazione, torna al calendario pulito
+    if (prefilledData) {
+      // Pulisci i dati del modal
+      setEventData({
+        ...INITIAL_EVENT_DATA,
+        CustomerInfo: undefined,
+        TechnicianAssignment: undefined,
+      });
+      setSelectedCustomerId("");
+      setSelectedTechnicianId("");
+
+      // Pulisci anche pendingEventData per non mantenere i dati del cliente
+      if (prefilledData.from_ccc || prefilledData.from_call) {
+        // Chiama il callback per pulire i dati pending dal componente padre
+        if (onModalClose) {
+          onModalClose();
+        }
+      }
+
+      // Naviga al calendario pulito
+      navigate("/calendar", { replace: true });
+    }
+    // Chiudi il modal
+    isClosed();
+  };
+
   return (
     <Modal
       isOpen={isOpen}
-      onClose={isClosed}
+      onClose={handleModalClose}
       size="2xl"
       scrollBehavior="inside"
     >

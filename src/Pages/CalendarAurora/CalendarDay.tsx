@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Icon } from "@iconify/react";
+import { Button } from "@heroui/react";
 import ViewEventModal from "./ViewEventModal";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
@@ -55,7 +56,7 @@ interface CalendarEvent {
 
 interface CalendarDayProps {
   currentDate: Date;
-  onDateClick: (date: Date) => void;
+  onDateClick: (date: Date, hour?: number) => void;
   redLineBehavior: string;
   events: CalendarEvent[];
 }
@@ -141,9 +142,9 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
                     }}
                     className="mx-1 rounded-lg p-2 text-xs font-medium hover:shadow-sm transition-all cursor-pointer mb-1 last:mb-0 border border-opacity-30"
                     style={{
-                      backgroundColor: event.EventColor + '15',
+                      backgroundColor: event.EventColor + "15",
                       borderColor: event.EventColor,
-                      color: 'currentColor'
+                      color: "currentColor",
                     }}
                   >
                     <div className="truncate text-foreground">
@@ -155,11 +156,24 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
             );
           })()}
         </div>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="flat"
+            size="sm"
+            onPress={() => onDateClick(currentDate)}
+            className="text-xs"
+          >
+            Aggiungi Evento
+          </Button>
+        </div>
       </div>
 
       {/* Area principale con scroll sincronizzato */}
       <div className="flex-1 overflow-y-auto bg-background" ref={scrollRef}>
-        <div className="flex relative" style={{ height: `${24 * ROW_HEIGHT}px` }}>
+        <div
+          className="flex relative"
+          style={{ height: `${24 * ROW_HEIGHT}px` }}
+        >
           {/* Colonna delle ore - sticky */}
           <div className="w-16 flex-shrink-0">
             {HOURS.map((hour) => (
@@ -180,11 +194,16 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
               <div
                 key={hour}
                 className="absolute w-full group hover:bg-default-100 dark:hover:bg-default-200 transition-colors cursor-pointer border-b border-default-200 dark:border-default-300"
-                style={{ 
+                style={{
                   height: `${ROW_HEIGHT}px`,
-                  top: `${hour * ROW_HEIGHT}px`
+                  top: `${hour * ROW_HEIGHT}px`,
                 }}
-                onClick={() => onDateClick(currentDate)}
+                onClick={() => {
+                  // Crea una data con l'ora specifica
+                  const dateWithHour = new Date(currentDate);
+                  dateWithHour.setHours(hour, 0, 0, 0);
+                  onDateClick(dateWithHour, hour);
+                }}
               />
             ))}
 
@@ -192,15 +211,21 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
             {(() => {
               // Raggruppa eventi per ora per gestire sovrapposizioni
               const eventsByHour: { [hour: number]: CalendarEvent[] } = {};
-              
+
               events.forEach((event) => {
                 const eventStartDate = new Date(event.EventStartDate);
-                const eventStartHour = parseInt(event.EventStartTime.split(":")[0]);
-                
+                const eventStartHour = parseInt(
+                  event.EventStartTime.split(":")[0]
+                );
+
                 // Verifica se l'evento è nel giorno corrente
-                if (currentDate.toDateString() === eventStartDate.toDateString()) {
+                if (
+                  currentDate.toDateString() === eventStartDate.toDateString()
+                ) {
                   // Non includere eventi di tutto il giorno
-                  if (!(eventStartHour === 0 && event.EventEndTime === "00:00")) {
+                  if (
+                    !(eventStartHour === 0 && event.EventEndTime === "00:00")
+                  ) {
                     if (!eventsByHour[eventStartHour]) {
                       eventsByHour[eventStartHour] = [];
                     }
@@ -210,112 +235,160 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
               });
 
               // Renderizza tutti gli eventi
-              return Object.entries(eventsByHour).flatMap(([hourStr, hourEvents]) => {
-                return hourEvents.map((event, index) => {
-                  const eventStartHour = parseInt(event.EventStartTime.split(":")[0]);
-                  const eventEndHour = parseInt(event.EventEndTime.split(":")[0]);
-                  const eventStartMinutes = parseInt(event.EventStartTime.split(":")[1]);
-                  const eventEndMinutes = parseInt(event.EventEndTime.split(":")[1]);
+              return Object.entries(eventsByHour).flatMap(
+                ([hourStr, hourEvents]) => {
+                  return hourEvents.map((event, index) => {
+                    const eventStartHour = parseInt(
+                      event.EventStartTime.split(":")[0]
+                    );
+                    const eventEndHour = parseInt(
+                      event.EventEndTime.split(":")[0]
+                    );
+                    const eventStartMinutes = parseInt(
+                      event.EventStartTime.split(":")[1]
+                    );
+                    const eventEndMinutes = parseInt(
+                      event.EventEndTime.split(":")[1]
+                    );
 
-                  const duration = eventEndHour + eventEndMinutes / 60 - (eventStartHour + eventStartMinutes / 60);
-                  const topOffset = (eventStartHour + eventStartMinutes / 60) * ROW_HEIGHT;
-                  
-                  // Calcola posizione per eventi sovrapposti
-                  const totalEvents = hourEvents.length;
-                  const eventWidth = totalEvents > 1 ? `calc(${95 / totalEvents}% - 2px)` : 'calc(95% - 4px)';
-                  const leftOffset = totalEvents > 1 ? `calc(${(95 / totalEvents) * index}% + 4px)` : '4px';
+                    const duration =
+                      eventEndHour +
+                      eventEndMinutes / 60 -
+                      (eventStartHour + eventStartMinutes / 60);
+                    const topOffset =
+                      (eventStartHour + eventStartMinutes / 60) * ROW_HEIGHT;
 
-                                        const technicianName = event.TechnicianAssignment?.technician_name || 'Non assegnato';
-                      const customerName = event.CustomerInfo?.customer_name || 'Cliente N/A';
-                      
-                      return (
-                        <div
-                          key={event.EventId}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsOpen(true);
-                            setSelectedEventId(event.EventId);
-                          }}
-                          className="absolute rounded-lg p-2 text-sm cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 border border-opacity-50 overflow-hidden"
-                          style={{
-                            backgroundColor: event.EventColor + '20',
-                            borderColor: event.EventColor,
-                            borderLeftWidth: '3px',
-                            borderLeftColor: event.EventColor,
-                            zIndex: 10 + index,
-                            height: `${Math.max(duration * ROW_HEIGHT - 2, ROW_HEIGHT * 0.8)}px`,
-                            top: `${topOffset + 1}px`,
-                            width: eventWidth,
-                            left: leftOffset,
-                          }}
-                          title={`${event.EventTitle}\n${event.EventStartTime} - ${event.EventEndTime}\nTecnico: ${technicianName}\nCliente: ${customerName}\nLocation: ${event.EventLocation || 'N/A'}`}
-                        >
-                          <div className="h-full flex flex-col justify-start overflow-hidden">
-                            {/* Titolo evento - sempre visibile */}
-                            <div className="font-medium text-foreground text-xs truncate">
-                              {event.EventTitle}
-                            </div>
-                            
-                            {/* VISTA GIORNALIERA - Soglie basse per mostrare più info */}
-                            
-                            {/* Orario - quasi sempre visibile */}
-                            {duration > 0.5 && (
-                              <div className="text-xs text-default-600 opacity-90 mt-0.5">
-                                {event.EventStartTime} - {event.EventEndTime}
-                              </div>
-                            )}
-                            
-                            {/* Tecnico - priorità alta, soglia bassa */}
-                            {duration > 0.8 && (
-                              <div className="flex items-center gap-1 mt-1">
-                                <Icon icon="solar:wrench-bold" width={10} className="text-default-500 flex-shrink-0" />
-                                <div className="text-xs text-default-700 font-medium truncate">
-                                  {technicianName}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Cliente - priorità alta, soglia bassa */}
-                            {duration > 1.1 && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Icon icon="solar:user-bold" width={10} className="text-default-500 flex-shrink-0" />
-                                <div className="text-xs text-default-600 truncate">
-                                  {customerName}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Location - soglia media */}
-                            {duration > 1.5 && event.EventLocation && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Icon icon="solar:map-point-bold" width={10} className="text-default-500 flex-shrink-0" />
-                                <div className="text-xs text-default-500 truncate">
-                                  {event.EventLocation}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Tipo intervento - se c'è spazio */}
-                            {duration > 2.0 && event.EventType && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Icon icon="solar:settings-bold" width={10} className="text-default-500 flex-shrink-0" />
-                                <div className="text-xs text-default-500 truncate">
-                                  {event.EventType}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Descrizione - se c'è molto spazio */}
-                            {duration > 2.8 && event.EventDescription && (
-                              <div className="text-xs text-default-600 mt-1 line-clamp-2 opacity-80">
-                                {event.EventDescription}
-                              </div>
-                            )}
+                    // Calcola posizione per eventi sovrapposti
+                    const totalEvents = hourEvents.length;
+                    const eventWidth =
+                      totalEvents > 1
+                        ? `calc(${95 / totalEvents}% - 2px)`
+                        : "calc(95% - 4px)";
+                    const leftOffset =
+                      totalEvents > 1
+                        ? `calc(${(95 / totalEvents) * index}% + 4px)`
+                        : "4px";
+
+                    const technicianName =
+                      event.TechnicianAssignment?.technician_name ||
+                      "Non assegnato";
+                    const customerName =
+                      event.CustomerInfo?.customer_name || "Cliente N/A";
+
+                    return (
+                      <div
+                        key={event.EventId}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsOpen(true);
+                          setSelectedEventId(event.EventId);
+                        }}
+                        className="absolute rounded-lg p-2 text-sm cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 border border-opacity-50 overflow-hidden"
+                        style={{
+                          backgroundColor: event.EventColor + "20",
+                          borderColor: event.EventColor,
+                          borderLeftWidth: "3px",
+                          borderLeftColor: event.EventColor,
+                          zIndex: 10 + index,
+                          height: `${Math.max(
+                            duration * ROW_HEIGHT - 2,
+                            ROW_HEIGHT * 0.8
+                          )}px`,
+                          top: `${topOffset + 1}px`,
+                          width: eventWidth,
+                          left: leftOffset,
+                        }}
+                        title={`${event.EventTitle}\n${
+                          event.EventStartTime
+                        } - ${
+                          event.EventEndTime
+                        }\nTecnico: ${technicianName}\nCliente: ${customerName}\nLocation: ${
+                          event.EventLocation || "N/A"
+                        }`}
+                      >
+                        <div className="h-full flex flex-col justify-start overflow-hidden">
+                          {/* Titolo evento - sempre visibile */}
+                          <div className="font-medium text-foreground text-xs truncate">
+                            {event.EventTitle}
                           </div>
+
+                          {/* VISTA GIORNALIERA - Soglie basse per mostrare più info */}
+
+                          {/* Orario - quasi sempre visibile */}
+                          {duration > 0.5 && (
+                            <div className="text-xs text-default-600 opacity-90 mt-0.5">
+                              {event.EventStartTime} - {event.EventEndTime}
+                            </div>
+                          )}
+
+                          {/* Tecnico - priorità alta, soglia bassa */}
+                          {duration > 0.8 && (
+                            <div className="flex items-center gap-1 mt-1">
+                              <Icon
+                                icon="solar:wrench-bold"
+                                width={10}
+                                className="text-default-500 flex-shrink-0"
+                              />
+                              <div className="text-xs text-default-700 font-medium truncate">
+                                {technicianName}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Cliente - priorità alta, soglia bassa */}
+                          {duration > 1.1 && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Icon
+                                icon="solar:user-bold"
+                                width={10}
+                                className="text-default-500 flex-shrink-0"
+                              />
+                              <div className="text-xs text-default-600 truncate">
+                                {customerName}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Location - soglia media */}
+                          {duration > 1.5 && event.EventLocation && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Icon
+                                icon="solar:map-point-bold"
+                                width={10}
+                                className="text-default-500 flex-shrink-0"
+                              />
+                              <div className="text-xs text-default-500 truncate">
+                                {event.EventLocation}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Tipo intervento - se c'è spazio */}
+                          {duration > 2.0 && event.EventType && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Icon
+                                icon="solar:settings-bold"
+                                width={10}
+                                className="text-default-500 flex-shrink-0"
+                              />
+                              <div className="text-xs text-default-500 truncate">
+                                {event.EventType}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Descrizione - se c'è molto spazio */}
+                          {duration > 2.8 && event.EventDescription && (
+                            <div className="text-xs text-default-600 mt-1 line-clamp-2 opacity-80">
+                              {event.EventDescription}
+                            </div>
+                          )}
                         </div>
-                      );
-                });
-              });
+                      </div>
+                    );
+                  });
+                }
+              );
             })()}
 
             {/* Linea rossa per l'ora corrente */}

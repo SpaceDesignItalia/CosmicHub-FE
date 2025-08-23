@@ -32,7 +32,7 @@ import PageHeader from "../../Components/Layout/PageHeader";
 
 const urgencyColorMap = {
   low: "success",
-  medium: "warning", 
+  medium: "warning",
   high: "danger",
   emergency: "danger",
 } as const;
@@ -128,7 +128,8 @@ export default function Calls() {
         caller_phone: "+39 02 87654321",
         call_date: new Date("2024-12-09T16:45:00"),
         call_time: "16:45",
-        problem_description: "Manutenzione programmata impianto climatizzazione",
+        problem_description:
+          "Manutenzione programmata impianto climatizzazione",
         urgency_level: "low",
         call_source: "email",
         status: "intervention_assigned",
@@ -154,7 +155,9 @@ export default function Calls() {
         (call) =>
           call.caller_name.toLowerCase().includes(filterValue.toLowerCase()) ||
           call.caller_phone.includes(filterValue) ||
-          call.problem_description.toLowerCase().includes(filterValue.toLowerCase())
+          call.problem_description
+            .toLowerCase()
+            .includes(filterValue.toLowerCase())
       );
     }
 
@@ -177,7 +180,14 @@ export default function Calls() {
     }
 
     return filteredCalls;
-  }, [calls, filterValue, statusFilter, urgencyFilter, sourceFilter, hasSearchFilter]);
+  }, [
+    calls,
+    filterValue,
+    statusFilter,
+    urgencyFilter,
+    sourceFilter,
+    hasSearchFilter,
+  ]);
 
   const pages = Math.ceil(filteredItems.length / rowsPerPage);
 
@@ -203,10 +213,10 @@ export default function Calls() {
   }, [sortDescriptor, items]);
 
   const formatDateTime = (date: Date, time: string) => {
-    const formattedDate = new Intl.DateTimeFormat('it-IT', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric'
+    const formattedDate = new Intl.DateTimeFormat("it-IT", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
     }).format(date);
     return `${formattedDate} - ${time}`;
   };
@@ -215,8 +225,8 @@ export default function Calls() {
     const labels = {
       low: "Bassa",
       medium: "Media",
-      high: "Alta", 
-      emergency: "Emergenza"
+      high: "Alta",
+      emergency: "Emergenza",
     };
     return labels[urgency as keyof typeof labels] || urgency;
   };
@@ -227,7 +237,7 @@ export default function Calls() {
       appointment_scheduled: "Appuntamento Fissato",
       intervention_assigned: "Intervento Assegnato",
       completed: "Completata",
-      cancelled: "Annullata"
+      cancelled: "Annullata",
     };
     return labels[status as keyof typeof labels] || status;
   };
@@ -238,146 +248,171 @@ export default function Calls() {
       email: "Email",
       whatsapp: "WhatsApp",
       website: "Sito Web",
-      walk_in: "Di Persona"
+      walk_in: "Di Persona",
     };
     return labels[source as keyof typeof labels] || source;
   };
 
-  const renderCell = React.useCallback((call: Call, columnKey: React.Key) => {
-    const cellValue = call[columnKey as keyof Call];
+  const renderCell = React.useCallback(
+    (call: Call, columnKey: React.Key) => {
+      const cellValue = call[columnKey as keyof Call];
 
-    switch (columnKey) {
-      case "caller_name":
-        return (
-          <div className="flex flex-col">
-            <p className="text-bold text-small">{call.caller_name}</p>
-            {call.is_new_customer && (
-              <Chip size="sm" color="warning" variant="flat">
-                Nuovo Cliente
-              </Chip>
-            )}
-          </div>
-        );
-      case "caller_phone":
-        return (
-          <p className="text-small">
-            <a href={`tel:${call.caller_phone}`} className="text-primary hover:underline">
-              {call.caller_phone}
-            </a>
-          </p>
-        );
-      case "call_date":
-        return (
-          <p className="text-small">
-            {formatDateTime(call.call_date, call.call_time)}
-          </p>
-        );
-      case "urgency_level":
-        return (
-          <Chip
-            className="capitalize"
-            color={urgencyColorMap[call.urgency_level]}
-            size="sm"
-            variant="flat"
-          >
-            {getUrgencyLabel(call.urgency_level)}
-          </Chip>
-        );
-      case "call_source":
-        return (
-          <Chip
-            className="capitalize"
-            color={sourceColorMap[call.call_source]}
-            size="sm"
-            variant="flat"
-          >
-            {getSourceLabel(call.call_source)}
-          </Chip>
-        );
-      case "status":
-        return (
-          <Chip
-            className="capitalize"
-            color={statusColorMap[call.status]}
-            size="sm"
-            variant="flat"
-          >
-            {getStatusLabel(call.status)}
-          </Chip>
-        );
-      case "problem_description":
-        return (
-          <p className="text-small max-w-xs truncate" title={call.problem_description}>
-            {call.problem_description}
-          </p>
-        );
-      case "actions":
-        return (
-          <div className="relative flex justify-end items-center gap-2">
-            <Dropdown>
-              <DropdownTrigger>
-                <Button isIconOnly size="sm" variant="light">
-                  <Icon icon="solar:menu-dots-vertical-bold" width={16} />
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu>
-                <DropdownItem
-                  key="view"
-                  startContent={<Icon icon="solar:eye-bold" width={16} />}
-                  onPress={() => navigate(`/calls/${call.call_id}`)}
-                >
-                  Visualizza
-                </DropdownItem>
-                                 {call.is_new_customer ? (
-                   <DropdownItem
-                     key="create_customer"
-                     startContent={<Icon icon="solar:user-plus-rounded-bold" width={16} />}
-                     onPress={() => navigate(`/customers/add?from_call=${call.call_id}`)}
-                   >
-                     Crea Cliente
-                   </DropdownItem>
-                 ) : null}
-                <DropdownItem
-                  key="schedule"
-                  startContent={<Icon icon="solar:calendar-add-bold" width={16} />}
-                  onPress={() => navigate(`/calendar/new?call_id=${call.call_id}`)}
-                >
-                  Fissa Appuntamento
-                </DropdownItem>
-                <DropdownItem
-                  key="assign"
-                  startContent={<Icon icon="solar:user-check-rounded-bold" width={16} />}
-                  onPress={() => navigate(`/interventions/assign?call_id=${call.call_id}`)}
-                >
-                  Assegna Intervento
-                </DropdownItem>
-                <DropdownItem
-                  key="edit"
-                  startContent={<Icon icon="solar:pen-bold" width={16} />}
-                  onPress={() => navigate(`/calls/edit/${call.call_id}`)}
-                >
-                  Modifica
-                </DropdownItem>
-                <DropdownItem
-                  key="delete"
-                  className="text-danger"
-                  color="danger"
-                  startContent={<Icon icon="solar:trash-bin-trash-bold" width={16} />}
-                  onPress={() => {
-                    setCallToDelete(call);
-                    onOpen();
-                  }}
-                >
-                  Elimina
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
-          </div>
-        );
-      default:
-        return cellValue?.toString();
-    }
-  }, [navigate, onOpen]);
+      switch (columnKey) {
+        case "caller_name":
+          return (
+            <div className="flex flex-col">
+              <p className="text-bold text-small">{call.caller_name}</p>
+              {call.is_new_customer && (
+                <Chip size="sm" color="warning" variant="flat">
+                  Nuovo Cliente
+                </Chip>
+              )}
+            </div>
+          );
+        case "caller_phone":
+          return (
+            <p className="text-small">
+              <a
+                href={`tel:${call.caller_phone}`}
+                className="text-primary hover:underline"
+              >
+                {call.caller_phone}
+              </a>
+            </p>
+          );
+        case "call_date":
+          return (
+            <p className="text-small">
+              {formatDateTime(call.call_date, call.call_time)}
+            </p>
+          );
+        case "urgency_level":
+          return (
+            <Chip
+              className="capitalize"
+              color={urgencyColorMap[call.urgency_level]}
+              size="sm"
+              variant="flat"
+            >
+              {getUrgencyLabel(call.urgency_level)}
+            </Chip>
+          );
+        case "call_source":
+          return (
+            <Chip
+              className="capitalize"
+              color={sourceColorMap[call.call_source]}
+              size="sm"
+              variant="flat"
+            >
+              {getSourceLabel(call.call_source)}
+            </Chip>
+          );
+        case "status":
+          return (
+            <Chip
+              className="capitalize"
+              color={statusColorMap[call.status]}
+              size="sm"
+              variant="flat"
+            >
+              {getStatusLabel(call.status)}
+            </Chip>
+          );
+        case "problem_description":
+          return (
+            <p
+              className="text-small max-w-xs truncate"
+              title={call.problem_description}
+            >
+              {call.problem_description}
+            </p>
+          );
+        case "actions":
+          return (
+            <div className="relative flex justify-end items-center gap-2">
+              <Dropdown>
+                <DropdownTrigger>
+                  <Button isIconOnly size="sm" variant="light">
+                    <Icon icon="solar:menu-dots-vertical-bold" width={16} />
+                  </Button>
+                </DropdownTrigger>
+                <DropdownMenu>
+                  <DropdownItem
+                    key="view"
+                    startContent={<Icon icon="solar:eye-bold" width={16} />}
+                    onPress={() => navigate(`/calls/${call.call_id}`)}
+                  >
+                    Visualizza
+                  </DropdownItem>
+                  {call.is_new_customer ? (
+                    <DropdownItem
+                      key="create_customer"
+                      startContent={
+                        <Icon icon="solar:user-plus-rounded-bold" width={16} />
+                      }
+                      onPress={() =>
+                        navigate(`/customers/add?from_call=${call.call_id}`)
+                      }
+                    >
+                      Crea Cliente
+                    </DropdownItem>
+                  ) : null}
+                  <DropdownItem
+                    key="schedule"
+                    startContent={
+                      <Icon icon="solar:calendar-add-bold" width={16} />
+                    }
+                    onPress={() =>
+                      navigate(
+                        `/calendar?call_id=${call.call_id}&creating_event=true`
+                      )
+                    }
+                  >
+                    Fissa Appuntamento
+                  </DropdownItem>
+                  <DropdownItem
+                    key="assign"
+                    startContent={
+                      <Icon icon="solar:user-check-rounded-bold" width={16} />
+                    }
+                    onPress={() =>
+                      navigate(`/interventions/assign?call_id=${call.call_id}`)
+                    }
+                  >
+                    Assegna Intervento
+                  </DropdownItem>
+                  <DropdownItem
+                    key="edit"
+                    startContent={<Icon icon="solar:pen-bold" width={16} />}
+                    onPress={() => navigate(`/calls/edit/${call.call_id}`)}
+                  >
+                    Modifica
+                  </DropdownItem>
+                  <DropdownItem
+                    key="delete"
+                    className="text-danger"
+                    color="danger"
+                    startContent={
+                      <Icon icon="solar:trash-bin-trash-bold" width={16} />
+                    }
+                    onPress={() => {
+                      setCallToDelete(call);
+                      onOpen();
+                    }}
+                  >
+                    Elimina
+                  </DropdownItem>
+                </DropdownMenu>
+              </Dropdown>
+            </div>
+          );
+        default:
+          return cellValue?.toString();
+      }
+    },
+    [navigate, onOpen]
+  );
 
   const onSearchChange = React.useCallback((value?: string) => {
     if (value) {
@@ -410,7 +445,9 @@ export default function Calls() {
             <Dropdown>
               <DropdownTrigger className="hidden sm:flex">
                 <Button
-                  endContent={<Icon icon="solar:alt-arrow-down-linear" width={16} />}
+                  endContent={
+                    <Icon icon="solar:alt-arrow-down-linear" width={16} />
+                  }
                   variant="flat"
                 >
                   Stato
@@ -425,8 +462,12 @@ export default function Calls() {
                 onSelectionChange={setStatusFilter}
               >
                 <DropdownItem key="pending">In Attesa</DropdownItem>
-                <DropdownItem key="appointment_scheduled">Appuntamento Fissato</DropdownItem>
-                <DropdownItem key="intervention_assigned">Intervento Assegnato</DropdownItem>
+                <DropdownItem key="appointment_scheduled">
+                  Appuntamento Fissato
+                </DropdownItem>
+                <DropdownItem key="intervention_assigned">
+                  Intervento Assegnato
+                </DropdownItem>
                 <DropdownItem key="completed">Completata</DropdownItem>
                 <DropdownItem key="cancelled">Annullata</DropdownItem>
               </DropdownMenu>
@@ -434,7 +475,9 @@ export default function Calls() {
             <Dropdown>
               <DropdownTrigger className="hidden sm:flex">
                 <Button
-                  endContent={<Icon icon="solar:alt-arrow-down-linear" width={16} />}
+                  endContent={
+                    <Icon icon="solar:alt-arrow-down-linear" width={16} />
+                  }
                   variant="flat"
                 >
                   Urgenza
@@ -456,7 +499,9 @@ export default function Calls() {
             </Dropdown>
             <Button
               color="primary"
-              endContent={<Icon icon="solar:phone-calling-rounded-bold" width={16} />}
+              endContent={
+                <Icon icon="solar:phone-calling-rounded-bold" width={16} />
+              }
               onPress={() => navigate("/calls/new")}
             >
               Nuova Chiamata
@@ -481,7 +526,15 @@ export default function Calls() {
         </div>
       </div>
     );
-  }, [filterValue, statusFilter, urgencyFilter, calls.length, onSearchChange, onClear, navigate]);
+  }, [
+    filterValue,
+    statusFilter,
+    urgencyFilter,
+    calls.length,
+    onSearchChange,
+    onClear,
+    navigate,
+  ]);
 
   const bottomContent = useMemo(() => {
     return (
@@ -501,7 +554,12 @@ export default function Calls() {
           onChange={setPage}
         />
         <div className="hidden sm:flex w-[30%] justify-end gap-2">
-          <Button isDisabled={pages === 1} size="sm" variant="flat" onPress={() => setPage(1)}>
+          <Button
+            isDisabled={pages === 1}
+            size="sm"
+            variant="flat"
+            onPress={() => setPage(1)}
+          >
             Prima
           </Button>
           <Button
@@ -523,10 +581,10 @@ export default function Calls() {
     try {
       // Qui implementare la chiamata API per eliminare la chiamata
       console.log("Eliminating call:", callToDelete.call_id);
-      
+
       // Aggiorna la lista locale
-      setCalls(calls.filter(c => c.call_id !== callToDelete.call_id));
-      
+      setCalls(calls.filter((c) => c.call_id !== callToDelete.call_id));
+
       onClose();
       setCallToDelete(null);
     } catch (error) {
@@ -541,7 +599,7 @@ export default function Calls() {
         description="Gestisci tutte le chiamate ricevute e organizza gli interventi"
         icon="solar:phone-calling-rounded-bold-duotone"
       />
-      
+
       <div className="flex-1 p-6 overflow-auto">
         <Card>
           <CardBody className="px-0">
@@ -572,10 +630,16 @@ export default function Calls() {
                   </TableColumn>
                 )}
               </TableHeader>
-              <TableBody emptyContent={"Nessuna chiamata trovata"} items={sortedItems} isLoading={loading}>
+              <TableBody
+                emptyContent={"Nessuna chiamata trovata"}
+                items={sortedItems}
+                isLoading={loading}
+              >
                 {(item) => (
                   <TableRow key={item.call_id}>
-                    {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
+                    {(columnKey) => (
+                      <TableCell>{renderCell(item, columnKey)}</TableCell>
+                    )}
                   </TableRow>
                 )}
               </TableBody>
@@ -615,4 +679,4 @@ export default function Calls() {
       </Modal>
     </div>
   );
-} 
+}
