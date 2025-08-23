@@ -84,7 +84,7 @@ interface CalendarEvent {
     | "repair"
     | "installation"
     | "consultation";
-  EventPriority?: "low" | "medium" | "high" | "emergency";
+  EventPriority?: "Normale" | "Alta" | "Urgente" | "Emergenza";
   EstimatedDuration?: number;
   CustomerInfo?: CustomerInfo;
   TechnicianAssignment?: TechnicianAssignment;
@@ -98,6 +98,17 @@ interface EventTag {
   EventTagName: string;
   EventTagColor: string;
 }
+
+// Funzione per ottenere il colore in base alla priorità
+const getPriorityColor = (priority: string) => {
+  const colorMap: { [key: string]: string } = {
+    Normale: "#10B981", // Verde
+    Alta: "#F59E0B", // Giallo/Arancione
+    Urgente: "#F97316", // Arancione
+    Emergenza: "#DC2626", // Rosso scuro
+  };
+  return colorMap[priority] || "#10B981"; // Default verde per Normale
+};
 
 // CosmicHub color scheme ottimizzato per visibilità in entrambi i temi
 const appointmentColors = [
@@ -220,14 +231,33 @@ export default function CalendarAurora() {
   }, []);
 
   const loadData = () => {
-    axios.get("Customer/GET/GetAllEvents").then((res) => {
-      console.log(res.data);
-      setEvents(res.data);
+    console.log("🔄 Caricamento eventi...");
+    axios
+      .get("Customer/GET/GetAllEvents")
+      .then((res) => {
+        console.log("📅 Eventi ricevuti:", res.data);
+        console.log("📊 Numero eventi:", res.data?.length || 0);
 
-      if (res.status === 200) {
+        // Processa gli eventi per applicare i colori in base alla priorità
+        const processedEvents = res.data.map((event: any) => ({
+          ...event,
+          EventColor: event.EventPriority
+            ? getPriorityColor(event.EventPriority)
+            : event.EventColor || "#3B82F6",
+        }));
+
+        console.log("🎨 Eventi processati:", processedEvents);
+        setEvents(processedEvents);
+
+        if (res.status === 200) {
+          setLoading(false);
+          console.log("✅ Eventi caricati con successo");
+        }
+      })
+      .catch((error) => {
+        console.error("❌ Errore caricamento eventi:", error);
         setLoading(false);
-      }
-    });
+      });
   };
 
   const handleEventCreationWorkflow = () => {
@@ -253,7 +283,16 @@ export default function CalendarAurora() {
 
       setPendingEventData(cccData);
       setShowPrefilledBanner(true);
-      // NON aprire il modal automaticamente
+
+      // Apri automaticamente il modal con i dati precompilati
+      // Usa la data corrente come data selezionata
+      const currentDateString = currentDate.toISOString().split("T")[0];
+      const dataWithCurrentDate = {
+        ...cccData,
+        selectedDate: currentDateString,
+      };
+      setPrefilledEventData(dataWithCurrentDate);
+      setIsOpen(true);
     } else if (isCreatingEvent) {
       // Pre-fill data from NewEvent form - salva i dati ma NON aprire il modal
       const eventData = {
@@ -287,7 +326,16 @@ export default function CalendarAurora() {
 
       setPendingEventData(eventData);
       setShowPrefilledBanner(true);
-      // NON aprire il modal automaticamente
+
+      // Apri automaticamente il modal con i dati precompilati
+      // Usa la data corrente come data selezionata
+      const currentDateString = currentDate.toISOString().split("T")[0];
+      const dataWithCurrentDate = {
+        ...eventData,
+        selectedDate: currentDateString,
+      };
+      setPrefilledEventData(dataWithCurrentDate);
+      setIsOpen(true);
     } else if (isNewAppointment) {
       handleNewAppointment();
     }
@@ -320,13 +368,13 @@ export default function CalendarAurora() {
       // Aggiungi la data selezionata ai dati precompilati
       // Usa toLocaleDateString per evitare problemi di fuso orario
       const year = date.getFullYear();
-      const month = String(date.getMonth() + 1).padStart(2, '0');
-      const day = String(date.getDate()).padStart(2, '0');
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
       const selectedDate = `${year}-${month}-${day}`;
-      
+
       const dataWithSelectedDate = {
         ...pendingEventData,
-        selectedDate: selectedDate
+        selectedDate: selectedDate,
       };
       setPrefilledEventData(dataWithSelectedDate);
       setIsOpen(true);
@@ -597,6 +645,21 @@ export default function CalendarAurora() {
           }
         }}
         prefilledData={prefilledEventData}
+        eventTags={eventTags}
+        technicians={technicians}
+        onEventCreated={(event) => {
+          // Aggiungi il nuovo evento alla lista
+          setEvents((prev) => [...prev, event]);
+
+          // Ricarica i dati dal server per essere sicuri di avere tutto aggiornato
+          setTimeout(() => {
+            loadData();
+          }, 500);
+
+          // Solo ora puliamo i dati pending dopo il salvataggio
+          setPendingEventData(null);
+          setShowPrefilledBanner(false);
+        }}
       />
 
       <ViewEventModal
@@ -613,7 +676,7 @@ export default function CalendarAurora() {
               e.EventId === updatedEvent.EventId ? updatedEvent : e
             )
           );
-          
+
           // Ricarica i dati dal server per essere sicuri
           setTimeout(() => {
             loadData();
@@ -624,36 +687,11 @@ export default function CalendarAurora() {
           setEvents((prev) => prev.filter((e) => e.EventId !== deletedEventId));
           setIsViewOpen(false);
           setSelectedEvent(null);
-          
+
           // Ricarica i dati dal server per essere sicuri
           setTimeout(() => {
             loadData();
           }, 500);
-        }}
-      />
-
-      <AddEventModal
-        isOpen={isOpen}
-        isClosed={() => {
-          setIsOpen(false);
-          setPrefilledEventData(null);
-          // NON pulire pendingEventData qui - permettiamo all'utente di scegliere un altro giorno
-        }}
-        prefilledData={prefilledEventData}
-        eventTags={eventTags}
-        technicians={technicians}
-        onEventCreated={(event) => {
-          // Aggiungi il nuovo evento alla lista
-          setEvents((prev) => [...prev, event]);
-          
-          // Ricarica i dati dal server per essere sicuri di avere tutto aggiornato
-          setTimeout(() => {
-            loadData();
-          }, 500);
-          
-          // Solo ora puliamo i dati pending dopo il salvataggio
-          setPendingEventData(null);
-          setShowPrefilledBanner(false);
         }}
       />
     </div>

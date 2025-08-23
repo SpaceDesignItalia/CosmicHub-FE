@@ -35,13 +35,6 @@ const customerTypeColorMap = {
   business: "warning",
 } as const;
 
-const urgencyColorMap = {
-  low: "default",
-  medium: "warning",
-  high: "danger",
-  emergency: "danger",
-} as const;
-
 export default function CustomerDetail() {
   const navigate = useNavigate();
   const { customerId } = useParams<{ customerId: string }>();
@@ -57,7 +50,7 @@ export default function CustomerDetail() {
   const [quickBookingData, setQuickBookingData] = useState<QuickBookingData>({
     customer_id: "",
     problem_description: "",
-    urgency_level: "medium",
+    urgency_level: "Normale", // Cambiato da stringa vuota a "Normale"
     intervention_type: "inspection",
     estimated_duration: 60,
     preferred_date: new Date(),
@@ -170,15 +163,15 @@ export default function CustomerDetail() {
       setCustomers(customers);
       setTechnicians(technicians);
 
-              // Trova il cliente specifico
-        const foundCustomer = customers.find((c) => c.customer_id === customerId);
-        if (foundCustomer) {
-          setCustomer(foundCustomer);
-          setQuickBookingData((prev) => ({
-            ...prev,
-            customer_id: foundCustomer.customer_id,
-            location: foundCustomer.address, // Pre-compila l'ubicazione con l'indirizzo del cliente
-          }));
+      // Trova il cliente specifico
+      const foundCustomer = customers.find((c) => c.customer_id === customerId);
+      if (foundCustomer) {
+        setCustomer(foundCustomer);
+        setQuickBookingData((prev) => ({
+          ...prev,
+          customer_id: foundCustomer.customer_id,
+          location: foundCustomer.address, // Pre-compila l'ubicazione con l'indirizzo del cliente
+        }));
 
         // Carica interventi e pagamenti per questo cliente
         try {
@@ -242,7 +235,7 @@ export default function CustomerDetail() {
     if (!customer) return;
 
     const bookingParams = new URLSearchParams({
-      creating_event: "true",
+      creating_event: "true", // Flag per indicare che si sta creando un nuovo evento
 
       // Dati evento base
       title: quickBookingData.problem_description,
@@ -279,7 +272,7 @@ export default function CustomerDetail() {
 
     console.log(bookingParams.toString());
 
-    // Navigate to calendar with all the data
+    // Navigate to calendar - the modal will open automatically with prefilled data
     navigate(`/calendar?${bookingParams.toString()}`);
   };
 
@@ -688,19 +681,15 @@ export default function CustomerDetail() {
                       onSelectionChange={(keys) =>
                         setQuickBookingData((prev) => ({
                           ...prev,
-                          urgency_level: Array.from(keys)[0] as
-                            | "low"
-                            | "medium"
-                            | "high"
-                            | "emergency",
+                          urgency_level: Array.from(keys)[0] as string,
                         }))
                       }
                       size="sm"
                     >
-                      <SelectItem key="low">🟢 Bassa</SelectItem>
-                      <SelectItem key="medium">🟡 Media</SelectItem>
-                      <SelectItem key="high">🟠 Alta</SelectItem>
-                      <SelectItem key="emergency">🔴 Emergenza</SelectItem>
+                      <SelectItem key="Normale">🟢 Normale</SelectItem>
+                      <SelectItem key="Alta">🟡 Alta</SelectItem>
+                      <SelectItem key="Urgente">🟠 Urgente</SelectItem>
+                      <SelectItem key="Emergenza">🔴 Emergenza</SelectItem>
                     </Select>
                   </div>
 
@@ -794,7 +783,10 @@ export default function CustomerDetail() {
                     size="lg"
                     className="w-full font-semibold"
                     onPress={handleBookingNavigation}
-                    isDisabled={!quickBookingData.problem_description.trim() || !selectedTechnician}
+                    isDisabled={
+                      !quickBookingData.problem_description.trim() ||
+                      !selectedTechnician
+                    }
                     startContent={
                       <Icon icon="solar:calendar-search-bold" width={20} />
                     }

@@ -30,7 +30,7 @@ interface NewEventFormData {
     | "inspection"
     | "maintenance"
     | "consultation";
-  priority: "low" | "medium" | "high" | "emergency";
+  priority: string; // Cambiato da enum a stringa libera
   estimated_duration: number;
   assigned_technician: string;
   assigned_technician_id: string;
@@ -80,13 +80,6 @@ const eventTypeOptions = [
   },
 ];
 
-const priorityOptions = [
-  { key: "low", label: "Bassa", color: "success" },
-  { key: "medium", label: "Media", color: "warning" },
-  { key: "high", label: "Alta", color: "danger" },
-  { key: "emergency", label: "Emergenza", color: "danger" },
-];
-
 export default function NewEvent() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -100,7 +93,7 @@ export default function NewEvent() {
     customer_email: "",
     customer_address: "",
     event_type: "appointment",
-    priority: "medium",
+    priority: "Normale", // Cambiato da stringa vuota a "Normale"
     estimated_duration: 60,
     assigned_technician: "",
     assigned_technician_id: "",
@@ -198,7 +191,8 @@ export default function NewEvent() {
       formData.title.trim() &&
       formData.customer_name.trim() &&
       formData.customer_phone.trim() &&
-      formData.description.trim()
+      formData.description.trim() &&
+      formData.priority.trim() // Aggiunto controllo per priority
     );
   };
 
@@ -338,7 +332,12 @@ export default function NewEvent() {
                     Priorità
                   </label>
                   <div className="grid grid-cols-1 gap-2">
-                    {priorityOptions.map((priority) => (
+                    {[
+                      { key: "Normale", label: "Normale", color: "success" },
+                      { key: "Alta", label: "Alta", color: "warning" },
+                      { key: "Urgente", label: "Urgente", color: "danger" },
+                      { key: "Emergenza", label: "Emergenza", color: "danger" },
+                    ].map((priority) => (
                       <div
                         key={priority.key}
                         className={`p-3 border rounded-lg cursor-pointer transition-colors ${

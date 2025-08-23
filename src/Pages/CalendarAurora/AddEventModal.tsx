@@ -109,26 +109,35 @@ const interventionTypes = [
   "Consulenza",
   "Intervento Tecnico",
 ];
-const priorityLevels = ["Bassa", "Normale", "Alta", "Urgente", "Critica"];
+const priorityLevels = ["Normale", "Alta", "Urgente", "Emergenza"];
 
 // Mapping functions for data conversion
 const getEventTypeMapping = (eventType: string) => {
   const typeMap: { [key: string]: string } = {
+    // Valori dal form cliente
+    inspection: "Ispezione",
+    repair: "Riparazione",
+    maintenance: "Manutenzione",
+    installation: "Installazione",
+    consultation: "Consulenza",
+    // Valori legacy per compatibilità
     appointment: "Intervento Tecnico",
     intervention: "Riparazione",
-    inspection: "Ispezione",
-    maintenance: "Manutenzione",
-    consultation: "Consulenza",
   };
   return typeMap[eventType] || "Intervento Tecnico";
 };
 
 const getPriorityMapping = (priority: string) => {
+  // Mappa le priorità dal form cliente al modal
   const priorityMap: { [key: string]: string } = {
-    low: "Bassa",
+    low: "Normale",
     medium: "Normale",
     high: "Alta",
-    emergency: "Urgente",
+    emergency: "Emergenza",
+    Normale: "Normale",
+    Alta: "Alta",
+    Urgente: "Urgente",
+    Emergenza: "Emergenza",
   };
   return priorityMap[priority] || "Normale";
 };
@@ -140,7 +149,7 @@ const INITIAL_EVENT_DATA: CalendarEvent = {
   EventEndDate: new Date().toISOString().split("T")[0],
   EventStartTime: "09:00",
   EventEndTime: "10:00",
-  EventColor: appointmentColors[2].color,
+  EventColor: "#10B981", // Colore verde per priorità Normale
   EventDescription: "",
   EventLocation: "",
   EventTagId: 1,
@@ -168,7 +177,40 @@ export default function AddEventModal({
   const [showCCCBanner, setShowCCCBanner] = useState(false);
   const [showPreparationBanner, setShowPreparationBanner] = useState(false);
 
+  // Nuovi state per clienti e tecnici
+  const [availableCustomers, setAvailableCustomers] = useState<any[]>([]);
+  const [availableTechnicians, setAvailableTechnicians] = useState<any[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [selectedTechnicianId, setSelectedTechnicianId] = useState<string>("");
+
   const navigate = useNavigate();
+
+  // Funzione per caricare clienti e tecnici disponibili
+  const loadCustomersAndTechnicians = async () => {
+    try {
+      // Carica clienti
+      const customersResponse = await axios.get("Customer/GET/GetAllCustomers");
+      if (customersResponse.data) {
+        setAvailableCustomers(
+          Array.isArray(customersResponse.data) ? customersResponse.data : []
+        );
+      }
+
+      // Carica tecnici (dipendenti)
+      const techniciansResponse = await axios.get(
+        "Employee/GET/GetAllEmployees"
+      );
+      if (techniciansResponse.data) {
+        setAvailableTechnicians(
+          Array.isArray(techniciansResponse.data)
+            ? techniciansResponse.data
+            : []
+        );
+      }
+    } catch (error) {
+      console.error("Errore caricamento clienti/tecnici:", error);
+    }
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -176,6 +218,9 @@ export default function AddEventModal({
       setEventData(INITIAL_EVENT_DATA);
       setShowCCCBanner(false);
       setShowPreparationBanner(false);
+
+      // Carica clienti e tecnici disponibili
+      loadCustomersAndTechnicians();
 
       // Apply prefilled data if coming from CCC or New Event Form
       console.log(prefilledData);
@@ -198,11 +243,17 @@ export default function AddEventModal({
               getEventTypeMapping(prefilledData.event_type) ||
               "Intervento Tecnico",
             EventPriority:
-              getPriorityMapping(prefilledData.priority) || "Normale",
+              getPriorityMapping(
+                prefilledData.priority || prefilledData.urgency_level
+              ) || "Normale",
             EstimatedDuration: prefilledData.estimated_duration || "60",
             // Usa la data selezionata se disponibile, altrimenti usa la data corrente
-            EventStartDate: prefilledData.selectedDate || new Date().toISOString().split("T")[0],
-            EventEndDate: prefilledData.selectedDate || new Date().toISOString().split("T")[0],
+            EventStartDate:
+              prefilledData.selectedDate ||
+              new Date().toISOString().split("T")[0],
+            EventEndDate:
+              prefilledData.selectedDate ||
+              new Date().toISOString().split("T")[0],
             CustomerInfo: {
               customer_id: prefilledData.customer_id || "",
               customer_name: prefilledData.customer_name || "",
@@ -228,8 +279,12 @@ export default function AddEventModal({
             EventPriority: prefilledData.urgency_level || "Normale",
             EstimatedDuration: prefilledData.estimated_duration || "60",
             // Usa la data selezionata se disponibile, altrimenti usa la data corrente
-            EventStartDate: prefilledData.selectedDate || new Date().toISOString().split("T")[0],
-            EventEndDate: prefilledData.selectedDate || new Date().toISOString().split("T")[0],
+            EventStartDate:
+              prefilledData.selectedDate ||
+              new Date().toISOString().split("T")[0],
+            EventEndDate:
+              prefilledData.selectedDate ||
+              new Date().toISOString().split("T")[0],
             CustomerInfo: {
               customer_id: prefilledData.customer_id || "",
               customer_name: prefilledData.customer_name || "",
@@ -248,6 +303,19 @@ export default function AddEventModal({
         }
 
         setEventData(updatedEventData);
+
+        // Imposta i valori selezionati per i select
+        if (prefilledData.customer_id) {
+          setSelectedCustomerId(prefilledData.customer_id);
+        }
+        if (
+          prefilledData.assigned_technician_id ||
+          prefilledData.technician_id
+        ) {
+          setSelectedTechnicianId(
+            prefilledData.assigned_technician_id || prefilledData.technician_id
+          );
+        }
       }
     }
   }, [isOpen, prefilledData]);
@@ -263,7 +331,7 @@ export default function AddEventModal({
     try {
       // Chiamata API per salvare l'evento
       const response = await axios.post("Customer/POST/AddEvent", eventData);
-      
+
       if (response.status === 200) {
         // Usa i dati restituiti dall'API se disponibili, altrimenti usa quelli locali
         const savedEvent = response.data || {
@@ -281,11 +349,14 @@ export default function AddEventModal({
         // Navigate back to customers if from CCC
         if (eventData.IsFromCCC) {
           navigate("/customers");
+        } else if (prefilledData) {
+          // Se viene da cliente o form preparazione, torna al calendario pulito
+          navigate("/calendar", { replace: true });
         }
 
         // Close modal
         isClosed();
-        
+
         // Mostra messaggio di successo
         alert("Evento creato con successo!");
       }
@@ -320,13 +391,12 @@ export default function AddEventModal({
 
   const getPriorityColor = (priority: string) => {
     const colorMap: { [key: string]: string } = {
-      Bassa: "#10B981",
-      Normale: "#3B82F6",
-      Alta: "#F59E0B",
-      Urgente: "#EF4444",
-      Critica: "#DC2626",
+      Normale: "#10B981", // Verde
+      Alta: "#F59E0B", // Giallo/Arancione
+      Urgente: "#F97316", // Arancione
+      Emergenza: "#DC2626", // Rosso scuro
     };
-    return colorMap[priority] || "#3B82F6";
+    return colorMap[priority] || "#10B981"; // Default verde per Normale
   };
 
   return (
@@ -463,17 +533,10 @@ export default function AddEventModal({
                 }));
               }}
             >
-              {priorityLevels.map((priority) => (
-                <SelectItem key={priority}>
-                  <div className="flex items-center gap-2">
-                    <div
-                      className="w-3 h-3 rounded-full"
-                      style={{ backgroundColor: getPriorityColor(priority) }}
-                    />
-                    {priority}
-                  </div>
-                </SelectItem>
-              ))}
+              <SelectItem key="Normale">🟢 Normale</SelectItem>
+              <SelectItem key="Alta">🟡 Alta</SelectItem>
+              <SelectItem key="Urgente">🟠 Urgente</SelectItem>
+              <SelectItem key="Emergenza">🔴 Emergenza</SelectItem>
             </Select>
           </div>
 
@@ -505,43 +568,165 @@ export default function AddEventModal({
             rows={3}
           />
 
-          {/* Customer Info (if from CCC) */}
-          {eventData.CustomerInfo && (
-            <div className="border border-default-200 rounded-lg p-4 bg-default-50">
-              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                <Icon icon="solar:user-bold" width={16} />
-                Informazioni Cliente
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-default-500">Nome:</span>{" "}
-                  {eventData.CustomerInfo.customer_name}
-                </div>
-                <div>
-                  <span className="text-default-500">Telefono:</span>{" "}
-                  {eventData.CustomerInfo.customer_phone}
-                </div>
-                <div className="md:col-span-2">
-                  <span className="text-default-500">Email:</span>{" "}
-                  {eventData.CustomerInfo.customer_email}
-                </div>
-              </div>
-            </div>
-          )}
+          {/* Card Assegnazioni Unificata */}
+          <div className="border border-default-200 rounded-lg p-4 bg-default-50">
+            <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
+              <Icon icon="solar:user-bold" width={16} />
+              Assegnazioni
+            </h3>
 
-          {/* Technician Assignment (if from CCC) */}
-          {eventData.TechnicianAssignment && (
-            <div className="border border-default-200 rounded-lg p-4 bg-default-50">
-              <h3 className="font-semibold text-sm mb-3 flex items-center gap-2">
-                <Icon icon="solar:wrench-bold" width={16} />
-                Tecnico Assegnato
-              </h3>
-              <div className="text-sm">
-                <span className="text-default-500">Tecnico:</span>{" "}
-                {eventData.TechnicianAssignment.technician_name}
-              </div>
+            {/* Select per Cliente e Tecnico (sempre visibili quando non ci sono assegnazioni) */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              {!eventData.CustomerInfo && (
+                <Select
+                  label="Cliente"
+                  placeholder="Seleziona cliente"
+                  selectedKeys={selectedCustomerId ? [selectedCustomerId] : []}
+                  onSelectionChange={(keys) => {
+                    const customerId = Array.from(keys)[0] as string;
+                    setSelectedCustomerId(customerId);
+
+                    // Trova i dati del cliente selezionato
+                    const selectedCustomer = availableCustomers.find(
+                      (c) => c.customer_id === customerId
+                    );
+                    if (selectedCustomer) {
+                      setEventData((prev) => ({
+                        ...prev,
+                        CustomerInfo: {
+                          customer_id: selectedCustomer.customer_id,
+                          customer_name: `${selectedCustomer.name} ${selectedCustomer.surname}`,
+                          customer_phone: selectedCustomer.phone,
+                          customer_email: selectedCustomer.email || "",
+                        },
+                      }));
+                    }
+                  }}
+                >
+                  {availableCustomers.map((customer) => (
+                    <SelectItem key={customer.customer_id}>
+                      {customer.name} {customer.surname}
+                    </SelectItem>
+                  ))}
+                </Select>
+              )}
+
+              {!eventData.TechnicianAssignment && (
+                <Select
+                  label="Tecnico"
+                  placeholder="Seleziona tecnico"
+                  selectedKeys={
+                    selectedTechnicianId ? [selectedTechnicianId] : []
+                  }
+                  onSelectionChange={(keys) => {
+                    const technicianId = Array.from(keys)[0] as string;
+                    setSelectedTechnicianId(technicianId);
+
+                    // Trova i dati del tecnico selezionato
+                    const selectedTechnician = availableTechnicians.find(
+                      (t) => t.user_id === technicianId
+                    );
+                    if (selectedTechnician) {
+                      setEventData((prev) => ({
+                        ...prev,
+                        TechnicianAssignment: {
+                          technician_id: selectedTechnician.user_id,
+                          technician_name: selectedTechnician.name,
+                        },
+                      }));
+                    }
+                  }}
+                >
+                  {availableTechnicians.map((technician) => (
+                    <SelectItem key={technician.user_id}>
+                      {technician.name}
+                    </SelectItem>
+                  ))}
+                </Select>
+              )}
             </div>
-          )}
+
+            {/* Informazioni Assegnate (sempre visibili quando ci sono assegnazioni) */}
+            {(eventData.CustomerInfo || eventData.TechnicianAssignment) && (
+              <div className="space-y-3 pt-3 border-t border-default-200">
+                {eventData.CustomerInfo && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
+                        <span className="text-lg">👤</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                            Cliente:
+                          </span>
+                          <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                            {eventData.CustomerInfo.customer_name}
+                          </span>
+                        </div>
+                        <span className="text-xs text-blue-600 dark:text-blue-400">
+                          📞 {eventData.CustomerInfo.customer_phone}
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      color="danger"
+                      variant="light"
+                      onPress={() => {
+                        setSelectedCustomerId("");
+                        setEventData((prev) => ({
+                          ...prev,
+                          CustomerInfo: undefined,
+                        }));
+                      }}
+                      className="flex-shrink-0"
+                    >
+                      <Icon icon="solar:trash-bin-trash-bold" width={14} />
+                    </Button>
+                  </div>
+                )}
+
+                {eventData.TechnicianAssignment && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700">
+                    <div className="flex items-center gap-3">
+                      <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center">
+                        <span className="text-lg">🔧</span>
+                      </div>
+                      <div className="flex flex-col">
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-semibold text-orange-700 dark:text-orange-300">
+                            Tecnico:
+                          </span>
+                          <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                            {eventData.TechnicianAssignment.technician_name}
+                          </span>
+                        </div>
+                        <span className="text-xs text-orange-600 dark:text-orange-400">
+                          🛠️ Tecnico assegnato
+                        </span>
+                      </div>
+                    </div>
+                    <Button
+                      size="sm"
+                      color="danger"
+                      variant="light"
+                      onPress={() => {
+                        setSelectedTechnicianId("");
+                        setEventData((prev) => ({
+                          ...prev,
+                          TechnicianAssignment: undefined,
+                        }));
+                      }}
+                      className="flex-shrink-0"
+                    >
+                      <Icon icon="solar:trash-bin-trash-bold" width={14} />
+                    </Button>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
 
           {/* Participants */}
           <div>

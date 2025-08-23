@@ -30,25 +30,38 @@ interface CalendarEvent {
   EventTagName: string;
   EventAttachments: EventAttachment[];
   EventPartecipants: EventPartecipant[];
+  // CosmicHub specific fields
+  EventType?: string;
+  EventPriority?: string;
+  EstimatedDuration?: number;
+  CustomerInfo?: {
+    customer_id: string;
+    customer_name: string;
+    customer_phone: string;
+    customer_email: string;
+    customer_address: string;
+    customer_type: string;
+  };
+  TechnicianAssignment?: {
+    technician_id: string;
+    technician_name: string;
+    role: string;
+    availability_status: string;
+  };
+  InterventionNotes?: string;
 }
 
-interface CalendarMonthProps {
+const CalendarMonth: React.FC<{
   currentDate: Date;
   onDateClick: (date: Date) => void;
   events: CalendarEvent[];
-}
-
-const CalendarMonth: React.FC<CalendarMonthProps> = ({
-  currentDate,
-  onDateClick,
-  events,
-}) => {
-  const [isOpen, setIsOpen] = useState(false);
+}> = ({ currentDate, onDateClick, events }) => {
   const [selectedEventId, setSelectedEventId] = useState(0);
+  const [isOpen, setIsOpen] = useState(false);
   const [hoveredDay, setHoveredDay] = useState<Date | null>(null);
   const [showEventSelector, setShowEventSelector] = useState(false);
-  const [selectedEvents, setSelectedEvents] = useState<CalendarEvent[]>([]);
   const [selectorPosition, setSelectorPosition] = useState({ x: 0, y: 0 });
+  const [selectedEvents, setSelectedEvents] = useState<CalendarEvent[]>([]);
   const [popoverPosition, setPopoverPosition] = useState({
     x: 0,
     y: 0,
@@ -110,15 +123,25 @@ const CalendarMonth: React.FC<CalendarMonthProps> = ({
         day <= new Date(event.EventEndDate)
     );
 
-    if (dayEvents.length > 3) {
-      // Show popover for more events
+    if (dayEvents.length === 0) {
+      onDateClick(day);
+    } else if (dayEvents.length === 1) {
+      // Evento singolo - apri direttamente
+      setSelectedEventId(dayEvents[0].EventId);
+      setIsOpen(true);
+    } else if (dayEvents.length <= 3) {
+      // Pochi eventi - apri il primo
+      setSelectedEventId(dayEvents[0].EventId);
+      setIsOpen(true);
+    } else {
+      // Molti eventi - mostra popover
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       const calendarRect = calendarRef.current?.getBoundingClientRect();
-      
+
       if (calendarRect) {
         const relativeX = rect.left - calendarRect.left;
         const relativeY = rect.top - calendarRect.top;
-        
+
         setPopoverPosition({
           x: relativeX + rect.width / 2,
           y: relativeY + rect.height,
@@ -126,11 +149,9 @@ const CalendarMonth: React.FC<CalendarMonthProps> = ({
           isAbove: relativeY > calendarRect.height / 2,
         });
       }
-      
+
       setHoveredDay(day);
       setPopoverAnimation(true);
-    } else {
-      onDateClick(day);
     }
   };
 
@@ -197,8 +218,8 @@ const CalendarMonth: React.FC<CalendarMonthProps> = ({
               key={day.toISOString()}
               data-cell
               className={`relative cursor-pointer border-r border-b border-default-200 dark:border-default-300 transition-colors duration-200 ${
-                isPast 
-                  ? "bg-default-100 dark:bg-default-200 hover:bg-default-200 dark:hover:bg-default-300" 
+                isPast
+                  ? "bg-default-100 dark:bg-default-200 hover:bg-default-200 dark:hover:bg-default-300"
                   : "bg-background hover:bg-default-50 dark:hover:bg-default-100"
               } ${
                 hoveredDay?.toISOString() === day.toISOString() ? "z-10" : ""
@@ -229,7 +250,7 @@ const CalendarMonth: React.FC<CalendarMonthProps> = ({
                       {(() => {
                         // Raggruppa eventi per ora
                         const eventsByTime: { [timeKey: string]: any[] } = {};
-                        
+
                         dayEvents.forEach((event) => {
                           const timeKey = `${event.EventStartTime}-${event.EventEndTime}`;
                           if (!eventsByTime[timeKey]) {
@@ -239,112 +260,156 @@ const CalendarMonth: React.FC<CalendarMonthProps> = ({
                         });
 
                         // Renderizza eventi raggruppati
-                        return Object.entries(eventsByTime).map(([timeKey, timeEvents]) => {
-                          if (timeEvents.length === 1) {
-                            // Evento singolo - renderizza normalmente
-                            const event = timeEvents[0];
-                            const technicianName = event.TechnicianAssignment?.technician_name || 
-                                                 event.CustomerInfo?.customer_name ||
-                                                 'Non assegnato';
-                            
-                            return (
-                              <div
-                                key={event.EventId}
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setIsOpen(true);
-                                  setSelectedEventId(event.EventId);
-                                }}
-                                className="px-1 py-1 rounded-md text-xs cursor-pointer transition-all hover:shadow-sm border border-opacity-40 hover:border-opacity-60"
-                                style={{ 
-                                  backgroundColor: event.EventColor + '10',
-                                  borderColor: event.EventColor,
-                                  borderLeftWidth: '3px',
-                                  borderLeftColor: event.EventColor,
-                                }}
-                                title={`${event.EventTitle}\n${event.EventStartTime} - ${event.EventEndTime}\nTecnico: ${technicianName}\nLocation: ${event.EventLocation || 'N/A'}\n\nClick per dettagli completi`}
-                              >
-                                {/* Prima riga: Orario e Titolo */}
-                                <div className="flex items-center gap-2 mb-0.5">
-                                  <div className="text-[10px] font-bold text-default-700 min-w-[32px]">
-                                    {event.EventStartTime}
+                        return Object.entries(eventsByTime).map(
+                          ([timeKey, timeEvents]) => {
+                            if (timeEvents.length === 1) {
+                              // Evento singolo - renderizza normalmente
+                              const event = timeEvents[0];
+                              const technicianName =
+                                event.TechnicianAssignment?.technician_name ||
+                                event.CustomerInfo?.customer_name ||
+                                "Non assegnato";
+
+                              return (
+                                <div
+                                  key={event.EventId}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setIsOpen(true);
+                                    setSelectedEventId(event.EventId);
+                                  }}
+                                  className="px-1 py-1 rounded-md text-xs cursor-pointer transition-all hover:shadow-sm border border-opacity-40 hover:border-opacity-60"
+                                  style={{
+                                    backgroundColor: event.EventColor + "10",
+                                    borderColor: event.EventColor,
+                                    borderLeftWidth: "3px",
+                                    borderLeftColor: event.EventColor,
+                                  }}
+                                  title={`${event.EventTitle}\n${
+                                    event.EventStartTime
+                                  } - ${
+                                    event.EventEndTime
+                                  }\nTecnico: ${technicianName}\nLocation: ${
+                                    event.EventLocation || "N/A"
+                                  }\n\nClick per dettagli completi`}
+                                >
+                                  {/* Prima riga: Orario e Titolo */}
+                                  <div className="flex items-center gap-2 mb-0.5">
+                                    <div className="text-[10px] font-bold text-default-700 min-w-[32px]">
+                                      {event.EventStartTime}
+                                    </div>
+                                    <div className="truncate font-medium text-foreground text-[11px] flex-1">
+                                      {event.EventTitle}
+                                    </div>
+                                    <div
+                                      className="w-2 h-2 rounded-full flex-shrink-0"
+                                      style={{
+                                        backgroundColor: event.EventColor,
+                                      }}
+                                    />
                                   </div>
-                                  <div className="truncate font-medium text-foreground text-[11px] flex-1">
-                                    {event.EventTitle}
-                                  </div>
-                                  <div
-                                    className="w-2 h-2 rounded-full flex-shrink-0"
-                                    style={{ backgroundColor: event.EventColor }}
-                                  />
-                                </div>
-                                
-                                {/* Seconda riga: Tecnico/Cliente */}
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8"></div> {/* Spazio per allineamento */}
-                                  <div className="flex items-center gap-1 flex-1 min-w-0">
-                                    <Icon icon="solar:user-bold" width={10} className="text-default-500 flex-shrink-0" />
-                                    <div className="truncate text-[10px] text-default-600">
-                                      {technicianName}
+
+                                  {/* Seconda riga: Tecnico/Cliente */}
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8"></div>{" "}
+                                    {/* Spazio per allineamento */}
+                                    <div className="flex items-center gap-1 flex-1 min-w-0">
+                                      <Icon
+                                        icon="solar:user-bold"
+                                        width={10}
+                                        className="text-default-500 flex-shrink-0"
+                                      />
+                                      <div className="truncate text-[10px] text-default-600">
+                                        {technicianName}
+                                      </div>
                                     </div>
                                   </div>
                                 </div>
-                              </div>
-                            );
-                          } else {
-                            // Eventi multipli alla stessa ora - renderizza come gruppo
-                            return (
-                              <div
-                                key={timeKey}
-                                className="px-1 py-1 rounded-md text-xs cursor-pointer transition-all hover:shadow-sm border border-default-200 bg-default-100 dark:bg-default-200"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  // Apri il selettore di eventi
-                                  const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
-                                  setSelectorPosition({
-                                    x: rect.left + rect.width / 2,
-                                    y: rect.top - 10
-                                  });
-                                  setSelectedEvents(timeEvents);
-                                  setShowEventSelector(true);
-                                }}
-                                title={`${timeEvents.length} eventi alle ${timeEvents[0].EventStartTime}:\n${timeEvents.map(e => `• ${e.EventTitle} (${e.TechnicianAssignment?.technician_name || e.CustomerInfo?.customer_name || 'Non assegnato'})`).join('\n')}\n\nClicca per scegliere quale aprire`}
-                              >
-                                {/* Prima riga: Orario e indicatore gruppo */}
-                                <div className="flex items-center gap-2 mb-0.5">
-                                  <div className="text-[10px] font-bold text-default-700 min-w-[32px]">
-                                    {timeEvents[0].EventStartTime}
+                              );
+                            } else {
+                              // Eventi multipli alla stessa ora - renderizza come gruppo
+                              return (
+                                <div
+                                  key={timeKey}
+                                  className="px-1 py-1 rounded-md text-xs cursor-pointer transition-all hover:shadow-sm border border-default-200 bg-default-100 dark:bg-default-200"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    // Apri il selettore di eventi
+                                    const rect = (
+                                      e.currentTarget as HTMLElement
+                                    ).getBoundingClientRect();
+                                    setSelectorPosition({
+                                      x: rect.left + rect.width / 2,
+                                      y: rect.top - 10,
+                                    });
+                                    setSelectedEvents(timeEvents);
+                                    setShowEventSelector(true);
+                                  }}
+                                  title={`${timeEvents.length} eventi alle ${
+                                    timeEvents[0].EventStartTime
+                                  }:\n${timeEvents
+                                    .map(
+                                      (e) =>
+                                        `• ${e.EventTitle} (${
+                                          e.TechnicianAssignment
+                                            ?.technician_name ||
+                                          e.CustomerInfo?.customer_name ||
+                                          "Non assegnato"
+                                        })`
+                                    )
+                                    .join(
+                                      "\n"
+                                    )}\n\nClicca per scegliere quale aprire`}
+                                >
+                                  {/* Prima riga: Orario e indicatore gruppo */}
+                                  <div className="flex items-center gap-2 mb-0.5">
+                                    <div className="text-[10px] font-bold text-default-700 min-w-[32px]">
+                                      {timeEvents[0].EventStartTime}
+                                    </div>
+                                    <div className="flex -space-x-1">
+                                      {timeEvents
+                                        .slice(0, 4)
+                                        .map((event, idx) => (
+                                          <div
+                                            key={event.EventId}
+                                            className="w-3 h-3 rounded-full border border-background shadow-sm"
+                                            style={{
+                                              backgroundColor: event.EventColor,
+                                              zIndex: 4 - idx,
+                                            }}
+                                          />
+                                        ))}
+                                    </div>
+                                    <div className="truncate font-medium text-foreground text-[11px] flex-1">
+                                      {timeEvents.length} eventi
+                                    </div>
+                                    <Icon
+                                      icon="solar:alt-arrow-down-bold"
+                                      width={12}
+                                      className="text-default-500"
+                                    />
                                   </div>
-                                  <div className="flex -space-x-1">
-                                    {timeEvents.slice(0, 4).map((event, idx) => (
-                                      <div
-                                        key={event.EventId}
-                                        className="w-3 h-3 rounded-full border border-background shadow-sm"
-                                        style={{ 
-                                          backgroundColor: event.EventColor,
-                                          zIndex: 4 - idx
-                                        }}
-                                      />
-                                    ))}
+
+                                  {/* Seconda riga: Anteprima titoli */}
+                                  <div className="flex items-center gap-2">
+                                    <div className="w-8"></div>{" "}
+                                    {/* Spazio per allineamento */}
+                                    <div className="truncate text-[10px] text-default-600 flex-1">
+                                      {timeEvents
+                                        .map((e) =>
+                                          e.EventTitle.substring(0, 12)
+                                        )
+                                        .join(", ")}
+                                      ...
+                                    </div>
                                   </div>
-                                  <div className="truncate font-medium text-foreground text-[11px] flex-1">
-                                    {timeEvents.length} eventi
-                                  </div>
-                                  <Icon icon="solar:alt-arrow-down-bold" width={12} className="text-default-500" />
                                 </div>
-                                
-                                {/* Seconda riga: Anteprima titoli */}
-                                <div className="flex items-center gap-2">
-                                  <div className="w-8"></div> {/* Spazio per allineamento */}
-                                  <div className="truncate text-[10px] text-default-600 flex-1">
-                                    {timeEvents.map(e => e.EventTitle.substring(0, 12)).join(', ')}...
-                                  </div>
-                                </div>
-                              </div>
-                            );
+                              );
+                            }
                           }
-                        });
+                        );
                       })()}
-                      
+
                       {/* Spazio extra per evitare che l'ultimo evento sia troppo vicino al bordo */}
                       <div className="h-1"></div>
                     </div>
@@ -376,6 +441,84 @@ const CalendarMonth: React.FC<CalendarMonthProps> = ({
         ))}
       </div>
 
+      {/* Selettore eventi sovrapposti */}
+      {showEventSelector && (
+        <>
+          {/* Overlay per chiudere il selettore */}
+          <div
+            className="fixed inset-0 z-40"
+            onClick={() => setShowEventSelector(false)}
+          />
+
+          {/* Menu selettore */}
+          <div
+            className="fixed z-50 bg-background border border-default-200 rounded-lg shadow-lg min-w-72 max-w-80"
+            style={{
+              left: selectorPosition.x - 160, // Centra il menu
+              top: selectorPosition.y,
+              transform: "translateY(-100%)",
+            }}
+          >
+            <div className="p-3">
+              <div className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
+                <Icon icon="solar:calendar-bold" width={16} />
+                Scegli evento da aprire
+              </div>
+
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {selectedEvents.map((event) => (
+                  <div
+                    key={event.EventId}
+                    onClick={() => {
+                      setSelectedEventId(event.EventId);
+                      setIsOpen(true);
+                      setShowEventSelector(false);
+                    }}
+                    className="flex items-center gap-3 p-2 rounded-md cursor-pointer transition-all duration-200 hover:bg-default-100 dark:hover:bg-default-200 border border-transparent hover:border-default-300"
+                  >
+                    <div
+                      className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm"
+                      style={{ backgroundColor: event.EventColor }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground text-sm truncate">
+                        {event.EventTitle}
+                      </div>
+                      <div className="text-xs text-default-600 flex items-center gap-2">
+                        <span>
+                          {event.EventStartTime} - {event.EventEndTime}
+                        </span>
+                        {event.EventLocation && (
+                          <>
+                            <span>•</span>
+                            <span className="truncate">
+                              {event.EventLocation}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {event.TechnicianAssignment && (
+                        <div className="text-xs text-default-500 flex items-center gap-1 mt-1">
+                          <Icon icon="solar:settings-bold" width={12} />
+                          <span>
+                            {event.TechnicianAssignment.technician_name}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                    <Icon
+                      icon="solar:arrow-right-bold"
+                      width={16}
+                      className="text-default-400"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
       {/* Events Popover with theme support */}
       {hoveredDay && (
         <div
@@ -397,22 +540,32 @@ const CalendarMonth: React.FC<CalendarMonthProps> = ({
           <div className="p-4">
             <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-foreground">
-                {hoveredDay.toLocaleDateString('it-IT', { 
-                  weekday: 'long', 
-                  day: 'numeric', 
-                  month: 'long' 
+                {hoveredDay.toLocaleDateString("it-IT", {
+                  weekday: "long",
+                  day: "numeric",
+                  month: "long",
                 })}
               </h3>
               <button
                 onClick={closePopover}
                 className="text-default-500 hover:text-foreground transition-colors"
               >
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M6 18L18 6M6 6l12 12"
+                  />
                 </svg>
               </button>
             </div>
-            
+
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {events
                 .filter(
@@ -452,68 +605,6 @@ const CalendarMonth: React.FC<CalendarMonthProps> = ({
             </div>
           </div>
         </div>
-      )}
-
-      {/* Selettore eventi sovrapposti */}
-      {showEventSelector && (
-        <>
-          {/* Overlay per chiudere il selettore */}
-          <div 
-            className="fixed inset-0 z-40"
-            onClick={() => setShowEventSelector(false)}
-          />
-          
-          {/* Menu selettore */}
-          <div
-            className="fixed z-50 bg-background border border-default-200 rounded-lg shadow-lg min-w-72 max-w-80"
-            style={{
-              left: selectorPosition.x - 160, // Centra il menu
-              top: selectorPosition.y,
-              transform: 'translateY(-100%)'
-            }}
-          >
-            <div className="p-3">
-              <div className="text-sm font-semibold text-foreground mb-2 flex items-center gap-2">
-                <Icon icon="solar:calendar-bold" width={16} />
-                Scegli evento da aprire
-              </div>
-              
-              <div className="space-y-2 max-h-64 overflow-y-auto">
-                {selectedEvents.map((event) => (
-                  <div
-                    key={event.EventId}
-                    onClick={() => {
-                      setSelectedEventId(event.EventId);
-                      setIsOpen(true);
-                      setShowEventSelector(false);
-                    }}
-                    className="flex items-center gap-3 p-2 rounded-md cursor-pointer transition-all duration-200 hover:bg-default-100 dark:hover:bg-default-200 border border-transparent hover:border-default-300"
-                  >
-                    <div
-                      className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm"
-                      style={{ backgroundColor: event.EventColor }}
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-foreground text-sm truncate">
-                        {event.EventTitle}
-                      </div>
-                      <div className="text-xs text-default-600 flex items-center gap-2">
-                        <span>{event.EventStartTime} - {event.EventEndTime}</span>
-                        {event.EventLocation && (
-                          <>
-                            <span>•</span>
-                            <span className="truncate">{event.EventLocation}</span>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                    <Icon icon="solar:arrow-right-bold" width={16} className="text-default-400" />
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </>
       )}
 
       {/* Event Modal */}

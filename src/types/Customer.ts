@@ -124,7 +124,7 @@ export interface CustomerSearchResult {
 export interface QuickBookingData {
   customer_id: string;
   problem_description: string;
-  urgency_level: "low" | "medium" | "high" | "emergency";
+  urgency_level: string; // Cambiato da enum a stringa libera
   preferred_date?: Date;
   preferred_time?: string;
   location?: string;
