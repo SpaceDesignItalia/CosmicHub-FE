@@ -59,6 +59,9 @@ const CalendarMonth: React.FC<{
   const [selectedEventId, setSelectedEventId] = useState(0);
   const [isOpen, setIsOpen] = useState(false);
   const [hoveredDay, setHoveredDay] = useState<Date | null>(null);
+  const [hoveredEvent, setHoveredEvent] = useState<any>(null);
+  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
+  const hoverRef = useRef<HTMLDivElement>(null);
   const [showEventSelector, setShowEventSelector] = useState(false);
   const [selectorPosition, setSelectorPosition] = useState({ x: 0, y: 0 });
   const [selectedEvents, setSelectedEvents] = useState<CalendarEvent[]>([]);
@@ -278,20 +281,24 @@ const CalendarMonth: React.FC<{
                                     setIsOpen(true);
                                     setSelectedEventId(event.EventId);
                                   }}
-                                  className="px-1 py-1 rounded-md text-xs cursor-pointer transition-all hover:shadow-sm border border-opacity-40 hover:border-opacity-60"
+                                  onMouseEnter={(e) => {
+                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    setHoveredEvent(event);
+                                    setHoverPosition({
+                                      x: rect.right + 8,
+                                      y: rect.top,
+                                    });
+                                  }}
+                                  onMouseLeave={() => {
+                                    setHoveredEvent(null);
+                                  }}
+                                  className="px-1 py-1 rounded-md text-xs cursor-pointer transition-all hover:shadow-md hover:scale-105 border border-opacity-40 hover:border-opacity-80"
                                   style={{
                                     backgroundColor: event.EventColor + "10",
                                     borderColor: event.EventColor,
                                     borderLeftWidth: "3px",
                                     borderLeftColor: event.EventColor,
                                   }}
-                                  title={`${event.EventTitle}\n${
-                                    event.EventStartTime
-                                  } - ${
-                                    event.EventEndTime
-                                  }\nTecnico: ${technicianName}\nLocation: ${
-                                    event.EventLocation || "N/A"
-                                  }\n\nClick per dettagli completi`}
                                 >
                                   {/* Prima riga: Orario e Titolo */}
                                   <div className="flex items-center gap-2 mb-0.5">
@@ -331,7 +338,7 @@ const CalendarMonth: React.FC<{
                               return (
                                 <div
                                   key={timeKey}
-                                  className="px-1 py-1 rounded-md text-xs cursor-pointer transition-all hover:shadow-sm border border-default-200 bg-default-100 dark:bg-default-200"
+                                  className="px-1 py-1 rounded-md text-xs cursor-pointer transition-all hover:shadow-md hover:scale-105 border border-default-200 bg-default-100 dark:bg-default-200 hover:border-opacity-80"
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     // Apri il selettore di eventi
@@ -345,21 +352,6 @@ const CalendarMonth: React.FC<{
                                     setSelectedEvents(timeEvents);
                                     setShowEventSelector(true);
                                   }}
-                                  title={`${timeEvents.length} eventi alle ${
-                                    timeEvents[0].EventStartTime
-                                  }:\n${timeEvents
-                                    .map(
-                                      (e) =>
-                                        `• ${e.EventTitle} (${
-                                          e.TechnicianAssignment
-                                            ?.technician_name ||
-                                          e.CustomerInfo?.customer_name ||
-                                          "Non assegnato"
-                                        })`
-                                    )
-                                    .join(
-                                      "\n"
-                                    )}\n\nClicca per scegliere quale aprire`}
                                 >
                                   {/* Prima riga: Orario e indicatore gruppo */}
                                   <div className="flex items-center gap-2 mb-0.5">
@@ -602,6 +594,69 @@ const CalendarMonth: React.FC<{
                     </div>
                   </div>
                 ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Hover personalizzato per eventi singoli */}
+      {hoveredEvent && (
+        <div
+          ref={hoverRef}
+          className="fixed z-40 bg-background dark:bg-default-100 border border-default-200 dark:border-default-300 rounded-lg shadow-lg max-w-sm pointer-events-none"
+          style={{
+            left: `${hoverPosition.x}px`,
+            top: `${hoverPosition.y}px`,
+            transform: 'translateY(-50%)',
+          }}
+        >
+          <div className="p-3">
+            <div className="flex items-start gap-3 mb-2">
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0 mt-1"
+                style={{ backgroundColor: hoveredEvent.EventColor }}
+              />
+              <div className="flex-1">
+                <div className="font-semibold text-sm text-foreground">
+                  {hoveredEvent.EventTitle}
+                </div>
+                <div className="text-xs text-default-600 mt-0.5">
+                  {hoveredEvent.EventStartTime} - {hoveredEvent.EventEndTime}
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Icon icon="solar:wrench-bold" width={12} className="text-default-500 flex-shrink-0" />
+                <span className="text-sm text-default-700 font-medium">
+                  {hoveredEvent.TechnicianAssignment?.technician_name || 'Non assegnato'}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Icon icon="solar:user-bold" width={12} className="text-default-500 flex-shrink-0" />
+                <span className="text-sm text-default-600">
+                  {hoveredEvent.CustomerInfo?.customer_name || 'Cliente N/A'}
+                </span>
+              </div>
+              
+              {hoveredEvent.EventLocation && (
+                <div className="flex items-center gap-2">
+                  <Icon icon="solar:map-point-bold" width={12} className="text-default-500 flex-shrink-0" />
+                  <span className="text-sm text-default-500 truncate">
+                    {hoveredEvent.EventLocation}
+                  </span>
+                </div>
+              )}
+              
+              {hoveredEvent.EventDescription && (
+                <div className="mt-2 pt-2 border-t border-default-200 dark:border-default-300">
+                  <p className="text-xs text-default-600 line-clamp-3">
+                    {hoveredEvent.EventDescription}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>

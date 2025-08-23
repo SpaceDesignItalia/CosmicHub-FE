@@ -146,6 +146,37 @@ const CalendarYear: React.FC<CalendarYearProps> = ({
     }, 200);
   };
 
+  // Funzione per determinare il numero di puntini in base al numero di appuntamenti
+  const getDotCount = (eventCount: number): number => {
+    if (eventCount === 0) return 0;
+    if (eventCount < 10) return 1;
+    if (eventCount <= 20) return 2;
+    return 3; // più di 20 appuntamenti
+  };
+
+  // Componente per visualizzare i puntini multipli
+  const AppointmentDots: React.FC<{ count: number }> = ({ count }) => {
+    const dots = [];
+    
+    for (let i = 0; i < count; i++) {
+      dots.push(
+        <div
+          key={i}
+          className="w-1.5 h-1.5 bg-primary rounded-full"
+          style={{
+            marginLeft: i > 0 ? '3px' : '0',
+          }}
+        />
+      );
+    }
+    
+    return (
+      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2">
+        <div className="flex items-center">{dots}</div>
+      </div>
+    );
+  };
+
   return (
     <div className="h-full bg-background overflow-y-auto">
       <div
@@ -214,9 +245,7 @@ const CalendarYear: React.FC<CalendarYearProps> = ({
                     >
                       {day}
                       {hasEvents && (
-                        <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 translate-y-1/2">
-                          <div className="w-1.5 h-1.5 bg-primary rounded-full"></div>
-                        </div>
+                        <AppointmentDots count={getDotCount(dayEvents.length)} />
                       )}
                     </div>
                   );

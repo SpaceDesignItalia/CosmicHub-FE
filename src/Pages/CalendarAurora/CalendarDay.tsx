@@ -78,6 +78,9 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
   const scrollRef = useRef<HTMLDivElement>(null);
   const [isOpen, setIsOpen] = useState(false);
   const [selectedEventId, setSelectedEventId] = useState(0);
+  const [hoveredEvent, setHoveredEvent] = useState<any>(null);
+  const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
+  const hoverRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -236,7 +239,7 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
 
               // Renderizza tutti gli eventi
               return Object.entries(eventsByHour).flatMap(
-                ([hourStr, hourEvents]) => {
+                ([, hourEvents]) => {
                   return hourEvents.map((event, index) => {
                     const eventStartHour = parseInt(
                       event.EventStartTime.split(":")[0]
@@ -283,7 +286,18 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
                           setIsOpen(true);
                           setSelectedEventId(event.EventId);
                         }}
-                        className="absolute rounded-lg p-2 text-sm cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 border border-opacity-50 overflow-hidden"
+                        onMouseEnter={(e) => {
+                          const rect = e.currentTarget.getBoundingClientRect();
+                          setHoveredEvent(event);
+                          setHoverPosition({
+                            x: rect.right + 8,
+                            y: rect.top,
+                          });
+                        }}
+                        onMouseLeave={() => {
+                          setHoveredEvent(null);
+                        }}
+                        className="absolute rounded-lg p-2 text-sm cursor-pointer shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-200 border border-opacity-50 overflow-hidden hover:border-opacity-80"
                         style={{
                           backgroundColor: event.EventColor + "20",
                           borderColor: event.EventColor,
@@ -298,13 +312,6 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
                           width: eventWidth,
                           left: leftOffset,
                         }}
-                        title={`${event.EventTitle}\n${
-                          event.EventStartTime
-                        } - ${
-                          event.EventEndTime
-                        }\nTecnico: ${technicianName}\nCliente: ${customerName}\nLocation: ${
-                          event.EventLocation || "N/A"
-                        }`}
                       >
                         <div className="h-full flex flex-col justify-start overflow-hidden">
                           {/* Titolo evento - sempre visibile */}
@@ -312,18 +319,11 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
                             {event.EventTitle}
                           </div>
 
-                          {/* VISTA GIORNALIERA - Soglie basse per mostrare più info */}
+                          {/* VISTA GIORNALIERA - Priorità a cliente e tecnico, orario rimosso */}
 
-                          {/* Orario - quasi sempre visibile */}
-                          {duration > 0.5 && (
-                            <div className="text-xs text-default-600 opacity-90 mt-0.5">
-                              {event.EventStartTime} - {event.EventEndTime}
-                            </div>
-                          )}
-
-                          {/* Tecnico - priorità alta, soglia bassa */}
-                          {duration > 0.8 && (
-                            <div className="flex items-center gap-1 mt-1">
+                          {/* Tecnico - priorità massima, sempre visibile se c'è spazio */}
+                          {duration > 0.4 && (
+                            <div className="flex items-center gap-1 mt-0.5">
                               <Icon
                                 icon="solar:wrench-bold"
                                 width={10}
@@ -335,8 +335,8 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
                             </div>
                           )}
 
-                          {/* Cliente - priorità alta, soglia bassa */}
-                          {duration > 1.1 && (
+                          {/* Cliente - priorità massima, soglia molto bassa */}
+                          {duration > 0.7 && (
                             <div className="flex items-center gap-1 mt-0.5">
                               <Icon
                                 icon="solar:user-bold"
@@ -374,6 +374,13 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
                               <div className="text-xs text-default-500 truncate">
                                 {event.EventType}
                               </div>
+                            </div>
+                          )}
+
+                          {/* Orario - solo se c'è molto spazio, priorità bassa */}
+                          {duration > 2.2 && (
+                            <div className="text-xs text-default-500 mt-1 opacity-75">
+                              {event.EventStartTime} - {event.EventEndTime}
                             </div>
                           )}
 
@@ -420,6 +427,69 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Hover personalizzato per eventi */}
+      {hoveredEvent && (
+        <div
+          ref={hoverRef}
+          className="fixed z-40 bg-background dark:bg-default-100 border border-default-200 dark:border-default-300 rounded-lg shadow-lg max-w-sm pointer-events-none"
+          style={{
+            left: `${hoverPosition.x}px`,
+            top: `${hoverPosition.y}px`,
+            transform: 'translateY(-50%)',
+          }}
+        >
+          <div className="p-3">
+            <div className="flex items-start gap-3 mb-2">
+              <div
+                className="w-3 h-3 rounded-full flex-shrink-0 mt-1"
+                style={{ backgroundColor: hoveredEvent.EventColor }}
+              />
+              <div className="flex-1">
+                <div className="font-semibold text-sm text-foreground">
+                  {hoveredEvent.EventTitle}
+                </div>
+                <div className="text-xs text-default-600 mt-0.5">
+                  {hoveredEvent.EventStartTime} - {hoveredEvent.EventEndTime}
+                </div>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <div className="flex items-center gap-2">
+                <Icon icon="solar:wrench-bold" width={12} className="text-default-500 flex-shrink-0" />
+                <span className="text-sm text-default-700 font-medium">
+                  {hoveredEvent.TechnicianAssignment?.technician_name || 'Non assegnato'}
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2">
+                <Icon icon="solar:user-bold" width={12} className="text-default-500 flex-shrink-0" />
+                <span className="text-sm text-default-600">
+                  {hoveredEvent.CustomerInfo?.customer_name || 'Cliente N/A'}
+                </span>
+              </div>
+              
+              {hoveredEvent.EventLocation && (
+                <div className="flex items-center gap-2">
+                  <Icon icon="solar:map-point-bold" width={12} className="text-default-500 flex-shrink-0" />
+                  <span className="text-sm text-default-500 truncate">
+                    {hoveredEvent.EventLocation}
+                  </span>
+                </div>
+              )}
+              
+              {hoveredEvent.EventDescription && (
+                <div className="mt-2 pt-2 border-t border-default-200 dark:border-default-300">
+                  <p className="text-xs text-default-600 line-clamp-3">
+                    {hoveredEvent.EventDescription}
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Modal evento */}
       <ViewEventModal
