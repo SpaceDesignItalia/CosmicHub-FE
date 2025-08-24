@@ -12,19 +12,13 @@ import {
   Tab,
   Tabs,
   Textarea,
+  Pagination,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../Components/Layout/PageHeader";
-import type {
-  Customer,
-  CustomerSearchResult,
-  InterventionSummary,
-  PaymentSummary,
-  QuickBookingData,
-} from "../../types/Customer";
-import type { Technician } from "../../types/Technician";
+import type { Customer, CustomerSearchResult } from "../../types/Customer";
 import axios from "axios";
 
 const statusColorMap = {
@@ -49,31 +43,15 @@ export default function Customers() {
 
   // State principale
   const [customers, setCustomers] = useState<Customer[]>([]);
-  const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<CustomerSearchResult[]>(
     []
   );
-  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
-    null
-  );
-  const [selectedTab, setSelectedTab] = useState("overview");
 
-  // Enhanced booking state
-  const [quickBookingData, setQuickBookingData] = useState<QuickBookingData>({
-    customer_id: "",
-    problem_description: "",
-    urgency_level: "medium",
-    intervention_type: "inspection",
-    estimated_duration: 60,
-    preferred_date: new Date(),
-    preferred_time: "09:00",
-    notes: "",
-    location: "",
-  });
-
-  const [selectedTechnician, setSelectedTechnician] = useState<string>("");
+  // State per paginazione
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(8);
 
   // Load data
   useEffect(() => {
@@ -127,75 +105,6 @@ export default function Customers() {
     performSearch(query);
   };
 
-  const selectCustomer = (customer: Customer | CustomerSearchResult) => {
-    // Convert CustomerSearchResult to Customer if needed
-    const fullCustomer: Customer =
-      "customer" in customer ? customer.customer : customer;
-
-    setSelectedCustomer(fullCustomer);
-    setSearchQuery("");
-    setSearchResults([]);
-  };
-
-  // Enhanced booking handler - Navigate to calendar with pre-filled data
-  const handleBookingNavigation = () => {
-    if (!selectedCustomer || !quickBookingData.problem_description.trim()) {
-      return;
-    }
-
-    // Prepare booking data for calendar
-    const bookingParams = new URLSearchParams({
-      // Customer data
-      customer_id: selectedCustomer.customer_id,
-      customer_name: `${selectedCustomer.name} ${selectedCustomer.surname}`,
-      customer_phone: selectedCustomer.phone,
-      customer_email: selectedCustomer.email || "",
-      customer_address: `${selectedCustomer.address}, ${selectedCustomer.city}`,
-
-      // Booking details
-      problem_description: quickBookingData.problem_description,
-      intervention_type: quickBookingData.intervention_type,
-      urgency_level: quickBookingData.urgency_level,
-      estimated_duration:
-        quickBookingData.estimated_duration?.toString() || "60",
-      notes: quickBookingData.notes || "",
-      location:
-        quickBookingData.location ||
-        `${selectedCustomer.address}, ${selectedCustomer.city}`,
-
-      // Technician
-      assigned_technician: selectedTechnician,
-      preferred_technician: selectedCustomer.preferred_technician_id || "",
-
-      // System data
-      preferred_contact_method:
-        selectedCustomer.preferred_contact_method || "phone",
-      customer_type: selectedCustomer.customer_type,
-
-      // Booking flow identifier
-      from_ccc: "true",
-    });
-
-    // Navigate to calendar with all the data
-    navigate(`/calendar?${bookingParams.toString()}`);
-  };
-
-  // Update booking data when customer changes
-  useEffect(() => {
-    if (selectedCustomer) {
-      setQuickBookingData((prev) => ({
-        ...prev,
-        customer_id: selectedCustomer.customer_id,
-        location: `${selectedCustomer.address}, ${selectedCustomer.city}`,
-      }));
-
-      // Pre-select preferred technician if available
-      if (selectedCustomer.preferred_technician_id) {
-        setSelectedTechnician(selectedCustomer.preferred_technician_id);
-      }
-    }
-  }, [selectedCustomer]);
-
   const loadMockData = async () => {
     setLoading(true);
 
@@ -225,179 +134,9 @@ export default function Customers() {
         }
       }
 
-      console.log("Processed customers:", customers);
-
-      // Mock technicians data
-      const mockTechnicians: Technician[] = [
-        {
-          technician_id: "1",
-          user_id: "1",
-          name: "Marco Fontana",
-          role: "Tecnico Senior",
-          status: "active",
-          specializations: [
-            {
-              specialization_id: "1",
-              name: "Climatizzazione",
-              category: "hvac",
-              skill_level: "expert",
-            },
-            {
-              specialization_id: "2",
-              name: "Riscaldamento",
-              category: "hvac",
-              skill_level: "advanced",
-            },
-          ],
-          skill_level: "senior",
-          availability_status: "available",
-          phone: "+39 320 1111111",
-          email: "marco.fontana@company.com",
-          profile_image: "",
-          created_at: new Date(),
-          updated_at: new Date(),
-          working_hours: {
-            monday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            tuesday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            wednesday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            thursday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            friday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            saturday: { is_working_day: false },
-            sunday: { is_working_day: false },
-          },
-        },
-        {
-          technician_id: "2",
-          user_id: "2",
-          name: "Andrea Lombardi",
-          role: "Tecnico Specializzato",
-          status: "active",
-          specializations: [
-            {
-              specialization_id: "3",
-              name: "Idraulica",
-              category: "plumbing",
-              skill_level: "expert",
-            },
-            {
-              specialization_id: "4",
-              name: "Elettricità",
-              category: "electrical",
-              skill_level: "advanced",
-            },
-          ],
-          skill_level: "senior",
-          availability_status: "busy",
-          phone: "+39 320 2222222",
-          email: "andrea.lombardi@company.com",
-          profile_image: "",
-          created_at: new Date(),
-          updated_at: new Date(),
-          working_hours: {
-            monday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            tuesday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            wednesday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            thursday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            friday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            saturday: { is_working_day: false },
-            sunday: { is_working_day: false },
-          },
-        },
-        {
-          technician_id: "3",
-          user_id: "3",
-          name: "Simone Ricci",
-          role: "Tecnico Junior",
-          status: "active",
-          specializations: [
-            {
-              specialization_id: "5",
-              name: "Manutenzione Generale",
-              category: "other",
-              skill_level: "intermediate",
-            },
-          ],
-          skill_level: "junior",
-          availability_status: "offline",
-          phone: "+39 320 3333333",
-          email: "simone.ricci@company.com",
-          profile_image: "",
-          created_at: new Date(),
-          updated_at: new Date(),
-          working_hours: {
-            monday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            tuesday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            wednesday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            thursday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            friday: {
-              is_working_day: true,
-              start_time: "08:00",
-              end_time: "17:00",
-            },
-            saturday: { is_working_day: false },
-            sunday: { is_working_day: false },
-          },
-        },
-      ];
+      console.log("Total customers loaded:", customers.length);
 
       setCustomers(customers);
-      setTechnicians(mockTechnicians);
     } catch (error) {
       console.error("Errore nel caricamento dei clienti:", error);
       setCustomers([]);
@@ -405,49 +144,6 @@ export default function Customers() {
       setLoading(false);
     }
   };
-
-  // Mock data for tabs
-  const mockInterventions: InterventionSummary[] = [
-    {
-      intervention_id: "1",
-      date: new Date("2024-11-15"),
-      type: "Riparazione",
-      problem_description: "Riparazione perdita rubinetto cucina",
-      technician_name: "Marco Fontana",
-      status: "completed",
-      cost: 85.0,
-    },
-    {
-      intervention_id: "2",
-      date: new Date("2024-10-20"),
-      type: "Manutenzione",
-      problem_description: "Controllo caldaia annuale",
-      technician_name: "Andrea Lombardi",
-      status: "completed",
-      cost: 120.0,
-    },
-  ];
-
-  const mockPayments: PaymentSummary[] = [
-    {
-      payment_id: "1",
-      intervention_id: "1",
-      date: new Date("2024-11-16"),
-      amount: 85.0,
-      method: "card",
-      status: "paid",
-      invoice_number: "INV-2024-001",
-    },
-    {
-      payment_id: "2",
-      intervention_id: "2",
-      date: new Date("2024-10-21"),
-      amount: 120.0,
-      method: "bank_transfer",
-      status: "paid",
-      invoice_number: "INV-2024-002",
-    },
-  ];
 
   // Computed values
   const filteredCustomers = useMemo(() => {
@@ -466,25 +162,37 @@ export default function Customers() {
     );
   }, [customers, searchQuery]);
 
-  const customerStats = useMemo(() => {
-    if (!selectedCustomer) return null;
+  // Logica di paginazione
+  const paginatedCustomers = useMemo(() => {
+    const customersToShow = searchQuery
+      ? searchResults.map((r) => r.customer)
+      : filteredCustomers;
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const endIndex = startIndex + itemsPerPage;
+    return customersToShow.slice(startIndex, endIndex);
+  }, [
+    filteredCustomers,
+    searchResults,
+    searchQuery,
+    currentPage,
+    itemsPerPage,
+  ]);
 
-    const interventions = mockInterventions.length;
-    const totalSpent = mockPayments.reduce(
-      (sum, payment) => sum + payment.amount,
-      0
-    );
-    const avgPerIntervention =
-      interventions > 0 ? totalSpent / interventions : 0;
+  const totalPages = useMemo(() => {
+    const customersToShow = searchQuery
+      ? searchResults.map((r) => r.customer)
+      : filteredCustomers;
+    return Math.ceil(customersToShow.length / itemsPerPage);
+  }, [filteredCustomers, searchResults, searchQuery, itemsPerPage]);
 
-    return {
-      totalInterventions: interventions,
-      totalSpent: totalSpent,
-      averagePerIntervention: avgPerIntervention,
-      lastInterventionDate: selectedCustomer.last_intervention_date,
-      customerSince: new Date(selectedCustomer.created_at),
-    };
-  }, [selectedCustomer]);
+  const totalCustomers = useMemo(() => {
+    return searchQuery ? searchResults.length : filteredCustomers.length;
+  }, [filteredCustomers, searchResults, searchQuery]);
+
+  // Reset paginazione quando cambia la ricerca
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, itemsPerPage]);
 
   if (loading) {
     return (
@@ -549,10 +257,9 @@ export default function Customers() {
               <div className="flex items-center gap-2">
                 <Icon icon="solar:users-group-rounded-bold" width={20} />
                 <h3 className="text-lg font-semibold">
-                  {searchQuery ? 
-                    `Risultati ricerca (${searchResults.length})` : 
-                    `Tutti i clienti (${customers.length})`
-                  }
+                  {searchQuery
+                    ? `Risultati ricerca (${totalCustomers})`
+                    : `Tutti i clienti (${totalCustomers})`}
                 </h3>
               </div>
               {searchQuery && (
@@ -563,7 +270,9 @@ export default function Customers() {
                     setSearchQuery("");
                     setSearchResults([]);
                   }}
-                  startContent={<Icon icon="solar:close-circle-bold" width={16} />}
+                  startContent={
+                    <Icon icon="solar:close-circle-bold" width={16} />
+                  }
                 >
                   Cancella ricerca
                 </Button>
@@ -573,7 +282,7 @@ export default function Customers() {
           <CardBody>
             {/* Griglia di card clienti */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-              {(searchQuery ? searchResults.map(r => r.customer) : customers).map((customer) => (
+              {paginatedCustomers.map((customer) => (
                 <Card
                   key={customer.customer_id}
                   isPressable
@@ -584,41 +293,45 @@ export default function Customers() {
                     <div className="flex flex-col items-center text-center space-y-3">
                       {/* Avatar */}
                       <Avatar
-                        name={`${customer.name.charAt(0)}${customer.surname.charAt(0)}`}
+                        name={`${customer.name.charAt(
+                          0
+                        )}${customer.surname.charAt(0)}`}
                         size="lg"
                         className="bg-primary text-white text-xl ring-4 ring-primary/30 group-hover:ring-primary/50 transition-all"
                       />
-                      
+
                       {/* Nome e cognome */}
                       <div>
                         <h4 className="font-bold text-lg text-foreground">
                           {customer.name} {customer.surname}
                         </h4>
                         <p className="text-sm text-default-600">
-                          {customer.customer_type === "private" ? "Cliente Privato" : "Cliente Business"}
+                          {customer.customer_type === "private"
+                            ? "Cliente Privato"
+                            : "Cliente Business"}
                         </p>
                       </div>
-                      
+
                       {/* Informazioni principali */}
                       <div className="w-full space-y-2">
                         <div className="flex items-center justify-center gap-2 text-sm text-default-600">
                           <Icon icon="solar:phone-bold" width={16} />
                           <span className="truncate">{customer.phone}</span>
                         </div>
-                        
+
                         {customer.email && (
                           <div className="flex items-center justify-center gap-2 text-sm text-default-600">
                             <Icon icon="solar:letter-bold" width={16} />
                             <span className="truncate">{customer.email}</span>
                           </div>
                         )}
-                        
+
                         <div className="flex items-center justify-center gap-2 text-sm text-default-600">
                           <Icon icon="solar:map-point-bold" width={16} />
                           <span className="truncate">{customer.city}</span>
                         </div>
                       </div>
-                      
+
                       {/* Badge status */}
                       <div className="flex gap-2">
                         <Chip
@@ -634,22 +347,38 @@ export default function Customers() {
                 </Card>
               ))}
             </div>
-            
+
             {/* Nessun cliente trovato */}
             {searchQuery && searchResults.length === 0 && (
               <div className="text-center py-12">
-                <Icon icon="solar:user-cross-bold" width={64} className="text-default-300 mx-auto mb-4" />
-                <h4 className="text-lg font-semibold text-default-600 mb-2">Nessun cliente trovato</h4>
-                <p className="text-default-400">Prova con un altro termine di ricerca</p>
+                <Icon
+                  icon="solar:user-cross-bold"
+                  width={64}
+                  className="text-default-300 mx-auto mb-4"
+                />
+                <h4 className="text-lg font-semibold text-default-600 mb-2">
+                  Nessun cliente trovato
+                </h4>
+                <p className="text-default-400">
+                  Prova con un altro termine di ricerca
+                </p>
               </div>
             )}
-            
+
             {/* Nessun cliente in generale */}
             {!searchQuery && customers.length === 0 && (
               <div className="text-center py-12">
-                <Icon icon="solar:users-group-rounded-bold" width={64} className="text-default-300 mx-auto mb-4" />
-                <h4 className="text-lg font-semibold text-default-600 mb-2">Nessun cliente presente</h4>
-                <p className="text-default-400 mb-4">Inizia aggiungendo il tuo primo cliente</p>
+                <Icon
+                  icon="solar:users-group-rounded-bold"
+                  width={64}
+                  className="text-default-300 mx-auto mb-4"
+                />
+                <h4 className="text-lg font-semibold text-default-600 mb-2">
+                  Nessun cliente presente
+                </h4>
+                <p className="text-default-400 mb-4">
+                  Inizia aggiungendo il tuo primo cliente
+                </p>
                 <Button
                   color="primary"
                   onPress={() => navigate("/customers/add")}
@@ -657,6 +386,67 @@ export default function Customers() {
                 >
                   Aggiungi Cliente
                 </Button>
+              </div>
+            )}
+
+            {/* Paginazione semplice con numeri e frecce */}
+            {totalCustomers > itemsPerPage ? (
+              <div className="flex justify-center mt-8">
+                <div className="flex items-center gap-2 bg-default-100/50 backdrop-blur-sm rounded-lg px-4 py-2 border border-default-200">
+                  {/* Freccia sinistra */}
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    onPress={() => setCurrentPage(currentPage - 1)}
+                    isDisabled={currentPage === 1}
+                    className="min-w-8 h-8 text-default-600 hover:bg-primary/10 hover:text-primary transition-colors"
+                  >
+                    <Icon icon="solar:alt-arrow-left-bold" width={16} />
+                  </Button>
+
+                  {/* Numeri delle pagine */}
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: totalPages }, (_, index) => {
+                      const pageNumber = index + 1;
+                      return (
+                        <Button
+                          key={pageNumber}
+                          size="sm"
+                          variant={
+                            currentPage === pageNumber ? "solid" : "light"
+                          }
+                          color={
+                            currentPage === pageNumber ? "primary" : "default"
+                          }
+                          onPress={() => setCurrentPage(pageNumber)}
+                          className="min-w-8 h-8 text-sm font-medium transition-all"
+                        >
+                          {pageNumber}
+                        </Button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Freccia destra */}
+                  <Button
+                    isIconOnly
+                    size="sm"
+                    variant="light"
+                    onPress={() => setCurrentPage(currentPage + 1)}
+                    isDisabled={currentPage === totalPages}
+                    className="min-w-8 h-8 text-default-600 hover:bg-primary/10 hover:text-primary transition-colors"
+                  >
+                    <Icon icon="solar:alt-arrow-right-bold" width={16} />
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              /* Mostra sempre le informazioni sulla paginazione */
+              <div className="flex justify-center mt-8">
+                <div className="text-sm text-default-500 bg-default-100/30 rounded-lg px-4 py-2">
+                  Mostrando tutti i {totalCustomers} clienti
+                </div>
               </div>
             )}
           </CardBody>
