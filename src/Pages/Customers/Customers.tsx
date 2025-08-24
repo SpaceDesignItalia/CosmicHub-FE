@@ -51,7 +51,7 @@ export default function Customers() {
 
   // State per paginazione
   const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage, setItemsPerPage] = useState(8);
+  const [itemsPerPage, setItemsPerPage] = useState(16); // Aumentato da 8 a 16 per mostrare 4 righe
 
   // Load data
   useEffect(() => {
