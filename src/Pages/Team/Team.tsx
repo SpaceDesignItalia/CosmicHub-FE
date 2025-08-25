@@ -47,6 +47,8 @@ interface Vehicle {
   name: string;
   license_plate: string;
   status: string;
+  assigned_user_id?: number;
+  assigned_user_name?: string;
 }
 
 // Create context for update state
@@ -57,16 +59,16 @@ const UpdateContext = createContext<{
 });
 
 // Component for intelligent vehicle selection
-function VehicleSelectionModal({ 
-  vehicles, 
-  currentVehicleId, 
-  onVehicleSelect, 
-  onClose 
-}: { 
-  vehicles: Vehicle[]; 
-  currentVehicleId?: number; 
-  onVehicleSelect: (vehicleId: number) => void; 
-  onClose: () => void; 
+function VehicleSelectionModal({
+  vehicles,
+  currentVehicleId,
+  onVehicleSelect,
+  onClose,
+}: {
+  vehicles: Vehicle[];
+  currentVehicleId?: number;
+  onVehicleSelect: (vehicleId: number) => void;
+  onClose: () => void;
 }) {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
@@ -74,16 +76,18 @@ function VehicleSelectionModal({
 
   // Filter and sort vehicles
   const filteredVehicles = useMemo(() => {
-    let filtered = vehicles.filter(vehicle => {
-      const matchesSearch = !searchQuery.trim() || 
+    let filtered = vehicles.filter((vehicle) => {
+      const matchesSearch =
+        !searchQuery.trim() ||
         vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         vehicle.license_plate.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesStatus = statusFilter === "all" || 
+
+      const matchesStatus =
+        statusFilter === "all" ||
         (statusFilter === "available" && vehicle.status === "available") ||
-        (statusFilter === "assigned" && vehicle.status !== "available") ||
+        (statusFilter === "assigned" && vehicle.status === "assigned") ||
         (statusFilter === "current" && vehicle.id === currentVehicleId);
-      
+
       return matchesSearch && matchesStatus;
     });
 
@@ -95,7 +99,12 @@ function VehicleSelectionModal({
         case "plate":
           return a.license_plate.localeCompare(b.license_plate);
         case "status":
-          return a.status.localeCompare(b.status);
+          // Ordina per: disponibili, assegnati, attuale
+          if (a.id === currentVehicleId) return -1;
+          if (b.id === currentVehicleId) return 1;
+          if (a.status === "available" && b.status !== "available") return -1;
+          if (a.status !== "available" && b.status === "available") return 1;
+          return 0;
         default:
           return 0;
       }
@@ -107,7 +116,7 @@ function VehicleSelectionModal({
   const getStatusColor = (status: string, vehicleId: number) => {
     if (vehicleId === currentVehicleId) return "success";
     if (status === "available") return "primary";
-    return "default";
+    return "warning";
   };
 
   const getStatusText = (status: string, vehicleId: number) => {
@@ -119,24 +128,38 @@ function VehicleSelectionModal({
   return (
     <div className="space-y-6">
       {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col sm:flex-row gap-6 mb-6">
         <Input
           placeholder="Cerca per nome o targa..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           size="lg"
-          startContent={<Icon icon="solar:magnifer-linear" className="text-default-400" width={20} />}
+          startContent={
+            <Icon
+              icon="solar:magnifer-linear"
+              className="text-default-400"
+              width={20}
+            />
+          }
           isClearable
           onClear={() => setSearchQuery("")}
           className="flex-1"
         />
-        
+
         <Dropdown>
           <DropdownTrigger>
-            <Button variant="flat" size="lg" startContent={<Icon icon="solar:filter-bold" width={18} />}>
-              {statusFilter === "all" ? "Tutti" : 
-               statusFilter === "available" ? "Disponibili" : 
-               statusFilter === "assigned" ? "Assegnati" : "Attuale"}
+            <Button
+              variant="flat"
+              size="lg"
+              startContent={<Icon icon="solar:filter-bold" width={18} />}
+            >
+              {statusFilter === "all"
+                ? "Tutti"
+                : statusFilter === "available"
+                ? "Solo disponibili"
+                : statusFilter === "assigned"
+                ? "Solo assegnati"
+                : "Attuale"}
             </Button>
           </DropdownTrigger>
           <DropdownMenu
@@ -153,8 +176,16 @@ function VehicleSelectionModal({
 
         <Dropdown>
           <DropdownTrigger>
-            <Button variant="flat" size="lg" startContent={<Icon icon="solar:sort-bold" width={18} />}>
-              {sortBy === "name" ? "Nome" : sortBy === "plate" ? "Targa" : "Stato"}
+            <Button
+              variant="flat"
+              size="lg"
+              startContent={<Icon icon="solar:sort-bold" width={18} />}
+            >
+              {sortBy === "name"
+                ? "Nome"
+                : sortBy === "plate"
+                ? "Targa"
+                : "Stato"}
             </Button>
           </DropdownTrigger>
           <DropdownMenu
@@ -170,52 +201,112 @@ function VehicleSelectionModal({
       </div>
 
       {/* Results counter */}
-      <div className="flex items-center justify-between">
-        <p className="text-sm text-default-500">
-          {filteredVehicles.length} veicoli trovati
-        </p>
+      <div className="flex items-center justify-between py-4">
+        <div className="flex items-center gap-6">
+          <p className="text-sm text-default-500">
+            {filteredVehicles.length} veicoli trovati
+          </p>
+          <div className="flex items-center gap-4 text-xs">
+            <span className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-primary-500"></div>
+              {vehicles.filter((v) => v.status === "available").length}{" "}
+              disponibili
+            </span>
+            <span className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-warning-500"></div>
+              {vehicles.filter((v) => v.status === "assigned").length} assegnati
+            </span>
+          </div>
+        </div>
         <Button color="default" variant="light" size="sm" onPress={onClose}>
           Chiudi
         </Button>
       </div>
 
       {/* Vehicle Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-96 overflow-y-auto">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-96 overflow-y-auto p-2">
         {filteredVehicles.map((vehicle) => (
-          <Card 
-            key={vehicle.id} 
+          <Card
+            key={vehicle.id}
             className={`cursor-pointer transition-all duration-200 hover:scale-105 ${
-              vehicle.id === currentVehicleId 
-                ? 'ring-2 ring-success-500 bg-success-50 dark:bg-success-950' 
-                : 'hover:bg-default-50 dark:hover:bg-default-950'
+              vehicle.id === currentVehicleId
+                ? "ring-2 ring-success-500 bg-success-50 dark:bg-success-950"
+                : "hover:bg-default-50 dark:hover:bg-default-950"
             }`}
             isPressable
             onPress={() => onVehicleSelect(vehicle.id)}
           >
-            <CardBody className="p-4">
-              <div className="flex items-start justify-between mb-3">
-                <div className="w-10 h-10 rounded-full bg-primary-500/20 flex items-center justify-center">
-                  <Icon icon="solar:car-bold" className="text-primary-600" width={20} />
+            <CardBody className="p-6">
+              <div className="flex items-start justify-between mb-4">
+                <div className="w-12 h-12 rounded-full bg-primary-500/20 flex items-center justify-center">
+                  <Icon
+                    icon="solar:car-bold"
+                    className="text-primary-600"
+                    width={24}
+                  />
                 </div>
-                <Chip 
+                <Chip
                   color={getStatusColor(vehicle.status, vehicle.id) as any}
-                  size="sm" 
+                  size="sm"
                   variant="flat"
                 >
                   {getStatusText(vehicle.status, vehicle.id)}
                 </Chip>
               </div>
-              
-              <div className="space-y-2">
-                <h4 className="font-semibold text-foreground">{vehicle.name}</h4>
+
+              <div className="space-y-3">
+                <h4 className="font-semibold text-foreground text-lg">
+                  {vehicle.name}
+                </h4>
                 <p className="text-sm text-default-500 font-mono">
                   {vehicle.license_plate}
                 </p>
+
+                {/* Mostra l'utente assegnato se presente */}
+                {vehicle.assigned_user_name &&
+                  vehicle.id !== currentVehicleId && (
+                    <div className="flex items-center gap-2 mt-3">
+                      <Icon
+                        icon="solar:user-bold"
+                        className="text-warning-500"
+                        width={16}
+                      />
+                      <p className="text-sm text-warning-600 dark:text-warning-400">
+                        Assegnato a: {vehicle.assigned_user_name}
+                      </p>
+                    </div>
+                  )}
+
+                {/* Indicatore di riassegnazione */}
+                {vehicle.assigned_user_name &&
+                  vehicle.id !== currentVehicleId && (
+                    <div className="mt-3 p-3 bg-warning-50 dark:bg-warning-950 rounded-md border border-warning-200 dark:border-warning-800">
+                      <div className="flex items-center gap-2">
+                        <Icon
+                          icon="solar:info-circle-bold"
+                          className="text-warning-600"
+                          width={14}
+                        />
+                        <p className="text-xs text-warning-700 dark:text-warning-300">
+                          <strong>Attenzione:</strong> Questo veicolo è
+                          attualmente assegnato a {vehicle.assigned_user_name}.
+                          La selezione lo riassegnerà a questo utente.
+                        </p>
+                      </div>
+                    </div>
+                  )}
               </div>
 
               {vehicle.id === currentVehicleId && (
-                <div className="mt-3 pt-3 border-t border-success-200 dark:border-success-800">
-                  <Chip color="success" size="sm" variant="flat" startContent={<Icon icon="solar:check-circle-bold" width={14} />}>
+                <div className="mt-4 pt-4 border-t border-success-200 dark:border-success-800">
+                  <Chip
+                    color="success"
+                    size="sm"
+                    variant="flat"
+                    startContent={
+                      <Icon icon="solar:check-circle-bold" width={14} />
+                    }
+                  >
                     Veicolo attuale
                   </Chip>
                 </div>
@@ -229,7 +320,11 @@ function VehicleSelectionModal({
       {filteredVehicles.length === 0 && (
         <div className="text-center py-8">
           <div className="w-16 h-16 rounded-full bg-default-100 flex items-center justify-center mx-auto mb-4">
-            <Icon icon="solar:car-cross-bold" className="text-default-400" width={32} />
+            <Icon
+              icon="solar:car-cross-bold"
+              className="text-default-400"
+              width={32}
+            />
           </div>
           <h3 className="text-lg font-semibold text-foreground mb-2">
             Nessun veicolo trovato
@@ -237,9 +332,9 @@ function VehicleSelectionModal({
           <p className="text-default-500 mb-4">
             Prova a modificare i filtri o la ricerca
           </p>
-          <Button 
-            color="primary" 
-            variant="flat" 
+          <Button
+            color="primary"
+            variant="flat"
             onPress={() => {
               setSearchQuery("");
               setStatusFilter("all");
@@ -261,6 +356,13 @@ function EmployeeCard({ employee }: { employee: Employee }) {
   const [selectedVehicle, setSelectedVehicle] = useState<number | null>(null);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
+  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
+  const [confirmationData, setConfirmationData] = useState<{
+    vehicleName: string;
+    licensePlate: string;
+    assignedUserName: string;
+    vehicleId: number;
+  } | null>(null);
   const { triggerUpdate } = useContext(UpdateContext);
 
   // Fetch vehicles when modal opens
@@ -279,22 +381,79 @@ function EmployeeCard({ employee }: { employee: Employee }) {
   useEffect(() => {
     if (!isOpen) {
       setSelectedVehicle(null);
+      // Ricarica i veicoli quando si riapre il modal per assicurarsi che i dati siano aggiornati
+      if (vehicles.length > 0) {
+        fetchVehicles();
+      }
     }
   }, [isOpen]);
 
   const fetchVehicles = async () => {
     try {
-      const response = await axios.get("/Vehicle/GET/GetAvailableVehicles", {
+      const response = await axios.get("/Vehicle/GET/GetAllVehicles", {
         withCredentials: true,
       });
-      setVehicles(
-        response.data.map((vehicle: any) => ({
-          id: vehicle.vehicle_id,
-          name: vehicle.name,
-          license_plate: vehicle.license_plate,
-          status: vehicle.status || "available",
-        }))
+
+      // Processa i veicoli per ottenere le informazioni complete
+      const processedVehicles = await Promise.all(
+        response.data.map(async (vehicle: any) => {
+          let assignedUserName = undefined;
+
+          // Se c'è un utente assegnato, recupera il nome
+          if (vehicle.assigned_user_id) {
+            try {
+              const employeeResponse = await axios.get(
+                `/Employee/GET/GetEmployeeById`,
+                {
+                  params: { employeeId: vehicle.assigned_user_id },
+                  withCredentials: true,
+                }
+              );
+              if (employeeResponse.data?.name) {
+                assignedUserName = `${employeeResponse.data.name} ${
+                  employeeResponse.data.surname || ""
+                }`.trim();
+              }
+            } catch (error) {
+              console.log(
+                `Errore nel recupero utente per veicolo ${vehicle.vehicle_id}:`,
+                error
+              );
+            }
+          }
+
+          return {
+            id: vehicle.vehicle_id,
+            name: vehicle.name,
+            license_plate: vehicle.license_plate,
+            status: vehicle.assigned_user_id ? "assigned" : "available",
+            assigned_user_id: vehicle.assigned_user_id,
+            assigned_user_name: assignedUserName,
+          };
+        })
       );
+
+      // Aggiorna i veicoli locali, mantenendo eventuali modifiche non ancora sincronizzate
+      setVehicles((prevVehicles) => {
+        if (prevVehicles.length === 0) {
+          return processedVehicles;
+        }
+
+        // Combina i veicoli esistenti con quelli nuovi, dando priorità ai dati più recenti
+        return processedVehicles.map((newVehicle) => {
+          const existingVehicle = prevVehicles.find(
+            (v) => v.id === newVehicle.id
+          );
+          if (
+            existingVehicle &&
+            existingVehicle.assigned_user_id !== newVehicle.assigned_user_id
+          ) {
+            // Se c'è una differenza nell'assegnazione, usa i dati più recenti dal server
+            return newVehicle;
+          }
+          return existingVehicle || newVehicle;
+        });
+      });
     } catch (error) {
       console.error("Failed to fetch vehicles:", error);
     }
@@ -321,11 +480,28 @@ function EmployeeCard({ employee }: { employee: Employee }) {
         { withCredentials: true }
       );
 
+      // Aggiorna i dati locali per riflettere la nuova assegnazione
+      setVehicles((prevVehicles) =>
+        prevVehicles.map((vehicle) => ({
+          ...vehicle,
+          status: vehicle.id === selectedVehicle ? "assigned" : vehicle.status,
+          assigned_user_id:
+            vehicle.id === selectedVehicle
+              ? employee.user_id
+              : vehicle.assigned_user_id,
+          assigned_user_name:
+            vehicle.id === selectedVehicle
+              ? employee.name
+              : vehicle.assigned_user_name,
+        }))
+      );
+
       triggerUpdate();
       onClose();
       setShowVehicleModal(false);
     } catch (error) {
       console.error("Failed to assign vehicle:", error);
+      alert("Errore durante l'assegnazione del veicolo. Riprova.");
     } finally {
       setIsAssigning(false);
     }
@@ -338,6 +514,27 @@ function EmployeeCard({ employee }: { employee: Employee }) {
         employee_id: employee.user_id,
         vehicle_id: null,
       });
+
+      // Aggiorna i dati locali per riflettere la rimozione dell'assegnazione
+      if (employee.assigned_vehicle) {
+        setVehicles((prevVehicles) =>
+          prevVehicles.map((vehicle) => ({
+            ...vehicle,
+            status:
+              vehicle.id === employee.assigned_vehicle?.id
+                ? "available"
+                : vehicle.status,
+            assigned_user_id:
+              vehicle.id === employee.assigned_vehicle?.id
+                ? undefined
+                : vehicle.assigned_user_id,
+            assigned_user_name:
+              vehicle.id === employee.assigned_vehicle?.id
+                ? undefined
+                : vehicle.assigned_user_name,
+          }))
+        );
+      }
 
       setSelectedVehicle(null);
       triggerUpdate();
@@ -398,6 +595,25 @@ function EmployeeCard({ employee }: { employee: Employee }) {
   const avatarPhoto = employee.photo;
   const roleConfig = getRoleConfig(displayRole);
 
+  // Funzione per ottenere i dati del veicolo selezionato (se presente)
+  const getSelectedVehicleData = () => {
+    if (!selectedVehicle) return null;
+    return vehicles.find((v) => v.id === selectedVehicle);
+  };
+
+  // Funzione per ottenere il veicolo da mostrare (assegnato o selezionato)
+  const getDisplayVehicle = () => {
+    // Se c'è un veicolo selezionato ma non ancora salvato, mostra quello
+    if (
+      selectedVehicle &&
+      selectedVehicle !== (employee.assigned_vehicle?.id || 0)
+    ) {
+      return getSelectedVehicleData();
+    }
+    // Altrimenti mostra il veicolo attualmente assegnato
+    return employee.assigned_vehicle;
+  };
+
   return (
     <>
       <Card className="w-full shadow-medium hover:shadow-large transition-all duration-300 border-0 bg-content1/50 backdrop-blur-md">
@@ -450,15 +666,36 @@ function EmployeeCard({ employee }: { employee: Employee }) {
             </div>
 
             {/* Vehicle assignment status */}
-            {employee.assigned_vehicle && (
+            {getDisplayVehicle() ? (
               <div className="mt-3">
                 <Chip
-                  color="success"
+                  color={
+                    selectedVehicle &&
+                    selectedVehicle !== (employee.assigned_vehicle?.id || 0)
+                      ? "warning"
+                      : "success"
+                  }
                   variant="flat"
                   size="sm"
                   startContent={<Icon icon="solar:car-bold" width={14} />}
                 >
-                  {employee.assigned_vehicle.license_plate}
+                  {getDisplayVehicle()?.license_plate}
+                  {selectedVehicle &&
+                    selectedVehicle !==
+                      (employee.assigned_vehicle?.id || 0) && (
+                      <span className="ml-1 text-xs">(Selezionato)</span>
+                    )}
+                </Chip>
+              </div>
+            ) : (
+              <div className="mt-3">
+                <Chip
+                  color="default"
+                  variant="flat"
+                  size="sm"
+                  startContent={<Icon icon="solar:car-cross-bold" width={14} />}
+                >
+                  Nessun veicolo assegnato
                 </Chip>
               </div>
             )}
@@ -494,8 +731,8 @@ function EmployeeCard({ employee }: { employee: Employee }) {
               <span>Profilo Dipendente</span>
             </div>
           </ModalHeader>
-          <ModalBody className="p-6">
-            <div className="flex flex-col lg:flex-row gap-8">
+          <ModalBody className="p-8">
+            <div className="flex flex-col lg:flex-row gap-10">
               {/* Left side - Avatar and basic info */}
               <div className="flex flex-col items-center lg:w-1/3">
                 <div className="relative">
@@ -503,7 +740,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                     src={avatarPhoto}
                     showFallback
                     name={avatarName}
-                    className="h-32 w-32 mb-4 shadow-large"
+                    className="h-32 w-32 mb-6 shadow-large"
                   />
                   <Badge
                     content=""
@@ -521,16 +758,16 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                   color={roleConfig.chipColor}
                   variant="flat"
                   size="lg"
-                  className="mt-2"
+                  className="mt-3"
                   startContent={<Icon icon={roleConfig.icon} width={16} />}
                 >
                   {displayRole}
                 </Chip>
 
                 {/* Quick stats */}
-                <div className="mt-6 w-full space-y-3">
+                <div className="mt-8 w-full space-y-4">
                   <Card className="bg-success-50 dark:bg-success-950">
-                    <CardBody className="py-3">
+                    <CardBody className="py-4">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-2">
                           <Icon
@@ -550,7 +787,7 @@ function EmployeeCard({ employee }: { employee: Employee }) {
               </div>
 
               {/* Right side - Detailed information */}
-              <div className="flex-1 space-y-6">
+              <div className="flex-1 space-y-8">
                 {/* Personal Information */}
                 <div>
                   <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
@@ -595,53 +832,158 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                     />
                     Assegnazione Veicolo
                   </h4>
+
+                  {/* Info message */}
+                  <div className="mb-4 p-3 bg-info-50 dark:bg-info-950 rounded-lg border border-info-200 dark:border-info-800">
+                    <div className="flex items-start gap-2">
+                      <Icon
+                        icon="solar:info-circle-bold"
+                        className="text-info-600 mt-0.5"
+                        width={16}
+                      />
+                      <div className="text-sm text-info-700 dark:text-info-300">
+                        <p className="font-medium mb-1">Gestione Veicoli</p>
+                        <p>
+                          Puoi assegnare qualsiasi veicolo disponibile o già
+                          assegnato a un altro utente. La riassegnazione
+                          rimuoverà automaticamente l'assegnazione precedente e
+                          mostrerà una conferma per i veicoli già assegnati.
+                        </p>
+                        {selectedVehicle &&
+                          selectedVehicle !==
+                            (employee.assigned_vehicle?.id || 0) && (
+                            <div className="mt-2 p-2 bg-warning-50 dark:bg-warning-950 rounded border border-warning-200 dark:border-warning-800">
+                              <p className="text-xs text-warning-700 dark:text-warning-300">
+                                <strong>Anteprima:</strong> Il veicolo
+                                selezionato è visibile nella card ma non ancora
+                                salvato. Clicca "Assegna Veicolo" per confermare
+                                l'assegnazione.
+                              </p>
+                            </div>
+                          )}
+                      </div>
+                    </div>
+                  </div>
+
                   <Card className="bg-warning-50 dark:bg-warning-950">
                     <CardBody className="py-4">
-                      {employee.assigned_vehicle ? (
+                      {getDisplayVehicle() ? (
                         <div className="space-y-4">
-                          <div className="flex items-center justify-between p-3 bg-success-100 dark:bg-success-900 rounded-lg">
+                          <div
+                            className={`flex items-center justify-between p-3 rounded-lg ${
+                              selectedVehicle &&
+                              selectedVehicle !==
+                                (employee.assigned_vehicle?.id || 0)
+                                ? "bg-warning-100 dark:bg-warning-900 border-2 border-warning-300 dark:border-warning-700"
+                                : "bg-success-100 dark:bg-success-900"
+                            }`}
+                          >
                             <div className="flex items-center gap-3">
-                              <div className="w-10 h-10 rounded-full bg-success-500/20 flex items-center justify-center">
+                              <div
+                                className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                  selectedVehicle &&
+                                  selectedVehicle !==
+                                    (employee.assigned_vehicle?.id || 0)
+                                    ? "bg-warning-500/20"
+                                    : "bg-success-500/20"
+                                }`}
+                              >
                                 <Icon
                                   icon="solar:car-bold"
-                                  className="text-success-600"
+                                  className={
+                                    selectedVehicle &&
+                                    selectedVehicle !==
+                                      (employee.assigned_vehicle?.id || 0)
+                                      ? "text-warning-600"
+                                      : "text-success-600"
+                                  }
                                   width={20}
                                 />
                               </div>
                               <div>
-                                <p className="font-semibold text-success-700 dark:text-success-300">
-                                  {employee.assigned_vehicle.name}
+                                <p
+                                  className={`font-semibold ${
+                                    selectedVehicle &&
+                                    selectedVehicle !==
+                                      (employee.assigned_vehicle?.id || 0)
+                                      ? "text-warning-700 dark:text-warning-300"
+                                      : "text-success-700 dark:text-success-300"
+                                  }`}
+                                >
+                                  {getDisplayVehicle()?.name}
+                                  {selectedVehicle &&
+                                    selectedVehicle !==
+                                      (employee.assigned_vehicle?.id || 0) && (
+                                      <span className="ml-2 text-xs bg-warning-200 dark:bg-warning-800 px-2 py-1 rounded">
+                                        NUOVO
+                                      </span>
+                                    )}
                                 </p>
-                                <p className="text-sm text-success-600 dark:text-success-400">
-                                  Targa: {employee.assigned_vehicle.license_plate}
+                                <p
+                                  className={`text-sm ${
+                                    selectedVehicle &&
+                                    selectedVehicle !==
+                                      (employee.assigned_vehicle?.id || 0)
+                                      ? "text-warning-600 dark:text-warning-400"
+                                      : "text-success-600 dark:text-success-400"
+                                  }`}
+                                >
+                                  Targa: {getDisplayVehicle()?.license_plate}
                                 </p>
                               </div>
                             </div>
-                            <Chip color="success" size="sm" variant="flat">
-                              Assegnato
+                            <Chip
+                              color={
+                                selectedVehicle &&
+                                selectedVehicle !==
+                                  (employee.assigned_vehicle?.id || 0)
+                                  ? "warning"
+                                  : "success"
+                              }
+                              size="sm"
+                              variant="flat"
+                            >
+                              {selectedVehicle &&
+                              selectedVehicle !==
+                                (employee.assigned_vehicle?.id || 0)
+                                ? "Selezionato"
+                                : "Assegnato"}
                             </Chip>
                           </div>
-                          
+
                           <div className="flex gap-2">
                             <Button
                               color="primary"
                               variant="flat"
                               size="sm"
                               onPress={() => setShowVehicleModal(true)}
-                              startContent={<Icon icon="solar:pen-bold" width={16} />}
+                              startContent={
+                                <Icon icon="solar:pen-bold" width={16} />
+                              }
                             >
-                              Cambia Veicolo
+                              {selectedVehicle &&
+                              selectedVehicle !==
+                                (employee.assigned_vehicle?.id || 0)
+                                ? "Cambia Selezione"
+                                : "Cambia Veicolo"}
                             </Button>
-                            <Button
-                              color="danger"
-                              variant="flat"
-                              size="sm"
-                              onPress={handleVehicleUnassignment}
-                              isLoading={isAssigning}
-                              startContent={<Icon icon="solar:close-circle-bold" width={16} />}
-                            >
-                              Rimuovi
-                            </Button>
+                            {employee.assigned_vehicle && (
+                              <Button
+                                color="danger"
+                                variant="flat"
+                                size="sm"
+                                onPress={handleVehicleUnassignment}
+                                isLoading={isAssigning}
+                                startContent={
+                                  <Icon
+                                    icon="solar:close-circle-bold"
+                                    width={16}
+                                  />
+                                }
+                              >
+                                Rimuovi
+                              </Button>
+                            )}
                           </div>
                         </div>
                       ) : (
@@ -661,7 +1003,9 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                             variant="flat"
                             size="sm"
                             onPress={() => setShowVehicleModal(true)}
-                            startContent={<Icon icon="solar:car-bold" width={16} />}
+                            startContent={
+                              <Icon icon="solar:car-bold" width={16} />
+                            }
                           >
                             Assegna Veicolo
                           </Button>
@@ -670,8 +1014,6 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                     </CardBody>
                   </Card>
                 </div>
-
-
 
                 {/* Performance Metrics */}
                 <div>
@@ -691,7 +1033,12 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                           92%
                         </span>
                       </div>
-                      <Progress value={92} color="success" size="md" aria-label="Efficienza membro team" />
+                      <Progress
+                        value={92}
+                        color="success"
+                        size="md"
+                        aria-label="Efficienza membro team"
+                      />
                     </div>
                     <div>
                       <div className="flex justify-between mb-2">
@@ -702,7 +1049,12 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                           87%
                         </span>
                       </div>
-                      <Progress value={87} color="primary" size="md" aria-label="Progetti completati" />
+                      <Progress
+                        value={87}
+                        color="primary"
+                        size="md"
+                        aria-label="Progetti completati"
+                      />
                     </div>
                     <div>
                       <div className="flex justify-between mb-2">
@@ -713,7 +1065,12 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                           95%
                         </span>
                       </div>
-                      <Progress value={95} color="warning" size="md" aria-label="Valutazione performance" />
+                      <Progress
+                        value={95}
+                        color="warning"
+                        size="md"
+                        aria-label="Valutazione performance"
+                      />
                     </div>
                   </div>
                 </div>
@@ -732,7 +1089,18 @@ function EmployeeCard({ employee }: { employee: Employee }) {
                   isLoading={isAssigning}
                   startContent={<Icon icon="solar:car-bold" width={16} />}
                 >
-                  Assegna Veicolo
+                  {(() => {
+                    const selectedVehicleData = vehicles.find(
+                      (v) => v.id === selectedVehicle
+                    );
+                    if (
+                      selectedVehicleData?.assigned_user_name &&
+                      selectedVehicleData.assigned_user_id !== employee.user_id
+                    ) {
+                      return "Riassegna Veicolo";
+                    }
+                    return "Assegna Veicolo";
+                  })()}
                 </Button>
               )}
           </ModalFooter>
@@ -740,10 +1108,10 @@ function EmployeeCard({ employee }: { employee: Employee }) {
       </Modal>
 
       {/* Vehicle Selection Modal */}
-      <Modal 
-        isOpen={showVehicleModal} 
-        onClose={() => setShowVehicleModal(false)} 
-        size="3xl" 
+      <Modal
+        isOpen={showVehicleModal}
+        onClose={() => setShowVehicleModal(false)}
+        size="3xl"
         backdrop="blur"
       >
         <ModalContent>
@@ -752,18 +1120,149 @@ function EmployeeCard({ employee }: { employee: Employee }) {
               <Icon icon="solar:car-bold" className="text-primary" width={24} />
               <span>Seleziona Veicolo</span>
             </div>
+            <p className="text-sm text-default-500 font-normal">
+              Puoi selezionare qualsiasi veicolo, anche se già assegnato a un
+              altro utente
+            </p>
           </ModalHeader>
-          <ModalBody className="p-6">
-            <VehicleSelectionModal 
+          <ModalBody className="p-8">
+            <VehicleSelectionModal
               vehicles={vehicles}
               currentVehicleId={employee.assigned_vehicle?.id}
               onVehicleSelect={(vehicleId) => {
-                setSelectedVehicle(vehicleId);
-                setShowVehicleModal(false);
+                const selectedVehicleData = vehicles.find(
+                  (v) => v.id === vehicleId
+                );
+
+                // Se il veicolo è già assegnato a un altro utente, mostra conferma
+                if (
+                  selectedVehicleData?.assigned_user_name &&
+                  selectedVehicleData.assigned_user_id !== employee.user_id
+                ) {
+                  setConfirmationData({
+                    vehicleName: selectedVehicleData.name,
+                    licensePlate: selectedVehicleData.license_plate,
+                    assignedUserName: selectedVehicleData.assigned_user_name,
+                    vehicleId: selectedVehicleData.id,
+                  });
+                  setShowConfirmationModal(true);
+                  setShowVehicleModal(false);
+                } else {
+                  // Veicolo disponibile o già assegnato all'utente corrente
+                  setSelectedVehicle(vehicleId);
+                  setShowVehicleModal(false);
+                }
               }}
               onClose={() => setShowVehicleModal(false)}
             />
           </ModalBody>
+        </ModalContent>
+      </Modal>
+
+      {/* Confirmation Modal */}
+      <Modal
+        isOpen={showConfirmationModal}
+        onClose={() => setShowConfirmationModal(false)}
+        isDismissable={false}
+        onOpenChange={setShowConfirmationModal}
+      >
+        <ModalContent>
+          <ModalHeader className="flex flex-col gap-1 bg-warning-50 dark:bg-warning-950">
+            <div className="flex items-center gap-3">
+              <Icon
+                icon="solar:info-circle-bold"
+                className="text-warning-600"
+                width={24}
+              />
+              <span>Conferma Riassegnazione</span>
+            </div>
+          </ModalHeader>
+          <ModalBody className="p-6">
+            <div className="flex flex-col items-center text-center">
+              <Icon
+                icon="solar:info-circle-bold"
+                className="text-warning-600"
+                width={48}
+                height={48}
+              />
+              <h3 className="text-lg font-semibold text-foreground mt-4">
+                Attenzione: Riassegnazione Veicolo
+              </h3>
+              <p className="text-sm text-default-500 mt-2">
+                Stai tentando di riassegnare il veicolo{" "}
+                <strong>{confirmationData?.vehicleName}</strong> (
+                {confirmationData?.licensePlate}) a{" "}
+                <strong>{employee.name}</strong>. Questo rimuoverà
+                l'assegnazione corrente a{" "}
+                <strong>{confirmationData?.assignedUserName}</strong>. Vuoi
+                procedere?
+              </p>
+            </div>
+          </ModalBody>
+          <ModalFooter className="bg-warning-50 dark:bg-warning-950">
+            <Button
+              color="default"
+              variant="light"
+              onPress={() => setShowConfirmationModal(false)}
+            >
+              Annulla
+            </Button>
+            <Button
+              color="primary"
+              onPress={() => {
+                if (!confirmationData) return;
+
+                setIsAssigning(true);
+                axios
+                  .put(
+                    "/Employee/UPDATE/UpdateEmployeeVehicle",
+                    {
+                      employee_id: employee.user_id,
+                      vehicle_id: confirmationData.vehicleId,
+                    },
+                    { withCredentials: true }
+                  )
+                  .then(() => {
+                    // Aggiorna i dati locali per riflettere la nuova assegnazione
+                    setVehicles((prevVehicles) =>
+                      prevVehicles.map((vehicle) => ({
+                        ...vehicle,
+                        status:
+                          vehicle.id === confirmationData.vehicleId
+                            ? "assigned"
+                            : vehicle.status,
+                        assigned_user_id:
+                          vehicle.id === confirmationData.vehicleId
+                            ? employee.user_id
+                            : vehicle.assigned_user_id,
+                        assigned_user_name:
+                          vehicle.id === confirmationData.vehicleId
+                            ? employee.name
+                            : vehicle.assigned_user_name,
+                      }))
+                    );
+
+                    triggerUpdate();
+                    setShowConfirmationModal(false);
+                    setSelectedVehicle(confirmationData.vehicleId);
+                    onClose();
+                    setShowVehicleModal(false);
+                  })
+                  .catch((error) => {
+                    console.error("Failed to reassign vehicle:", error);
+                    alert(
+                      "Errore durante la riassegnazione del veicolo. Riprova."
+                    );
+                  })
+                  .finally(() => {
+                    setIsAssigning(false);
+                  });
+              }}
+              isLoading={isAssigning}
+            >
+              Riassegna
+            </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
     </>
@@ -1072,7 +1571,7 @@ export default function Team() {
           <CardBody className="p-6">
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
               {/* Search and Filters */}
-              <div className="flex flex-col sm:flex-row gap-4 flex-1">
+              <div className="flex flex-col sm:flex-row gap-6 mb-6">
                 <Input
                   placeholder="Cerca per nome o ruolo..."
                   value={searchQuery}
@@ -1087,11 +1586,7 @@ export default function Team() {
                   }
                   isClearable
                   onClear={() => setSearchQuery("")}
-                  className="max-w-md"
-                  classNames={{
-                    input: "text-sm",
-                    inputWrapper: "bg-default-100 border-0 shadow-sm",
-                  }}
+                  className="flex-1"
                 />
 
                 <Dropdown>
