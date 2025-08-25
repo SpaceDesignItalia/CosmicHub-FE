@@ -1100,17 +1100,16 @@ export default function CustomerDetail() {
                                       <div className="border-t-2 border-yellow-600 my-6"></div>
                                     )}
 
-                                  {/* Sezione Interventi Futuri */}
-                                  {futureEvents.length > 0 && (
-                                    <div className="mb-6">
-                                      <h6 className="font-semibold text-green-400 mb-3 flex items-center gap-2 border-b border-green-700 pb-2">
-                                        <Icon
-                                          icon="solar:clock-circle-bold"
-                                          width={16}
-                                        />
-                                        Interventi Futuri ({futureEvents.length}
-                                        )
-                                      </h6>
+                                  {/* Sezione Interventi Futuri - SEMPRE VISIBILE */}
+                                  <div className="mb-6">
+                                    <h6 className="font-semibold text-green-400 mb-3 flex items-center gap-2 border-b border-green-700 pb-2">
+                                      <Icon
+                                        icon="solar:clock-circle-bold"
+                                        width={16}
+                                      />
+                                      Interventi Futuri ({futureEvents.length})
+                                    </h6>
+                                    {futureEvents.length > 0 ? (
                                       <div className="space-y-3">
                                         {futureEvents.map((event) => {
                                           // Determina il colore in base alla priorità
@@ -1331,8 +1330,23 @@ export default function CustomerDetail() {
                                           );
                                         })}
                                       </div>
-                                    </div>
-                                  )}
+                                    ) : (
+                                      <div className="text-center py-6 bg-green-900/10 rounded-lg border-2 border-dashed border-green-600/50">
+                                        <Icon
+                                          icon="solar:clock-circle-bold"
+                                          width={32}
+                                          className="text-green-400 mx-auto mb-2"
+                                        />
+                                        <p className="text-green-300 text-sm font-medium mb-1">
+                                          Nessun evento programmato
+                                        </p>
+                                        <p className="text-green-400 text-xs">
+                                          Non ci sono interventi futuri per
+                                          questo cliente
+                                        </p>
+                                      </div>
+                                    )}
+                                  </div>
 
                                   {/* Separatore tra eventi futuri e passati */}
                                   {futureEvents.length > 0 &&
@@ -1343,146 +1357,192 @@ export default function CustomerDetail() {
                                   {/* Sezione Storico Interventi */}
                                   {pastEvents.length > 0 && (
                                     <div className="mb-6">
-                                      <h3 className="text-lg font-semibold text-white mb-4">
-                                        Storico Interventi
-                                      </h3>
-                                      <div className="max-h-64 overflow-y-auto pr-2 space-y-3">
-                                        {pastEvents.map((event, index) => (
-                                          <Card
-                                            key={`past-${index}`}
-                                            className={`bg-gray-900 dark:bg-black text-white border-l-4 ${
-                                              event.EventPriority === "Normale"
-                                                ? "border-l-green-500"
-                                                : event.EventPriority === "Alta"
-                                                ? "border-l-yellow-500"
-                                                : event.EventPriority ===
-                                                  "Urgente"
-                                                ? "border-l-orange-500"
-                                                : event.EventPriority ===
-                                                  "Emergenza"
-                                                ? "border-l-red-500"
-                                                : "border-l-gray-500"
-                                            }`}
-                                          >
-                                            <CardBody className="p-4">
-                                              <div className="flex justify-between items-start mb-2">
-                                                <h4 className="font-semibold text-white">
-                                                  {event.EventTitle}
-                                                </h4>
-                                                <div className="flex gap-2">
-                                                  <Chip
-                                                    color="primary"
-                                                    variant="flat"
-                                                    size="sm"
-                                                  >
-                                                    {event.EventType ||
-                                                      "Intervento"}
-                                                  </Chip>
-                                                  <Chip
-                                                    color={
-                                                      event.EventPriority ===
-                                                      "Emergenza"
-                                                        ? "danger"
-                                                        : event.EventPriority ===
-                                                          "Urgente"
-                                                        ? "warning"
-                                                        : event.EventPriority ===
-                                                          "Alta"
-                                                        ? "secondary"
-                                                        : "default"
-                                                    }
-                                                    variant="flat"
-                                                    size="sm"
-                                                  >
-                                                    {event.EventPriority ||
-                                                      "Normale"}
-                                                  </Chip>
+                                      <h6 className="font-semibold text-gray-400 mb-3 flex items-center gap-2 border-b border-gray-700 pb-2">
+                                        <Icon
+                                          icon="solar:history-bold"
+                                          width={16}
+                                        />
+                                        Storico Interventi ({pastEvents.length})
+                                      </h6>
+                                      <div className="space-y-3">
+                                        {pastEvents.map((event, index) => {
+                                          // Determina il colore in base alla priorità
+                                          const getPriorityColor = (
+                                            priority: string
+                                          ) => {
+                                            switch (priority) {
+                                              case "Normale":
+                                                return "border-l-green-500";
+                                              case "Alta":
+                                                return "border-l-yellow-500";
+                                              case "Urgente":
+                                                return "border-l-orange-500";
+                                              case "Emergenza":
+                                                return "border-l-red-500";
+                                              default:
+                                                return "border-l-gray-500";
+                                            }
+                                          };
+
+                                          const priorityColor =
+                                            getPriorityColor(
+                                              event.EventPriority || "Normale"
+                                            );
+
+                                          return (
+                                            <Card
+                                              key={`past-${index}`}
+                                              className={`p-4 border-l-4 ${priorityColor} bg-gray-900 dark:bg-black text-white border border-gray-700 dark:border-gray-800 hover:shadow-xl hover:bg-gray-800 transition-all duration-200 group`}
+                                            >
+                                              <div className="space-y-3">
+                                                {/* Header evento con icona priorità */}
+                                                <div className="flex items-start justify-between">
+                                                  <div className="flex-1">
+                                                    <div className="flex items-center gap-2 mb-2">
+                                                      <span className="text-2xl">
+                                                        {event.EventPriority ===
+                                                          "Normale" && "🟢"}
+                                                        {event.EventPriority ===
+                                                          "Alta" && "🟡"}
+                                                        {event.EventPriority ===
+                                                          "Urgente" && "🟠"}
+                                                        {event.EventPriority ===
+                                                          "Emergenza" && "🔴"}
+                                                      </span>
+                                                      <div className="flex-1">
+                                                        <h4 className="font-semibold text-white text-lg">
+                                                          {event.EventTitle ||
+                                                            "Evento"}
+                                                        </h4>
+                                                        <p className="text-gray-300 text-sm">
+                                                          {new Date(
+                                                            event.EventStartDate
+                                                          ).toLocaleDateString(
+                                                            "it-IT",
+                                                            {
+                                                              weekday: "long",
+                                                              year: "numeric",
+                                                              month: "long",
+                                                              day: "numeric",
+                                                            }
+                                                          )}
+                                                        </p>
+                                                        <p className="text-gray-400 text-xs">
+                                                          {event.EventStartTime ||
+                                                            new Date(
+                                                              event.EventStartDate
+                                                            ).toLocaleTimeString(
+                                                              "it-IT",
+                                                              {
+                                                                hour: "2-digit",
+                                                                minute:
+                                                                  "2-digit",
+                                                              }
+                                                            )}{" "}
+                                                          -{" "}
+                                                          {event.EventEndTime ||
+                                                            new Date(
+                                                              event.EventEndDate
+                                                            ).toLocaleTimeString(
+                                                              "it-IT",
+                                                              {
+                                                                hour: "2-digit",
+                                                                minute:
+                                                                  "2-digit",
+                                                              }
+                                                            )}
+                                                        </p>
+                                                      </div>
+                                                    </div>
+                                                  </div>
+                                                  <div className="flex flex-col gap-2">
+                                                    <Chip
+                                                      size="sm"
+                                                      variant="flat"
+                                                      className={`${
+                                                        event.EventPriority ===
+                                                        "Normale"
+                                                          ? "bg-green-900 text-green-100 border-green-700"
+                                                          : event.EventPriority ===
+                                                            "Alta"
+                                                          ? "bg-yellow-900 text-yellow-100 border-yellow-700"
+                                                          : event.EventPriority ===
+                                                            "Urgente"
+                                                          ? "bg-orange-900 text-orange-100 border-orange-700"
+                                                          : "bg-red-900 text-red-100 border-red-700"
+                                                      }`}
+                                                    >
+                                                      {event.EventPriority}
+                                                    </Chip>
+                                                    {event.EventType && (
+                                                      <Chip
+                                                        size="sm"
+                                                        variant="flat"
+                                                        className="bg-gray-900 text-gray-100 border-gray-700"
+                                                      >
+                                                        {event.EventType}
+                                                      </Chip>
+                                                    )}
+                                                  </div>
                                                 </div>
-                                              </div>
-                                              <div className="text-sm text-gray-300 mb-3">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                  <Icon
-                                                    icon="mdi:calendar-clock"
-                                                    className="text-gray-400"
-                                                  />
-                                                  <span>
-                                                    {new Date(
-                                                      event.EventStartDate
-                                                    ).toLocaleDateString(
-                                                      "it-IT"
-                                                    )}{" "}
-                                                    {event.EventStartTime
-                                                      ? event.EventStartTime.substring(
-                                                          0,
-                                                          5
-                                                        )
-                                                      : new Date(
-                                                          event.EventStartDate
-                                                        ).toLocaleTimeString(
-                                                          "it-IT",
-                                                          {
-                                                            hour: "2-digit",
-                                                            minute: "2-digit",
-                                                          }
-                                                        )}{" "}
-                                                    -{" "}
-                                                    {event.EventEndTime
-                                                      ? event.EventEndTime.substring(
-                                                          0,
-                                                          5
-                                                        )
-                                                      : new Date(
-                                                          event.EventEndDate
-                                                        ).toLocaleTimeString(
-                                                          "it-IT",
-                                                          {
-                                                            hour: "2-digit",
-                                                            minute: "2-digit",
-                                                          }
-                                                        )}
-                                                  </span>
-                                                </div>
-                                                {event.EventLocation && (
-                                                  <div className="flex items-center gap-2">
-                                                    <Icon
-                                                      icon="mdi:map-marker"
-                                                      className="text-gray-400"
-                                                    />
-                                                    <span>
-                                                      {event.EventLocation}
-                                                    </span>
+
+                                                {/* Descrizione */}
+                                                {event.EventDescription && (
+                                                  <div className="p-3 bg-gray-800 dark:bg-gray-900 rounded-lg border border-gray-700 dark:border-gray-800">
+                                                    <p className="text-sm text-gray-300 font-medium mb-1">
+                                                      Descrizione
+                                                    </p>
+                                                    <p className="text-white text-sm">
+                                                      {event.EventDescription}
+                                                    </p>
                                                   </div>
                                                 )}
+
+                                                {/* Ubicazione */}
+                                                {event.EventLocation && (
+                                                  <div className="p-3 bg-gray-800 dark:bg-gray-900 rounded-lg border border-gray-700 dark:border-gray-800">
+                                                    <p className="text-sm text-gray-300 font-medium mb-1">
+                                                      Ubicazione
+                                                    </p>
+                                                    <p className="text-white text-sm">
+                                                      {event.EventLocation}
+                                                    </p>
+                                                  </div>
+                                                )}
+
+                                                {/* Azioni */}
+                                                <div className="flex gap-2 pt-2">
+                                                  <Button
+                                                    size="sm"
+                                                    variant="flat"
+                                                    className="bg-gray-600 hover:bg-gray-700 text-white"
+                                                    startContent={
+                                                      <Icon
+                                                        icon="solar:eye-bold"
+                                                        width={16}
+                                                      />
+                                                    }
+                                                  >
+                                                    Visualizza
+                                                  </Button>
+                                                  <Button
+                                                    size="sm"
+                                                    variant="flat"
+                                                    className="bg-gray-600 hover:bg-gray-700 text-white"
+                                                    startContent={
+                                                      <Icon
+                                                        icon="solar:pen-bold"
+                                                        width={16}
+                                                      />
+                                                    }
+                                                  >
+                                                    Modifica
+                                                  </Button>
+                                                </div>
                                               </div>
-                                              <div className="flex gap-2">
-                                                <Button
-                                                  size="sm"
-                                                  color="success"
-                                                  variant="flat"
-                                                  onPress={() =>
-                                                    navigate(
-                                                      `/interventions/${event.EventId}`
-                                                    )
-                                                  }
-                                                >
-                                                  Visualizza
-                                                </Button>
-                                                <Button
-                                                  size="sm"
-                                                  color="secondary"
-                                                  variant="flat"
-                                                  onPress={() =>
-                                                    navigate(
-                                                      `/interventions/${event.EventId}/edit`
-                                                    )
-                                                  }
-                                                >
-                                                  Modifica
-                                                </Button>
-                                              </div>
-                                            </CardBody>
-                                          </Card>
-                                        ))}
+                                            </Card>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   )}
@@ -1525,64 +1585,6 @@ export default function CustomerDetail() {
 
                       {/* Separatore */}
                       <div className="border-t border-default-200 my-4"></div>
-
-                      {/* Sezione Interventi Tradizionali */}
-                      <div>
-                        <h5 className="font-semibold text-foreground mb-3 flex items-center gap-2">
-                          <Icon icon="solar:settings-bold" width={20} />
-                          Storico Interventi
-                        </h5>
-                        {mockInterventions.length > 0 ? (
-                          mockInterventions.map((intervention) => (
-                            <Card
-                              key={intervention.intervention_id}
-                              className="p-3 border-l-4 border-l-success bg-success-50/30"
-                            >
-                              <div className="flex items-center justify-between">
-                                <div>
-                                  <p className="font-medium">
-                                    🔧 {intervention.problem_description}
-                                  </p>
-                                  <p className="text-sm text-default-600">
-                                    {intervention.date.toLocaleDateString(
-                                      "it-IT"
-                                    )}{" "}
-                                    • {intervention.technician_name}
-                                  </p>
-                                </div>
-                                <div className="text-right">
-                                  <p className="font-medium">
-                                    €{intervention.cost.toFixed(2)}
-                                  </p>
-                                  <Chip
-                                    size="sm"
-                                    color="success"
-                                    variant="flat"
-                                  >
-                                    {intervention.status === "completed"
-                                      ? "Completato"
-                                      : intervention.status}
-                                  </Chip>
-                                </div>
-                              </div>
-                            </Card>
-                          ))
-                        ) : (
-                          <div className="text-center py-4 bg-default-50 rounded-lg border border-dashed border-default-300">
-                            <Icon
-                              icon="solar:settings-cross-bold"
-                              width={24}
-                              className="text-default-300 mx-auto mb-2"
-                            />
-                            <p className="text-sm text-default-500 mb-1">
-                              Nessun intervento
-                            </p>
-                            <p className="text-xs text-default-400">
-                              Questo cliente non ha interventi completati
-                            </p>
-                          </div>
-                        )}
-                      </div>
                     </div>
                   </Tab>
                   <Tab key="references" title="👥 Referenze">

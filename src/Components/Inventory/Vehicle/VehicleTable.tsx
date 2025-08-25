@@ -46,6 +46,7 @@ interface Vehicle {
 interface VehicleTableProps {
   vehicles: Vehicle[];
   vehicleTypes: string[];
+  onVehicleDeleted?: (vehicleId: string) => void;
 }
 
 // Coordinate del deposito
@@ -81,6 +82,7 @@ const calculateDistance = (
 export default function VehicleTable({
   vehicles,
   vehicleTypes,
+  onVehicleDeleted,
 }: VehicleTableProps) {
   const navigate = useNavigate();
   const [vehicleSearch, setVehicleSearch] = useState("");
@@ -235,7 +237,7 @@ export default function VehicleTable({
       setIsDeleteModalOpen(false);
       // Qui dovresti aggiornare la lista dei veicoli - in un'applicazione reale
       // potresti fare un refresh dei dati o rimuovere l'elemento dall'array locale
-      window.location.reload();
+      onVehicleDeleted?.(selectedVehicle.id);
     } catch (error) {
       console.error("Errore durante l'eliminazione del veicolo:", error);
       setDeleteError("Impossibile eliminare il veicolo. Riprova più tardi.");

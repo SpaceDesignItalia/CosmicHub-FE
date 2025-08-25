@@ -22,7 +22,7 @@ import {
   Autocomplete,
   AutocompleteItem,
 } from "@heroui/react";
-import { parseDate } from "@internationalized/date";
+import { parseDate, type CalendarDate } from "@internationalized/date";
 import type { DateValue } from "@internationalized/date";
 import type { Employee } from "../../types/Employee";
 
@@ -60,7 +60,7 @@ export default function AddVehicle() {
       setIsLoadingUsers(true);
       try {
         const response = await axios.get(
-          "/Employee/GET/GetEmplyeesWithoutVehicle"
+          "/Employee/GET/GetEmployeesWithoutVehicle"
         );
         setAvailableUsers(response.data || []);
       } catch (error) {
@@ -302,8 +302,8 @@ export default function AddVehicle() {
                   id="last_inspection_date"
                   value={
                     formData.last_inspection_date
-                      ? parseDate(formData.last_inspection_date)
-                      : null
+                      ? (parseDate(formData.last_inspection_date) as any)
+                      : undefined
                   }
                   onChange={handleDateChange}
                   className="w-full"
@@ -333,7 +333,7 @@ export default function AddVehicle() {
                   items={availableUsers}
                 >
                   {(user) => (
-                    <AutocompleteItem key={user.id} textValue={user.name}>
+                    <AutocompleteItem key={user.user_id} textValue={user.name}>
                       <div className="flex flex-col">
                         <span className="font-medium">{user.name}</span>
                         <span className="text-xs text-gray-500">
