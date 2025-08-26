@@ -18,37 +18,41 @@ import {
   ModalContent,
   ModalFooter,
   ModalHeader,
+  Pagination,
   Progress,
   Select,
   SelectItem,
-  useDisclosure,
+  Table,
+  TableBody,
+  TableCell,
+  TableColumn,
+  TableHeader,
+  TableRow,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import axios from "axios";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import PageHeader from "../../Components/Layout/PageHeader";
 
 // Interface for Employee type
 interface Employee {
   user_id: number;
   name: string;
+  surname?: string;
+  email?: string;
   role: string;
   photo: string;
   assigned_vehicle?: {
     id: number;
     name: string;
     license_plate: string;
-  };
-}
-
-// Interface for Vehicle type
-interface Vehicle {
-  id: number;
-  name: string;
-  license_plate: string;
-  status: string;
-  assigned_user_id?: number;
-  assigned_user_name?: string;
+  } | null;
 }
 
 // Create context for update state
@@ -58,1228 +62,330 @@ const UpdateContext = createContext<{
   triggerUpdate: () => {},
 });
 
-// Component for intelligent vehicle selection
-function VehicleSelectionModal({
-  vehicles,
-  currentVehicleId,
-  onVehicleSelect,
-  onClose,
-}: {
-  vehicles: Vehicle[];
-  currentVehicleId?: number;
-  onVehicleSelect: (vehicleId: number) => void;
-  onClose: () => void;
-}) {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("all");
-  const [sortBy, setSortBy] = useState<string>("name");
+// Helper functions for role styling
+const getRoleColor = (role: string) => {
+  switch (role) {
+    case "Senior Technician":
+      return "primary";
+    case "Specialized Technician":
+      return "secondary";
+    case "Junior Technician":
+      return "warning";
+    default:
+      return "default";
+  }
+};
 
-  // Filter and sort vehicles
-  const filteredVehicles = useMemo(() => {
-    let filtered = vehicles.filter((vehicle) => {
-      const matchesSearch =
-        !searchQuery.trim() ||
-        vehicle.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        vehicle.license_plate.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const matchesStatus =
-        statusFilter === "all" ||
-        (statusFilter === "available" && vehicle.status === "available") ||
-        (statusFilter === "assigned" && vehicle.status === "assigned") ||
-        (statusFilter === "current" && vehicle.id === currentVehicleId);
-
-      return matchesSearch && matchesStatus;
-    });
-
-    // Sort vehicles
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "name":
-          return a.name.localeCompare(b.name);
-        case "plate":
-          return a.license_plate.localeCompare(b.license_plate);
-        case "status":
-          // Ordina per: disponibili, assegnati, attuale
-          if (a.id === currentVehicleId) return -1;
-          if (b.id === currentVehicleId) return 1;
-          if (a.status === "available" && b.status !== "available") return -1;
-          if (a.status !== "available" && b.status === "available") return 1;
-          return 0;
-        default:
-          return 0;
-      }
-    });
-
-    return filtered;
-  }, [vehicles, searchQuery, statusFilter, sortBy, currentVehicleId]);
-
-  const getStatusColor = (status: string, vehicleId: number) => {
-    if (vehicleId === currentVehicleId) return "success";
-    if (status === "available") return "primary";
-    return "warning";
-  };
-
-  const getStatusText = (status: string, vehicleId: number) => {
-    if (vehicleId === currentVehicleId) return "Attuale";
-    if (status === "available") return "Disponibile";
-    return "Assegnato";
-  };
-
-  return (
-    <div className="space-y-6">
-      {/* Search and Filters */}
-      <div className="flex flex-col sm:flex-row gap-6 mb-6">
-        <Input
-          placeholder="Cerca per nome o targa..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          size="lg"
-          startContent={
-            <Icon
-              icon="solar:magnifer-linear"
-              className="text-default-400"
-              width={20}
-            />
-          }
-          isClearable
-          onClear={() => setSearchQuery("")}
-          className="flex-1"
-        />
-
-        <Dropdown>
-          <DropdownTrigger>
-            <Button
-              variant="flat"
-              size="lg"
-              startContent={<Icon icon="solar:filter-bold" width={18} />}
-            >
-              {statusFilter === "all"
-                ? "Tutti"
-                : statusFilter === "available"
-                ? "Solo disponibili"
-                : statusFilter === "assigned"
-                ? "Solo assegnati"
-                : "Attuale"}
-            </Button>
-          </DropdownTrigger>
-          <DropdownMenu
-            aria-label="Filtro stato"
-            selectedKeys={[statusFilter]}
-            onAction={(key) => setStatusFilter(key as string)}
-          >
-            <DropdownItem key="all">Tutti i veicoli</DropdownItem>
-            <DropdownItem key="available">Solo disponibili</DropdownItem>
-            <DropdownItem key="assigned">Solo assegnati</DropdownItem>
-            <DropdownItem key="current">Veicolo attuale</DropdownItem>
-          </DropdownMenu>
-        </Dropdown>
-
-        <Dropdown>
-          <DropdownTrigger>
-            <Button
-              variant="flat"
-              size="lg"
-              startContent={<Icon icon="solar:sort-bold" width={18} />}
-            >
-              {sortBy === "name"
-                ? "Nome"
-                : sortBy === "plate"
-                ? "Targa"
-                : "Stato"}
-            </Button>
-          </DropdownTrigger>
-          <DropdownMenu
-            aria-label="Ordinamento"
-            selectedKeys={[sortBy]}
-            onAction={(key) => setSortBy(key as string)}
-          >
-            <DropdownItem key="name">Per nome</DropdownItem>
-            <DropdownItem key="plate">Per targa</DropdownItem>
-            <DropdownItem key="status">Per stato</DropdownItem>
-          </DropdownMenu>
-        </Dropdown>
-      </div>
-
-      {/* Results counter */}
-      <div className="flex items-center justify-between py-4">
-        <div className="flex items-center gap-6">
-          <p className="text-sm text-default-500">
-            {filteredVehicles.length} veicoli trovati
-          </p>
-          <div className="flex items-center gap-4 text-xs">
-            <span className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-primary-500"></div>
-              {vehicles.filter((v) => v.status === "available").length}{" "}
-              disponibili
-            </span>
-            <span className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-warning-500"></div>
-              {vehicles.filter((v) => v.status === "assigned").length} assegnati
-            </span>
-          </div>
-        </div>
-        <Button color="default" variant="light" size="sm" onPress={onClose}>
-          Chiudi
-        </Button>
-      </div>
-
-      {/* Vehicle Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 max-h-96 overflow-y-auto p-2">
-        {filteredVehicles.map((vehicle) => (
-          <Card
-            key={vehicle.id}
-            className={`cursor-pointer transition-all duration-200 hover:scale-105 ${
-              vehicle.id === currentVehicleId
-                ? "ring-2 ring-success-500 bg-success-50 dark:bg-success-950"
-                : "hover:bg-default-50 dark:hover:bg-default-950"
-            }`}
-            isPressable
-            onPress={() => onVehicleSelect(vehicle.id)}
-          >
-            <CardBody className="p-6">
-              <div className="flex items-start justify-between mb-4">
-                <div className="w-12 h-12 rounded-full bg-primary-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:car-bold"
-                    className="text-primary-600"
-                    width={24}
-                  />
-                </div>
-                <Chip
-                  color={getStatusColor(vehicle.status, vehicle.id) as any}
-                  size="sm"
-                  variant="flat"
-                >
-                  {getStatusText(vehicle.status, vehicle.id)}
-                </Chip>
-              </div>
-
-              <div className="space-y-3">
-                <h4 className="font-semibold text-foreground text-lg">
-                  {vehicle.name}
-                </h4>
-                <p className="text-sm text-default-500 font-mono">
-                  {vehicle.license_plate}
-                </p>
-
-                {/* Mostra l'utente assegnato se presente */}
-                {vehicle.assigned_user_name &&
-                  vehicle.id !== currentVehicleId && (
-                    <div className="flex items-center gap-2 mt-3">
-                      <Icon
-                        icon="solar:user-bold"
-                        className="text-warning-500"
-                        width={16}
-                      />
-                      <p className="text-sm text-warning-600 dark:text-warning-400">
-                        Assegnato a: {vehicle.assigned_user_name}
-                      </p>
-                    </div>
-                  )}
-
-                {/* Indicatore di riassegnazione */}
-                {vehicle.assigned_user_name &&
-                  vehicle.id !== currentVehicleId && (
-                    <div className="mt-3 p-3 bg-warning-50 dark:bg-warning-950 rounded-md border border-warning-200 dark:border-warning-800">
-                      <div className="flex items-center gap-2">
-                        <Icon
-                          icon="solar:info-circle-bold"
-                          className="text-warning-600"
-                          width={14}
-                        />
-                        <p className="text-xs text-warning-700 dark:text-warning-300">
-                          <strong>Attenzione:</strong> Questo veicolo è
-                          attualmente assegnato a {vehicle.assigned_user_name}.
-                          La selezione lo riassegnerà a questo utente.
-                        </p>
-                      </div>
-                    </div>
-                  )}
-              </div>
-
-              {vehicle.id === currentVehicleId && (
-                <div className="mt-4 pt-4 border-t border-success-200 dark:border-success-800">
-                  <Chip
-                    color="success"
-                    size="sm"
-                    variant="flat"
-                    startContent={
-                      <Icon icon="solar:check-circle-bold" width={14} />
-                    }
-                  >
-                    Veicolo attuale
-                  </Chip>
-                </div>
-              )}
-            </CardBody>
-          </Card>
-        ))}
-      </div>
-
-      {/* Empty state */}
-      {filteredVehicles.length === 0 && (
-        <div className="text-center py-8">
-          <div className="w-16 h-16 rounded-full bg-default-100 flex items-center justify-center mx-auto mb-4">
-            <Icon
-              icon="solar:car-cross-bold"
-              className="text-default-400"
-              width={32}
-            />
-          </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">
-            Nessun veicolo trovato
-          </h3>
-          <p className="text-default-500 mb-4">
-            Prova a modificare i filtri o la ricerca
-          </p>
-          <Button
-            color="primary"
-            variant="flat"
-            onPress={() => {
-              setSearchQuery("");
-              setStatusFilter("all");
-            }}
-            startContent={<Icon icon="solar:refresh-bold" width={16} />}
-          >
-            Resetta Filtri
-          </Button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// Component for the employee card with enhanced design
-function EmployeeCard({ employee }: { employee: Employee }) {
-  const { isOpen, onOpen, onClose } = useDisclosure();
-  const [vehicles, setVehicles] = useState<Vehicle[]>([]);
-  const [selectedVehicle, setSelectedVehicle] = useState<number | null>(null);
-  const [showVehicleModal, setShowVehicleModal] = useState(false);
-  const [isAssigning, setIsAssigning] = useState(false);
-  const [showConfirmationModal, setShowConfirmationModal] = useState(false);
-  const [confirmationData, setConfirmationData] = useState<{
-    vehicleName: string;
-    licensePlate: string;
-    assignedUserName: string;
-    vehicleId: number;
-  } | null>(null);
-  const { triggerUpdate } = useContext(UpdateContext);
-
-  // Fetch vehicles when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      fetchVehicles();
-      if (employee.assigned_vehicle) {
-        setSelectedVehicle(employee.assigned_vehicle.id);
-      } else {
-        setSelectedVehicle(null);
-      }
-    }
-  }, [isOpen, employee.assigned_vehicle]);
-
-  // Reset selectedVehicle when modal closes
-  useEffect(() => {
-    if (!isOpen) {
-      setSelectedVehicle(null);
-      // Ricarica i veicoli quando si riapre il modal per assicurarsi che i dati siano aggiornati
-      if (vehicles.length > 0) {
-        fetchVehicles();
-      }
-    }
-  }, [isOpen]);
-
-  const fetchVehicles = async () => {
-    try {
-      const response = await axios.get("/Vehicle/GET/GetAllVehicles", {
-        withCredentials: true,
-      });
-
-      // Processa i veicoli per ottenere le informazioni complete
-      const processedVehicles = await Promise.all(
-        response.data.map(async (vehicle: any) => {
-          let assignedUserName = undefined;
-
-          // Se c'è un utente assegnato, recupera il nome
-          if (vehicle.assigned_user_id) {
-            try {
-              const employeeResponse = await axios.get(
-                `/Employee/GET/GetEmployeeById`,
-                {
-                  params: { employeeId: vehicle.assigned_user_id },
-                  withCredentials: true,
-                }
-              );
-              if (employeeResponse.data?.name) {
-                assignedUserName = `${employeeResponse.data.name} ${
-                  employeeResponse.data.surname || ""
-                }`.trim();
-              }
-            } catch (error) {
-              console.log(
-                `Errore nel recupero utente per veicolo ${vehicle.vehicle_id}:`,
-                error
-              );
-            }
-          }
-
-          return {
-            id: vehicle.vehicle_id,
-            name: vehicle.name,
-            license_plate: vehicle.license_plate,
-            status: vehicle.assigned_user_id ? "assigned" : "available",
-            assigned_user_id: vehicle.assigned_user_id,
-            assigned_user_name: assignedUserName,
-          };
-        })
-      );
-
-      // Aggiorna i veicoli locali, mantenendo eventuali modifiche non ancora sincronizzate
-      setVehicles((prevVehicles) => {
-        if (prevVehicles.length === 0) {
-          return processedVehicles;
-        }
-
-        // Combina i veicoli esistenti con quelli nuovi, dando priorità ai dati più recenti
-        return processedVehicles.map((newVehicle) => {
-          const existingVehicle = prevVehicles.find(
-            (v) => v.id === newVehicle.id
-          );
-          if (
-            existingVehicle &&
-            existingVehicle.assigned_user_id !== newVehicle.assigned_user_id
-          ) {
-            // Se c'è una differenza nell'assegnazione, usa i dati più recenti dal server
-            return newVehicle;
-          }
-          return existingVehicle || newVehicle;
-        });
-      });
-    } catch (error) {
-      console.error("Failed to fetch vehicles:", error);
-    }
-  };
-
-  console.log(vehicles);
-  console.log("Selected vehicle:", selectedVehicle);
-  console.log(
-    "Selected keys:",
-    selectedVehicle ? [selectedVehicle.toString()] : []
-  );
-
-  const handleVehicleAssignment = async () => {
-    if (!selectedVehicle) return;
-
-    setIsAssigning(true);
-    try {
-      await axios.put(
-        "/Employee/UPDATE/UpdateEmployeeVehicle",
-        {
-          employee_id: employee.user_id,
-          vehicle_id: selectedVehicle,
-        },
-        { withCredentials: true }
-      );
-
-      // Aggiorna i dati locali per riflettere la nuova assegnazione
-      setVehicles((prevVehicles) =>
-        prevVehicles.map((vehicle) => ({
-          ...vehicle,
-          status: vehicle.id === selectedVehicle ? "assigned" : vehicle.status,
-          assigned_user_id:
-            vehicle.id === selectedVehicle
-              ? employee.user_id
-              : vehicle.assigned_user_id,
-          assigned_user_name:
-            vehicle.id === selectedVehicle
-              ? employee.name
-              : vehicle.assigned_user_name,
-        }))
-      );
-
-      triggerUpdate();
-      onClose();
-      setShowVehicleModal(false);
-    } catch (error) {
-      console.error("Failed to assign vehicle:", error);
-      alert("Errore durante l'assegnazione del veicolo. Riprova.");
-    } finally {
-      setIsAssigning(false);
-    }
-  };
-
-  const handleVehicleUnassignment = async () => {
-    setIsAssigning(true);
-    try {
-      await axios.put("/Employee/UPDATE/UpdateEmployeeVehicle", {
-        employee_id: employee.user_id,
-        vehicle_id: null,
-      });
-
-      // Aggiorna i dati locali per riflettere la rimozione dell'assegnazione
-      if (employee.assigned_vehicle) {
-        setVehicles((prevVehicles) =>
-          prevVehicles.map((vehicle) => ({
-            ...vehicle,
-            status:
-              vehicle.id === employee.assigned_vehicle?.id
-                ? "available"
-                : vehicle.status,
-            assigned_user_id:
-              vehicle.id === employee.assigned_vehicle?.id
-                ? undefined
-                : vehicle.assigned_user_id,
-            assigned_user_name:
-              vehicle.id === employee.assigned_vehicle?.id
-                ? undefined
-                : vehicle.assigned_user_name,
-          }))
-        );
-      }
-
-      setSelectedVehicle(null);
-      triggerUpdate();
-      onClose();
-      setShowVehicleModal(false);
-    } catch (error) {
-      console.error("Failed to unassign vehicle:", error);
-    } finally {
-      setIsAssigning(false);
-    }
-  };
-
-  // Enhanced role styling with icons and colors
-  const getRoleConfig = (role: string) => {
-    switch (role) {
-      case "Senior Technician":
-        return {
-          gradient: "bg-gradient-to-br from-blue-500 via-blue-600 to-blue-700",
-          icon: "solar:medal-star-bold",
-          color: "primary",
-          chipColor: "primary" as const,
-        };
-      case "Specialized Technician":
-        return {
-          gradient:
-            "bg-gradient-to-br from-purple-500 via-purple-600 to-purple-700",
-          icon: "solar:star-bold",
-          color: "secondary",
-          chipColor: "secondary" as const,
-        };
-      case "Junior Technician":
-        return {
-          gradient:
-            "bg-gradient-to-br from-amber-500 via-amber-600 to-amber-700",
-          icon: "solar:user-bold",
-          color: "warning",
-          chipColor: "warning" as const,
-        };
-      default:
-        return {
-          gradient: "bg-gradient-to-br from-gray-500 via-gray-600 to-gray-700",
-          icon: "solar:user-circle-bold",
-          color: "default",
-          chipColor: "default" as const,
-        };
-    }
-  };
-
-  // Gestione per employee.name e employee.photo mancanti
-  const avatarName = employee.name
-    ? employee.name
-        .split(" ")
-        .map((n: string) => n[0])
-        .join("")
-    : "";
-  const displayName = employee.name || "Nome non disponibile";
-  const displayRole = employee.role || "Ruolo non specificato";
-  const avatarPhoto = employee.photo;
-  const roleConfig = getRoleConfig(displayRole);
-
-  // Funzione per ottenere i dati del veicolo selezionato (se presente)
-  const getSelectedVehicleData = () => {
-    if (!selectedVehicle) return null;
-    return vehicles.find((v) => v.id === selectedVehicle);
-  };
-
-  // Funzione per ottenere il veicolo da mostrare (assegnato o selezionato)
-  const getDisplayVehicle = () => {
-    // Se c'è un veicolo selezionato ma non ancora salvato, mostra quello
-    if (
-      selectedVehicle &&
-      selectedVehicle !== (employee.assigned_vehicle?.id || 0)
-    ) {
-      return getSelectedVehicleData();
-    }
-    // Altrimenti mostra il veicolo attualmente assegnato
-    return employee.assigned_vehicle;
-  };
-
-  return (
-    <>
-      <Card className="w-full shadow-medium hover:shadow-large transition-all duration-300 border-0 bg-content1/50 backdrop-blur-md">
-        <CardHeader
-          className={`relative flex h-[120px] flex-col justify-end overflow-visible ${roleConfig.gradient}`}
-        >
-          {/* Background pattern */}
-          <div className="absolute inset-0 bg-white/5 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,0.1)_0%,transparent_50%)]" />
-
-          {/* Role icon in top left */}
-          <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center">
-            <Icon icon={roleConfig.icon} className="text-white" width={18} />
-          </div>
-
-          {/* Avatar with enhanced styling */}
-          <Avatar
-            src={avatarPhoto}
-            showFallback
-            name={avatarName}
-            className="h-24 w-24 translate-y-12 border-4 border-white shadow-large ring-2 ring-white/20"
-          />
-
-          {/* Details button */}
-          <Button
-            className="absolute right-3 top-3 bg-white/20 backdrop-blur-md text-white border-white/30"
-            radius="full"
-            size="sm"
-            variant="bordered"
-            onPress={onOpen}
-            startContent={<Icon icon="solar:eye-bold" width={16} />}
-          >
-            Dettagli
-          </Button>
-        </CardHeader>
-        <CardBody className="pt-8">
-          <div className="text-center space-y-3">
-            <div>
-              <h3 className="text-xl font-bold text-foreground">
-                {displayName}
-              </h3>
-              <Chip
-                color={roleConfig.chipColor}
-                variant="flat"
-                size="sm"
-                className="mt-2"
-                startContent={<Icon icon={roleConfig.icon} width={14} />}
-              >
-                {displayRole}
-              </Chip>
-            </div>
-
-            {/* Vehicle assignment status */}
-            {getDisplayVehicle() ? (
-              <div className="mt-3">
-                <Chip
-                  color={
-                    selectedVehicle &&
-                    selectedVehicle !== (employee.assigned_vehicle?.id || 0)
-                      ? "warning"
-                      : "success"
-                  }
-                  variant="flat"
-                  size="sm"
-                  startContent={<Icon icon="solar:car-bold" width={14} />}
-                >
-                  {getDisplayVehicle()?.license_plate}
-                  {selectedVehicle &&
-                    selectedVehicle !==
-                      (employee.assigned_vehicle?.id || 0) && (
-                      <span className="ml-1 text-xs">(Selezionato)</span>
-                    )}
-                </Chip>
-              </div>
-            ) : (
-              <div className="mt-3">
-                <Chip
-                  color="default"
-                  variant="flat"
-                  size="sm"
-                  startContent={<Icon icon="solar:car-cross-bold" width={14} />}
-                >
-                  Nessun veicolo assegnato
-                </Chip>
-              </div>
-            )}
-
-            {/* Status indicators */}
-            <div className="flex justify-center gap-2 pt-2">
-              <Badge
-                content=""
-                color="success"
-                size="sm"
-                placement="bottom-right"
-              >
-                <div className="w-3 h-3 rounded-full bg-success-500" />
-              </Badge>
-              <span className="text-xs text-success-600 font-medium">
-                Online
-              </span>
-            </div>
-          </div>
-        </CardBody>
-      </Card>
-
-      {/* Enhanced Modal with more details */}
-      <Modal isOpen={isOpen} onClose={onClose} size="2xl" backdrop="blur">
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1 bg-content1/50 backdrop-blur-md">
-            <div className="flex items-center gap-3">
-              <Icon
-                icon="solar:user-id-bold"
-                className="text-primary"
-                width={24}
-              />
-              <span>Profilo Dipendente</span>
-            </div>
-          </ModalHeader>
-          <ModalBody className="p-8">
-            <div className="flex flex-col lg:flex-row gap-10">
-              {/* Left side - Avatar and basic info */}
-              <div className="flex flex-col items-center lg:w-1/3">
-                <div className="relative">
-                  <Avatar
-                    src={avatarPhoto}
-                    showFallback
-                    name={avatarName}
-                    className="h-32 w-32 mb-6 shadow-large"
-                  />
-                  <Badge
-                    content=""
-                    color="success"
-                    size="lg"
-                    placement="bottom-right"
-                  >
-                    <div />
-                  </Badge>
-                </div>
-                <h3 className="text-2xl font-bold text-center">
-                  {displayName}
-                </h3>
-                <Chip
-                  color={roleConfig.chipColor}
-                  variant="flat"
-                  size="lg"
-                  className="mt-3"
-                  startContent={<Icon icon={roleConfig.icon} width={16} />}
-                >
-                  {displayRole}
-                </Chip>
-
-                {/* Quick stats */}
-                <div className="mt-8 w-full space-y-4">
-                  <Card className="bg-success-50 dark:bg-success-950">
-                    <CardBody className="py-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <Icon
-                            icon="solar:calendar-bold"
-                            className="text-success-600"
-                            width={18}
-                          />
-                          <span className="text-sm font-medium">Stato</span>
-                        </div>
-                        <Chip color="success" size="sm">
-                          Attivo
-                        </Chip>
-                      </div>
-                    </CardBody>
-                  </Card>
-                </div>
-              </div>
-
-              {/* Right side - Detailed information */}
-              <div className="flex-1 space-y-8">
-                {/* Personal Information */}
-                <div>
-                  <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Icon
-                      icon="solar:user-bold"
-                      className="text-primary"
-                      width={20}
-                    />
-                    Informazioni Personali
-                  </h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Card className="bg-default-50 dark:bg-default-950">
-                      <CardBody className="py-4">
-                        <div className="space-y-2">
-                          <p className="text-sm text-default-500">
-                            ID Dipendente
-                          </p>
-                          <p className="font-semibold text-lg">
-                            #{employee.user_id}
-                          </p>
-                        </div>
-                      </CardBody>
-                    </Card>
-                    <Card className="bg-default-50 dark:bg-default-950">
-                      <CardBody className="py-4">
-                        <div className="space-y-2">
-                          <p className="text-sm text-default-500">Ruolo</p>
-                          <p className="font-semibold text-lg">{displayRole}</p>
-                        </div>
-                      </CardBody>
-                    </Card>
-                  </div>
-                </div>
-
-                {/* Vehicle Assignment Section */}
-                <div>
-                  <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Icon
-                      icon="solar:car-bold"
-                      className="text-warning"
-                      width={20}
-                    />
-                    Assegnazione Veicolo
-                  </h4>
-
-                  {/* Info message */}
-                  <div className="mb-4 p-3 bg-info-50 dark:bg-info-950 rounded-lg border border-info-200 dark:border-info-800">
-                    <div className="flex items-start gap-2">
-                      <Icon
-                        icon="solar:info-circle-bold"
-                        className="text-info-600 mt-0.5"
-                        width={16}
-                      />
-                      <div className="text-sm text-info-700 dark:text-info-300">
-                        <p className="font-medium mb-1">Gestione Veicoli</p>
-                        <p>
-                          Puoi assegnare qualsiasi veicolo disponibile o già
-                          assegnato a un altro utente. La riassegnazione
-                          rimuoverà automaticamente l'assegnazione precedente e
-                          mostrerà una conferma per i veicoli già assegnati.
-                        </p>
-                        {selectedVehicle &&
-                          selectedVehicle !==
-                            (employee.assigned_vehicle?.id || 0) && (
-                            <div className="mt-2 p-2 bg-warning-50 dark:bg-warning-950 rounded border border-warning-200 dark:border-warning-800">
-                              <p className="text-xs text-warning-700 dark:text-warning-300">
-                                <strong>Anteprima:</strong> Il veicolo
-                                selezionato è visibile nella card ma non ancora
-                                salvato. Clicca "Assegna Veicolo" per confermare
-                                l'assegnazione.
-                              </p>
-                            </div>
-                          )}
-                      </div>
-                    </div>
-                  </div>
-
-                  <Card className="bg-warning-50 dark:bg-warning-950">
-                    <CardBody className="py-4">
-                      {getDisplayVehicle() ? (
-                        <div className="space-y-4">
-                          <div
-                            className={`flex items-center justify-between p-3 rounded-lg ${
-                              selectedVehicle &&
-                              selectedVehicle !==
-                                (employee.assigned_vehicle?.id || 0)
-                                ? "bg-warning-100 dark:bg-warning-900 border-2 border-warning-300 dark:border-warning-700"
-                                : "bg-success-100 dark:bg-success-900"
-                            }`}
-                          >
-                            <div className="flex items-center gap-3">
-                              <div
-                                className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                                  selectedVehicle &&
-                                  selectedVehicle !==
-                                    (employee.assigned_vehicle?.id || 0)
-                                    ? "bg-warning-500/20"
-                                    : "bg-success-500/20"
-                                }`}
-                              >
-                                <Icon
-                                  icon="solar:car-bold"
-                                  className={
-                                    selectedVehicle &&
-                                    selectedVehicle !==
-                                      (employee.assigned_vehicle?.id || 0)
-                                      ? "text-warning-600"
-                                      : "text-success-600"
-                                  }
-                                  width={20}
-                                />
-                              </div>
-                              <div>
-                                <p
-                                  className={`font-semibold ${
-                                    selectedVehicle &&
-                                    selectedVehicle !==
-                                      (employee.assigned_vehicle?.id || 0)
-                                      ? "text-warning-700 dark:text-warning-300"
-                                      : "text-success-700 dark:text-success-300"
-                                  }`}
-                                >
-                                  {getDisplayVehicle()?.name}
-                                  {selectedVehicle &&
-                                    selectedVehicle !==
-                                      (employee.assigned_vehicle?.id || 0) && (
-                                      <span className="ml-2 text-xs bg-warning-200 dark:bg-warning-800 px-2 py-1 rounded">
-                                        NUOVO
-                                      </span>
-                                    )}
-                                </p>
-                                <p
-                                  className={`text-sm ${
-                                    selectedVehicle &&
-                                    selectedVehicle !==
-                                      (employee.assigned_vehicle?.id || 0)
-                                      ? "text-warning-600 dark:text-warning-400"
-                                      : "text-success-600 dark:text-success-400"
-                                  }`}
-                                >
-                                  Targa: {getDisplayVehicle()?.license_plate}
-                                </p>
-                              </div>
-                            </div>
-                            <Chip
-                              color={
-                                selectedVehicle &&
-                                selectedVehicle !==
-                                  (employee.assigned_vehicle?.id || 0)
-                                  ? "warning"
-                                  : "success"
-                              }
-                              size="sm"
-                              variant="flat"
-                            >
-                              {selectedVehicle &&
-                              selectedVehicle !==
-                                (employee.assigned_vehicle?.id || 0)
-                                ? "Selezionato"
-                                : "Assegnato"}
-                            </Chip>
-                          </div>
-
-                          <div className="flex gap-2">
-                            <Button
-                              color="primary"
-                              variant="flat"
-                              size="sm"
-                              onPress={() => setShowVehicleModal(true)}
-                              startContent={
-                                <Icon icon="solar:pen-bold" width={16} />
-                              }
-                            >
-                              {selectedVehicle &&
-                              selectedVehicle !==
-                                (employee.assigned_vehicle?.id || 0)
-                                ? "Cambia Selezione"
-                                : "Cambia Veicolo"}
-                            </Button>
-                            {employee.assigned_vehicle && (
-                              <Button
-                                color="danger"
-                                variant="flat"
-                                size="sm"
-                                onPress={handleVehicleUnassignment}
-                                isLoading={isAssigning}
-                                startContent={
-                                  <Icon
-                                    icon="solar:close-circle-bold"
-                                    width={16}
-                                  />
-                                }
-                              >
-                                Rimuovi
-                              </Button>
-                            )}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="space-y-3">
-                          <div className="flex items-center gap-2 mb-3">
-                            <Icon
-                              icon="solar:info-circle-bold"
-                              className="text-warning-600"
-                              width={20}
-                            />
-                            <p className="text-sm text-warning-600 dark:text-warning-400">
-                              Nessun veicolo assegnato
-                            </p>
-                          </div>
-                          <Button
-                            color="primary"
-                            variant="flat"
-                            size="sm"
-                            onPress={() => setShowVehicleModal(true)}
-                            startContent={
-                              <Icon icon="solar:car-bold" width={16} />
-                            }
-                          >
-                            Assegna Veicolo
-                          </Button>
-                        </div>
-                      )}
-                    </CardBody>
-                  </Card>
-                </div>
-
-                {/* Performance Metrics */}
-                <div>
-                  <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
-                    <Icon
-                      icon="solar:chart-bold"
-                      className="text-secondary"
-                      width={20}
-                    />
-                    Metriche Performance
-                  </h4>
-                  <div className="space-y-4">
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm font-medium">Efficienza</span>
-                        <span className="text-sm font-bold text-success-600">
-                          92%
-                        </span>
-                      </div>
-                      <Progress
-                        value={92}
-                        color="success"
-                        size="md"
-                        aria-label="Efficienza membro team"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm font-medium">
-                          Progetti Completati
-                        </span>
-                        <span className="text-sm font-bold text-primary-600">
-                          87%
-                        </span>
-                      </div>
-                      <Progress
-                        value={87}
-                        color="primary"
-                        size="md"
-                        aria-label="Progetti completati"
-                      />
-                    </div>
-                    <div>
-                      <div className="flex justify-between mb-2">
-                        <span className="text-sm font-medium">
-                          Valutazione Cliente
-                        </span>
-                        <span className="text-sm font-bold text-warning-600">
-                          95%
-                        </span>
-                      </div>
-                      <Progress
-                        value={95}
-                        color="warning"
-                        size="md"
-                        aria-label="Valutazione performance"
-                      />
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </ModalBody>
-          <ModalFooter className="bg-default-50 dark:bg-default-950">
-            <Button color="default" variant="light" onPress={onClose}>
-              Chiudi
-            </Button>
-            {selectedVehicle &&
-              selectedVehicle !== (employee.assigned_vehicle?.id || 0) && (
-                <Button
-                  color="primary"
-                  onPress={handleVehicleAssignment}
-                  isLoading={isAssigning}
-                  startContent={<Icon icon="solar:car-bold" width={16} />}
-                >
-                  {(() => {
-                    const selectedVehicleData = vehicles.find(
-                      (v) => v.id === selectedVehicle
-                    );
-                    if (
-                      selectedVehicleData?.assigned_user_name &&
-                      selectedVehicleData.assigned_user_id !== employee.user_id
-                    ) {
-                      return "Riassegna Veicolo";
-                    }
-                    return "Assegna Veicolo";
-                  })()}
-                </Button>
-              )}
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-
-      {/* Vehicle Selection Modal */}
-      <Modal
-        isOpen={showVehicleModal}
-        onClose={() => setShowVehicleModal(false)}
-        size="3xl"
-        backdrop="blur"
-      >
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1">
-            <div className="flex items-center gap-3">
-              <Icon icon="solar:car-bold" className="text-primary" width={24} />
-              <span>Seleziona Veicolo</span>
-            </div>
-            <p className="text-sm text-default-500 font-normal">
-              Puoi selezionare qualsiasi veicolo, anche se già assegnato a un
-              altro utente
-            </p>
-          </ModalHeader>
-          <ModalBody className="p-8">
-            <VehicleSelectionModal
-              vehicles={vehicles}
-              currentVehicleId={employee.assigned_vehicle?.id}
-              onVehicleSelect={(vehicleId) => {
-                const selectedVehicleData = vehicles.find(
-                  (v) => v.id === vehicleId
-                );
-
-                // Se il veicolo è già assegnato a un altro utente, mostra conferma
-                if (
-                  selectedVehicleData?.assigned_user_name &&
-                  selectedVehicleData.assigned_user_id !== employee.user_id
-                ) {
-                  setConfirmationData({
-                    vehicleName: selectedVehicleData.name,
-                    licensePlate: selectedVehicleData.license_plate,
-                    assignedUserName: selectedVehicleData.assigned_user_name,
-                    vehicleId: selectedVehicleData.id,
-                  });
-                  setShowConfirmationModal(true);
-                  setShowVehicleModal(false);
-                } else {
-                  // Veicolo disponibile o già assegnato all'utente corrente
-                  setSelectedVehicle(vehicleId);
-                  setShowVehicleModal(false);
-                }
-              }}
-              onClose={() => setShowVehicleModal(false)}
-            />
-          </ModalBody>
-        </ModalContent>
-      </Modal>
-
-      {/* Confirmation Modal */}
-      <Modal
-        isOpen={showConfirmationModal}
-        onClose={() => setShowConfirmationModal(false)}
-        isDismissable={false}
-        onOpenChange={setShowConfirmationModal}
-      >
-        <ModalContent>
-          <ModalHeader className="flex flex-col gap-1 bg-warning-50 dark:bg-warning-950">
-            <div className="flex items-center gap-3">
-              <Icon
-                icon="solar:info-circle-bold"
-                className="text-warning-600"
-                width={24}
-              />
-              <span>Conferma Riassegnazione</span>
-            </div>
-          </ModalHeader>
-          <ModalBody className="p-6">
-            <div className="flex flex-col items-center text-center">
-              <Icon
-                icon="solar:info-circle-bold"
-                className="text-warning-600"
-                width={48}
-                height={48}
-              />
-              <h3 className="text-lg font-semibold text-foreground mt-4">
-                Attenzione: Riassegnazione Veicolo
-              </h3>
-              <p className="text-sm text-default-500 mt-2">
-                Stai tentando di riassegnare il veicolo{" "}
-                <strong>{confirmationData?.vehicleName}</strong> (
-                {confirmationData?.licensePlate}) a{" "}
-                <strong>{employee.name}</strong>. Questo rimuoverà
-                l'assegnazione corrente a{" "}
-                <strong>{confirmationData?.assignedUserName}</strong>. Vuoi
-                procedere?
-              </p>
-            </div>
-          </ModalBody>
-          <ModalFooter className="bg-warning-50 dark:bg-warning-950">
-            <Button
-              color="default"
-              variant="light"
-              onPress={() => setShowConfirmationModal(false)}
-            >
-              Annulla
-            </Button>
-            <Button
-              color="primary"
-              onPress={() => {
-                if (!confirmationData) return;
-
-                setIsAssigning(true);
-                axios
-                  .put(
-                    "/Employee/UPDATE/UpdateEmployeeVehicle",
-                    {
-                      employee_id: employee.user_id,
-                      vehicle_id: confirmationData.vehicleId,
-                    },
-                    { withCredentials: true }
-                  )
-                  .then(() => {
-                    // Aggiorna i dati locali per riflettere la nuova assegnazione
-                    setVehicles((prevVehicles) =>
-                      prevVehicles.map((vehicle) => ({
-                        ...vehicle,
-                        status:
-                          vehicle.id === confirmationData.vehicleId
-                            ? "assigned"
-                            : vehicle.status,
-                        assigned_user_id:
-                          vehicle.id === confirmationData.vehicleId
-                            ? employee.user_id
-                            : vehicle.assigned_user_id,
-                        assigned_user_name:
-                          vehicle.id === confirmationData.vehicleId
-                            ? employee.name
-                            : vehicle.assigned_user_name,
-                      }))
-                    );
-
-                    triggerUpdate();
-                    setShowConfirmationModal(false);
-                    setSelectedVehicle(confirmationData.vehicleId);
-                    onClose();
-                    setShowVehicleModal(false);
-                  })
-                  .catch((error) => {
-                    console.error("Failed to reassign vehicle:", error);
-                    alert(
-                      "Errore durante la riassegnazione del veicolo. Riprova."
-                    );
-                  })
-                  .finally(() => {
-                    setIsAssigning(false);
-                  });
-              }}
-              isLoading={isAssigning}
-            >
-              Riassegna
-            </Button>
-          </ModalFooter>
-        </ModalContent>
-      </Modal>
-    </>
-  );
-}
+const getRoleIcon = (role: string) => {
+  switch (role) {
+    case "Senior Technician":
+      return "solar:medal-star-bold";
+    case "Specialized Technician":
+      return "solar:star-bold";
+    case "Junior Technician":
+      return "solar:user-bold";
+    default:
+      return "solar:user-circle-bold";
+  }
+};
 
 export default function Team() {
   const [currentEmployees, setCurrentEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("Tutti");
   const [sortBy, setSortBy] = useState<string>("name");
-  const [viewMode, setViewMode] = useState<string>("grid");
   const [updateCounter, setUpdateCounter] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
+  const [page, setPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
+    null
+  );
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+
+  // Stati per la modifica
+  const [editFormData, setEditFormData] = useState({
+    name: "",
+    surname: "",
+    email: "",
+    role: "",
+  });
+
+  // Stati per la gestione veicoli
+  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [vehicleSelectionModalOpen, setVehicleSelectionModalOpen] =
+    useState(false);
+  const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Stati per le categorie/ruoli
+  const [roles, setRoles] = useState<any[]>([]);
+  const [isLoadingRoles, setIsLoadingRoles] = useState(false);
+
+  // Stato per le modifiche temporanee del veicolo
+  const [tempVehicleAssignment, setTempVehicleAssignment] = useState<{
+    id: number;
+    name: string;
+    license_plate: string;
+  } | null>(null);
 
   const triggerUpdate = () => {
     setUpdateCounter((prev) => prev + 1);
+  };
+
+  // Handler functions for table actions
+  const handleViewEmployee = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setViewModalOpen(true);
+  };
+
+  const handleEditEmployee = (employee: Employee) => {
+    setSelectedEmployee(employee);
+    setEditFormData({
+      name: employee.name || "",
+      surname: employee.surname || "",
+      email: employee.email || "",
+      role: employee.role || "",
+    });
+    // Inizializza lo stato temporaneo del veicolo
+    setTempVehicleAssignment(employee.assigned_vehicle || null);
+    // Carica i veicoli e i ruoli quando si apre il modal
+    fetchVehicles();
+    fetchRoles();
+    setEditModalOpen(true);
+  };
+
+  // Funzione per caricare i veicoli
+  const fetchVehicles = async () => {
+    setIsLoadingVehicles(true);
+    try {
+      const response = await axios.get("/Vehicle/GET/GetAllVehicles", {
+        withCredentials: true,
+      });
+      setVehicles(response.data);
+    } catch (error) {
+      console.error("Failed to fetch vehicles:", error);
+    } finally {
+      setIsLoadingVehicles(false);
+    }
+  };
+
+  // Funzione per caricare i ruoli/categorie
+  const fetchRoles = async () => {
+    setIsLoadingRoles(true);
+    try {
+      const response = await axios.get("/Employee/GET/GetAllRoles", {
+        withCredentials: true,
+      });
+      setRoles(response.data);
+    } catch (error) {
+      console.error("Failed to fetch roles:", error);
+    } finally {
+      setIsLoadingRoles(false);
+    }
+  };
+
+  // Funzione per salvare le modifiche del tecnico
+  const handleSaveEmployeeChanges = async () => {
+    if (!selectedEmployee) return;
+
+    setIsSaving(true);
+    try {
+      // Aggiorna i dati personali del tecnico
+      await axios.put(
+        "/Employee/UPDATE/UpdateEmployeeData",
+        {
+          userData: {
+            name: editFormData.name,
+            surname: editFormData.surname,
+            email: editFormData.email,
+            role_id: editFormData.role, // Invia l'ID del ruolo invece della stringa
+          },
+        },
+        { withCredentials: true }
+      );
+
+      // Applica le modifiche del veicolo se sono cambiate
+      if (tempVehicleAssignment !== selectedEmployee.assigned_vehicle) {
+        if (tempVehicleAssignment) {
+          // Se il veicolo è già assegnato ad un altro tecnico, rimuovilo prima
+          const currentOwner = currentEmployees.find(
+            (emp) => emp.assigned_vehicle?.id === tempVehicleAssignment.id
+          );
+
+          if (
+            currentOwner &&
+            currentOwner.user_id !== selectedEmployee.user_id
+          ) {
+            // Rimuovi il veicolo dal tecnico precedente
+            await axios.put(
+              "/Employee/UPDATE/UpdateEmployeeVehicle",
+              {
+                employee_id: currentOwner.user_id,
+                vehicle_id: null,
+              },
+              { withCredentials: true }
+            );
+          }
+
+          // Assegna il veicolo al tecnico selezionato
+          await axios.put(
+            "/Employee/UPDATE/UpdateEmployeeVehicle",
+            {
+              employee_id: selectedEmployee.user_id,
+              vehicle_id: tempVehicleAssignment.id,
+            },
+            { withCredentials: true }
+          );
+        } else {
+          // Rimuovi assegnazione veicolo
+          await axios.put(
+            "/Employee/UPDATE/UpdateEmployeeVehicle",
+            {
+              employee_id: selectedEmployee.user_id,
+              vehicle_id: null,
+            },
+            { withCredentials: true }
+          );
+        }
+      }
+
+      // Aggiorna lo stato locale
+      setCurrentEmployees((prev) => {
+        let updated = prev.map((emp) =>
+          emp.user_id === selectedEmployee.user_id
+            ? {
+                ...emp,
+                name: editFormData.name,
+                surname: editFormData.surname,
+                email: editFormData.email,
+                role: (() => {
+                  const selectedRole = roles.find(
+                    (r) =>
+                      r.role_id?.toString() === editFormData.role?.toString()
+                  );
+                  return selectedRole ? selectedRole.name : editFormData.role;
+                })(),
+                assigned_vehicle: tempVehicleAssignment,
+              }
+            : emp
+        );
+
+        // Se abbiamo assegnato un veicolo che era già assegnato ad un altro tecnico,
+        // rimuovilo anche dallo stato locale
+        if (
+          tempVehicleAssignment &&
+          tempVehicleAssignment !== selectedEmployee.assigned_vehicle
+        ) {
+          updated = updated.map((emp) =>
+            emp.assigned_vehicle?.id === tempVehicleAssignment.id &&
+            emp.user_id !== selectedEmployee.user_id
+              ? { ...emp, assigned_vehicle: null }
+              : emp
+          );
+        }
+
+        return updated;
+      });
+
+      setEditModalOpen(false);
+      triggerUpdate();
+    } catch (error) {
+      console.error("Failed to save employee changes:", error);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  // Funzione per assegnare un veicolo
+  const handleAssignVehicle = async (vehicleId: number) => {
+    if (!selectedEmployee) return;
+
+    try {
+      await axios.put(
+        "/Employee/UPDATE/UpdateEmployeeVehicle",
+        {
+          employee_id: selectedEmployee.user_id,
+          vehicle_id: vehicleId,
+        },
+        { withCredentials: true }
+      );
+
+      // Aggiorna lo stato locale
+      setCurrentEmployees((prev) =>
+        prev.map((emp) =>
+          emp.user_id === selectedEmployee.user_id
+            ? {
+                ...emp,
+                assigned_vehicle: vehicles.find(
+                  (v) => v.vehicle_id === vehicleId
+                )
+                  ? {
+                      id: vehicleId,
+                      name:
+                        vehicles.find((v) => v.vehicle_id === vehicleId)
+                          ?.name || "",
+                      license_plate:
+                        vehicles.find((v) => v.vehicle_id === vehicleId)
+                          ?.license_plate || "",
+                    }
+                  : undefined,
+              }
+            : emp
+        )
+      );
+
+      setVehicleSelectionModalOpen(false);
+      triggerUpdate();
+    } catch (error) {
+      console.error("Failed to assign vehicle:", error);
+    }
+  };
+
+  // Funzione per rimuovere l'assegnazione veicolo
+  const handleRemoveVehicle = async () => {
+    if (!selectedEmployee) return;
+
+    try {
+      await axios.put(
+        "/Employee/UPDATE/UpdateEmployeeVehicle",
+        {
+          employee_id: selectedEmployee.user_id,
+          vehicle_id: null,
+        },
+        { withCredentials: true }
+      );
+
+      // Aggiorna lo stato locale
+      setCurrentEmployees((prev) =>
+        prev.map((emp) =>
+          emp.user_id === selectedEmployee.user_id
+            ? { ...emp, assigned_vehicle: undefined }
+            : emp
+        )
+      );
+
+      triggerUpdate();
+    } catch (error) {
+      console.error("Failed to remove vehicle:", error);
+    }
+  };
+
+  // Funzioni per le modifiche temporanee del veicolo
+  const handleTempAssignVehicle = (vehicleId: number) => {
+    const vehicle = vehicles.find((v) => v.vehicle_id === vehicleId);
+    if (vehicle) {
+      setTempVehicleAssignment({
+        id: vehicle.vehicle_id,
+        name: vehicle.name || vehicle.model || "Modello non specificato",
+        license_plate: vehicle.license_plate || "Targa non disponibile",
+      });
+    }
+  };
+
+  const handleTempRemoveVehicle = () => {
+    setTempVehicleAssignment(null);
   };
 
   useEffect(() => {
@@ -1292,6 +398,11 @@ export default function Team() {
           setCurrentEmployees(
             response.data.map((employee: any) => ({
               ...employee,
+              name: employee.name || "",
+              surname: employee.surname || "",
+              email: employee.email || "",
+              role: employee.role || "",
+              photo: employee.photo || "",
               assigned_vehicle: employee.vehicle_id
                 ? {
                     id: employee.vehicle_id,
@@ -1646,28 +757,6 @@ export default function Team() {
                   </DropdownMenu>
                 </Dropdown>
               </div>
-
-              {/* View Mode Toggle */}
-              <div className="flex gap-2 bg-default-100 p-1 rounded-lg">
-                <Button
-                  size="sm"
-                  variant={viewMode === "grid" ? "solid" : "light"}
-                  color={viewMode === "grid" ? "primary" : "default"}
-                  onPress={() => setViewMode("grid")}
-                  isIconOnly
-                >
-                  <Icon icon="solar:widget-4-bold" width={16} />
-                </Button>
-                <Button
-                  size="sm"
-                  variant={viewMode === "list" ? "solid" : "light"}
-                  color={viewMode === "list" ? "primary" : "default"}
-                  onPress={() => setViewMode("list")}
-                  isIconOnly
-                >
-                  <Icon icon="solar:list-bold" width={16} />
-                </Button>
-              </div>
             </div>
 
             {/* Results counter */}
@@ -1687,18 +776,260 @@ export default function Team() {
           </CardBody>
         </Card>
 
-        {/* Employee Grid/List */}
-        <div
-          className={
-            viewMode === "grid"
-              ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
-              : "flex flex-col gap-4"
-          }
-        >
-          {filteredAndSortedEmployees.map((employee) => (
-            <EmployeeCard key={employee.user_id} employee={employee} />
-          ))}
-        </div>
+        {/* Employee Table */}
+        <Card className="border-0 bg-content1/50 backdrop-blur-md">
+          <CardBody className="p-0">
+            <Table
+              aria-label="Tabella tecnici"
+              classNames={{
+                wrapper: "min-h-[400px]",
+                th: "bg-transparent border-b border-divider",
+                td: "border-b border-divider",
+              }}
+            >
+              <TableHeader>
+                <TableColumn className="w-[25%] font-semibold">
+                  DIPENDENTE
+                </TableColumn>
+                <TableColumn className="w-[20%] font-semibold">
+                  RUOLO
+                </TableColumn>
+                <TableColumn className="w-[25%] font-semibold">
+                  VEICOLO ASSEGNATO
+                </TableColumn>
+                <TableColumn className="w-[15%] font-semibold">
+                  STATO
+                </TableColumn>
+                <TableColumn className="w-[15%] font-semibold text-center">
+                  AZIONI
+                </TableColumn>
+              </TableHeader>
+              <TableBody>
+                {filteredAndSortedEmployees
+                  .slice((page - 1) * rowsPerPage, page * rowsPerPage)
+                  .map((employee) => (
+                    <TableRow
+                      key={employee.user_id}
+                      className="hover:bg-default-50 dark:hover:bg-default-950"
+                    >
+                      <TableCell>
+                        <div className="flex items-center gap-3">
+                          <Avatar
+                            src={employee.photo}
+                            showFallback
+                            name={
+                              employee.name
+                                ? employee.name
+                                    .split(" ")
+                                    .map((n: string) => n[0])
+                                    .join("")
+                                : ""
+                            }
+                            className="h-10 w-10"
+                          />
+                          <div>
+                            <p className="font-semibold text-foreground">
+                              {employee.name && employee.surname
+                                ? `${employee.name} ${employee.surname}`
+                                : employee.name || "Nome non disponibile"}
+                            </p>
+                            <p className="text-sm text-default-500">
+                              ID: #{employee.user_id}
+                            </p>
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          color={getRoleColor(employee.role)}
+                          variant="flat"
+                          size="sm"
+                          startContent={
+                            <Icon
+                              icon={getRoleIcon(employee.role)}
+                              width={14}
+                            />
+                          }
+                        >
+                          {employee.role || "Ruolo non specificato"}
+                        </Chip>
+                      </TableCell>
+                      <TableCell>
+                        {employee.assigned_vehicle ? (
+                          <div className="flex items-center gap-2">
+                            <Icon
+                              icon="solar:car-bold"
+                              className="text-primary"
+                              width={16}
+                            />
+                            <div>
+                              <p className="font-medium text-foreground">
+                                {employee.assigned_vehicle.name}
+                              </p>
+                              <p className="text-sm text-default-500 font-mono">
+                                {employee.assigned_vehicle.license_plate}
+                              </p>
+                            </div>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2">
+                            <Icon
+                              icon="solar:car-cross-bold"
+                              className="text-default-400"
+                              width={16}
+                            />
+                            <span className="text-sm text-default-500">
+                              Nessun veicolo
+                            </span>
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex items-center gap-2">
+                          <Badge
+                            content=""
+                            color="success"
+                            size="sm"
+                            placement="bottom-right"
+                          >
+                            <div className="w-3 h-3 rounded-full bg-success-500" />
+                          </Badge>
+                          <span className="text-sm text-success-600 font-medium">
+                            Online
+                          </span>
+                        </div>
+                      </TableCell>
+
+                      <TableCell>
+                        <div className="flex items-center gap-3 justify-center">
+                          <Button
+                            size="sm"
+                            variant="light"
+                            color="default"
+                            onPress={() => handleViewEmployee(employee)}
+                            isIconOnly
+                            className="text-white hover:bg-white/20"
+                          >
+                            <Icon icon="solar:eye-bold" width={16} />
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="light"
+                            color="warning"
+                            onPress={() => handleEditEmployee(employee)}
+                            isIconOnly
+                          >
+                            <Icon icon="solar:pen-bold" width={16} />
+                          </Button>
+                          <Dropdown>
+                            <DropdownTrigger>
+                              <Button
+                                size="sm"
+                                variant="light"
+                                color="danger"
+                                isIconOnly
+                              >
+                                <Icon
+                                  icon="solar:trash-bin-trash-bold"
+                                  width={16}
+                                />
+                              </Button>
+                            </DropdownTrigger>
+                            <DropdownMenu
+                              aria-label="Azioni eliminazione"
+                              color="danger"
+                              variant="flat"
+                            >
+                              <DropdownItem
+                                key="delete"
+                                color="danger"
+                                className="text-danger-600"
+                                startContent={
+                                  <Icon
+                                    icon="solar:trash-bin-trash-bold"
+                                    width={16}
+                                  />
+                                }
+                                onPress={() => {
+                                  // TODO: Implement actual deletion
+                                  console.log(
+                                    "Eliminazione tecnico:",
+                                    employee.name
+                                  );
+                                }}
+                              >
+                                <div className="flex flex-col items-start">
+                                  <span>Elimina Definitivamente</span>
+                                  <span className="text-xs text-default-400">
+                                    Sei sicuro?
+                                  </span>
+                                </div>
+                              </DropdownItem>
+                            </DropdownMenu>
+                          </Dropdown>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+              </TableBody>
+            </Table>
+
+            {/* Pagination */}
+            <div className="flex flex-col items-center gap-4 px-6 py-4 border-t border-divider">
+              {/* Info e controlli righe per pagina */}
+              <div className="flex items-center justify-between w-full max-w-md">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-default-500">
+                    Righe per pagina:
+                  </span>
+                  <Select
+                    size="sm"
+                    selectedKeys={[rowsPerPage.toString()]}
+                    onSelectionChange={(keys) => {
+                      const newRowsPerPage = Number(Array.from(keys)[0]);
+                      setRowsPerPage(newRowsPerPage);
+                      setPage(1);
+                    }}
+                    className="w-20"
+                  >
+                    <SelectItem key="5">5</SelectItem>
+                    <SelectItem key="10">10</SelectItem>
+                    <SelectItem key="20">20</SelectItem>
+                    <SelectItem key="50">50</SelectItem>
+                  </Select>
+                </div>
+
+                <div className="text-sm text-default-500">
+                  Mostrando {(page - 1) * rowsPerPage + 1} -{" "}
+                  {Math.min(
+                    page * rowsPerPage,
+                    filteredAndSortedEmployees.length
+                  )}{" "}
+                  di {filteredAndSortedEmployees.length} tecnici
+                </div>
+              </div>
+
+              {/* Paginazione centrata */}
+              <Pagination
+                total={Math.ceil(
+                  filteredAndSortedEmployees.length / rowsPerPage
+                )}
+                page={page}
+                onChange={setPage}
+                showControls
+                size="sm"
+                color="primary"
+                variant="bordered"
+                classNames={{
+                  item: "rounded-full",
+                  cursor: "rounded-full",
+                  prev: "rounded-full",
+                  next: "rounded-full",
+                }}
+              />
+            </div>
+          </CardBody>
+        </Card>
 
         {/* Empty State */}
         {filteredAndSortedEmployees.length === 0 && (
@@ -1745,6 +1076,721 @@ export default function Team() {
             </CardBody>
           </Card>
         )}
+
+        {/* View Employee Modal */}
+        <Modal
+          isOpen={viewModalOpen}
+          onClose={() => setViewModalOpen(false)}
+          size="2xl"
+          backdrop="blur"
+        >
+          <ModalContent>
+            <ModalHeader className="flex flex-col gap-1 bg-content1/50 backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <Icon
+                  icon="solar:user-id-bold"
+                  className="text-primary"
+                  width={24}
+                />
+                <span>Profilo Dipendente</span>
+              </div>
+            </ModalHeader>
+            <ModalBody className="p-8">
+              {selectedEmployee && (
+                <div className="flex flex-col lg:flex-row gap-10">
+                  {/* Left side - Avatar and basic info */}
+                  <div className="flex flex-col items-center lg:w-1/3">
+                    <div className="relative">
+                      <Avatar
+                        src={selectedEmployee.photo}
+                        showFallback
+                        name={
+                          selectedEmployee.name
+                            ? selectedEmployee.name
+                                .split(" ")
+                                .map((n: string) => n[0])
+                                .join("")
+                            : ""
+                        }
+                        className="h-32 w-32 mb-6 shadow-large"
+                      />
+                    </div>
+                    <h3 className="text-2xl font-bold text-center">
+                      {selectedEmployee.name || "Nome non disponibile"}
+                    </h3>
+                    <Chip
+                      color={getRoleColor(selectedEmployee.role)}
+                      variant="flat"
+                      size="lg"
+                      className="mt-3"
+                      startContent={
+                        <Icon
+                          icon={getRoleIcon(selectedEmployee.role)}
+                          width={16}
+                        />
+                      }
+                    >
+                      {selectedEmployee.role || "Ruolo non specificato"}
+                    </Chip>
+
+                    {/* Quick stats */}
+                    <div className="mt-8 w-full space-y-4">
+                      <Card className="bg-success-50 dark:bg-success-950">
+                        <CardBody className="py-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Icon
+                                icon="solar:calendar-bold"
+                                className="text-success-600"
+                                width={18}
+                              />
+                              <span className="text-sm font-medium">Stato</span>
+                            </div>
+                            <Chip color="success" size="sm">
+                              Attivo
+                            </Chip>
+                          </div>
+                        </CardBody>
+                      </Card>
+                    </div>
+                  </div>
+
+                  {/* Right side - Detailed information */}
+                  <div className="flex-1 space-y-8">
+                    {/* Personal Information */}
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Icon
+                          icon="solar:user-bold"
+                          className="text-primary"
+                          width={20}
+                        />
+                        Informazioni Personali
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Card className="bg-default-50 dark:bg-default-950">
+                          <CardBody className="py-4">
+                            <div className="space-y-2">
+                              <p className="text-sm text-default-500">
+                                ID Dipendente
+                              </p>
+                              <p className="font-semibold text-lg">
+                                #{selectedEmployee.user_id}
+                              </p>
+                            </div>
+                          </CardBody>
+                        </Card>
+                        <Card className="bg-default-50 dark:bg-default-950">
+                          <CardBody className="py-4">
+                            <div className="space-y-2">
+                              <p className="text-sm text-default-500">Ruolo</p>
+                              <p className="font-semibold text-lg">
+                                {selectedEmployee.role ||
+                                  "Ruolo non specificato"}
+                              </p>
+                            </div>
+                          </CardBody>
+                        </Card>
+                      </div>
+                    </div>
+
+                    {/* Vehicle Assignment Section */}
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Icon
+                          icon="solar:car-bold"
+                          className="text-warning"
+                          width={20}
+                        />
+                        Assegnazione Veicolo
+                      </h4>
+
+                      {selectedEmployee.assigned_vehicle ? (
+                        <Card className="bg-success-50 dark:bg-success-950">
+                          <CardBody className="py-4">
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-success-100 dark:bg-success-900">
+                              <div className="flex items-center gap-3">
+                                <div className="w-10 h-10 rounded-full bg-success-500/20 flex items-center justify-center">
+                                  <Icon
+                                    icon="solar:car-bold"
+                                    className="text-success-600"
+                                    width={20}
+                                  />
+                                </div>
+                                <div>
+                                  <p className="font-semibold text-success-700 dark:text-success-300">
+                                    {selectedEmployee.assigned_vehicle.name}
+                                  </p>
+                                  <p className="text-sm text-success-600 dark:text-success-400">
+                                    Targa:{" "}
+                                    {
+                                      selectedEmployee.assigned_vehicle
+                                        .license_plate
+                                    }
+                                  </p>
+                                </div>
+                              </div>
+                              <Chip color="success" size="sm" variant="flat">
+                                Assegnato
+                              </Chip>
+                            </div>
+                          </CardBody>
+                        </Card>
+                      ) : (
+                        <Card className="bg-default-50 dark:bg-default-950">
+                          <CardBody className="py-4">
+                            <div className="flex items-center gap-2 mb-3">
+                              <Icon
+                                icon="solar:info-circle-bold"
+                                className="text-default-600"
+                                width={20}
+                              />
+                              <p className="text-sm text-default-600 dark:text-default-400">
+                                Nessun veicolo assegnato
+                              </p>
+                            </div>
+                          </CardBody>
+                        </Card>
+                      )}
+                    </div>
+
+                    {/* Performance Metrics */}
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Icon
+                          icon="solar:chart-bold"
+                          className="text-secondary"
+                          width={20}
+                        />
+                        Metriche Performance
+                      </h4>
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-sm font-medium">
+                              Efficienza
+                            </span>
+                            <span className="text-sm font-bold text-success-600">
+                              92%
+                            </span>
+                          </div>
+                          <Progress
+                            value={92}
+                            color="success"
+                            size="md"
+                            aria-label="Efficienza membro team"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-sm font-medium">
+                              Progetti Completati
+                            </span>
+                            <span className="text-sm font-bold text-primary-600">
+                              87%
+                            </span>
+                          </div>
+                          <Progress
+                            value={87}
+                            color="primary"
+                            size="md"
+                            aria-label="Progetti completati"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-sm font-medium">
+                              Valutazione Cliente
+                            </span>
+                            <span className="text-sm font-bold text-warning-600">
+                              95%
+                            </span>
+                          </div>
+                          <Progress
+                            value={95}
+                            color="warning"
+                            size="md"
+                            aria-label="Valutazione performance"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </ModalBody>
+            <ModalFooter className="bg-default-50 dark:bg-default-950">
+              <Button
+                color="default"
+                variant="light"
+                onPress={() => setViewModalOpen(false)}
+              >
+                Chiudi
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Edit Employee Modal */}
+        <Modal
+          isOpen={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          size="2xl"
+          backdrop="blur"
+        >
+          <ModalContent>
+            <ModalHeader className="flex flex-col gap-1 bg-content1/50 backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <Icon
+                  icon="solar:pen-bold"
+                  className="text-warning"
+                  width={24}
+                />
+                <span>Modifica Tecnico</span>
+              </div>
+            </ModalHeader>
+            <ModalBody className="p-8">
+              {selectedEmployee && (
+                <div className="flex flex-col lg:flex-row gap-10">
+                  {/* Left side - Avatar and basic info */}
+                  <div className="flex flex-col items-center lg:w-1/3">
+                    <div className="relative">
+                      <Avatar
+                        src={selectedEmployee.photo}
+                        showFallback
+                        name={
+                          selectedEmployee.name
+                            ? selectedEmployee.name
+                                .split(" ")
+                                .map((n: string) => n[0])
+                                .join("")
+                            : ""
+                        }
+                        className="h-32 w-32 mb-6 shadow-large"
+                      />
+                    </div>
+                    <h3 className="text-2xl font-bold text-center">
+                      {selectedEmployee.name && selectedEmployee.surname
+                        ? `${selectedEmployee.name} ${selectedEmployee.surname}`
+                        : selectedEmployee.name || "Nome non disponibile"}
+                    </h3>
+                    <Chip
+                      color={getRoleColor(selectedEmployee.role)}
+                      variant="flat"
+                      size="lg"
+                      className="mt-3"
+                      startContent={
+                        <Icon
+                          icon={getRoleIcon(selectedEmployee.role)}
+                          width={16}
+                        />
+                      }
+                    >
+                      {selectedEmployee.role || "Ruolo non specificato"}
+                    </Chip>
+
+                    {/* Quick stats */}
+                    <div className="mt-8 w-full space-y-4">
+                      <Card className="bg-success-50 dark:bg-success-950">
+                        <CardBody className="py-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <Icon
+                                icon="solar:calendar-bold"
+                                className="text-success-600"
+                                width={18}
+                              />
+                              <span className="text-sm font-medium">Stato</span>
+                            </div>
+                            <Chip color="success" size="sm">
+                              Attivo
+                            </Chip>
+                          </div>
+                        </CardBody>
+                      </Card>
+                    </div>
+                  </div>
+
+                  {/* Right side - Detailed information */}
+                  <div className="flex-1 space-y-8">
+                    {/* Personal Information */}
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Icon
+                          icon="solar:user-bold"
+                          className="text-primary"
+                          width={20}
+                        />
+                        Informazioni Personali
+                      </h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          label="Nome"
+                          placeholder="Nome"
+                          value={editFormData.name}
+                          onChange={(e) =>
+                            setEditFormData((prev) => ({
+                              ...prev,
+                              name: e.target.value,
+                            }))
+                          }
+                          size="md"
+                          startContent={
+                            <Icon
+                              icon="solar:user-bold"
+                              className="text-default-400"
+                              width={20}
+                            />
+                          }
+                        />
+                        <Input
+                          label="Cognome"
+                          placeholder="Cognome"
+                          value={editFormData.surname}
+                          onChange={(e) =>
+                            setEditFormData((prev) => ({
+                              ...prev,
+                              surname: e.target.value,
+                            }))
+                          }
+                          size="md"
+                          startContent={
+                            <Icon
+                              icon="solar:user-bold"
+                              className="text-default-400"
+                              width={20}
+                            />
+                          }
+                        />
+                        <Input
+                          label="Email"
+                          placeholder="email@esempio.com"
+                          type="email"
+                          size="md"
+                          value={editFormData.email}
+                          onChange={(e) =>
+                            setEditFormData((prev) => ({
+                              ...prev,
+                              email: e.target.value,
+                            }))
+                          }
+                          startContent={
+                            <Icon
+                              icon="solar:letter-bold"
+                              className="text-default-400"
+                              width={20}
+                            />
+                          }
+                        />
+                        <Dropdown>
+                          <DropdownTrigger>
+                            <Button
+                              variant="bordered"
+                              size="md"
+                              className="justify-start h-14 w-full"
+                              startContent={
+                                <Icon
+                                  icon="solar:medal-star-bold"
+                                  className="text-default-400"
+                                  width={20}
+                                />
+                              }
+                            >
+                              {(() => {
+                                const selectedRole = roles.find(
+                                  (r) =>
+                                    r.role_id?.toString() ===
+                                    editFormData.role?.toString()
+                                );
+                                return selectedRole
+                                  ? selectedRole.name
+                                  : "Seleziona ruolo";
+                              })()}
+                            </Button>
+                          </DropdownTrigger>
+                          <DropdownMenu
+                            aria-label="Selezione ruolo"
+                            selectedKeys={[editFormData.role]}
+                            onAction={(key) => {
+                              setEditFormData((prev) => ({
+                                ...prev,
+                                role: key as string,
+                              }));
+                            }}
+                          >
+                            {isLoadingRoles ? (
+                              <DropdownItem key="loading" isReadOnly>
+                                <div className="flex items-center gap-2">
+                                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                                  <span>Caricamento ruoli...</span>
+                                </div>
+                              </DropdownItem>
+                            ) : (
+                              roles.map((role) => (
+                                <DropdownItem
+                                  key={role.role_id?.toString() || ""}
+                                >
+                                  {role.name || "Ruolo non specificato"}
+                                </DropdownItem>
+                              ))
+                            )}
+                          </DropdownMenu>
+                        </Dropdown>
+                      </div>
+                    </div>
+
+                    {/* Vehicle Assignment Section */}
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Icon
+                          icon="solar:car-bold"
+                          className="text-warning"
+                          width={20}
+                        />
+                        Assegnazione Veicolo
+                      </h4>
+
+                      <Card className="bg-default-50 dark:bg-default-950">
+                        <CardBody className="p-4">
+                          <div className="flex items-center justify-between mb-4">
+                            <h5 className="text-sm font-medium text-default-600 dark:text-default-400">
+                              Assegnazione Veicolo
+                            </h5>
+                            <Chip
+                              color={
+                                tempVehicleAssignment ? "success" : "default"
+                              }
+                              size="sm"
+                              variant="flat"
+                            >
+                              {tempVehicleAssignment !==
+                              selectedEmployee.assigned_vehicle
+                                ? "Modificato"
+                                : tempVehicleAssignment
+                                ? "Assegnato"
+                                : "Nessun veicolo"}
+                            </Chip>
+                          </div>
+
+                          {tempVehicleAssignment ? (
+                            <div className="flex items-center gap-3 p-3 rounded-lg bg-success-100 dark:bg-success-900 mb-4">
+                              <div className="w-10 h-10 rounded-full bg-success-500/20 flex items-center justify-center">
+                                <Icon
+                                  icon="solar:car-bold"
+                                  className="text-success-600"
+                                  width={20}
+                                />
+                              </div>
+                              <div className="flex-1">
+                                <p className="font-semibold text-success-700 dark:text-success-300">
+                                  {tempVehicleAssignment.name}
+                                </p>
+                                <p className="text-sm text-success-600 dark:text-success-400">
+                                  Targa: {tempVehicleAssignment.license_plate}
+                                </p>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="flex items-center gap-2 p-3 rounded-lg bg-default-100 dark:bg-default-800 mb-4">
+                              <Icon
+                                icon="solar:info-circle-bold"
+                                className="text-default-600"
+                                width={20}
+                              />
+                              <p className="text-sm text-default-600 dark:text-default-400">
+                                {selectedEmployee.assigned_vehicle
+                                  ? "Veicolo rimosso"
+                                  : "Nessun veicolo assegnato"}
+                              </p>
+                            </div>
+                          )}
+
+                          <Dropdown>
+                            <DropdownTrigger>
+                              <Button
+                                variant="bordered"
+                                size="md"
+                                className="justify-start h-12 w-full"
+                                startContent={
+                                  <Icon icon="solar:car-bold" width={16} />
+                                }
+                                endContent={
+                                  <Icon
+                                    icon="solar:arrow-down-linear"
+                                    width={16}
+                                  />
+                                }
+                              >
+                                {tempVehicleAssignment
+                                  ? `${tempVehicleAssignment.name} - ${tempVehicleAssignment.license_plate}`
+                                  : "Seleziona veicolo"}
+                              </Button>
+                            </DropdownTrigger>
+                            <DropdownMenu
+                              aria-label="Selezione veicolo"
+                              className="w-80"
+                            >
+                              {vehicles.map((vehicle) => {
+                                const isAssigned = currentEmployees.some(
+                                  (emp) =>
+                                    emp.assigned_vehicle?.id ===
+                                    vehicle.vehicle_id
+                                );
+                                const isAssignedToCurrent =
+                                  selectedEmployee?.assigned_vehicle?.id ===
+                                  vehicle.vehicle_id;
+
+                                return (
+                                  <DropdownItem
+                                    key={vehicle.vehicle_id.toString()}
+                                    onPress={() => {
+                                      if (
+                                        tempVehicleAssignment?.id ===
+                                        vehicle.vehicle_id
+                                      ) {
+                                        handleTempRemoveVehicle();
+                                      } else {
+                                        handleTempAssignVehicle(
+                                          vehicle.vehicle_id
+                                        );
+                                      }
+                                    }}
+                                    startContent={
+                                      <Icon icon="solar:car-bold" width={16} />
+                                    }
+                                    className="py-3"
+                                  >
+                                    <div className="flex items-center justify-between w-full">
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">
+                                          {vehicle.name ||
+                                            vehicle.model ||
+                                            "Modello non specificato"}
+                                        </span>
+                                        <span className="text-xs text-default-500 font-mono">
+                                          {vehicle.license_plate ||
+                                            "Targa non disponibile"}
+                                        </span>
+                                      </div>
+                                      <div className="flex gap-1">
+                                        {isAssignedToCurrent && (
+                                          <Chip
+                                            color="primary"
+                                            size="sm"
+                                            variant="flat"
+                                          >
+                                            Attuale
+                                          </Chip>
+                                        )}
+                                        {isAssigned && !isAssignedToCurrent && (
+                                          <Chip
+                                            color="warning"
+                                            size="sm"
+                                            variant="flat"
+                                          >
+                                            Occupato
+                                          </Chip>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </DropdownItem>
+                                );
+                              })}
+                            </DropdownMenu>
+                          </Dropdown>
+                        </CardBody>
+                      </Card>
+                    </div>
+
+                    {/* Performance Metrics */}
+                    <div>
+                      <h4 className="text-lg font-semibold mb-4 flex items-center gap-2">
+                        <Icon
+                          icon="solar:chart-bold"
+                          className="text-secondary"
+                          width={20}
+                        />
+                        Metriche Performance
+                      </h4>
+                      <div className="space-y-4">
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-sm font-medium">
+                              Efficienza
+                            </span>
+                            <span className="text-sm font-bold text-success-600">
+                              92%
+                            </span>
+                          </div>
+                          <Progress
+                            value={92}
+                            color="success"
+                            size="md"
+                            aria-label="Efficienza membro team"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-sm font-medium">
+                              Progetti Completati
+                            </span>
+                            <span className="text-sm font-bold text-primary-600">
+                              87%
+                            </span>
+                          </div>
+                          <Progress
+                            value={87}
+                            color="primary"
+                            size="md"
+                            aria-label="Progetti completati"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex justify-between mb-2">
+                            <span className="text-sm font-medium">
+                              Valutazione Cliente
+                            </span>
+                            <span className="text-sm font-bold text-warning-600">
+                              95%
+                            </span>
+                          </div>
+                          <Progress
+                            value={95}
+                            color="warning"
+                            size="md"
+                            aria-label="Valutazione performance"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </ModalBody>
+            <ModalFooter className="bg-default-50 dark:bg-default-950">
+              <Button
+                color="default"
+                variant="light"
+                onPress={() => setEditModalOpen(false)}
+                startContent={
+                  <Icon icon="solar:close-circle-bold" width={16} />
+                }
+              >
+                Annulla
+              </Button>
+              <Button
+                color="primary"
+                variant="flat"
+                startContent={
+                  <Icon icon="solar:check-circle-bold" width={16} />
+                }
+                onPress={handleSaveEmployeeChanges}
+              >
+                Salva Modifiche
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
       </div>
     </UpdateContext.Provider>
   );
