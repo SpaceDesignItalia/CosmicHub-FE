@@ -1,37 +1,12 @@
-import React, { useState, useEffect, useMemo } from "react";
-import {
-  Card,
-  CardBody,
-  CardHeader,
-  Button,
-  Input,
-  Select,
-  SelectItem,
-  Chip,
-  Badge,
-  Modal,
-  ModalContent,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  useDisclosure,
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-  Switch,
-  Slider,
-  Divider,
-  Avatar,
-  Tabs,
-  Tab,
-} from "@heroui/react";
+import { useState, useEffect, useMemo } from "react";
+import { Card, CardBody, Button, Input, Chip, Badge, Modal, ModalContent, ModalHeader, ModalBody, ModalFooter, useDisclosure, Switch, Divider, Avatar, Tabs, Tab } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import { useNavigate } from "react-router-dom";
 import type { Intervention } from "../../types/Intervention";
 import type { Customer } from "../../types/Customer";
 import type { Technician } from "../../types/Technician";
 import PageHeader from "../../Components/Layout/PageHeader";
+import axios from "axios";
 
 // Mock delle coordinate per Milano e zone limitrofe
 const mockCoordinates = [
@@ -99,7 +74,7 @@ export default function InterventionsMap() {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null);
-  const [mapCenter, setMapCenter] = useState({ lat: 45.4642, lng: 9.1900 }); // Milano centro
+  // const [mapCenter, setMapCenter] = useState({ lat: 45.4642, lng: 9.1900 }); // Milano centro
   const [mapZoom, setMapZoom] = useState(12);
   const [viewMode, setViewMode] = useState<"map" | "list">("map");
   
@@ -122,135 +97,76 @@ export default function InterventionsMap() {
   const loadMapData = async () => {
     setLoading(true);
     try {
-      // Mock data con coordinate simulate
-      const mockCustomers: Customer[] = [
-        {
-          customer_id: "1",
-          name: "Mario",
-          surname: "Rossi",
-          phone: "+39 333 1234567",
-          address: "Via Roma 123",
-          city: "Milano",
-          zip_code: "20100",
-          country: "Italia",
-          status: "active",
-          customer_type: "private",
-          created_at: new Date(),
-          updated_at: new Date(),
-          created_by: "admin",
-        },
-        {
-          customer_id: "2",
-          name: "Giulia",
-          surname: "Verdi",
-          phone: "+39 333 7654321",
-          address: "Via Garibaldi 456",
-          city: "Milano",
-          zip_code: "20100",
-          country: "Italia",
-          status: "active",
-          customer_type: "business",
-          created_at: new Date(),
-          updated_at: new Date(),
-          created_by: "admin",
-        },
-        {
-          customer_id: "3",
-          name: "Luca",
-          surname: "Bianchi",
-          phone: "+39 333 5555555",
-          address: "Corso Buenos Aires 100",
-          city: "Milano",
-          zip_code: "20100",
-          country: "Italia",
-          status: "active",
-          customer_type: "private",
-          created_at: new Date(),
-          updated_at: new Date(),
-          created_by: "admin",
-        },
-      ];
+      const [customersRes, techniciansRes, interventionsRes] = await Promise.all([
+        axios.get("Customer/GET/GetAllCustomers"),
+        axios.get("Employee/GET/GetAllEmployees"),
+        axios.get("Intervention/GET/GetAllInterventions"),
+      ]);
 
-      const mockTechnicians: Technician[] = [
-        {
-          technician_id: "1",
-          user_id: "tech1",
-          name: "Giuseppe",
-          surname: "Bianchi",
-          role: "technician",
-          status: "active",
-          specializations: ["repair", "maintenance"],
-          skill_level: "senior",
-          availability_status: "available",
-          working_hours: {
-            monday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-            tuesday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-            wednesday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-            thursday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-            friday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
+      const customersData: Customer[] = Array.isArray(customersRes.data)
+        ? customersRes.data
+        : customersRes.data?.customers || customersRes.data?.data || [];
+
+      const techniciansData: Technician[] = (Array.isArray(techniciansRes.data)
+        ? techniciansRes.data
+        : techniciansRes.data?.employees || techniciansRes.data?.data || []
+      ).map((emp: any) => ({
+        technician_id: emp.user_id,
+        user_id: emp.user_id,
+        name: emp.name,
+        phone: emp.phone || "",
+        email: emp.email || "",
+        profile_image: emp.profile_image || "",
+        created_at: new Date(emp.created_at || Date.now()),
+        updated_at: new Date(emp.updated_at || Date.now()),
+        specializations: emp.specializations || [],
+        skill_level: emp.skill_level || "junior",
+        availability_status: emp.availability_status || "available",
+        working_hours: emp.working_hours || {
+          monday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+          tuesday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+          wednesday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+          thursday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+          friday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
             saturday: { is_working_day: false },
             sunday: { is_working_day: false },
           },
-        },
-        {
-          technician_id: "2",
-          user_id: "tech2",
-          name: "Marco",
-          surname: "Neri",
-          role: "technician",
-          status: "active",
-          specializations: ["installation", "inspection"],
-          skill_level: "junior",
-          availability_status: "available",
-          working_hours: {
-            monday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-            tuesday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-            wednesday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-            thursday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-            friday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-            saturday: { is_working_day: false },
-            sunday: { is_working_day: false },
-          },
-        },
-      ];
-
-      // Genera interventi con coordinate simulate
-      const mockInterventions: Intervention[] = Array.from({ length: 8 }, (_, index) => ({
-        intervention_id: `${index + 1}`,
-        appointment_id: `APP-${index + 1}`,
-        customer_id: mockCustomers[index % mockCustomers.length].customer_id,
-        assigned_technician_id: mockTechnicians[index % mockTechnicians.length].technician_id,
-        assigned_van_id: index % 2 === 0 ? `VAN-00${index + 1}` : undefined,
-        intervention_code: `INT-2024-${(index + 1).toString().padStart(3, '0')}`,
-        title: [
-          "Riparazione rubinetto cucina",
-          "Installazione termostato smart", 
-          "Manutenzione impianto elettrico",
-          "Ispezione caldaia",
-          "Riparazione perdita bagno",
-          "Installazione videocitofono",
-          "Manutenzione climatizzatore",
-          "Riparazione serratura porta"
-        ][index],
-        description: `Intervento di ${['riparazione', 'installazione', 'manutenzione', 'ispezione'][index % 4]} presso cliente`,
-        intervention_type: ["repair", "installation", "maintenance", "inspection", "emergency"][index % 5] as any,
-        status: ["assigned", "accepted", "in_progress", "completed", "paused"][index % 5] as any,
-        priority: ["low", "medium", "high", "emergency"][index % 4] as any,
-        scheduled_date: new Date(Date.now() + (index - 2) * 24 * 60 * 60 * 1000),
-        scheduled_start_time: ["09:00", "10:30", "14:00", "15:30"][index % 4],
-        scheduled_end_time: ["10:30", "12:00", "15:30", "17:00"][index % 4],
-        intervention_address: mockCustomers[index % mockCustomers.length].address,
-        intervention_city: "Milano",
-        intervention_coordinates: mockCoordinates[index],
-        estimated_cost: 100 + (index * 50),
-        created_at: new Date(Date.now() - index * 24 * 60 * 60 * 1000),
-        updated_at: new Date(),
-        created_by: "operator1",
       }));
 
-      setCustomers(mockCustomers);
-      setTechnicians(mockTechnicians);
-      setInterventions(mockInterventions);
+      const rawInterventions: any[] = Array.isArray(interventionsRes.data)
+        ? interventionsRes.data
+        : interventionsRes.data?.interventions || interventionsRes.data?.data || [];
+
+      const mappedInterventions: Intervention[] = rawInterventions.map((it: any, index: number) => ({
+        intervention_id: String(it.intervention_id || it.id || it.InterventionId || Date.now() + index),
+        appointment_id: String(it.appointment_id || it.AppointmentId || ""),
+        customer_id: String(it.customer_id || it.CustomerId || it.customer?.customer_id || ""),
+        assigned_technician_id: String(it.assigned_technician_id || it.TechnicianId || it.technician_id || ""),
+        assigned_van_id: it.assigned_van_id || it.VanId,
+        intervention_code: it.intervention_code || it.Code || it.code || "",
+        title: it.title || it.InterventionTitle || "Intervento",
+        description: it.description || it.InterventionDescription || "",
+        intervention_type: it.intervention_type || it.Type || "inspection",
+        status: it.status || it.Status || "assigned",
+        priority: it.priority || it.Priority || "low",
+        scheduled_date: new Date(it.scheduled_date || it.ScheduledDate || it.date || Date.now()),
+        scheduled_start_time: it.scheduled_start_time || it.StartTime || it.start_time || "09:00",
+        scheduled_end_time: it.scheduled_end_time || it.EndTime || it.end_time || "10:00",
+        actual_start_time: it.actual_start_time || it.ActualStartTime,
+        actual_end_time: it.actual_end_time || it.ActualEndTime,
+        intervention_address: it.intervention_address || it.Address || it.address || "",
+        intervention_city: it.intervention_city || it.City || it.city || "",
+        intervention_coordinates: it.intervention_coordinates || mockCoordinates[index % mockCoordinates.length],
+        estimated_cost: Number(it.estimated_cost || it.EstimatedCost || 0),
+        actual_cost: it.actual_cost !== undefined ? Number(it.actual_cost) : undefined,
+        created_at: new Date(it.created_at || Date.now()),
+        updated_at: new Date(it.updated_at || Date.now()),
+        created_by: it.created_by || it.CreatedBy || "",
+      }));
+
+      setCustomers(customersData);
+      setTechnicians(techniciansData);
+      setInterventions(mappedInterventions);
     } catch (error) {
       console.error("Errore nel caricamento dei dati mappa:", error);
     } finally {
@@ -531,7 +447,7 @@ export default function InterventionsMap() {
                   </div>
                   <div>
                     <span className="text-default-500">Tecnico:</span>
-                    <p>{marker.technician?.name} {marker.technician?.surname}</p>
+                    <p>{marker.technician?.name}</p>
                   </div>
                   <div>
                     <span className="text-default-500">Data:</span>
@@ -547,7 +463,7 @@ export default function InterventionsMap() {
                 <Icon 
                   icon={getMarkerIcon(marker.intervention)} 
                   width={20} 
-                  className={`text-${statusColorMap[marker.intervention.status]}`}
+                  className="text-foreground"
                 />
                 <Button
                   isIconOnly
@@ -589,18 +505,17 @@ export default function InterventionsMap() {
         title="Mappa Interventi"
         description="Visualizza la distribuzione geografica degli interventi"
         icon="solar:map-bold-duotone"
-        actions={
-          <div className="flex gap-2">
-            <Button
-              size="sm"
-              variant="flat"
-              startContent={<Icon icon="solar:filter-bold" width={16} />}
-              onPress={onOpenFilterModal}
-            >
-              Filtri {filters.status.length + filters.priority.length + filters.type.length > 0 && 
-                <Badge size="sm" color="primary">{filters.status.length + filters.priority.length + filters.type.length}</Badge>
-              }
-            </Button>
+        actions={[
+          {
+            label: `Filtri${filters.status.length + filters.priority.length + filters.type.length > 0 ? ` (${filters.status.length + filters.priority.length + filters.type.length})` : ""}`,
+            icon: "solar:filter-bold",
+            color: "default",
+            variant: "flat",
+            onClick: onOpenFilterModal,
+          },
+        ]}
+      >
+        <div className="flex">
             <Tabs
               selectedKey={viewMode}
               onSelectionChange={(key) => setViewMode(key as "map" | "list")}
@@ -620,8 +535,7 @@ export default function InterventionsMap() {
               } />
             </Tabs>
           </div>
-        }
-      />
+      </PageHeader>
       
       <div className="flex-1 p-6 overflow-hidden">
         <div className="h-full">
@@ -742,7 +656,7 @@ export default function InterventionsMap() {
                           }}
                           className="rounded"
                         />
-                        <span className="text-sm">{technician.name} {technician.surname}</span>
+                        <span className="text-sm">{technician.name}</span>
                       </label>
                     ))}
                   </div>
@@ -851,13 +765,12 @@ export default function InterventionsMap() {
                       <span className="text-default-500 text-sm">Tecnico:</span>
                       <div className="flex items-center gap-2 mt-1">
                         <Avatar 
-                          name={`${technicians.find(t => t.technician_id === selectedIntervention.assigned_technician_id)?.name} ${technicians.find(t => t.technician_id === selectedIntervention.assigned_technician_id)?.surname}`}
+                          name={`${technicians.find(t => t.technician_id === selectedIntervention.assigned_technician_id)?.name || ''}`}
                           size="sm"
                         />
                         <div>
                           <p className="font-medium">
-                            {technicians.find(t => t.technician_id === selectedIntervention.assigned_technician_id)?.name}{" "}
-                            {technicians.find(t => t.technician_id === selectedIntervention.assigned_technician_id)?.surname}
+                            {technicians.find(t => t.technician_id === selectedIntervention.assigned_technician_id)?.name}
                           </p>
                           <p className="text-sm text-default-500">
                             {technicians.find(t => t.technician_id === selectedIntervention.assigned_technician_id)?.skill_level}

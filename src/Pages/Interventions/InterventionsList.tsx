@@ -22,8 +22,8 @@ import {
   ModalFooter,
   useDisclosure,
   Pagination,
-  Selection,
-  SortDescriptor,
+  type Selection,
+  type SortDescriptor,
   Badge,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
@@ -32,6 +32,7 @@ import type { Intervention } from "../../types/Intervention";
 import type { Customer } from "../../types/Customer";
 import type { Technician } from "../../types/Technician";
 import PageHeader from "../../Components/Layout/PageHeader";
+import axios from "axios";
 
 const statusColorMap = {
   assigned: "default",
@@ -80,8 +81,8 @@ export default function InterventionsList() {
   const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]));
   const [statusFilter, setStatusFilter] = useState<Selection>("all");
   const [priorityFilter, setPriorityFilter] = useState<Selection>("all");
-  const [typeFilter, setTypeFilter] = useState<Selection>("all");
-  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [typeFilter] = useState<Selection>("all");
+  const [rowsPerPage, setRowsPerPage] = useState(8);
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
     column: "scheduled_date",
     direction: "ascending",
@@ -89,121 +90,97 @@ export default function InterventionsList() {
   const [page, setPage] = useState(1);
   const [interventionToDelete, setInterventionToDelete] = useState<Intervention | null>(null);
 
-  // Mock data
+  // Caricamento da API reali
   useEffect(() => {
-    const mockCustomers: Customer[] = [
-      {
-        customer_id: "1",
-        name: "Mario",
-        surname: "Rossi",
-        phone: "+39 333 1234567",
-        address: "Via Roma 123",
-        city: "Milano",
-        zip_code: "20100",
-        country: "Italia",
-        status: "active",
-        customer_type: "private",
-        created_at: new Date(),
-        updated_at: new Date(),
-        created_by: "admin",
-      },
-    ];
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [customersRes, techniciansRes, interventionsRes] = await Promise.all([
+          axios.get("Customer/GET/GetAllCustomers"),
+          axios.get("Employee/GET/GetAllEmployees"),
+          axios.get("Customer/GET/GetAllEvents"),
+        ]);
 
-    const mockTechnicians: Technician[] = [
-      {
-        technician_id: "1",
-        user_id: "tech1",
-        name: "Giuseppe",
-        surname: "Bianchi",
-        role: "technician",
-        status: "active",
-        specializations: [],
-        skill_level: "senior",
-        availability_status: "available",
-        working_hours: {
-          monday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-          tuesday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-          wednesday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-          thursday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-          friday: { is_working_day: true, start_time: "08:00", end_time: "18:00" },
-          saturday: { is_working_day: false },
-          sunday: { is_working_day: false },
-        },
-      },
-    ];
+        // Clienti
+        const customersData: Customer[] = Array.isArray(customersRes.data)
+          ? customersRes.data
+          : customersRes.data?.customers || customersRes.data?.data || [];
 
-    const mockInterventions: Intervention[] = [
-      {
-        intervention_id: "1",
-        appointment_id: "1",
-        customer_id: "1",
-        assigned_technician_id: "1",
-        intervention_code: "INT-2024-001",
-        title: "Riparazione rubinetto cucina",
-        description: "Sostituzione guarnizioni e riparazione perdita d'acqua",
-        intervention_type: "repair",
-        status: "in_progress",
-        priority: "medium",
-        scheduled_date: new Date("2024-12-15"),
-        scheduled_start_time: "09:30",
-        scheduled_end_time: "11:00",
-        intervention_address: "Via Roma 123",
-        intervention_city: "Milano",
-        estimated_cost: 150,
-        created_at: new Date(),
-        updated_at: new Date(),
-        created_by: "operator1",
-      },
-      {
-        intervention_id: "2",
-        appointment_id: "2",
-        customer_id: "1",
-        assigned_technician_id: "1",
-        intervention_code: "INT-2024-002",
-        title: "Manutenzione impianto elettrico",
-        description: "Controllo generale e sostituzione componenti usurate",
-        intervention_type: "maintenance",
-        status: "assigned",
-        priority: "low",
-        scheduled_date: new Date("2024-12-18"),
-        scheduled_start_time: "14:00",
-        scheduled_end_time: "16:30",
-        intervention_address: "Via Garibaldi 456",
-        intervention_city: "Roma",
-        estimated_cost: 200,
-        created_at: new Date(),
-        updated_at: new Date(),
-        created_by: "operator1",
-      },
-      {
-        intervention_id: "3",
-        appointment_id: "3",
-        customer_id: "1",
-        assigned_technician_id: "1",
-        intervention_code: "INT-2024-003",
-        title: "Installazione termostato smart",
-        description: "Installazione e configurazione termostato WiFi",
-        intervention_type: "installation",
-        status: "accepted",
-        priority: "high",
-        scheduled_date: new Date("2024-12-20"),
-        scheduled_start_time: "10:00",
-        scheduled_end_time: "12:00",
-        intervention_address: "Via Verdi 789",
-        intervention_city: "Torino",
-        estimated_cost: 300,
-        created_at: new Date(),
-        updated_at: new Date(),
-        created_by: "operator2",
-      },
-    ];
+        // Tecnici (mappo Employee → Technician minimale)
+        const techniciansData: Technician[] = (Array.isArray(techniciansRes.data)
+          ? techniciansRes.data
+          : techniciansRes.data?.employees || techniciansRes.data?.data || []
+        ).map((emp: any) => ({
+          technician_id: emp.user_id,
+          user_id: emp.user_id,
+          name: emp.name,
+          phone: emp.phone || "",
+          email: emp.email || "",
+          profile_image: emp.profile_image || "",
+          created_at: new Date(emp.created_at || Date.now()),
+          updated_at: new Date(emp.updated_at || Date.now()),
+          specializations: emp.specializations || [],
+          skill_level: emp.skill_level || "junior",
+          availability_status: emp.availability_status || "available",
+          working_hours: emp.working_hours || {
+            monday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+            tuesday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+            wednesday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+            thursday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+            friday: { is_working_day: true, start_time: "09:00", end_time: "18:00" },
+            saturday: { is_working_day: false },
+            sunday: { is_working_day: false },
+          },
+        }));
 
-    setTimeout(() => {
-      setCustomers(mockCustomers);
-      setTechnicians(mockTechnicians);
-      setInterventions(mockInterventions);
-      setLoading(false);
-    }, 1000);
+        // Interventi: ricopia la logica del Calendario usando GetAllEvents
+        const rawEvents: any[] = Array.isArray(interventionsRes.data)
+          ? interventionsRes.data
+          : interventionsRes.data?.events || interventionsRes.data?.data || [];
+
+        const mappedInterventions: Intervention[] = rawEvents.map((ev: any) => ({
+          intervention_id: String(ev.EventId || ev.id || Date.now()),
+          appointment_id: String(ev.AppointmentId || ev.EventId || ev.id || ""),
+          customer_id: String(ev.CustomerInfo?.customer_id || ev.customer_id || ""),
+          assigned_technician_id: String(ev.TechnicianAssignment?.technician_id || ev.technician_id || ""),
+          assigned_van_id: ev.assigned_van_id || ev.VanId,
+          intervention_code: ev.EventTagName || ev.EventCode || `EV-${ev.EventId || ""}`,
+          title: ev.EventTitle || "Intervento",
+          description: ev.EventDescription || "",
+          intervention_type: (ev.EventType || "inspection").toLowerCase(),
+          status: (ev.EventStatus || "assigned").toLowerCase(),
+          priority: (() => {
+            const p = ev.EventPriority || "Normale";
+            if (p === "Emergenza") return "emergency";
+            if (p === "Urgente") return "high";
+            if (p === "Alta") return "medium";
+            return "low";
+          })(),
+          scheduled_date: new Date(ev.EventStartDate || Date.now()),
+          scheduled_start_time: ev.EventStartTime || "09:00",
+          scheduled_end_time: ev.EventEndTime || "10:00",
+          actual_start_time: undefined,
+          actual_end_time: undefined,
+          intervention_address: ev.EventLocation || "",
+          intervention_city: customersData.find(c => c.customer_id === (ev.CustomerInfo?.customer_id || ""))?.city || "",
+          estimated_cost: undefined,
+          actual_cost: undefined,
+          created_at: new Date(),
+          updated_at: new Date(),
+          created_by: "system",
+        }));
+
+        setCustomers(customersData);
+        setTechnicians(techniciansData);
+        setInterventions(mappedInterventions);
+      } catch (error) {
+        console.error("Errore caricamento interventi:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   const hasSearchFilter = Boolean(filterValue);
@@ -271,7 +248,7 @@ export default function InterventionsList() {
 
   const getTechnicianName = (technicianId: string) => {
     const technician = technicians.find(t => t.technician_id === technicianId);
-    return technician ? `${technician.name} ${technician.surname}` : "N/A";
+    return technician ? `${technician.name}` : "N/A";
   };
 
   const getStatusLabel = (status: string) => {
@@ -296,16 +273,16 @@ export default function InterventionsList() {
     return labels[priority as keyof typeof labels] || priority;
   };
 
-  const getTypeLabel = (type: string) => {
-    const labels = {
-      inspection: "Ispezione",
-      repair: "Riparazione",
-      maintenance: "Manutenzione",
-      installation: "Installazione",
-      emergency: "Emergenza"
-    };
-    return labels[type as keyof typeof labels] || type;
-  };
+  // const getTypeLabel = (type: string) => {
+  //   const labels = {
+  //     inspection: "Ispezione",
+  //     repair: "Riparazione",
+  //     maintenance: "Manutenzione",
+  //     installation: "Installazione",
+  //     emergency: "Emergenza"
+  //   };
+  //   return labels[type as keyof typeof labels] || type;
+  // };
 
   const formatDate = (date: Date) => {
     return new Intl.DateTimeFormat('it-IT', {
@@ -391,11 +368,11 @@ export default function InterventionsList() {
           <div className="relative flex justify-end items-center gap-2">
             <Dropdown>
               <DropdownTrigger>
-                <Button isIconOnly size="sm" variant="light">
-                  <Icon icon="solar:menu-dots-vertical-bold" width={16} />
+                <Button isIconOnly size="sm" variant="light" className="text-foreground border border-default-300">
+                  <Icon icon="solar:menu-dots-vertical-bold" width={16} className="text-foreground" />
                 </Button>
               </DropdownTrigger>
-              <DropdownMenu>
+              <DropdownMenu aria-label="Azioni intervento">
                 <DropdownItem
                   key="view"
                   startContent={<Icon icon="solar:eye-bold" width={16} />}
@@ -468,7 +445,7 @@ export default function InterventionsList() {
 
   const topContent = useMemo(() => {
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 bg-content2 rounded-medium p-4">
         <div className="flex justify-between gap-3 items-end">
           <Input
             isClearable
@@ -530,10 +507,10 @@ export default function InterventionsList() {
             </Dropdown>
             <Button
               color="primary"
-              endContent={<Icon icon="solar:settings-bold" width={16} />}
-              onPress={() => navigate("/interventions/assign")}
+              endContent={<Icon icon="solar:calendar-add-bold" width={16} />}
+              onPress={() => navigate("/calendar")}
             >
-              Assegna Intervento
+              Nuovo Intervento
             </Button>
           </div>
         </div>
@@ -559,7 +536,7 @@ export default function InterventionsList() {
 
   const bottomContent = useMemo(() => {
     return (
-      <div className="py-2 px-2 flex justify-between items-center">
+      <div className="py-2 px-2 flex justify-between items-center bg-content2 rounded-medium">
         <span className="w-[30%] text-small text-default-400">
           {selectedKeys === "all"
             ? "Tutti gli elementi selezionati"
@@ -609,14 +586,14 @@ export default function InterventionsList() {
   };
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="flex flex-col">
       <PageHeader
         title="Lista Interventi"
         description="Gestisci tutti gli interventi programmati e in corso"
         icon="solar:clipboard-list-bold-duotone"
       />
       
-      <div className="flex-1 p-6 overflow-auto">
+             <div className="flex-1 p-6 pb-10">
         <Card>
           <CardBody className="px-0">
             <Table
@@ -625,7 +602,7 @@ export default function InterventionsList() {
               bottomContent={bottomContent}
               bottomContentPlacement="outside"
               classNames={{
-                wrapper: "max-h-[382px]",
+                wrapper: "",
               }}
               selectedKeys={selectedKeys}
               selectionMode="multiple"
@@ -641,12 +618,25 @@ export default function InterventionsList() {
                     key={column.uid}
                     align={column.uid === "actions" ? "center" : "start"}
                     allowsSorting={column.sortable}
+                    className={column.uid === "actions" ? "w-12 text-center" : undefined}
                   >
                     {column.name}
                   </TableColumn>
                 )}
               </TableHeader>
-              <TableBody emptyContent={"Nessun intervento trovato"} items={sortedItems} isLoading={loading}>
+              <TableBody
+                emptyContent={
+                  <div className="flex flex-col items-center justify-center py-10 text-center text-default-500">
+                    <Icon icon="solar:calendar-bold-duotone" width={48} />
+                    <p className="mt-2">Nessun intervento trovato</p>
+                    <Button className="mt-4" color="primary" onPress={() => navigate('/calendar')}>
+                      Vai al Calendario
+                    </Button>
+                  </div>
+                }
+                items={sortedItems}
+                isLoading={loading}
+              >
                 {(item) => (
                   <TableRow key={item.intervention_id}>
                     {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}

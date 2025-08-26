@@ -377,7 +377,7 @@ export default function Calls() {
                       <Icon icon="solar:user-check-rounded-bold" width={16} />
                     }
                     onPress={() =>
-                      navigate(`/interventions/assign?call_id=${call.call_id}`)
+                      navigate(`/calendar?creating_event=true&from_ccc=true&call_id=${call.call_id}`)
                     }
                   >
                     Assegna Intervento

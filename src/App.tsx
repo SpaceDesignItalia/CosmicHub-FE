@@ -1,6 +1,6 @@
 import axios from "axios";
 import { useEffect, useState } from "react";
-import { Navigate, Outlet, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import AppLayout from "./Components/Layout/AppLayout";
 import Analytics from "./Pages/Analytics/Analytics";
 import Authentication from "./Pages/Authentication/Authentication";
@@ -33,7 +33,7 @@ import CustomerDetail from "./Pages/Customers/CustomerDetail";
 import InterventionsList from "./Pages/Interventions/InterventionsList";
 import InterventionsMap from "./Pages/Interventions/InterventionsMap";
 import AddIntervention from "./Pages/Interventions/AddIntervention";
-import InterventionAssign from "./Pages/Interventions/InterventionAssign";
+// RIMOSSO: import InterventionAssign
 import InterventionDetail from "./Pages/Interventions/InterventionDetail";
 import InterventionEdit from "./Pages/Interventions/InterventionEdit";
 import InterventionStart from "./Pages/Interventions/InterventionStart";
@@ -108,10 +108,7 @@ function App() {
             <Route path="/interventions" element={<InterventionsList />} />
             <Route path="/interventions/map" element={<InterventionsMap />} />
             <Route path="/interventions/add" element={<AddIntervention />} />
-            <Route
-              path="/interventions/assign"
-              element={<InterventionAssign />}
-            />
+            {/* RIMOZIONE: pagina di assegnazione interventi non più usata */}
             <Route path="/interventions/:id" element={<InterventionDetail />} />
             <Route
               path="/interventions/edit/:id"

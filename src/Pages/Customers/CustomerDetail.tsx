@@ -25,6 +25,28 @@ import type {
 import type { Technician } from "../../types/Technician";
 import type { CalendarEvent } from "../../Pages/CalendarAurora/types";
 import axios from "axios";
+import ViewEventModal from "../../Pages/CalendarAurora/ViewEventModal";
+// Tipo locale per i dati passati al ViewEventModal (EstimatedDuration numerica)
+interface ViewEventData {
+  EventId: number;
+  EventTitle: string;
+  EventStartDate: any;
+  EventEndDate: any;
+  EventStartTime: string;
+  EventEndTime: string;
+  EventColor: string;
+  EventDescription: string;
+  EventLocation: string;
+  EventTagName: string;
+  EventAttachments: any[];
+  EventPartecipants: any[];
+  EventType?: string;
+  EventPriority?: string;
+  EstimatedDuration?: number;
+  CustomerInfo?: any;
+  TechnicianAssignment?: any;
+  InterventionNotes?: string;
+}
 
 const statusColorMap = {
   active: "success",
@@ -71,6 +93,39 @@ export default function CustomerDetail() {
   // Nuovo state per gli eventi del calendario
   const [customerEvents, setCustomerEvents] = useState<CalendarEvent[]>([]);
   const [eventsLoading, setEventsLoading] = useState(false);
+
+  // Stato per visualizzazione dettaglio evento
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [selectedEventData, setSelectedEventData] = useState<
+    ViewEventData | undefined
+  >(undefined);
+
+  const openViewModal = (event: CalendarEvent) => {
+    setSelectedEventId(event.EventId);
+    // Adatta EstimatedDuration a number se necessario
+    const normalized: ViewEventData = {
+      ...event,
+      EventStartTime: (event as any).EventStartTime || "",
+      EventEndTime: (event as any).EventEndTime || "",
+      EventColor: (event as any).EventColor || "",
+      EventDescription: (event as any).EventDescription || "",
+      EventLocation: (event as any).EventLocation || "",
+      EventTagName: (event as any).EventTagName || "",
+      EventAttachments: (event as any).EventAttachments || [],
+      EventPartecipants: (event as any).EventPartecipants || [],
+      EstimatedDuration:
+        typeof (event as any).EstimatedDuration === "string"
+          ? parseInt((event as any).EstimatedDuration, 10)
+          : (event as any).EstimatedDuration,
+    };
+    setSelectedEventData(normalized);
+    setIsViewModalOpen(true);
+  };
+
+  const closeViewModal = () => {
+    setIsViewModalOpen(false);
+  };
 
   // Load data
   useEffect(() => {
@@ -1054,6 +1109,7 @@ export default function CustomerDetail() {
                                                         width={16}
                                                       />
                                                     }
+                                                    onPress={() => openViewModal(event)}
                                                   >
                                                     Visualizza
                                                   </Button>
@@ -1138,7 +1194,7 @@ export default function CustomerDetail() {
                                           return (
                                             <Card
                                               key={`event-future-${event.EventId}`}
-                                              className={`p-4 border-l-4 ${priorityColor} bg-gray-900 dark:bg-black border border-gray-700 dark:border-gray-800 hover:shadow-xl hover:bg-gray-800 transition-all duration-200 group`}
+                                              className={`p-4 border-l-4 ${priorityColor} bg-content1 border border-default-200 hover:shadow-xl hover:bg-content2 transition-all duration-200 group`}
                                             >
                                               <div className="space-y-3">
                                                 {/* Header evento con icona priorità */}
@@ -1156,11 +1212,11 @@ export default function CustomerDetail() {
                                                           "Emergenza" && "🔴"}
                                                       </span>
                                                       <div className="flex-1">
-                                                        <h4 className="font-semibold text-white text-lg">
+                                                        <h4 className="font-semibold text-foreground text-lg">
                                                           {event.EventTitle ||
                                                             "Evento"}
                                                         </h4>
-                                                        <p className="text-gray-300 text-sm">
+                                                        <p className="text-default-500 text-sm">
                                                           {new Date(
                                                             event.EventStartDate
                                                           ).toLocaleDateString(
@@ -1173,7 +1229,7 @@ export default function CustomerDetail() {
                                                             }
                                                           )}
                                                         </p>
-                                                        <p className="text-gray-400 text-xs">
+                                                        <p className="text-default-400 text-xs">
                                                           {event.EventStartTime ||
                                                             new Date(
                                                               event.EventStartDate
@@ -1234,11 +1290,11 @@ export default function CustomerDetail() {
 
                                                 {/* Descrizione */}
                                                 {event.EventDescription && (
-                                                  <div className="p-3 bg-gray-800 dark:bg-gray-900 rounded-lg border border-gray-700 dark:border-gray-800">
-                                                    <p className="text-sm text-gray-300 font-medium mb-1">
+                                                  <div className="p-3 bg-content2 rounded-lg border border-default-200">
+                                                    <p className="text-sm text-default-500 font-medium mb-1">
                                                       Descrizione
                                                     </p>
-                                                    <p className="text-white text-sm">
+                                                    <p className="text-foreground text-sm">
                                                       {event.EventDescription}
                                                     </p>
                                                   </div>
@@ -1246,11 +1302,11 @@ export default function CustomerDetail() {
 
                                                 {/* Ubicazione */}
                                                 {event.EventLocation && (
-                                                  <div className="p-3 bg-gray-800 dark:bg-gray-900 rounded-lg border border-gray-700 dark:border-gray-800">
-                                                    <p className="text-sm text-gray-300 font-medium mb-1">
+                                                  <div className="p-3 bg-content2 rounded-lg border border-default-200">
+                                                    <p className="text-sm text-default-500 font-medium mb-1">
                                                       Ubicazione
                                                     </p>
-                                                    <p className="text-white text-sm">
+                                                    <p className="text-foreground text-sm">
                                                       {event.EventLocation}
                                                     </p>
                                                   </div>
@@ -1258,12 +1314,12 @@ export default function CustomerDetail() {
 
                                                 {/* Tecnico Assegnato */}
                                                 {event.TechnicianAssignment && (
-                                                  <div className="p-3 bg-gray-800 dark:bg-gray-900 rounded-lg border border-gray-700 dark:border-gray-800">
-                                                    <p className="text-sm text-gray-300 font-medium mb-1">
+                                                  <div className="p-3 bg-content2 rounded-lg border border-default-200">
+                                                    <p className="text-sm text-default-500 font-medium mb-1">
                                                       Tecnico Assegnato
                                                     </p>
                                                     <div className="flex items-center gap-2">
-                                                      <p className="text-white text-sm">
+                                                      <p className="text-foreground text-sm">
                                                         {
                                                           event
                                                             .TechnicianAssignment
@@ -1283,11 +1339,11 @@ export default function CustomerDetail() {
 
                                                 {/* Durata Stimata */}
                                                 {event.EstimatedDuration && (
-                                                  <div className="p-3 bg-gray-800 dark:bg-gray-900 rounded-lg border border-gray-700 dark:border-gray-800">
-                                                    <p className="text-sm text-gray-300 font-medium mb-1">
+                                                  <div className="p-3 bg-content2 rounded-lg border border-default-200">
+                                                    <p className="text-sm text-default-500 font-medium mb-1">
                                                       Durata Stimata
                                                     </p>
-                                                    <p className="text-white text-sm">
+                                                    <p className="text-foreground text-sm">
                                                       {typeof event.EstimatedDuration ===
                                                       "string"
                                                         ? event.EventDescription
@@ -1308,6 +1364,7 @@ export default function CustomerDetail() {
                                                         width={16}
                                                       />
                                                     }
+                                                    onPress={() => openViewModal(event)}
                                                   >
                                                     Visualizza
                                                   </Button>
@@ -1392,7 +1449,7 @@ export default function CustomerDetail() {
                                           return (
                                             <Card
                                               key={`past-${index}`}
-                                              className={`p-4 border-l-4 ${priorityColor} bg-gray-900 dark:bg-black text-white border border-gray-700 dark:border-gray-800 hover:shadow-xl hover:bg-gray-800 transition-all duration-200 group`}
+                                              className={`p-4 border-l-4 ${priorityColor} bg-content1 text-foreground border border-default-200 hover:shadow-xl hover:bg-content2 transition-all duration-200 group`}
                                             >
                                               <div className="space-y-3">
                                                 {/* Header evento con icona priorità */}
@@ -1410,11 +1467,11 @@ export default function CustomerDetail() {
                                                           "Emergenza" && "🔴"}
                                                       </span>
                                                       <div className="flex-1">
-                                                        <h4 className="font-semibold text-white text-lg">
+                                                        <h4 className="font-semibold text-foreground text-lg">
                                                           {event.EventTitle ||
                                                             "Evento"}
                                                         </h4>
-                                                        <p className="text-gray-300 text-sm">
+                                                        <p className="text-default-500 text-sm">
                                                           {new Date(
                                                             event.EventStartDate
                                                           ).toLocaleDateString(
@@ -1427,7 +1484,7 @@ export default function CustomerDetail() {
                                                             }
                                                           )}
                                                         </p>
-                                                        <p className="text-gray-400 text-xs">
+                                                        <p className="text-default-400 text-xs">
                                                           {event.EventStartTime ||
                                                             new Date(
                                                               event.EventStartDate
@@ -1478,7 +1535,7 @@ export default function CustomerDetail() {
                                                       <Chip
                                                         size="sm"
                                                         variant="flat"
-                                                        className="bg-gray-900 text-gray-100 border-gray-700"
+                                                        className="bg-content2 text-foreground border-default-200"
                                                       >
                                                         {event.EventType}
                                                       </Chip>
@@ -1488,11 +1545,11 @@ export default function CustomerDetail() {
 
                                                 {/* Descrizione */}
                                                 {event.EventDescription && (
-                                                  <div className="p-3 bg-gray-800 dark:bg-gray-900 rounded-lg border border-gray-700 dark:border-gray-800">
-                                                    <p className="text-sm text-gray-300 font-medium mb-1">
+                                                  <div className="p-3 bg-content2 rounded-lg border border-default-200">
+                                                    <p className="text-sm text-default-500 font-medium mb-1">
                                                       Descrizione
                                                     </p>
-                                                    <p className="text-white text-sm">
+                                                    <p className="text-foreground text-sm">
                                                       {event.EventDescription}
                                                     </p>
                                                   </div>
@@ -1500,11 +1557,11 @@ export default function CustomerDetail() {
 
                                                 {/* Ubicazione */}
                                                 {event.EventLocation && (
-                                                  <div className="p-3 bg-gray-800 dark:bg-gray-900 rounded-lg border border-gray-700 dark:border-gray-800">
-                                                    <p className="text-sm text-gray-300 font-medium mb-1">
+                                                  <div className="p-3 bg-content2 rounded-lg border border-default-200">
+                                                    <p className="text-sm text-default-500 font-medium mb-1">
                                                       Ubicazione
                                                     </p>
-                                                    <p className="text-white text-sm">
+                                                    <p className="text-foreground text-sm">
                                                       {event.EventLocation}
                                                     </p>
                                                   </div>
@@ -1515,13 +1572,14 @@ export default function CustomerDetail() {
                                                   <Button
                                                     size="sm"
                                                     variant="flat"
-                                                    className="bg-gray-600 hover:bg-gray-700 text-white"
+                                                    className="bg-default-600 hover:bg-default-700 text-foreground"
                                                     startContent={
                                                       <Icon
                                                         icon="solar:eye-bold"
                                                         width={16}
                                                       />
                                                     }
+                                                    onPress={() => openViewModal(event)}
                                                   >
                                                     Visualizza
                                                   </Button>
@@ -1904,6 +1962,16 @@ export default function CustomerDetail() {
           </div>
         </div>
       </div>
+      {isViewModalOpen && selectedEventId !== null && (
+        <ViewEventModal
+          isOpen={isViewModalOpen}
+          eventId={selectedEventId}
+          eventData={selectedEventData}
+          isClosed={closeViewModal}
+          onEventUpdated={() => {}}
+          onEventDeleted={() => {}}
+        />
+      )}
     </div>
   );
 }

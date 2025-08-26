@@ -14,7 +14,6 @@ import {
   DropdownTrigger,
   Listbox,
   ListboxItem,
-  ListboxSection,
   Modal,
   ModalContent,
   ModalHeader,
@@ -104,12 +103,7 @@ export const sectionNestedItems = [
         icon: "solar:clipboard-list-bold",
         href: "/interventions",
       },
-      {
-        key: "interventions-assign",
-        title: "Assegna Intervento",
-        icon: "solar:user-check-rounded-bold",
-        href: "/interventions/assign",
-      },
+      // RIMOSSO: pagina Assegna Intervento
       {
         key: "interventions-map",
         title: "Mappa Interventi",
@@ -274,7 +268,6 @@ const Sidebar = React.forwardRef<HTMLElement, SidebarProps>(
       iconClassName,
       classNames,
       className,
-      ...props
     },
     ref
   ) => {

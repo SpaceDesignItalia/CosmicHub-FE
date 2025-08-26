@@ -257,7 +257,7 @@ export default function CalendarAurora() {
 
   const handleEventCreationWorkflow = () => {
     if (isFromCCC) {
-      // Pre-fill data from CCC - salva i dati ma NON aprire il modal
+      // Pre-fill data from CCC - salva i dati e mostra banner, NON aprire il modal
       const cccData = {
         customer_id: searchParams.get("customer_id"),
         customer_name: searchParams.get("customer_name"),
@@ -278,22 +278,7 @@ export default function CalendarAurora() {
 
       setPendingEventData(cccData);
       setShowPrefilledBanner(true);
-
-      // APRI AUTOMATICAMENTE IL MODAL con i dati precompilati
-      const currentDateString = currentDate.toISOString().split("T")[0];
-      const dataWithCurrentDate = {
-        ...cccData,
-        selectedDate: currentDateString,
-        // Aggiungi TechnicianAssignment se c'è un tecnico assegnato
-        TechnicianAssignment: cccData.assigned_technician_id
-          ? {
-              technician_id: cccData.assigned_technician_id,
-              technician_name: cccData.assigned_technician || "",
-            }
-          : undefined,
-      };
-      setPrefilledEventData(dataWithCurrentDate);
-      setIsOpen(true);
+      // Il modal si aprirà al click su un giorno (handleDateClick)
     } else if (isCreatingEvent && callId) {
       // Pre-fill data from Call - salva i dati ma NON aprire il modal
       const callData = {

@@ -383,10 +383,8 @@ export default function AddEventModal({
           onEventCreated(savedEvent);
         }
 
-        // Navigate back to customers if from CCC
-        if (eventData.IsFromCCC) {
-          navigate("/customers");
-        } else if (prefilledData) {
+        // Resta sul calendario; non navigare ai clienti
+        if (prefilledData) {
           // Se viene da cliente o form preparazione, pulisci i dati e torna al calendario pulito
           setEventData({
             ...INITIAL_EVENT_DATA,
@@ -463,16 +461,8 @@ export default function AddEventModal({
       });
       setSelectedCustomerId("");
       setSelectedTechnicianId("");
-
-      // Pulisci anche pendingEventData per non mantenere i dati del cliente
-      if (prefilledData.from_ccc || prefilledData.from_call) {
-        // Chiama il callback per pulire i dati pending dal componente padre
-        if (onModalClose) {
-          onModalClose();
-        }
-      }
-
-      // Naviga al calendario pulito
+      // NON pulire pendingEventData: mantieni le informazioni per poter cambiare giorno
+      // Resta sul calendario, ripulendo solo la query
       navigate("/calendar", { replace: true });
     }
     // Chiudi il modal
@@ -875,18 +865,7 @@ export default function AddEventModal({
         </ModalBody>
 
         <ModalFooter>
-          <Button
-            variant="light"
-            onPress={() => {
-              if (eventData.IsFromCCC) {
-                navigate("/customers");
-              } else {
-                isClosed();
-              }
-            }}
-          >
-            {eventData.IsFromCCC ? "Torna ai Clienti" : "Annulla"}
-          </Button>
+          <Button variant="light" onPress={isClosed}>Annulla</Button>
           <Button
             color="primary"
             onPress={handleSave}
