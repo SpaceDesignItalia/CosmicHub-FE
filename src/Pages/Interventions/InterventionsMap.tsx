@@ -7,7 +7,7 @@ import type { Customer } from "../../types/Customer";
 import type { Technician } from "../../types/Technician";
 import PageHeader from "../../Components/Layout/PageHeader";
 import axios from "axios";
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, HeatmapLayer } from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, HeatmapLayer, MarkerClustererF } from "@react-google-maps/api";
 
 // Librerie Google Maps statiche per evitare reload (warning LoadScript)
 const MAP_LIBRARIES: ("visualization")[] = ["visualization"];
@@ -98,6 +98,7 @@ export default function InterventionsMap() {
   const [layerMode, setLayerMode] = useState<"interventions" | "customers" | "heatmap">("customers");
   const [timeQuickFilter, setTimeQuickFilter] = useState<"all" | "today" | "week" | "future">("all");
   const [activeCustomerMarker, setActiveCustomerMarker] = useState<CustomerMarker | null>(null);
+  const [isGeocodingQueued, setIsGeocodingQueued] = useState(false);
   
   const [filters, setFilters] = useState<MapFilters>({
     status: [],
@@ -112,8 +113,10 @@ export default function InterventionsMap() {
   });
 
   useEffect(() => {
-    loadMapData();
-  }, []);
+    if (isLoaded) {
+      loadMapData();
+    }
+  }, [isLoaded]);
 
   const loadMapData = async () => {
     setLoading(true);
@@ -128,20 +131,48 @@ export default function InterventionsMap() {
         ? customersRes.data
         : customersRes.data?.customers || customersRes.data?.data || [];
 
-      // Geocoding per clienti senza coordinate (Nominatim)
+      // Geocoding clienti: preferisci Google Geocoder (caricato via JS API), fallback Nominatim
       const geocodeAddress = async (fullAddress: string) => {
         try {
+          // Cache locale per ridurre chiamate ripetute
+          const cacheKey = `geo:${fullAddress}`;
+          const cached = typeof window !== 'undefined' ? localStorage.getItem(cacheKey) : null;
+          if (cached) {
+            return JSON.parse(cached);
+          }
+
+          // 1) Tentativo con Google Maps Geocoder (se disponibile)
+          if (typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
+            const geocoder = new (window as any).google.maps.Geocoder();
+            const results = await new Promise<any[] | null>((resolve) => {
+              geocoder.geocode({ address: fullAddress, region: 'IT' }, (res: any[], status: string) => {
+                if (status === 'OK' && Array.isArray(res) && res.length > 0) resolve(res);
+                else resolve(null);
+              });
+            });
+            if (results && results[0]?.geometry?.location) {
+              const loc = results[0].geometry.location;
+              const coords = { lat: loc.lat(), lng: loc.lng() };
+              localStorage.setItem(cacheKey, JSON.stringify(coords));
+              return coords;
+            }
+          }
+
+          // 2) Fallback a Nominatim (attenzione a rate-limit e blocchi da client)
           const resp = await axios.get(
             "https://nominatim.openstreetmap.org/search",
             {
               params: { format: "json", q: fullAddress, addressdetails: 1, limit: 1 },
               headers: { Accept: "application/json" },
+              timeout: 8000,
               withCredentials: false,
             }
           );
           if (Array.isArray(resp.data) && resp.data.length > 0) {
             const item = resp.data[0];
-            return { lat: Number(item.lat), lng: Number(item.lon) };
+            const coords = { lat: Number(item.lat), lng: Number(item.lon) };
+            localStorage.setItem(cacheKey, JSON.stringify(coords));
+            return coords;
           }
         } catch (e) {
           console.warn("Geocoding fallito per:", fullAddress);
@@ -149,36 +180,36 @@ export default function InterventionsMap() {
         return undefined;
       };
 
-      const customersData: Customer[] = await Promise.all(
-        customersDataRaw.map(async (c: any) => {
-          const normalized: Customer = {
-            ...c,
-            customer_id: String(c.customer_id || c.id || c.CustomerId || c.customerId || ""),
-            name: c.name,
-            surname: c.surname,
-            email: c.email,
-            phone: c.phone,
-            address: c.address,
-            city: c.city,
-            zip_code: c.zip_code,
-            country: c.country,
-            status: c.status || "active",
-            customer_type: c.customer_type || "private",
-            created_at: c.created_at ? new Date(c.created_at) : new Date(),
-            created_by: c.created_by || "system",
-            coordinates: c.coordinates || (c.lat && c.lng ? { lat: Number(c.lat), lng: Number(c.lng) } : undefined),
-          } as Customer;
+      // 1° pass: nessun geocoding bloccante. Prepara lista di mancanti da processare in background
+      const customersData: Customer[] = [];
+      const customersMissingGeo: { id: string; fullAddress: string }[] = [];
+      for (const c of customersDataRaw) {
+        const normalized: Customer = {
+          ...c,
+          customer_id: String(c.customer_id || c.id || c.CustomerId || c.customerId || ""),
+          name: c.name,
+          surname: c.surname,
+          email: c.email,
+          phone: c.phone,
+          address: c.address,
+          city: c.city,
+          zip_code: c.zip_code,
+          country: c.country,
+          status: c.status || "active",
+          customer_type: c.customer_type || "private",
+          created_at: c.created_at ? new Date(c.created_at) : new Date(),
+          created_by: c.created_by || "system",
+          coordinates: c.coordinates || (c.lat && c.lng ? { lat: Number(c.lat), lng: Number(c.lng) } : undefined),
+        } as Customer;
 
-          if (!normalized.coordinates) {
-            const fullAddress = [normalized.address, normalized.zip_code, normalized.city, normalized.country]
-              .filter(Boolean)
-              .join(", ");
-            const coords = await geocodeAddress(fullAddress);
-            if (coords) normalized.coordinates = coords;
-          }
-          return normalized;
-        })
-      );
+        if (!normalized.coordinates) {
+          const fullAddress = [normalized.address, normalized.zip_code, normalized.city, normalized.country]
+            .filter(Boolean)
+            .join(", ");
+          customersMissingGeo.push({ id: normalized.customer_id, fullAddress });
+        }
+        customersData.push(normalized);
+      }
 
       const techniciansData: Technician[] = (Array.isArray(techniciansRes.data)
         ? techniciansRes.data
@@ -254,6 +285,22 @@ export default function InterventionsMap() {
       setCustomers(customersData);
       setTechnicians(techniciansData);
       setInterventions(mappedInterventions);
+      // Geocoding in background per i clienti mancanti (non blocca render)
+      if (!isGeocodingQueued && customersMissingGeo.length > 0) {
+        setIsGeocodingQueued(true);
+        // lascio che il browser respiri prima di iniziare
+        setTimeout(async () => {
+          for (const item of customersMissingGeo) {
+            const coords = await geocodeAddress(item.fullAddress);
+            if (coords) {
+              // aggiorna solo quel cliente
+              setCustomers(prev => prev.map(pc => pc.customer_id === item.id ? { ...pc, coordinates: coords } : pc));
+            }
+            // rate limit gentile
+            await new Promise(r => setTimeout(r, 250));
+          }
+        }, 50);
+      }
     } catch (error) {
       console.error("Errore nel caricamento dei dati mappa:", error);
     } finally {
@@ -351,10 +398,42 @@ export default function InterventionsMap() {
 
   const getCustomerMarkerIcon = (customerId: string) => {
     const c = customerTodayFutureCounts.get(String(customerId));
-    if (c && c.today > 0) return "https://maps.google.com/mapfiles/ms/icons/green-dot.png";
-    if (c && c.future > 0) return "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png";
-    return "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
+    if (c && c.today > 0) return "https://maps.gstatic.com/mapfiles/ms2/micons/green-dot.png";
+    if (c && c.future > 0) return "https://maps.gstatic.com/mapfiles/ms2/micons/yellow-dot.png";
+    return "https://maps.gstatic.com/mapfiles/ms2/micons/red-dot.png";
   };
+
+  const getInterventionMarkerIcon = (intervention: Intervention) => {
+    const statusToColor: Record<string, string> = {
+      assigned: "blue",
+      accepted: "azure",
+      in_progress: "orange",
+      paused: "purple",
+      completed: "green",
+      cancelled: "red",
+    };
+    const color = statusToColor[intervention.status] || "blue";
+    // icone moderne gstatic
+    const url = `https://maps.gstatic.com/mapfiles/ms2/micons/${color}-dot.png`;
+    // dimensioni leggermente ridotte per performance
+    return {
+      url,
+      scaledSize: new google.maps.Size(28, 28),
+    } as google.maps.Icon;
+  };
+
+  const heatmapWeightedData = useMemo(() => {
+    const aggregated = new Map<string, { lat: number; lng: number; weight: number }>();
+    mapMarkers.forEach(m => {
+      const key = `${m.position.lat.toFixed(4)},${m.position.lng.toFixed(4)}`;
+      const prev = aggregated.get(key) || { lat: m.position.lat, lng: m.position.lng, weight: 0 };
+      aggregated.set(key, { ...prev, weight: prev.weight + 1 });
+    });
+    return Array.from(aggregated.values()).map(p => ({
+      location: new google.maps.LatLng(p.lat, p.lng),
+      weight: p.weight,
+    }));
+  }, [mapMarkers]);
 
   const getStatusLabel = (status: string) => {
     const labels = {
@@ -481,30 +560,49 @@ export default function InterventionsMap() {
             options={{ disableDefaultUI: true, zoomControl: false }}
           >
             {layerMode === "interventions" && (
-              mapMarkers.map((marker) => (
-                <Marker
-                  key={marker.id}
-                  position={marker.position}
-                  onClick={() => handleMarkerClick(marker)}
-                />
-              ))
+              <MarkerClustererF averageCenter enableRetinaIcons gridSize={50}>
+                {(clusterer) => (
+                  <>
+                    {mapMarkers.map((marker) => (
+                      <Marker
+                        key={marker.id}
+                        position={marker.position}
+                        onClick={() => handleMarkerClick(marker)}
+                        icon={getInterventionMarkerIcon(marker.intervention)}
+                        clusterer={clusterer}
+                      />
+                    ))}
+                  </>
+                )}
+              </MarkerClustererF>
             )}
 
             {layerMode === "customers" && (
-              customerMarkers.map((cm) => (
-                <Marker
-                  key={cm.id}
-                  position={cm.position}
-                  onClick={() => { setActiveCustomerMarker(cm); setIsInfoWindowOpen(true); }}
-                  icon={{ url: getCustomerMarkerIcon(cm.id) }}
-                />
-              ))
+              <MarkerClustererF averageCenter enableRetinaIcons gridSize={50}>
+                {(clusterer) => (
+                  <>
+                    {customerMarkers.map((cm) => (
+                      <Marker
+                        key={cm.id}
+                        position={cm.position}
+                        onClick={() => { setActiveCustomerMarker(cm); setIsInfoWindowOpen(true); }}
+                        icon={{ url: getCustomerMarkerIcon(cm.id) }}
+                        clusterer={clusterer}
+                      />
+                    ))}
+                  </>
+                )}
+              </MarkerClustererF>
             )}
 
-            {layerMode === "heatmap" && (
+            {layerMode === "heatmap" && heatmapWeightedData.length > 0 && (
               <HeatmapLayer
-                data={mapMarkers.map(m => new google.maps.LatLng(m.position.lat, m.position.lng))}
-                options={{ radius: 40 }}
+                data={heatmapWeightedData as any}
+                options={{
+                  radius: Math.max(20, Math.min(60, Math.round((map?.getZoom() || 12) * 2))),
+                  dissipating: true,
+                  opacity: 0.6,
+                }}
               />
             )}
 
