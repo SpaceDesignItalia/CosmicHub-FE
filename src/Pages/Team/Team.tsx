@@ -46,6 +46,7 @@ interface Employee {
   name: string;
   surname?: string;
   email?: string;
+  role_id: number;
   role: string;
   photo: string;
   assigned_vehicle?: {
@@ -142,14 +143,30 @@ export default function Team() {
 
   const handleEditEmployee = (employee: Employee) => {
     setSelectedEmployee(employee);
+
+    // Trova il ruolo corrispondente per ottenere l'ID
+    const findRoleId = (roleName: string) => {
+      // Prima cerca nei ruoli già caricati
+      const existingRole = roles.find((r) => r.name === roleName);
+      if (existingRole) return existingRole.role_id?.toString() || "";
+
+      // Fallback: cerca per nome (case-insensitive)
+      const roleByName = roles.find(
+        (r) => r.name?.toLowerCase() === roleName?.toLowerCase()
+      );
+      return roleByName?.role_id?.toString() || "";
+    };
+
     setEditFormData({
       name: employee.name || "",
       surname: employee.surname || "",
       email: employee.email || "",
-      role: employee.role || "",
+      role: findRoleId(employee.role),
     });
+
     // Inizializza lo stato temporaneo del veicolo
     setTempVehicleAssignment(employee.assigned_vehicle || null);
+
     // Carica i veicoli e i ruoli quando si apre il modal
     fetchVehicles();
     fetchRoles();
@@ -175,12 +192,18 @@ export default function Team() {
   const fetchRoles = async () => {
     setIsLoadingRoles(true);
     try {
-      const response = await axios.get("/Employee/GET/GetAllRoles", {
+      const response = await axios.get("/Role/GET/GetAllRoles", {
         withCredentials: true,
       });
-      setRoles(response.data);
+
+      if (response.data && Array.isArray(response.data)) {
+        setRoles(response.data);
+      } else {
+        setRoles([]);
+      }
     } catch (error) {
       console.error("Failed to fetch roles:", error);
+      setRoles([]);
     } finally {
       setIsLoadingRoles(false);
     }
@@ -192,22 +215,53 @@ export default function Team() {
 
     setIsSaving(true);
     try {
-      // Aggiorna i dati personali del tecnico
-      await axios.put(
-        "/Employee/UPDATE/UpdateEmployeeData",
-        {
-          userData: {
-            name: editFormData.name,
-            surname: editFormData.surname,
-            email: editFormData.email,
-            role_id: editFormData.role, // Invia l'ID del ruolo invece della stringa
+      // Controlla se ci sono modifiche ai dati dell'utente
+      const hasUserDataChanges =
+        editFormData.name !== selectedEmployee.name ||
+        editFormData.surname !== (selectedEmployee.surname || "") ||
+        editFormData.email !== (selectedEmployee.email || "") ||
+        editFormData.role !== "";
+
+      // Controlla se ci sono modifiche al veicolo
+      const hasVehicleChanges =
+        tempVehicleAssignment !== selectedEmployee.assigned_vehicle;
+
+      // Se non ci sono modifiche, non fare nulla
+      if (!hasUserDataChanges && !hasVehicleChanges) {
+        setEditModalOpen(false);
+        return;
+      }
+
+      // Aggiorna i dati personali del tecnico solo se sono cambiati
+      if (hasUserDataChanges) {
+        // Validazione dei campi obbligatori
+        if (!editFormData.name.trim()) {
+          alert("Il nome è obbligatorio");
+          return;
+        }
+
+        if (!editFormData.role || editFormData.role === "") {
+          alert("Il ruolo è obbligatorio");
+          return;
+        }
+
+        await axios.put(
+          "/Employee/UPDATE/UpdateEmployeeData",
+          {
+            userData: {
+              user_id: selectedEmployee.user_id,
+              name: editFormData.name,
+              surname: editFormData.surname,
+              email: editFormData.email,
+              role_id: parseInt(editFormData.role) || null,
+            },
           },
-        },
-        { withCredentials: true }
-      );
+          { withCredentials: true }
+        );
+      }
 
       // Applica le modifiche del veicolo se sono cambiate
-      if (tempVehicleAssignment !== selectedEmployee.assigned_vehicle) {
+      if (hasVehicleChanges) {
         if (tempVehicleAssignment) {
           // Se il veicolo è già assegnato ad un altro tecnico, rimuovilo prima
           const currentOwner = currentEmployees.find(
@@ -257,17 +311,23 @@ export default function Team() {
           emp.user_id === selectedEmployee.user_id
             ? {
                 ...emp,
-                name: editFormData.name,
-                surname: editFormData.surname,
-                email: editFormData.email,
-                role: (() => {
-                  const selectedRole = roles.find(
-                    (r) =>
-                      r.role_id?.toString() === editFormData.role?.toString()
-                  );
-                  return selectedRole ? selectedRole.name : editFormData.role;
-                })(),
-                assigned_vehicle: tempVehicleAssignment,
+                // Aggiorna i dati dell'utente solo se sono cambiati
+                ...(hasUserDataChanges && {
+                  name: editFormData.name,
+                  surname: editFormData.surname,
+                  email: editFormData.email,
+                  role: (() => {
+                    const selectedRole = roles.find(
+                      (r) =>
+                        r.role_id?.toString() === editFormData.role?.toString()
+                    );
+                    return selectedRole ? selectedRole.name : editFormData.role;
+                  })(),
+                }),
+                // Aggiorna sempre il veicolo se è cambiato
+                ...(hasVehicleChanges && {
+                  assigned_vehicle: tempVehicleAssignment,
+                }),
               }
             : emp
         );
@@ -430,6 +490,9 @@ export default function Team() {
     };
 
     fetchEmployees();
+
+    // Carica anche i ruoli all'avvio per avere sempre i dati disponibili
+    fetchRoles();
   }, [updateCounter]);
 
   // Get unique roles for filter
@@ -684,6 +747,7 @@ export default function Team() {
               {/* Search and Filters */}
               <div className="flex flex-col sm:flex-row gap-6 mb-6">
                 <Input
+                  aria-label="Cerca tecnici per nome o ruolo"
                   placeholder="Cerca per nome o ruolo..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
@@ -903,6 +967,7 @@ export default function Team() {
                       <TableCell>
                         <div className="flex items-center gap-3 justify-center">
                           <Button
+                            aria-label="Visualizza dettagli tecnico"
                             size="sm"
                             variant="light"
                             color="default"
@@ -913,6 +978,7 @@ export default function Team() {
                             <Icon icon="solar:eye-bold" width={16} />
                           </Button>
                           <Button
+                            aria-label="Modifica tecnico"
                             size="sm"
                             variant="light"
                             color="warning"
@@ -924,6 +990,7 @@ export default function Team() {
                           <Dropdown>
                             <DropdownTrigger>
                               <Button
+                                aria-label="Azioni per tecnico"
                                 size="sm"
                                 variant="light"
                                 color="danger"
@@ -1020,6 +1087,7 @@ export default function Team() {
                 size="sm"
                 color="primary"
                 variant="bordered"
+                aria-label="Paginazione tecnici"
                 classNames={{
                   item: "rounded-full",
                   cursor: "rounded-full",
@@ -1083,6 +1151,7 @@ export default function Team() {
           onClose={() => setViewModalOpen(false)}
           size="2xl"
           backdrop="blur"
+          aria-label="Visualizza profilo dipendente"
         >
           <ModalContent>
             <ModalHeader className="flex flex-col gap-1 bg-content1/50 backdrop-blur-md">
@@ -1337,6 +1406,7 @@ export default function Team() {
           onClose={() => setEditModalOpen(false)}
           size="2xl"
           backdrop="blur"
+          aria-label="Modifica dipendente"
         >
           <ModalContent>
             <ModalHeader className="flex flex-col gap-1 bg-content1/50 backdrop-blur-md">
@@ -1525,14 +1595,26 @@ export default function Team() {
                                   <span>Caricamento ruoli...</span>
                                 </div>
                               </DropdownItem>
+                            ) : roles.length === 0 ? (
+                              <DropdownItem key="no-roles" isReadOnly>
+                                <span className="text-default-400">
+                                  Nessun ruolo disponibile
+                                </span>
+                              </DropdownItem>
                             ) : (
-                              roles.map((role) => (
-                                <DropdownItem
-                                  key={role.role_id?.toString() || ""}
-                                >
-                                  {role.name || "Ruolo non specificato"}
-                                </DropdownItem>
-                              ))
+                              (() => {
+                                console.log(
+                                  "Rendering roles dropdown with roles:",
+                                  roles
+                                );
+                                return roles.map((role) => (
+                                  <DropdownItem
+                                    key={role.role_id?.toString() || ""}
+                                  >
+                                    {role.name || "Ruolo non specificato"}
+                                  </DropdownItem>
+                                ));
+                              })()
                             )}
                           </DropdownMenu>
                         </Dropdown>
@@ -1785,6 +1867,50 @@ export default function Team() {
                   <Icon icon="solar:check-circle-bold" width={16} />
                 }
                 onPress={handleSaveEmployeeChanges}
+                isDisabled={(() => {
+                  if (!selectedEmployee) return true;
+
+                  // Trova il ruolo ID corrispondente per il confronto
+                  const getCurrentRoleId = () => {
+                    const currentRole = roles.find(
+                      (r) => r.name === selectedEmployee.role
+                    );
+                    return currentRole?.role_id?.toString() || "";
+                  };
+
+                  const currentRoleId = getCurrentRoleId();
+
+                  // Se non riusciamo a trovare il ruolo ID, non disabilitare il pulsante
+                  if (!currentRoleId) {
+                    return false;
+                  }
+
+                  // Controlla se ci sono modifiche reali ai dati dell'utente
+                  const hasUserDataChanges =
+                    editFormData.name.trim() !==
+                      (selectedEmployee.name || "").trim() ||
+                    editFormData.surname.trim() !==
+                      (selectedEmployee.surname || "").trim() ||
+                    editFormData.email.trim() !==
+                      (selectedEmployee.email || "").trim() ||
+                    editFormData.role !== currentRoleId;
+
+                  // Controlla se ci sono modifiche al veicolo
+                  const hasVehicleChanges =
+                    tempVehicleAssignment !== selectedEmployee.assigned_vehicle;
+
+                  // Controlla se i campi obbligatori sono vuoti
+                  const hasRequiredFields =
+                    editFormData.name.trim() !== "" && editFormData.role !== "";
+
+                  // Il pulsante è disabilitato se:
+                  // 1. I campi obbligatori sono vuoti OPPURE
+                  // 2. Non ci sono modifiche
+                  return (
+                    !hasRequiredFields ||
+                    (!hasUserDataChanges && !hasVehicleChanges)
+                  );
+                })()}
               >
                 Salva Modifiche
               </Button>
