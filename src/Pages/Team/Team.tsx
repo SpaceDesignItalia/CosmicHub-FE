@@ -39,6 +39,7 @@ import React, {
   useState,
 } from "react";
 import PageHeader from "../../Components/Layout/PageHeader";
+import { useCustomTheme } from "../../providers/ThemeProvider";
 
 // Interface for Employee type
 interface Employee {
@@ -91,6 +92,7 @@ const getRoleIcon = (role: string) => {
 };
 
 export default function Team() {
+  const { isDark } = useCustomTheme();
   const [currentEmployees, setCurrentEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("Tutti");
@@ -973,7 +975,9 @@ export default function Team() {
                             color="default"
                             onPress={() => handleViewEmployee(employee)}
                             isIconOnly
-                            className="text-white hover:bg-white/20"
+                            className={`${
+                              isDark ? "text-white" : "text-black"
+                            } hover:bg-white/20`}
                           >
                             <Icon icon="solar:eye-bold" width={16} />
                           </Button>
@@ -1687,99 +1691,36 @@ export default function Team() {
                             </div>
                           )}
 
-                          <Dropdown>
-                            <DropdownTrigger>
-                              <Button
-                                variant="bordered"
-                                size="md"
-                                className="justify-start h-12 w-full"
-                                startContent={
-                                  <Icon icon="solar:car-bold" width={16} />
-                                }
-                                endContent={
-                                  <Icon
-                                    icon="solar:arrow-down-linear"
-                                    width={16}
-                                  />
-                                }
-                              >
-                                {tempVehicleAssignment
-                                  ? `${tempVehicleAssignment.name} - ${tempVehicleAssignment.license_plate}`
-                                  : "Seleziona veicolo"}
-                              </Button>
-                            </DropdownTrigger>
-                            <DropdownMenu
-                              aria-label="Selezione veicolo"
-                              className="w-80"
+                          <div className="flex gap-2">
+                            <Button
+                              variant="bordered"
+                              size="md"
+                              className="justify-start h-12 flex-1"
+                              startContent={
+                                <Icon icon="solar:car-bold" width={16} />
+                              }
+                              onPress={() => setVehicleSelectionModalOpen(true)}
                             >
-                              {vehicles.map((vehicle) => {
-                                const isAssigned = currentEmployees.some(
-                                  (emp) =>
-                                    emp.assigned_vehicle?.id ===
-                                    vehicle.vehicle_id
-                                );
-                                const isAssignedToCurrent =
-                                  selectedEmployee?.assigned_vehicle?.id ===
-                                  vehicle.vehicle_id;
-
-                                return (
-                                  <DropdownItem
-                                    key={vehicle.vehicle_id.toString()}
-                                    onPress={() => {
-                                      if (
-                                        tempVehicleAssignment?.id ===
-                                        vehicle.vehicle_id
-                                      ) {
-                                        handleTempRemoveVehicle();
-                                      } else {
-                                        handleTempAssignVehicle(
-                                          vehicle.vehicle_id
-                                        );
-                                      }
-                                    }}
-                                    startContent={
-                                      <Icon icon="solar:car-bold" width={16} />
-                                    }
-                                    className="py-3"
-                                  >
-                                    <div className="flex items-center justify-between w-full">
-                                      <div className="flex flex-col">
-                                        <span className="font-medium">
-                                          {vehicle.name ||
-                                            vehicle.model ||
-                                            "Modello non specificato"}
-                                        </span>
-                                        <span className="text-xs text-default-500 font-mono">
-                                          {vehicle.license_plate ||
-                                            "Targa non disponibile"}
-                                        </span>
-                                      </div>
-                                      <div className="flex gap-1">
-                                        {isAssignedToCurrent && (
-                                          <Chip
-                                            color="primary"
-                                            size="sm"
-                                            variant="flat"
-                                          >
-                                            Attuale
-                                          </Chip>
-                                        )}
-                                        {isAssigned && !isAssignedToCurrent && (
-                                          <Chip
-                                            color="warning"
-                                            size="sm"
-                                            variant="flat"
-                                          >
-                                            Occupato
-                                          </Chip>
-                                        )}
-                                      </div>
-                                    </div>
-                                  </DropdownItem>
-                                );
-                              })}
-                            </DropdownMenu>
-                          </Dropdown>
+                              {tempVehicleAssignment
+                                ? `${tempVehicleAssignment.name} - ${tempVehicleAssignment.license_plate}`
+                                : "Seleziona veicolo"}
+                            </Button>
+                            {tempVehicleAssignment && (
+                              <Button
+                                variant="light"
+                                color="danger"
+                                size="md"
+                                isIconOnly
+                                onPress={handleTempRemoveVehicle}
+                                className="h-12 w-12"
+                              >
+                                <Icon
+                                  icon="solar:trash-bin-trash-bold"
+                                  width={16}
+                                />
+                              </Button>
+                            )}
+                          </div>
                         </CardBody>
                       </Card>
                     </div>
@@ -1913,6 +1854,191 @@ export default function Team() {
                 })()}
               >
                 Salva Modifiche
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
+        {/* Vehicle Selection Modal */}
+        <Modal
+          isOpen={vehicleSelectionModalOpen}
+          onClose={() => setVehicleSelectionModalOpen(false)}
+          size="2xl"
+          backdrop="blur"
+          aria-label="Selezione veicolo"
+          classNames={{
+            base: "bg-white/95 dark:bg-content1/95 backdrop-blur-xl border-0 shadow-2xl",
+            header:
+              "bg-gradient-to-r from-amber-50 to-yellow-50 dark:from-amber-950 dark:to-yellow-950 border-b border-amber-100 dark:border-amber-800",
+            body: "bg-gradient-to-b from-white to-gray-50 dark:from-content1 dark:to-content2",
+            footer:
+              "bg-gradient-to-r from-gray-50 to-white dark:from-content2 dark:to-content1 border-t border-gray-100 dark:border-gray-800",
+          }}
+        >
+          <ModalContent>
+            <ModalHeader className="flex flex-col gap-2 p-5">
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-gray-100 dark:bg-gray-700 flex items-center justify-center">
+                  <Icon
+                    icon="solar:car-bold"
+                    className="text-gray-600 dark:text-gray-300"
+                    width={18}
+                  />
+                </div>
+                <div>
+                  <h2 className="text-lg font-bold text-gray-800 dark:text-white">
+                    Seleziona Veicolo
+                  </h2>
+                  <p className="text-xs text-gray-600 dark:text-gray-300">
+                    Assegna un veicolo al tecnico
+                  </p>
+                </div>
+              </div>
+            </ModalHeader>
+            <ModalBody className="p-5">
+              <div className="space-y-5">
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 border border-gray-200 dark:border-gray-700">
+                  <div className="flex items-center gap-2">
+                    <Icon
+                      icon="solar:info-circle-bold"
+                      className="text-gray-600 dark:text-gray-400"
+                      width={16}
+                    />
+                    <p className="text-xs text-gray-700 dark:text-gray-300 font-medium">
+                      Seleziona un veicolo da assegnare al tecnico. I veicoli
+                      già assegnati ad altri tecnici sono marcati come
+                      "Occupato".
+                    </p>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 max-h-96 overflow-y-auto pr-1">
+                  {vehicles.map((vehicle) => {
+                    const isAssigned = currentEmployees.some(
+                      (emp) => emp.assigned_vehicle?.id === vehicle.vehicle_id
+                    );
+                    const isAssignedToCurrent =
+                      selectedEmployee?.assigned_vehicle?.id ===
+                      vehicle.vehicle_id;
+                    const isCurrentlySelected =
+                      tempVehicleAssignment?.id === vehicle.vehicle_id;
+
+                    return (
+                      <Card
+                        key={vehicle.vehicle_id}
+                        className={`cursor-pointer transition-all duration-300 hover:scale-[1.01] ${
+                          isCurrentlySelected
+                            ? "ring-2 ring-gray-400 shadow-lg bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600 ml-2"
+                            : "hover:shadow-md hover:bg-gray-50 dark:hover:bg-gray-800 border-gray-200 dark:border-gray-700"
+                        } border-2`}
+                        isPressable
+                        onPress={() => {
+                          if (isCurrentlySelected) {
+                            handleTempRemoveVehicle();
+                          } else {
+                            handleTempAssignVehicle(vehicle.vehicle_id);
+                          }
+                          setVehicleSelectionModalOpen(false);
+                        }}
+                      >
+                        <CardBody className="p-4">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div
+                                className={`w-12 h-12 rounded-lg flex items-center justify-center shadow-md transition-all duration-300 ${
+                                  isCurrentlySelected
+                                    ? "bg-gray-600 dark:bg-gray-400"
+                                    : "bg-gray-100 dark:bg-gray-700"
+                                }`}
+                              >
+                                <Icon
+                                  icon="solar:car-bold"
+                                  className={`${
+                                    isCurrentlySelected
+                                      ? "text-white"
+                                      : "text-gray-600 dark:text-gray-300"
+                                  }`}
+                                  width={20}
+                                />
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-semibold text-gray-800 dark:text-white text-base">
+                                  {vehicle.name ||
+                                    vehicle.model ||
+                                    "Modello non specificato"}
+                                </span>
+                                <span className="text-xs text-gray-500 dark:text-gray-400 font-mono bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
+                                  {vehicle.license_plate ||
+                                    "Targa non disponibile"}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              {isAssignedToCurrent && (
+                                <Chip
+                                  color="primary"
+                                  size="sm"
+                                  variant="flat"
+                                  className="bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-300 border border-blue-200 dark:border-blue-700"
+                                >
+                                  Attuale
+                                </Chip>
+                              )}
+                              {isAssigned && !isAssignedToCurrent && (
+                                <Chip
+                                  color="warning"
+                                  size="sm"
+                                  variant="flat"
+                                  className="bg-amber-100 text-amber-700 dark:bg-amber-900 dark:text-amber-300 border border-amber-200 dark:border-amber-700"
+                                >
+                                  Occupato
+                                </Chip>
+                              )}
+                              {isCurrentlySelected && (
+                                <Chip
+                                  color="success"
+                                  size="sm"
+                                  variant="flat"
+                                  className="bg-green-100 text-green-700 dark:bg-green-900 dark:text-green-300 border border-green-200 dark:border-green-700 shadow-md"
+                                >
+                                  Selezionato
+                                </Chip>
+                              )}
+                            </div>
+                          </div>
+                        </CardBody>
+                      </Card>
+                    );
+                  })}
+                </div>
+
+                {vehicles.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center mx-auto mb-6 shadow-lg">
+                      <Icon
+                        icon="solar:car-cross-bold"
+                        className="text-gray-400 dark:text-gray-500"
+                        width={32}
+                      />
+                    </div>
+                    <h3 className="text-lg font-semibold text-gray-600 dark:text-gray-400 mb-2">
+                      Nessun veicolo disponibile
+                    </h3>
+                    <p className="text-sm text-gray-500 dark:text-gray-500">
+                      Non ci sono veicoli da assegnare al momento
+                    </p>
+                  </div>
+                )}
+              </div>
+            </ModalBody>
+            <ModalFooter className="p-6">
+              <Button
+                color="default"
+                variant="light"
+                onPress={() => setVehicleSelectionModalOpen(false)}
+                className="px-6 py-2 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+              >
+                Chiudi
               </Button>
             </ModalFooter>
           </ModalContent>
