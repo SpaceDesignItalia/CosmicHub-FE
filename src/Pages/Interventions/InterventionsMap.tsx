@@ -396,29 +396,88 @@ export default function InterventionsMap() {
     return counts;
   }, [interventions]);
 
-  const getCustomerMarkerIcon = (customerId: string) => {
+  const createCustomerMarkerSvg = (customerId: string) => {
     const c = customerTodayFutureCounts.get(String(customerId));
-    if (c && c.today > 0) return "https://maps.gstatic.com/mapfiles/ms2/micons/green-dot.png";
-    if (c && c.future > 0) return "https://maps.gstatic.com/mapfiles/ms2/micons/yellow-dot.png";
-    return "https://maps.gstatic.com/mapfiles/ms2/micons/red-dot.png";
+    const config = c && c.today > 0 ? 
+      { color: "#10b981", label: c.today.toString(), status: "today" } :
+      c && c.future > 0 ? 
+      { color: "#f59e0b", label: c.future.toString(), status: "future" } :
+      { color: "#6b7280", label: "0", status: "none" };
+    
+    const svg = `
+      <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow-customer" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+          </filter>
+        </defs>
+        <!-- Main marker -->
+        <circle cx="18" cy="18" r="16" fill="${config.color}" filter="url(#shadow-customer)" opacity="0.9"/>
+        <circle cx="18" cy="18" r="12" fill="white"/>
+        <!-- Customer icon -->
+        <text x="18" y="23" text-anchor="middle" font-size="14" fill="${config.color}" font-weight="bold">
+          ${config.status === "none" ? "👤" : config.label}
+        </text>
+      </svg>
+    `;
+    
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  };
+
+  const getCustomerMarkerIcon = (customerId: string) => {
+    return {
+      url: createCustomerMarkerSvg(customerId),
+      scaledSize: new google.maps.Size(36, 36),
+      anchor: new google.maps.Point(18, 18),
+    } as google.maps.Icon;
+  };
+
+  const createCustomMarkerSvg = (intervention: Intervention) => {
+    const statusConfig = {
+      assigned: { color: "#3b82f6", icon: "clock" },
+      accepted: { color: "#06b6d4", icon: "check" },
+      in_progress: { color: "#f59e0b", icon: "play" },
+      paused: { color: "#8b5cf6", icon: "pause" },
+      completed: { color: "#10b981", icon: "check-circle" },
+      cancelled: { color: "#ef4444", icon: "x" },
+    };
+    
+    const config = statusConfig[intervention.status as keyof typeof statusConfig] || statusConfig.assigned;
+    const priorityRing = intervention.priority === "emergency" ? "#ef4444" : 
+                        intervention.priority === "high" ? "#f59e0b" : 
+                        intervention.priority === "medium" ? "#06b6d4" : "#6b7280";
+    
+    const svg = `
+      <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+          </filter>
+        </defs>
+        <!-- Priority ring -->
+        <circle cx="20" cy="20" r="18" fill="none" stroke="${priorityRing}" stroke-width="2" opacity="0.7"/>
+        <!-- Main marker -->
+        <circle cx="20" cy="20" r="14" fill="${config.color}" filter="url(#shadow)"/>
+        <!-- Inner circle -->
+        <circle cx="20" cy="20" r="10" fill="white" opacity="0.9"/>
+        <!-- Status icon -->
+        <text x="20" y="25" text-anchor="middle" font-size="12" fill="${config.color}" font-weight="bold">
+          ${intervention.status === "completed" ? "✓" : 
+            intervention.status === "in_progress" ? "▶" :
+            intervention.status === "paused" ? "⏸" :
+            intervention.status === "cancelled" ? "✕" : "●"}
+        </text>
+      </svg>
+    `;
+    
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   };
 
   const getInterventionMarkerIcon = (intervention: Intervention) => {
-    const statusToColor: Record<string, string> = {
-      assigned: "blue",
-      accepted: "azure",
-      in_progress: "orange",
-      paused: "purple",
-      completed: "green",
-      cancelled: "red",
-    };
-    const color = statusToColor[intervention.status] || "blue";
-    // icone moderne gstatic
-    const url = `https://maps.gstatic.com/mapfiles/ms2/micons/${color}-dot.png`;
-    // dimensioni leggermente ridotte per performance
     return {
-      url,
-      scaledSize: new google.maps.Size(28, 28),
+      url: createCustomMarkerSvg(intervention),
+      scaledSize: new google.maps.Size(40, 40),
+      anchor: new google.maps.Point(20, 20),
     } as google.maps.Icon;
   };
 
@@ -511,6 +570,8 @@ export default function InterventionsMap() {
     return statusIcons[intervention.status] || "solar:map-point-bold";
   };
 
+
+
   const onLoad = useCallback((map: google.maps.Map) => {
     setMap(map);
     map.setZoom(mapZoom);
@@ -557,7 +618,13 @@ export default function InterventionsMap() {
             zoom={mapZoom}
             onLoad={onLoad}
             onUnmount={onUnmount}
-            options={{ disableDefaultUI: true, zoomControl: false }}
+            options={{ 
+              disableDefaultUI: true, 
+              zoomControl: false,
+              mapTypeControl: false,
+              streetViewControl: false,
+              fullscreenControl: false,
+            }}
           >
             {layerMode === "interventions" && (
               <MarkerClustererF averageCenter enableRetinaIcons gridSize={50}>
@@ -586,7 +653,7 @@ export default function InterventionsMap() {
                         key={cm.id}
                         position={cm.position}
                         onClick={() => { setActiveCustomerMarker(cm); setIsInfoWindowOpen(true); }}
-                        icon={{ url: getCustomerMarkerIcon(cm.id) }}
+                        icon={getCustomerMarkerIcon(cm.id)}
                         clusterer={clusterer}
                       />
                     ))}
@@ -610,27 +677,71 @@ export default function InterventionsMap() {
               <InfoWindow
                 position={activeMarker.position}
                 onCloseClick={() => setIsInfoWindowOpen(false)}
+                options={{
+                  pixelOffset: new google.maps.Size(0, -10),
+                  disableAutoPan: false,
+                }}
               >
-                <div className="p-2">
-                  <p className="font-semibold text-sm">
-                    {activeMarker.intervention.intervention_code} - {activeMarker.customer.name} {activeMarker.customer.surname}
-                  </p>
-                  <p className="text-xs text-default-600">{activeMarker.intervention.title}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Chip size="sm" color={statusColorMap[activeMarker.intervention.status]} variant="flat">
-                      {getStatusLabel(activeMarker.intervention.status)}
-                    </Chip>
-                    <Chip size="sm" color={priorityColorMap[activeMarker.intervention.priority]} variant="flat">
-                      {getPriorityLabel(activeMarker.intervention.priority)}
-                    </Chip>
+                <div className="bg-white rounded-lg shadow-lg border-0 p-4 min-w-[280px] max-w-[320px]">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900 text-sm leading-tight">
+                        {activeMarker.intervention.intervention_code}
+                      </h3>
+                      <p className="text-gray-600 text-xs mt-1">
+                        {activeMarker.customer.name} {activeMarker.customer.surname}
+                      </p>
+                    </div>
+                    <div className="ml-2">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center" 
+                           style={{ backgroundColor: statusColorMap[activeMarker.intervention.status] === 'success' ? '#10b981' : 
+                                   statusColorMap[activeMarker.intervention.status] === 'warning' ? '#f59e0b' :
+                                   statusColorMap[activeMarker.intervention.status] === 'danger' ? '#ef4444' : '#3b82f6' }}>
+                        <span className="text-white text-xs font-bold">
+                          {activeMarker.intervention.status === "completed" ? "✓" : 
+                           activeMarker.intervention.status === "in_progress" ? "▶" :
+                           activeMarker.intervention.status === "paused" ? "⏸" : "●"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-2 flex gap-2">
-                    <Button size="sm" variant="flat" onPress={() => { setSelectedIntervention(activeMarker.intervention); onOpenInterventionModal(); }}>
-                      Dettagli
-                    </Button>
-                    <Button size="sm" variant="flat" onPress={handleOpenNavigation}>
-                      Naviga
-                    </Button>
+                  
+                  <p className="text-gray-700 text-sm mb-3 line-clamp-2">
+                    {activeMarker.intervention.title}
+                  </p>
+                  
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {getStatusLabel(activeMarker.intervention.status)}
+                    </span>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      activeMarker.intervention.priority === 'emergency' ? 'bg-red-100 text-red-800' :
+                      activeMarker.intervention.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                      activeMarker.intervention.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {getPriorityLabel(activeMarker.intervention.priority)}
+                    </span>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500 mb-3">
+                    📅 {formatDate(activeMarker.intervention.scheduled_date)} • 
+                    🕐 {activeMarker.intervention.scheduled_start_time}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => { setSelectedIntervention(activeMarker.intervention); onOpenInterventionModal(); }}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 px-3 rounded-md transition-colors duration-200"
+                    >
+                      📋 Dettagli
+                    </button>
+                    <button 
+                      onClick={handleOpenNavigation}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium py-2 px-3 rounded-md transition-colors duration-200"
+                    >
+                      🧭 Naviga
+                    </button>
                   </div>
                 </div>
               </InfoWindow>
@@ -639,20 +750,51 @@ export default function InterventionsMap() {
               <InfoWindow
                 position={activeCustomerMarker.position}
                 onCloseClick={() => setIsInfoWindowOpen(false)}
+                options={{
+                  pixelOffset: new google.maps.Size(0, -10),
+                  disableAutoPan: false,
+                }}
               >
-                <div className="p-2">
-                  <p className="font-semibold text-sm">
-                    {activeCustomerMarker.customer.name} {activeCustomerMarker.customer.surname}
-                  </p>
-                  <div className="text-xs text-default-600 space-y-1">
-                    <p>Oggi: {customerTodayFutureCounts.get(activeCustomerMarker.customer.customer_id)?.today || 0}</p>
-                    <p>Futuri: {customerTodayFutureCounts.get(activeCustomerMarker.customer.customer_id)?.future || 0}</p>
+                <div className="bg-white rounded-lg shadow-lg border-0 p-4 min-w-[260px] max-w-[300px]">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 text-lg">👤</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900 text-sm">
+                        {activeCustomerMarker.customer.name} {activeCustomerMarker.customer.surname}
+                      </h3>
+                      <p className="text-gray-500 text-xs">
+                        {activeCustomerMarker.customer.email || 'Nessuna email'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="mt-2 flex gap-2">
-                    <Button size="sm" variant="flat" onPress={() => navigate(`/customers/${activeCustomerMarker.customer.customer_id}`)}>
-                      Vai al cliente
-                    </Button>
+                  
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="bg-green-50 rounded-lg p-2 text-center">
+                      <div className="text-green-600 font-bold text-lg">
+                        {customerTodayFutureCounts.get(activeCustomerMarker.customer.customer_id)?.today || 0}
+                      </div>
+                      <div className="text-green-700 text-xs">Oggi</div>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-2 text-center">
+                      <div className="text-orange-600 font-bold text-lg">
+                        {customerTodayFutureCounts.get(activeCustomerMarker.customer.customer_id)?.future || 0}
+                      </div>
+                      <div className="text-orange-700 text-xs">Futuri</div>
+                    </div>
                   </div>
+                  
+                  <div className="text-xs text-gray-500 mb-3">
+                    📍 {activeCustomerMarker.customer.address}, {activeCustomerMarker.customer.city}
+                  </div>
+                  
+                  <button 
+                    onClick={() => navigate(`/customers/${activeCustomerMarker.customer.customer_id}`)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 px-3 rounded-md transition-colors duration-200"
+                  >
+                    👁️ Visualizza Cliente
+                  </button>
                 </div>
               </InfoWindow>
             )}
