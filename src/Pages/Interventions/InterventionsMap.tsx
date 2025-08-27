@@ -7,7 +7,7 @@ import type { Customer } from "../../types/Customer";
 import type { Technician } from "../../types/Technician";
 import PageHeader from "../../Components/Layout/PageHeader";
 import axios from "axios";
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow, HeatmapLayer } from "@react-google-maps/api";
+import { GoogleMap, useJsApiLoader, Marker, InfoWindow, HeatmapLayer, MarkerClustererF } from "@react-google-maps/api";
 
 // Librerie Google Maps statiche per evitare reload (warning LoadScript)
 const MAP_LIBRARIES: ("visualization")[] = ["visualization"];
@@ -98,6 +98,7 @@ export default function InterventionsMap() {
   const [layerMode, setLayerMode] = useState<"interventions" | "customers" | "heatmap">("customers");
   const [timeQuickFilter, setTimeQuickFilter] = useState<"all" | "today" | "week" | "future">("all");
   const [activeCustomerMarker, setActiveCustomerMarker] = useState<CustomerMarker | null>(null);
+  const [isGeocodingQueued, setIsGeocodingQueued] = useState(false);
   
   const [filters, setFilters] = useState<MapFilters>({
     status: [],
@@ -112,8 +113,10 @@ export default function InterventionsMap() {
   });
 
   useEffect(() => {
-    loadMapData();
-  }, []);
+    if (isLoaded) {
+      loadMapData();
+    }
+  }, [isLoaded]);
 
   const loadMapData = async () => {
     setLoading(true);
@@ -128,20 +131,48 @@ export default function InterventionsMap() {
         ? customersRes.data
         : customersRes.data?.customers || customersRes.data?.data || [];
 
-      // Geocoding per clienti senza coordinate (Nominatim)
+      // Geocoding clienti: preferisci Google Geocoder (caricato via JS API), fallback Nominatim
       const geocodeAddress = async (fullAddress: string) => {
         try {
+          // Cache locale per ridurre chiamate ripetute
+          const cacheKey = `geo:${fullAddress}`;
+          const cached = typeof window !== 'undefined' ? localStorage.getItem(cacheKey) : null;
+          if (cached) {
+            return JSON.parse(cached);
+          }
+
+          // 1) Tentativo con Google Maps Geocoder (se disponibile)
+          if (typeof window !== 'undefined' && (window as any).google?.maps?.Geocoder) {
+            const geocoder = new (window as any).google.maps.Geocoder();
+            const results = await new Promise<any[] | null>((resolve) => {
+              geocoder.geocode({ address: fullAddress, region: 'IT' }, (res: any[], status: string) => {
+                if (status === 'OK' && Array.isArray(res) && res.length > 0) resolve(res);
+                else resolve(null);
+              });
+            });
+            if (results && results[0]?.geometry?.location) {
+              const loc = results[0].geometry.location;
+              const coords = { lat: loc.lat(), lng: loc.lng() };
+              localStorage.setItem(cacheKey, JSON.stringify(coords));
+              return coords;
+            }
+          }
+
+          // 2) Fallback a Nominatim (attenzione a rate-limit e blocchi da client)
           const resp = await axios.get(
             "https://nominatim.openstreetmap.org/search",
             {
               params: { format: "json", q: fullAddress, addressdetails: 1, limit: 1 },
               headers: { Accept: "application/json" },
+              timeout: 8000,
               withCredentials: false,
             }
           );
           if (Array.isArray(resp.data) && resp.data.length > 0) {
             const item = resp.data[0];
-            return { lat: Number(item.lat), lng: Number(item.lon) };
+            const coords = { lat: Number(item.lat), lng: Number(item.lon) };
+            localStorage.setItem(cacheKey, JSON.stringify(coords));
+            return coords;
           }
         } catch (e) {
           console.warn("Geocoding fallito per:", fullAddress);
@@ -149,36 +180,36 @@ export default function InterventionsMap() {
         return undefined;
       };
 
-      const customersData: Customer[] = await Promise.all(
-        customersDataRaw.map(async (c: any) => {
-          const normalized: Customer = {
-            ...c,
-            customer_id: String(c.customer_id || c.id || c.CustomerId || c.customerId || ""),
-            name: c.name,
-            surname: c.surname,
-            email: c.email,
-            phone: c.phone,
-            address: c.address,
-            city: c.city,
-            zip_code: c.zip_code,
-            country: c.country,
-            status: c.status || "active",
-            customer_type: c.customer_type || "private",
-            created_at: c.created_at ? new Date(c.created_at) : new Date(),
-            created_by: c.created_by || "system",
-            coordinates: c.coordinates || (c.lat && c.lng ? { lat: Number(c.lat), lng: Number(c.lng) } : undefined),
-          } as Customer;
+      // 1° pass: nessun geocoding bloccante. Prepara lista di mancanti da processare in background
+      const customersData: Customer[] = [];
+      const customersMissingGeo: { id: string; fullAddress: string }[] = [];
+      for (const c of customersDataRaw) {
+        const normalized: Customer = {
+          ...c,
+          customer_id: String(c.customer_id || c.id || c.CustomerId || c.customerId || ""),
+          name: c.name,
+          surname: c.surname,
+          email: c.email,
+          phone: c.phone,
+          address: c.address,
+          city: c.city,
+          zip_code: c.zip_code,
+          country: c.country,
+          status: c.status || "active",
+          customer_type: c.customer_type || "private",
+          created_at: c.created_at ? new Date(c.created_at) : new Date(),
+          created_by: c.created_by || "system",
+          coordinates: c.coordinates || (c.lat && c.lng ? { lat: Number(c.lat), lng: Number(c.lng) } : undefined),
+        } as Customer;
 
-          if (!normalized.coordinates) {
-            const fullAddress = [normalized.address, normalized.zip_code, normalized.city, normalized.country]
-              .filter(Boolean)
-              .join(", ");
-            const coords = await geocodeAddress(fullAddress);
-            if (coords) normalized.coordinates = coords;
-          }
-          return normalized;
-        })
-      );
+        if (!normalized.coordinates) {
+          const fullAddress = [normalized.address, normalized.zip_code, normalized.city, normalized.country]
+            .filter(Boolean)
+            .join(", ");
+          customersMissingGeo.push({ id: normalized.customer_id, fullAddress });
+        }
+        customersData.push(normalized);
+      }
 
       const techniciansData: Technician[] = (Array.isArray(techniciansRes.data)
         ? techniciansRes.data
@@ -254,6 +285,22 @@ export default function InterventionsMap() {
       setCustomers(customersData);
       setTechnicians(techniciansData);
       setInterventions(mappedInterventions);
+      // Geocoding in background per i clienti mancanti (non blocca render)
+      if (!isGeocodingQueued && customersMissingGeo.length > 0) {
+        setIsGeocodingQueued(true);
+        // lascio che il browser respiri prima di iniziare
+        setTimeout(async () => {
+          for (const item of customersMissingGeo) {
+            const coords = await geocodeAddress(item.fullAddress);
+            if (coords) {
+              // aggiorna solo quel cliente
+              setCustomers(prev => prev.map(pc => pc.customer_id === item.id ? { ...pc, coordinates: coords } : pc));
+            }
+            // rate limit gentile
+            await new Promise(r => setTimeout(r, 250));
+          }
+        }, 50);
+      }
     } catch (error) {
       console.error("Errore nel caricamento dei dati mappa:", error);
     } finally {
@@ -349,12 +396,103 @@ export default function InterventionsMap() {
     return counts;
   }, [interventions]);
 
-  const getCustomerMarkerIcon = (customerId: string) => {
+  const createCustomerMarkerSvg = (customerId: string) => {
     const c = customerTodayFutureCounts.get(String(customerId));
-    if (c && c.today > 0) return "https://maps.google.com/mapfiles/ms/icons/green-dot.png";
-    if (c && c.future > 0) return "https://maps.google.com/mapfiles/ms/icons/yellow-dot.png";
-    return "https://maps.google.com/mapfiles/ms/icons/red-dot.png";
+    const config = c && c.today > 0 ? 
+      { color: "#10b981", label: c.today.toString(), status: "today" } :
+      c && c.future > 0 ? 
+      { color: "#f59e0b", label: c.future.toString(), status: "future" } :
+      { color: "#6b7280", label: "0", status: "none" };
+    
+    const svg = `
+      <svg width="36" height="36" viewBox="0 0 36 36" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow-customer" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+          </filter>
+        </defs>
+        <!-- Main marker -->
+        <circle cx="18" cy="18" r="16" fill="${config.color}" filter="url(#shadow-customer)" opacity="0.9"/>
+        <circle cx="18" cy="18" r="12" fill="white"/>
+        <!-- Customer icon -->
+        <text x="18" y="23" text-anchor="middle" font-size="14" fill="${config.color}" font-weight="bold">
+          ${config.status === "none" ? "👤" : config.label}
+        </text>
+      </svg>
+    `;
+    
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
   };
+
+  const getCustomerMarkerIcon = (customerId: string) => {
+    return {
+      url: createCustomerMarkerSvg(customerId),
+      scaledSize: new google.maps.Size(36, 36),
+      anchor: new google.maps.Point(18, 18),
+    } as google.maps.Icon;
+  };
+
+  const createCustomMarkerSvg = (intervention: Intervention) => {
+    const statusConfig = {
+      assigned: { color: "#3b82f6", icon: "clock" },
+      accepted: { color: "#06b6d4", icon: "check" },
+      in_progress: { color: "#f59e0b", icon: "play" },
+      paused: { color: "#8b5cf6", icon: "pause" },
+      completed: { color: "#10b981", icon: "check-circle" },
+      cancelled: { color: "#ef4444", icon: "x" },
+    };
+    
+    const config = statusConfig[intervention.status as keyof typeof statusConfig] || statusConfig.assigned;
+    const priorityRing = intervention.priority === "emergency" ? "#ef4444" : 
+                        intervention.priority === "high" ? "#f59e0b" : 
+                        intervention.priority === "medium" ? "#06b6d4" : "#6b7280";
+    
+    const svg = `
+      <svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+            <feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity="0.3"/>
+          </filter>
+        </defs>
+        <!-- Priority ring -->
+        <circle cx="20" cy="20" r="18" fill="none" stroke="${priorityRing}" stroke-width="2" opacity="0.7"/>
+        <!-- Main marker -->
+        <circle cx="20" cy="20" r="14" fill="${config.color}" filter="url(#shadow)"/>
+        <!-- Inner circle -->
+        <circle cx="20" cy="20" r="10" fill="white" opacity="0.9"/>
+        <!-- Status icon -->
+        <text x="20" y="25" text-anchor="middle" font-size="12" fill="${config.color}" font-weight="bold">
+          ${intervention.status === "completed" ? "✓" : 
+            intervention.status === "in_progress" ? "▶" :
+            intervention.status === "paused" ? "⏸" :
+            intervention.status === "cancelled" ? "✕" : "●"}
+        </text>
+      </svg>
+    `;
+    
+    return `data:image/svg+xml;charset=UTF-8,${encodeURIComponent(svg)}`;
+  };
+
+  const getInterventionMarkerIcon = (intervention: Intervention) => {
+    return {
+      url: createCustomMarkerSvg(intervention),
+      scaledSize: new google.maps.Size(40, 40),
+      anchor: new google.maps.Point(20, 20),
+    } as google.maps.Icon;
+  };
+
+  const heatmapWeightedData = useMemo(() => {
+    const aggregated = new Map<string, { lat: number; lng: number; weight: number }>();
+    mapMarkers.forEach(m => {
+      const key = `${m.position.lat.toFixed(4)},${m.position.lng.toFixed(4)}`;
+      const prev = aggregated.get(key) || { lat: m.position.lat, lng: m.position.lng, weight: 0 };
+      aggregated.set(key, { ...prev, weight: prev.weight + 1 });
+    });
+    return Array.from(aggregated.values()).map(p => ({
+      location: new google.maps.LatLng(p.lat, p.lng),
+      weight: p.weight,
+    }));
+  }, [mapMarkers]);
 
   const getStatusLabel = (status: string) => {
     const labels = {
@@ -432,6 +570,8 @@ export default function InterventionsMap() {
     return statusIcons[intervention.status] || "solar:map-point-bold";
   };
 
+
+
   const onLoad = useCallback((map: google.maps.Map) => {
     setMap(map);
     map.setZoom(mapZoom);
@@ -478,33 +618,58 @@ export default function InterventionsMap() {
             zoom={mapZoom}
             onLoad={onLoad}
             onUnmount={onUnmount}
-            options={{ disableDefaultUI: true, zoomControl: false }}
+            options={{ 
+              disableDefaultUI: true, 
+              zoomControl: false,
+              mapTypeControl: false,
+              streetViewControl: false,
+              fullscreenControl: false,
+            }}
           >
             {layerMode === "interventions" && (
-              mapMarkers.map((marker) => (
-                <Marker
-                  key={marker.id}
-                  position={marker.position}
-                  onClick={() => handleMarkerClick(marker)}
-                />
-              ))
+              <MarkerClustererF averageCenter enableRetinaIcons gridSize={50}>
+                {(clusterer) => (
+                  <>
+                    {mapMarkers.map((marker) => (
+                      <Marker
+                        key={marker.id}
+                        position={marker.position}
+                        onClick={() => handleMarkerClick(marker)}
+                        icon={getInterventionMarkerIcon(marker.intervention)}
+                        clusterer={clusterer}
+                      />
+                    ))}
+                  </>
+                )}
+              </MarkerClustererF>
             )}
 
             {layerMode === "customers" && (
-              customerMarkers.map((cm) => (
-                <Marker
-                  key={cm.id}
-                  position={cm.position}
-                  onClick={() => { setActiveCustomerMarker(cm); setIsInfoWindowOpen(true); }}
-                  icon={{ url: getCustomerMarkerIcon(cm.id) }}
-                />
-              ))
+              <MarkerClustererF averageCenter enableRetinaIcons gridSize={50}>
+                {(clusterer) => (
+                  <>
+                    {customerMarkers.map((cm) => (
+                      <Marker
+                        key={cm.id}
+                        position={cm.position}
+                        onClick={() => { setActiveCustomerMarker(cm); setIsInfoWindowOpen(true); }}
+                        icon={getCustomerMarkerIcon(cm.id)}
+                        clusterer={clusterer}
+                      />
+                    ))}
+                  </>
+                )}
+              </MarkerClustererF>
             )}
 
-            {layerMode === "heatmap" && (
+            {layerMode === "heatmap" && heatmapWeightedData.length > 0 && (
               <HeatmapLayer
-                data={mapMarkers.map(m => new google.maps.LatLng(m.position.lat, m.position.lng))}
-                options={{ radius: 40 }}
+                data={heatmapWeightedData as any}
+                options={{
+                  radius: Math.max(20, Math.min(60, Math.round((map?.getZoom() || 12) * 2))),
+                  dissipating: true,
+                  opacity: 0.6,
+                }}
               />
             )}
 
@@ -512,27 +677,71 @@ export default function InterventionsMap() {
               <InfoWindow
                 position={activeMarker.position}
                 onCloseClick={() => setIsInfoWindowOpen(false)}
+                options={{
+                  pixelOffset: new google.maps.Size(0, -10),
+                  disableAutoPan: false,
+                }}
               >
-                <div className="p-2">
-                  <p className="font-semibold text-sm">
-                    {activeMarker.intervention.intervention_code} - {activeMarker.customer.name} {activeMarker.customer.surname}
-                  </p>
-                  <p className="text-xs text-default-600">{activeMarker.intervention.title}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Chip size="sm" color={statusColorMap[activeMarker.intervention.status]} variant="flat">
-                      {getStatusLabel(activeMarker.intervention.status)}
-                    </Chip>
-                    <Chip size="sm" color={priorityColorMap[activeMarker.intervention.priority]} variant="flat">
-                      {getPriorityLabel(activeMarker.intervention.priority)}
-                    </Chip>
+                <div className="bg-white rounded-lg shadow-lg border-0 p-4 min-w-[280px] max-w-[320px]">
+                  <div className="flex items-start justify-between mb-3">
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900 text-sm leading-tight">
+                        {activeMarker.intervention.intervention_code}
+                      </h3>
+                      <p className="text-gray-600 text-xs mt-1">
+                        {activeMarker.customer.name} {activeMarker.customer.surname}
+                      </p>
+                    </div>
+                    <div className="ml-2">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center" 
+                           style={{ backgroundColor: statusColorMap[activeMarker.intervention.status] === 'success' ? '#10b981' : 
+                                   statusColorMap[activeMarker.intervention.status] === 'warning' ? '#f59e0b' :
+                                   statusColorMap[activeMarker.intervention.status] === 'danger' ? '#ef4444' : '#3b82f6' }}>
+                        <span className="text-white text-xs font-bold">
+                          {activeMarker.intervention.status === "completed" ? "✓" : 
+                           activeMarker.intervention.status === "in_progress" ? "▶" :
+                           activeMarker.intervention.status === "paused" ? "⏸" : "●"}
+                        </span>
+                      </div>
+                    </div>
                   </div>
-                  <div className="mt-2 flex gap-2">
-                    <Button size="sm" variant="flat" onPress={() => { setSelectedIntervention(activeMarker.intervention); onOpenInterventionModal(); }}>
-                      Dettagli
-                    </Button>
-                    <Button size="sm" variant="flat" onPress={handleOpenNavigation}>
-                      Naviga
-                    </Button>
+                  
+                  <p className="text-gray-700 text-sm mb-3 line-clamp-2">
+                    {activeMarker.intervention.title}
+                  </p>
+                  
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                      {getStatusLabel(activeMarker.intervention.status)}
+                    </span>
+                    <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${
+                      activeMarker.intervention.priority === 'emergency' ? 'bg-red-100 text-red-800' :
+                      activeMarker.intervention.priority === 'high' ? 'bg-orange-100 text-orange-800' :
+                      activeMarker.intervention.priority === 'medium' ? 'bg-yellow-100 text-yellow-800' :
+                      'bg-gray-100 text-gray-800'
+                    }`}>
+                      {getPriorityLabel(activeMarker.intervention.priority)}
+                    </span>
+                  </div>
+                  
+                  <div className="text-xs text-gray-500 mb-3">
+                    📅 {formatDate(activeMarker.intervention.scheduled_date)} • 
+                    🕐 {activeMarker.intervention.scheduled_start_time}
+                  </div>
+                  
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => { setSelectedIntervention(activeMarker.intervention); onOpenInterventionModal(); }}
+                      className="flex-1 bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 px-3 rounded-md transition-colors duration-200"
+                    >
+                      📋 Dettagli
+                    </button>
+                    <button 
+                      onClick={handleOpenNavigation}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white text-xs font-medium py-2 px-3 rounded-md transition-colors duration-200"
+                    >
+                      🧭 Naviga
+                    </button>
                   </div>
                 </div>
               </InfoWindow>
@@ -541,20 +750,51 @@ export default function InterventionsMap() {
               <InfoWindow
                 position={activeCustomerMarker.position}
                 onCloseClick={() => setIsInfoWindowOpen(false)}
+                options={{
+                  pixelOffset: new google.maps.Size(0, -10),
+                  disableAutoPan: false,
+                }}
               >
-                <div className="p-2">
-                  <p className="font-semibold text-sm">
-                    {activeCustomerMarker.customer.name} {activeCustomerMarker.customer.surname}
-                  </p>
-                  <div className="text-xs text-default-600 space-y-1">
-                    <p>Oggi: {customerTodayFutureCounts.get(activeCustomerMarker.customer.customer_id)?.today || 0}</p>
-                    <p>Futuri: {customerTodayFutureCounts.get(activeCustomerMarker.customer.customer_id)?.future || 0}</p>
+                <div className="bg-white rounded-lg shadow-lg border-0 p-4 min-w-[260px] max-w-[300px]">
+                  <div className="flex items-center gap-3 mb-3">
+                    <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                      <span className="text-blue-600 text-lg">👤</span>
+                    </div>
+                    <div className="flex-1">
+                      <h3 className="font-semibold text-gray-900 text-sm">
+                        {activeCustomerMarker.customer.name} {activeCustomerMarker.customer.surname}
+                      </h3>
+                      <p className="text-gray-500 text-xs">
+                        {activeCustomerMarker.customer.email || 'Nessuna email'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="mt-2 flex gap-2">
-                    <Button size="sm" variant="flat" onPress={() => navigate(`/customers/${activeCustomerMarker.customer.customer_id}`)}>
-                      Vai al cliente
-                    </Button>
+                  
+                  <div className="grid grid-cols-2 gap-2 mb-3">
+                    <div className="bg-green-50 rounded-lg p-2 text-center">
+                      <div className="text-green-600 font-bold text-lg">
+                        {customerTodayFutureCounts.get(activeCustomerMarker.customer.customer_id)?.today || 0}
+                      </div>
+                      <div className="text-green-700 text-xs">Oggi</div>
+                    </div>
+                    <div className="bg-orange-50 rounded-lg p-2 text-center">
+                      <div className="text-orange-600 font-bold text-lg">
+                        {customerTodayFutureCounts.get(activeCustomerMarker.customer.customer_id)?.future || 0}
+                      </div>
+                      <div className="text-orange-700 text-xs">Futuri</div>
+                    </div>
                   </div>
+                  
+                  <div className="text-xs text-gray-500 mb-3">
+                    📍 {activeCustomerMarker.customer.address}, {activeCustomerMarker.customer.city}
+                  </div>
+                  
+                  <button 
+                    onClick={() => navigate(`/customers/${activeCustomerMarker.customer.customer_id}`)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white text-xs font-medium py-2 px-3 rounded-md transition-colors duration-200"
+                  >
+                    👁️ Visualizza Cliente
+                  </button>
                 </div>
               </InfoWindow>
             )}
