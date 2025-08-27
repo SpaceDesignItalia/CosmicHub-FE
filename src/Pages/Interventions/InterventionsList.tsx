@@ -50,13 +50,7 @@ const priorityColorMap = {
   emergency: "danger",
 } as const;
 
-const typeColorMap = {
-  inspection: "primary",
-  repair: "warning",
-  maintenance: "secondary",
-  installation: "success",
-  emergency: "danger",
-} as const;
+// NOTE: typeColorMap rimosso perché non utilizzato
 
 const columns = [
   { name: "CODICE", uid: "intervention_code", sortable: true },
@@ -78,10 +72,15 @@ export default function InterventionsList() {
   const [technicians, setTechnicians] = useState<Technician[]>([]);
   const [loading, setLoading] = useState(true);
   const [filterValue, setFilterValue] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]));
   const [statusFilter, setStatusFilter] = useState<Selection>("all");
   const [priorityFilter, setPriorityFilter] = useState<Selection>("all");
   const [typeFilter] = useState<Selection>("all");
+  const [customerFilter, setCustomerFilter] = useState<string>("all");
+  const [technicianFilter, setTechnicianFilter] = useState<string>("all");
+  const [dateFrom, setDateFrom] = useState<string>("");
+  const [dateTo, setDateTo] = useState<string>("");
   const [rowsPerPage, setRowsPerPage] = useState(8);
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
     column: "scheduled_date",
@@ -185,6 +184,14 @@ export default function InterventionsList() {
 
   const hasSearchFilter = Boolean(filterValue);
 
+  // Debounce per la ricerca
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setFilterValue(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
   const filteredItems = useMemo(() => {
     let filteredInterventions = [...interventions];
 
@@ -215,8 +222,47 @@ export default function InterventionsList() {
       );
     }
 
+    if (customerFilter !== "all") {
+      filteredInterventions = filteredInterventions.filter(
+        (intervention) => intervention.customer_id === customerFilter
+      );
+    }
+
+    if (technicianFilter !== "all") {
+      filteredInterventions = filteredInterventions.filter(
+        (intervention) => intervention.assigned_technician_id === technicianFilter
+      );
+    }
+
+    if (dateFrom) {
+      const from = new Date(dateFrom);
+      from.setHours(0, 0, 0, 0);
+      filteredInterventions = filteredInterventions.filter(
+        (intervention) => new Date(intervention.scheduled_date).getTime() >= from.getTime()
+      );
+    }
+
+    if (dateTo) {
+      const to = new Date(dateTo);
+      to.setHours(23, 59, 59, 999);
+      filteredInterventions = filteredInterventions.filter(
+        (intervention) => new Date(intervention.scheduled_date).getTime() <= to.getTime()
+      );
+    }
+
     return filteredInterventions;
-  }, [interventions, filterValue, statusFilter, priorityFilter, typeFilter, hasSearchFilter]);
+  }, [
+    interventions,
+    filterValue,
+    statusFilter,
+    priorityFilter,
+    typeFilter,
+    hasSearchFilter,
+    customerFilter,
+    technicianFilter,
+    dateFrom,
+    dateTo,
+  ]);
 
   const pages = Math.ceil(filteredItems.length / rowsPerPage);
 
@@ -368,8 +414,8 @@ export default function InterventionsList() {
           <div className="relative flex justify-end items-center gap-2">
             <Dropdown>
               <DropdownTrigger>
-                <Button isIconOnly size="sm" variant="light" className="text-foreground border border-default-300">
-                  <Icon icon="solar:menu-dots-vertical-bold" width={16} className="text-foreground" />
+                <Button isIconOnly size="sm" variant="light" className="hover:bg-default-100">
+                  <Icon icon="nimbus:ellipsis" />
                 </Button>
               </DropdownTrigger>
               <DropdownMenu aria-label="Azioni intervento">
@@ -431,17 +477,66 @@ export default function InterventionsList() {
 
   const onSearchChange = React.useCallback((value?: string) => {
     if (value) {
-      setFilterValue(value);
+      setSearchTerm(value);
       setPage(1);
     } else {
-      setFilterValue("");
+      setSearchTerm("");
     }
   }, []);
 
   const onClear = React.useCallback(() => {
+    setSearchTerm("");
+    setPage(1);
+  }, []);
+
+  const handleResetFilters = React.useCallback(() => {
+    setCustomerFilter("all");
+    setTechnicianFilter("all");
+    setDateFrom("");
+    setDateTo("");
+    setStatusFilter("all");
+    setPriorityFilter("all");
+    setSearchTerm("");
     setFilterValue("");
     setPage(1);
   }, []);
+
+  const handleExportCSV = React.useCallback(() => {
+    const headers = [
+      "Codice",
+      "Titolo",
+      "Cliente",
+      "Tecnico",
+      "Data",
+      "Orario",
+      "Stato",
+      "Priorità",
+    ];
+
+    const rows = filteredItems.map((i) => [
+      i.intervention_code,
+      i.title,
+      getCustomerName(i.customer_id),
+      getTechnicianName(i.assigned_technician_id),
+      formatDate(i.scheduled_date),
+      `${i.scheduled_start_time} - ${i.scheduled_end_time}`,
+      getStatusLabel(i.status),
+      getPriorityLabel(i.priority),
+    ]);
+
+    const escapeCSV = (val: string) => '"' + String(val).replace(/"/g, '""') + '"';
+    const csv = [headers, ...rows]
+      .map((r) => r.map(escapeCSV).join(";"))
+      .join("\r\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `interventi_${new Date().toISOString().slice(0, 10)}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }, [filteredItems, customers, technicians]);
 
   const topContent = useMemo(() => {
     return (
@@ -452,7 +547,7 @@ export default function InterventionsList() {
             className="w-full sm:max-w-[44%]"
             placeholder="Cerca per codice, titolo, descrizione..."
             startContent={<Icon icon="solar:magnifer-linear" width={16} />}
-            value={filterValue}
+            value={searchTerm}
             onClear={() => onClear()}
             onValueChange={onSearchChange}
           />
@@ -506,6 +601,20 @@ export default function InterventionsList() {
               </DropdownMenu>
             </Dropdown>
             <Button
+              variant="flat"
+              startContent={<Icon icon="solar:refresh-linear" width={16} />}
+              onPress={handleResetFilters}
+            >
+              Reset
+            </Button>
+            <Button
+              variant="flat"
+              startContent={<Icon icon="solar:download-minimalistic-bold" width={16} />}
+              onPress={handleExportCSV}
+            >
+              Export CSV
+            </Button>
+            <Button
               color="primary"
               endContent={<Icon icon="solar:calendar-add-bold" width={16} />}
               onPress={() => navigate("/calendar")}
@@ -514,9 +623,71 @@ export default function InterventionsList() {
             </Button>
           </div>
         </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+          <label className="flex items-center text-small text-default-500 gap-2">
+            Cliente:
+            <select
+              className="bg-transparent outline-none text-default-700 text-small w-full border border-divider rounded-medium px-2 py-1"
+              value={customerFilter}
+              onChange={(e) => {
+                setCustomerFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="all">Tutti i clienti</option>
+              {customers.map((c) => (
+                <option key={c.customer_id} value={c.customer_id}>
+                  {`${c.name} ${c.surname}`}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center text-small text-default-500 gap-2">
+            Tecnico:
+            <select
+              className="bg-transparent outline-none text-default-700 text-small w-full border border-divider rounded-medium px-2 py-1"
+              value={technicianFilter}
+              onChange={(e) => {
+                setTechnicianFilter(e.target.value);
+                setPage(1);
+              }}
+            >
+              <option value="all">Tutti i tecnici</option>
+              {technicians.map((t) => (
+                <option key={t.technician_id} value={t.technician_id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center text-small text-default-500 gap-2">
+            Dal:
+            <input
+              type="date"
+              className="bg-transparent outline-none text-default-700 text-small w-full border border-divider rounded-medium px-2 py-1"
+              value={dateFrom}
+              onChange={(e) => {
+                setDateFrom(e.target.value);
+                setPage(1);
+              }}
+            />
+          </label>
+          <label className="flex items-center text-small text-default-500 gap-2">
+            Al:
+            <input
+              type="date"
+              className="bg-transparent outline-none text-default-700 text-small w-full border border-divider rounded-medium px-2 py-1"
+              value={dateTo}
+              onChange={(e) => {
+                setDateTo(e.target.value);
+                setPage(1);
+              }}
+            />
+          </label>
+        </div>
         <div className="flex justify-between items-center">
           <span className="text-default-400 text-small">
-            Totale {interventions.length} interventi
+            Mostrati {filteredItems.length} di {interventions.length} interventi
           </span>
           <label className="flex items-center text-default-400 text-small">
             Righe per pagina:
@@ -532,7 +703,24 @@ export default function InterventionsList() {
         </div>
       </div>
     );
-  }, [filterValue, statusFilter, priorityFilter, interventions.length, onSearchChange, onClear, navigate]);
+  }, [
+    searchTerm,
+    statusFilter,
+    priorityFilter,
+    interventions.length,
+    onSearchChange,
+    onClear,
+    navigate,
+    customers,
+    technicians,
+    customerFilter,
+    technicianFilter,
+    dateFrom,
+    dateTo,
+    filteredItems.length,
+    handleResetFilters,
+    handleExportCSV,
+  ]);
 
   const bottomContent = useMemo(() => {
     return (
@@ -586,31 +774,41 @@ export default function InterventionsList() {
   };
 
   return (
-    <div className="flex flex-col">
+    <div className="min-h-screen h-full w-full flex-1 flex flex-col">
       <PageHeader
         title="Lista Interventi"
         description="Gestisci tutti gli interventi programmati e in corso"
         icon="solar:clipboard-list-bold-duotone"
       />
       
-             <div className="flex-1 p-6 pb-10">
-        <Card>
-          <CardBody className="px-0">
+      <div className="flex-1 p-6 overflow-hidden">
+        <Card className="h-full flex-1 flex flex-col">
+          <CardBody className="px-0 flex-1 flex flex-col">
             <Table
               aria-label="Tabella interventi"
               isHeaderSticky
               bottomContent={bottomContent}
-              bottomContentPlacement="outside"
+              bottomContentPlacement="inside"
               classNames={{
-                wrapper: "",
+                th: [
+                  "bg-default-100",
+                  "text-default-800",
+                  "border-b border-divider",
+                  "py-3 px-4",
+                ],
+                td: ["py-3 px-4", "border-b border-divider"],
+                wrapper: "border border-divider rounded-lg flex-1 overflow-auto",
+                tr: "cursor-pointer hover:bg-default-50",
               }}
               selectedKeys={selectedKeys}
               selectionMode="multiple"
+              selectionBehavior="toggle"
               sortDescriptor={sortDescriptor}
               topContent={topContent}
-              topContentPlacement="outside"
+              topContentPlacement="inside"
               onSelectionChange={setSelectedKeys}
               onSortChange={setSortDescriptor}
+              isStriped
             >
               <TableHeader columns={columns}>
                 {(column) => (
@@ -618,7 +816,7 @@ export default function InterventionsList() {
                     key={column.uid}
                     align={column.uid === "actions" ? "center" : "start"}
                     allowsSorting={column.sortable}
-                    className={column.uid === "actions" ? "w-12 text-center" : undefined}
+                    className={column.uid === "actions" ? "text-center" : undefined}
                   >
                     {column.name}
                   </TableColumn>
