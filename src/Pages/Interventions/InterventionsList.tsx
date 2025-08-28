@@ -294,7 +294,7 @@ export default function InterventionsList() {
 
   const getTechnicianName = (technicianId: string) => {
     const technician = technicians.find(t => t.technician_id === technicianId);
-    return technician ? `${technician.name}` : "N/A";
+    return technician ? `${technician.name} ${technician.surname}` : "N/A";
   };
 
   const getStatusLabel = (status: string) => {

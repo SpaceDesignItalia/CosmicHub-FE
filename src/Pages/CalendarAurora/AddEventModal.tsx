@@ -70,6 +70,7 @@ interface EventTag {
 interface Technician {
   user_id: string;
   name: string;
+  surname: string;
   email: string;
   specializations: string[];
 }
@@ -278,7 +279,17 @@ export default function AddEventModal({
             CustomerInfo: prefilledData.customer_id
               ? {
                   customer_id: prefilledData.customer_id || "",
-                  customer_name: prefilledData.customer_name || "",
+                  customer_name: (() => {
+                    // Cerca i dati completi del cliente se disponibili
+                    const fullCustomer = availableCustomers.find(
+                      (c) => c.customer_id === prefilledData.customer_id
+                    );
+                    if (fullCustomer) {
+                      return `${fullCustomer.name} ${fullCustomer.surname}`;
+                    }
+                    // Fallback ai dati prefilled se non troviamo i dati completi
+                    return prefilledData.customer_name || "";
+                  })(),
                   customer_phone: prefilledData.customer_phone || "",
                   customer_email: prefilledData.customer_email || "",
                 }
@@ -286,7 +297,17 @@ export default function AddEventModal({
             TechnicianAssignment: prefilledData.assigned_technician
               ? {
                   technician_id: prefilledData.assigned_technician_id || "",
-                  technician_name: prefilledData.assigned_technician,
+                  technician_name: (() => {
+                    // Cerca i dati completi del tecnico se disponibili
+                    const fullTechnician = availableTechnicians.find(
+                      (t) => t.user_id === prefilledData.assigned_technician_id
+                    );
+                    if (fullTechnician) {
+                      return `${fullTechnician.name} ${fullTechnician.surname}`;
+                    }
+                    // Fallback ai dati prefilled se non troviamo i dati completi
+                    return prefilledData.assigned_technician || "";
+                  })(),
                 }
               : undefined,
             InterventionNotes: prefilledData.notes || "",
@@ -701,7 +722,7 @@ export default function AddEventModal({
                         ...prev,
                         TechnicianAssignment: {
                           technician_id: selectedTechnician.user_id,
-                          technician_name: selectedTechnician.name,
+                          technician_name: `${selectedTechnician.name} ${selectedTechnician.surname}`,
                         },
                       }));
                     }
@@ -709,7 +730,7 @@ export default function AddEventModal({
                 >
                   {availableTechnicians.map((technician) => (
                     <SelectItem key={technician.user_id}>
-                      {technician.name}
+                      {technician.name} {technician.surname}
                     </SelectItem>
                   ))}
                 </Select>
@@ -865,7 +886,9 @@ export default function AddEventModal({
         </ModalBody>
 
         <ModalFooter>
-          <Button variant="light" onPress={isClosed}>Annulla</Button>
+          <Button variant="light" onPress={isClosed}>
+            Annulla
+          </Button>
           <Button
             color="primary"
             onPress={handleSave}

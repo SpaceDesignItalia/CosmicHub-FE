@@ -83,6 +83,61 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
   const [hoverPosition, setHoverPosition] = useState({ x: 0, y: 0 });
   const hoverRef = useRef<HTMLDivElement>(null);
 
+  // Funzione per calcolare la posizione ottimale del popup di hover
+  const calculateOptimalHoverPosition = (rect: DOMRect) => {
+    const popupWidth = 320; // Larghezza stimata del popup
+    const popupHeight = 200; // Altezza stimata del popup
+    const margin = 16; // Margine di sicurezza
+    const eventGap = 8; // Distanza dall'evento
+    const minLeftDistance = 8; // Distanza minima dal bordo sinistro
+    const minRightDistance = 8; // Distanza minima dal bordo destro
+
+    let x = rect.right + eventGap; // Posizione predefinita a destra
+    let y = rect.top;
+
+    // Calcola lo spazio disponibile a destra e a sinistra
+    const spaceRight = window.innerWidth - rect.right - margin;
+    const spaceLeft = rect.left - margin;
+
+    // Se c'è spazio sufficiente a destra, posiziona lì
+    if (spaceRight >= popupWidth) {
+      x = rect.right + eventGap;
+    }
+    // Altrimenti, se c'è più spazio a sinistra, posiziona lì
+    else if (spaceLeft >= popupWidth) {
+      x = rect.left - popupWidth - eventGap;
+    }
+    // Se non c'è spazio sufficiente da nessuna parte, trova la posizione migliore
+    else {
+      // Calcola quale lato ha più spazio
+      if (spaceRight > spaceLeft) {
+        // Più spazio a destra, posiziona il più possibile a destra
+        x = window.innerWidth - popupWidth - minRightDistance;
+      } else {
+        // Più spazio a sinistra, posiziona il più possibile a sinistra
+        x = minLeftDistance;
+      }
+    }
+
+    // Assicurati che il popup non vada mai fuori dai bordi
+    x = Math.max(
+      minLeftDistance,
+      Math.min(x, window.innerWidth - popupWidth - minRightDistance)
+    );
+
+    // Controlla se il popup va fuori in basso
+    if (y + popupHeight + margin > window.innerHeight) {
+      y = Math.max(margin, window.innerHeight - popupHeight - margin);
+    }
+
+    // Controlla se il popup va fuori in alto
+    if (y < margin) {
+      y = margin;
+    }
+
+    return { x, y };
+  };
+
   useEffect(() => {
     const timer = setInterval(() => {
       const newNow = new Date();
@@ -239,165 +294,162 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
               });
 
               // Renderizza tutti gli eventi
-              return Object.entries(eventsByHour).flatMap(
-                ([, hourEvents]) => {
-                  return hourEvents.map((event, index) => {
-                    const eventStartHour = parseInt(
-                      event.EventStartTime.split(":")[0]
-                    );
-                    const eventEndHour = parseInt(
-                      event.EventEndTime.split(":")[0]
-                    );
-                    const eventStartMinutes = parseInt(
-                      event.EventStartTime.split(":")[1]
-                    );
-                    const eventEndMinutes = parseInt(
-                      event.EventEndTime.split(":")[1]
-                    );
+              return Object.entries(eventsByHour).flatMap(([, hourEvents]) => {
+                return hourEvents.map((event, index) => {
+                  const eventStartHour = parseInt(
+                    event.EventStartTime.split(":")[0]
+                  );
+                  const eventEndHour = parseInt(
+                    event.EventEndTime.split(":")[0]
+                  );
+                  const eventStartMinutes = parseInt(
+                    event.EventStartTime.split(":")[1]
+                  );
+                  const eventEndMinutes = parseInt(
+                    event.EventEndTime.split(":")[1]
+                  );
 
-                    const duration =
-                      eventEndHour +
-                      eventEndMinutes / 60 -
-                      (eventStartHour + eventStartMinutes / 60);
-                    const topOffset =
-                      (eventStartHour + eventStartMinutes / 60) * ROW_HEIGHT;
+                  const duration =
+                    eventEndHour +
+                    eventEndMinutes / 60 -
+                    (eventStartHour + eventStartMinutes / 60);
+                  const topOffset =
+                    (eventStartHour + eventStartMinutes / 60) * ROW_HEIGHT;
 
-                    // Calcola posizione per eventi sovrapposti
-                    const totalEvents = hourEvents.length;
-                    const eventWidth =
-                      totalEvents > 1
-                        ? `calc(${95 / totalEvents}% - 2px)`
-                        : "calc(95% - 4px)";
-                    const leftOffset =
-                      totalEvents > 1
-                        ? `calc(${(95 / totalEvents) * index}% + 4px)`
-                        : "4px";
+                  // Calcola posizione per eventi sovrapposti
+                  const totalEvents = hourEvents.length;
+                  const eventWidth =
+                    totalEvents > 1
+                      ? `calc(${95 / totalEvents}% - 2px)`
+                      : "calc(95% - 4px)";
+                  const leftOffset =
+                    totalEvents > 1
+                      ? `calc(${(95 / totalEvents) * index}% + 4px)`
+                      : "4px";
 
-                    const technicianName =
-                      event.TechnicianAssignment?.technician_name ||
-                      "Non assegnato";
-                    const customerName =
-                      event.CustomerInfo?.customer_name || "Cliente N/A";
+                  const technicianName =
+                    event.TechnicianAssignment?.technician_name ||
+                    "Non assegnato";
+                  const customerName =
+                    event.CustomerInfo?.customer_name || "Cliente N/A";
 
-                    return (
-                      <div
-                        key={event.EventId}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setIsOpen(true);
-                          setSelectedEventId(event.EventId);
-                          setSelectedEvent(event);
-                        }}
-                        onMouseEnter={(e) => {
-                          const rect = e.currentTarget.getBoundingClientRect();
-                          setHoveredEvent(event);
-                          setHoverPosition({
-                            x: rect.right + 8,
-                            y: rect.top,
-                          });
-                        }}
-                        onMouseLeave={() => {
-                          setHoveredEvent(null);
-                        }}
-                        className="absolute rounded-lg p-2 text-sm cursor-pointer shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-200 border border-opacity-50 overflow-hidden hover:border-opacity-80"
-                        style={{
-                          backgroundColor: event.EventColor + "20",
-                          borderColor: event.EventColor,
-                          borderLeftWidth: "3px",
-                          borderLeftColor: event.EventColor,
-                          zIndex: 10 + index,
-                          height: `${Math.max(
-                            duration * ROW_HEIGHT - 2,
-                            ROW_HEIGHT * 0.8
-                          )}px`,
-                          top: `${topOffset + 1}px`,
-                          width: eventWidth,
-                          left: leftOffset,
-                        }}
-                      >
-                        <div className="h-full flex flex-col justify-start overflow-hidden">
-                          {/* Titolo evento - sempre visibile */}
-                          <div className="font-medium text-foreground text-xs truncate">
-                            {event.EventTitle}
-                          </div>
-
-                          {/* VISTA GIORNALIERA - Priorità a cliente e tecnico, orario rimosso */}
-
-                          {/* Tecnico - priorità massima, sempre visibile se c'è spazio */}
-                          {duration > 0.4 && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Icon
-                                icon="solar:wrench-bold"
-                                width={10}
-                                className="text-default-500 flex-shrink-0"
-                              />
-                              <div className="text-xs text-default-700 font-medium truncate">
-                                {technicianName}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Cliente - priorità massima, soglia molto bassa */}
-                          {duration > 0.7 && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Icon
-                                icon="solar:user-bold"
-                                width={10}
-                                className="text-default-500 flex-shrink-0"
-                              />
-                              <div className="text-xs text-default-600 truncate">
-                                {customerName}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Location - soglia media */}
-                          {duration > 1.5 && event.EventLocation && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Icon
-                                icon="solar:map-point-bold"
-                                width={10}
-                                className="text-default-500 flex-shrink-0"
-                              />
-                              <div className="text-xs text-default-500 truncate">
-                                {event.EventLocation}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Tipo intervento - se c'è spazio */}
-                          {duration > 2.0 && event.EventType && (
-                            <div className="flex items-center gap-1 mt-0.5">
-                              <Icon
-                                icon="solar:settings-bold"
-                                width={10}
-                                className="text-default-500 flex-shrink-0"
-                              />
-                              <div className="text-xs text-default-500 truncate">
-                                {event.EventType}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Orario - solo se c'è molto spazio, priorità bassa */}
-                          {duration > 2.2 && (
-                            <div className="text-xs text-default-500 mt-1 opacity-75">
-                              {event.EventStartTime} - {event.EventEndTime}
-                            </div>
-                          )}
-
-                          {/* Descrizione - se c'è molto spazio */}
-                          {duration > 2.8 && event.EventDescription && (
-                            <div className="text-xs text-default-600 mt-1 line-clamp-2 opacity-80">
-                              {event.EventDescription}
-                            </div>
-                          )}
+                  return (
+                    <div
+                      key={event.EventId}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsOpen(true);
+                        setSelectedEventId(event.EventId);
+                        setSelectedEvent(event);
+                      }}
+                      onMouseEnter={(e) => {
+                        const rect = e.currentTarget.getBoundingClientRect();
+                        setHoveredEvent(event);
+                        const optimalPosition =
+                          calculateOptimalHoverPosition(rect);
+                        setHoverPosition(optimalPosition);
+                      }}
+                      onMouseLeave={() => {
+                        setHoveredEvent(null);
+                      }}
+                      className="absolute rounded-lg p-2 text-sm cursor-pointer shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-200 border border-opacity-50 overflow-hidden hover:border-opacity-80"
+                      style={{
+                        backgroundColor: event.EventColor + "20",
+                        borderColor: event.EventColor,
+                        borderLeftWidth: "3px",
+                        borderLeftColor: event.EventColor,
+                        zIndex: 10 + index,
+                        height: `${Math.max(
+                          duration * ROW_HEIGHT - 2,
+                          ROW_HEIGHT * 0.8
+                        )}px`,
+                        top: `${topOffset + 1}px`,
+                        width: eventWidth,
+                        left: leftOffset,
+                      }}
+                    >
+                      <div className="h-full flex flex-col justify-start overflow-hidden">
+                        {/* Titolo evento - sempre visibile */}
+                        <div className="font-medium text-foreground text-xs truncate">
+                          {event.EventTitle}
                         </div>
+
+                        {/* VISTA GIORNALIERA - Priorità a cliente e tecnico, orario rimosso */}
+
+                        {/* Tecnico - priorità massima, sempre visibile se c'è spazio */}
+                        {duration > 0.4 && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <Icon
+                              icon="solar:wrench-bold"
+                              width={10}
+                              className="text-default-500 flex-shrink-0"
+                            />
+                            <div className="text-xs text-default-700 font-medium truncate">
+                              {technicianName}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Cliente - priorità massima, soglia molto bassa */}
+                        {duration > 0.7 && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <Icon
+                              icon="solar:user-bold"
+                              width={10}
+                              className="text-default-500 flex-shrink-0"
+                            />
+                            <div className="text-xs text-default-600 truncate">
+                              {customerName}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Location - soglia media */}
+                        {duration > 1.5 && event.EventLocation && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <Icon
+                              icon="solar:map-point-bold"
+                              width={10}
+                              className="text-default-500 flex-shrink-0"
+                            />
+                            <div className="text-xs text-default-500 truncate">
+                              {event.EventLocation}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Tipo intervento - se c'è spazio */}
+                        {duration > 2.0 && event.EventType && (
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <Icon
+                              icon="solar:settings-bold"
+                              width={10}
+                              className="text-default-500 flex-shrink-0"
+                            />
+                            <div className="text-xs text-default-500 truncate">
+                              {event.EventType}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Orario - solo se c'è molto spazio, priorità bassa */}
+                        {duration > 2.2 && (
+                          <div className="text-xs text-default-500 mt-1 opacity-75">
+                            {event.EventStartTime} - {event.EventEndTime}
+                          </div>
+                        )}
+
+                        {/* Descrizione - se c'è molto spazio */}
+                        {duration > 2.8 && event.EventDescription && (
+                          <div className="text-xs text-default-600 mt-1 line-clamp-2 opacity-80">
+                            {event.EventDescription}
+                          </div>
+                        )}
                       </div>
-                    );
-                  });
-                }
-              );
+                    </div>
+                  );
+                });
+              });
             })()}
 
             {/* Linea rossa per l'ora corrente */}
@@ -438,7 +490,7 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
           style={{
             left: `${hoverPosition.x}px`,
             top: `${hoverPosition.y}px`,
-            transform: 'translateY(-50%)',
+            transform: "translateY(-50%)",
           }}
         >
           <div className="p-3">
@@ -456,31 +508,44 @@ const CalendarDay: React.FC<CalendarDayProps> = ({
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Icon icon="solar:wrench-bold" width={12} className="text-default-500 flex-shrink-0" />
+                <Icon
+                  icon="solar:wrench-bold"
+                  width={12}
+                  className="text-default-500 flex-shrink-0"
+                />
                 <span className="text-sm text-default-700 font-medium">
-                  {hoveredEvent.TechnicianAssignment?.technician_name || 'Non assegnato'}
+                  {hoveredEvent.TechnicianAssignment?.technician_name ||
+                    "Non assegnato"}
                 </span>
               </div>
-              
+
               <div className="flex items-center gap-2">
-                <Icon icon="solar:user-bold" width={12} className="text-default-500 flex-shrink-0" />
+                <Icon
+                  icon="solar:user-bold"
+                  width={12}
+                  className="text-default-500 flex-shrink-0"
+                />
                 <span className="text-sm text-default-600">
-                  {hoveredEvent.CustomerInfo?.customer_name || 'Cliente N/A'}
+                  {hoveredEvent.CustomerInfo?.customer_name || "Cliente N/A"}
                 </span>
               </div>
-              
+
               {hoveredEvent.EventLocation && (
                 <div className="flex items-center gap-2">
-                  <Icon icon="solar:map-point-bold" width={12} className="text-default-500 flex-shrink-0" />
+                  <Icon
+                    icon="solar:map-point-bold"
+                    width={12}
+                    className="text-default-500 flex-shrink-0"
+                  />
                   <span className="text-sm text-default-500 truncate">
                     {hoveredEvent.EventLocation}
                   </span>
                 </div>
               )}
-              
+
               {hoveredEvent.EventDescription && (
                 <div className="mt-2 pt-2 border-t border-default-200 dark:border-default-300">
                   <p className="text-xs text-default-600 line-clamp-3">
