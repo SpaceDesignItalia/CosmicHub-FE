@@ -736,18 +736,25 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
         vehicle_id: vehicle.id,
       },
     });
+
+    // Debug: log dei dati ricevuti per verificare lo SKU
+    console.log("Dati inventario veicolo:", response.data);
+
     setVehicleInventory(
-      response.data.map((item: any) => ({
-        id: item.vehicle_inventory_id,
-        name: item.name,
-        quantity: item.amount,
-        weight: item.weight / 1000,
-        destination: item.destination,
-        color: item.color_code,
-        icon: item.icon,
-        sku: item.stock_unit,
-        category: item.category_name,
-      }))
+      response.data.map((item: any) => {
+        console.log("Item SKU:", item.sku, "Item stock_unit:", item.stock_unit, "Item completo:", item);
+        return {
+          id: item.vehicle_inventory_id,
+          name: item.name,
+          quantity: item.amount,
+          weight: (item.weight / 1000) * item.amount, // Peso totale = peso unitario * quantità
+          destination: item.destination,
+          color: item.color_code,
+          icon: item.icon,
+          sku: item.sku || item.product_sku || item.stock_unit || "N/A", // Priorità: sku > product_sku > stock_unit
+          category: item.category_name,
+        };
+      })
     );
   };
 
@@ -1481,7 +1488,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                               <h6 className="font-bold text-zinc-800 dark:text-zinc-50 text-lg">
                                 {product.name}
                               </h6>
-                              <div className="flex items-center gap-3 mt-1">
+                              <div className="flex items-center gap-3 mt-1 flex-wrap">
                                 <span className="text-sm text-zinc-500 dark:text-zinc-400">
                                   SKU: {product.sku}
                                 </span>
@@ -1496,7 +1503,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                           </div>
 
                           {/* Dettagli prodotto */}
-                          <div className="grid grid-cols-2 gap-4 lg:gap-6">
+                          <div className="grid grid-cols-3 gap-4 lg:gap-6">
                             <div className="text-center">
                               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
                                 Quantità
@@ -1507,10 +1514,19 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                             </div>
                             <div className="text-center">
                               <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
-                                Peso
+                                Peso Unitario
                               </p>
                               <p className="font-bold text-zinc-800 dark:text-zinc-50">
-                                {product.weight} kg
+                                {(product.weight / product.quantity).toFixed(2)}{" "}
+                                kg
+                              </p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xs text-zinc-500 dark:text-zinc-400 mb-1">
+                                Peso Totale
+                              </p>
+                              <p className="font-bold text-zinc-800 dark:text-zinc-50">
+                                {product.weight.toFixed(2)} kg
                               </p>
                             </div>
                           </div>
@@ -1587,7 +1603,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                           {VehicleInventory.reduce(
                             (acc, item) => acc + item.weight,
                             0
-                          )}
+                          ).toFixed(2)}{" "}
                           kg
                         </p>
                       </div>

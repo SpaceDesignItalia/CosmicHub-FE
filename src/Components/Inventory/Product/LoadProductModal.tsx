@@ -22,6 +22,7 @@ interface Vehicle {
   vehicle_id: string;
   name: string;
   license_plate: string;
+  capacity?: number; // Capacità massima del veicolo in kg
   IsAvailable: boolean;
   VehicleID?: string;
   VehicleName?: string;
@@ -49,6 +50,7 @@ interface Product {
   name: string;
   quantity: number;
   warehouse_id: string;
+  weight?: number; // Peso unitario del prodotto in grammi
 }
 
 interface LoadProductModalProps {
@@ -73,6 +75,8 @@ export default function LoadProductModal({
   const [isProcessingLoad, setIsProcessingLoad] = useState(false);
   const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
+  const [vehicleInventory, setVehicleInventory] = useState<any[]>([]);
+  const [isLoadingInventory, setIsLoadingInventory] = useState(false);
 
   // Carica i veicoli all'avvio del componente
   useEffect(() => {
@@ -90,6 +94,13 @@ export default function LoadProductModal({
   useEffect(() => {
     setInputValue(loadQuantity.toString());
   }, [loadQuantity]);
+
+  // Carica l'inventario del veicolo quando viene selezionato
+  useEffect(() => {
+    if (targetVehicle) {
+      fetchVehicleInventory(targetVehicle);
+    }
+  }, [targetVehicle]);
 
   async function fetchAllVehicles() {
     setIsLoadingVehicles(true);
@@ -125,8 +136,79 @@ export default function LoadProductModal({
     }
   }
 
+  // Funzione per caricare l'inventario di un veicolo specifico
+  const fetchVehicleInventory = async (vehicleId: string) => {
+    setIsLoadingInventory(true);
+    try {
+      const response = await axios.get("/Vehicle/GET/GetVehicleInventory", {
+        params: {
+          vehicle_id: vehicleId,
+        },
+      });
+      setVehicleInventory(response.data || []);
+    } catch (error) {
+      console.error(
+        "Errore nel caricamento dell'inventario del veicolo:",
+        error
+      );
+      setVehicleInventory([]);
+    } finally {
+      setIsLoadingInventory(false);
+    }
+  };
+
+  // Funzione per calcolare il peso totale dell'inventario di un veicolo
+  const calculateVehicleCurrentWeight = (vehicleId: string) => {
+    return vehicleInventory
+      .filter((item) => item.vehicle_id === vehicleId)
+      .reduce((total, item) => {
+        const itemWeight = (item.weight / 1000) * item.amount; // Converti da grammi a kg
+        return total + itemWeight;
+      }, 0);
+  };
+
+  // Funzione per calcolare il peso del prodotto da caricare
+  const calculateProductWeight = () => {
+    if (!selectedProduct?.weight) return 0;
+    const productWeightKg = selectedProduct.weight / 1000; // Converti da grammi a kg
+    return productWeightKg * loadQuantity;
+  };
+
+  // Funzione per validare se il caricamento supera la capacità
+  const validateVehicleCapacity = (vehicleId: string) => {
+    const selectedVehicle = vehicles.find((v) => v.vehicle_id === vehicleId);
+    if (!selectedVehicle?.capacity) return { isValid: true, message: "" };
+
+    const currentWeight = calculateVehicleCurrentWeight(vehicleId);
+    const productWeight = calculateProductWeight();
+    const totalWeight = currentWeight + productWeight;
+    const capacity = selectedVehicle.capacity;
+
+    if (totalWeight > capacity) {
+      return {
+        isValid: false,
+        message: `Il caricamento supererebbe la capacità massima del veicolo (${capacity} kg). Peso attuale: ${currentWeight.toFixed(
+          2
+        )} kg + Peso da caricare: ${productWeight.toFixed(
+          2
+        )} kg = ${totalWeight.toFixed(2)} kg`,
+      };
+    }
+
+    return { isValid: true, message: "" };
+  };
+
   const handleLoadOperation = async () => {
     if (!selectedProduct || !loadQuantity || !targetVehicle) return;
+
+    // Validazione della capacità del veicolo
+    const capacityValidation = validateVehicleCapacity(targetVehicle);
+    if (!capacityValidation.isValid) {
+      if (onError) {
+        onError(capacityValidation.message);
+      }
+      return;
+    }
 
     setIsProcessingLoad(true);
     try {
@@ -221,7 +303,8 @@ export default function LoadProductModal({
   const isFormValid =
     loadQuantity > 0 &&
     loadQuantity <= (selectedProduct?.quantity || 0) &&
-    targetVehicle;
+    targetVehicle &&
+    validateVehicleCapacity(targetVehicle).isValid;
   const selectedVehicleInfo = vehicles.find(
     (v) => v.vehicle_id === targetVehicle
   );
@@ -661,6 +744,11 @@ export default function LoadProductModal({
                                     <p className="text-sm text-default-600">
                                       {vehicle.license_plate}
                                     </p>
+                                    {vehicle.capacity && (
+                                      <p className="text-xs text-default-500">
+                                        Capacità: {vehicle.capacity} kg
+                                      </p>
+                                    )}
                                   </div>
                                 </div>
 
@@ -677,6 +765,80 @@ export default function LoadProductModal({
                                   )}
                                 </div>
                               </div>
+
+                              {/* Informazioni di peso quando il veicolo è selezionato */}
+                              {targetVehicle === vehicle.vehicle_id &&
+                                vehicle.capacity && (
+                                  <div className="mt-3 pt-3 border-t border-default-200">
+                                    <div className="space-y-2">
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-default-600">
+                                          Peso attuale:
+                                        </span>
+                                        <span className="font-medium">
+                                          {calculateVehicleCurrentWeight(
+                                            vehicle.vehicle_id
+                                          ).toFixed(2)}{" "}
+                                          kg
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-default-600">
+                                          Peso da caricare:
+                                        </span>
+                                        <span className="font-medium">
+                                          {calculateProductWeight().toFixed(2)}{" "}
+                                          kg
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-default-600">
+                                          Peso totale:
+                                        </span>
+                                        <span
+                                          className={`font-medium ${
+                                            calculateVehicleCurrentWeight(
+                                              vehicle.vehicle_id
+                                            ) +
+                                              calculateProductWeight() >
+                                            vehicle.capacity
+                                              ? "text-danger"
+                                              : "text-success"
+                                          }`}
+                                        >
+                                          {(
+                                            calculateVehicleCurrentWeight(
+                                              vehicle.vehicle_id
+                                            ) + calculateProductWeight()
+                                          ).toFixed(2)}{" "}
+                                          kg
+                                        </span>
+                                      </div>
+                                      <div className="flex justify-between text-xs">
+                                        <span className="text-default-600">
+                                          Capacità:
+                                        </span>
+                                        <span className="font-medium">
+                                          {vehicle.capacity} kg
+                                        </span>
+                                      </div>
+
+                                      {/* Avviso se supera la capacità */}
+                                      {calculateVehicleCurrentWeight(
+                                        vehicle.vehicle_id
+                                      ) +
+                                        calculateProductWeight() >
+                                        vehicle.capacity && (
+                                        <div className="mt-2 p-2 bg-danger-50 border border-danger-200 rounded-lg">
+                                          <p className="text-xs text-danger-700 font-medium">
+                                            ⚠️ Il caricamento supererebbe la
+                                            capacità massima del veicolo
+                                          </p>
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                )}
                             </CardBody>
                           </Card>
                         ))}
@@ -745,6 +907,73 @@ export default function LoadProductModal({
                         </p>
                       </div>
                     </div>
+
+                    {/* Informazioni di peso nel riepilogo */}
+                    {selectedVehicleInfo?.capacity && (
+                      <div className="mt-4 pt-4 border-t border-primary/20">
+                        <div className="space-y-2">
+                          <div className="flex justify-between text-sm">
+                            <span className="text-default-600">
+                              Peso da caricare:
+                            </span>
+                            <span className="font-medium">
+                              {calculateProductWeight().toFixed(2)} kg
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-default-600">
+                              Peso attuale furgone:
+                            </span>
+                            <span className="font-medium">
+                              {calculateVehicleCurrentWeight(
+                                targetVehicle
+                              ).toFixed(2)}{" "}
+                              kg
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-default-600">
+                              Peso totale:
+                            </span>
+                            <span
+                              className={`font-medium ${
+                                calculateVehicleCurrentWeight(targetVehicle) +
+                                  calculateProductWeight() >
+                                selectedVehicleInfo.capacity
+                                  ? "text-danger"
+                                  : "text-success"
+                              }`}
+                            >
+                              {(
+                                calculateVehicleCurrentWeight(targetVehicle) +
+                                calculateProductWeight()
+                              ).toFixed(2)}{" "}
+                              kg
+                            </span>
+                          </div>
+                          <div className="flex justify-between text-sm">
+                            <span className="text-default-600">
+                              Capacità furgone:
+                            </span>
+                            <span className="font-medium">
+                              {selectedVehicleInfo.capacity} kg
+                            </span>
+                          </div>
+
+                          {/* Avviso finale se supera la capacità */}
+                          {calculateVehicleCurrentWeight(targetVehicle) +
+                            calculateProductWeight() >
+                            selectedVehicleInfo.capacity && (
+                            <div className="mt-3 p-3 bg-danger-50 border border-danger-200 rounded-lg">
+                              <p className="text-sm text-danger-700 font-medium text-center">
+                                ⚠️ ATTENZIONE: Il caricamento supererebbe la
+                                capacità massima del veicolo!
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </CardBody>
                 </Card>
               </>
