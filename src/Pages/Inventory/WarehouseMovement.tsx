@@ -111,8 +111,14 @@ export default function WarehouseMovement() {
       try {
         setIsLoading(true);
         const response = await axios.get("/Product/GET/GetAllProductMovements");
-        const data = response.data.map(mapApiMovementToMovement);
-        setMovements(data);
+
+        if (Array.isArray(response.data)) {
+          const data = response.data.map(mapApiMovementToMovement);
+          setMovements(data);
+        } else {
+          console.error("Response data is not an array:", response.data);
+          setMovements([]);
+        }
       } catch (error) {
         console.error("Error fetching movements:", error);
         setMovements([]);
@@ -147,7 +153,7 @@ export default function WarehouseMovement() {
     }
   };
 
-  console.log(movements);
+
 
   return (
     <div className="min-h-screen h-full w-full flex-1 flex flex-col p-6 gap-6">

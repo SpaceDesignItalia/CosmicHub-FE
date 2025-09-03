@@ -203,7 +203,7 @@ export default function MovementTable({
   }, [filteredItems, sortBy]);
 
   const items = useMemo(() => {
-    const start = page * rowsPerPage;
+    const start = (page - 1) * rowsPerPage; // Corretto: (page - 1) invece di page
     const end = start + rowsPerPage;
     return sortedItems.slice(start, end);
   }, [page, sortedItems, rowsPerPage]);
