@@ -148,7 +148,11 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
         dropdownRef.current &&
         !dropdownRef.current.contains(event.target as Node)
       ) {
-        setGroupDropdown({ isOpen: false, events: [], position: { x: 0, y: 0 } });
+        setGroupDropdown({
+          isOpen: false,
+          events: [],
+          position: { x: 0, y: 0 },
+        });
       }
     };
 
@@ -172,6 +176,58 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
         y: rect.bottom + 8,
       },
     });
+  };
+
+  // Funzione per calcolare la posizione ottimale del popup di hover
+  const calculateOptimalHoverPosition = (rect: DOMRect) => {
+    const popupWidth = 320; // Larghezza stimata del popup
+    const popupHeight = 200; // Altezza stimata del popup
+    const margin = 16; // Margine di sicurezza
+    const eventGap = 8; // Distanza dall'evento
+    const minLeftDistance = 8; // Distanza minima dal bordo sinistro
+    const minRightDistance = 8; // Distanza minima dal bordo destro
+
+    let x = rect.right + eventGap; // Posizione predefinita a destra
+    let y = rect.top;
+
+    // Calcola lo spazio disponibile a destra e a sinistra
+    const spaceRight = window.innerWidth - rect.right - margin;
+    const spaceLeft = rect.left - margin;
+
+    // Se c'è spazio sufficiente a destra, posiziona lì
+    if (spaceRight >= popupWidth) {
+      x = rect.right + eventGap;
+    }
+    // Altrimenti, se c'è più spazio a sinistra, posiziona lì
+    else if (spaceLeft >= popupWidth) {
+      x = rect.left - popupWidth - eventGap;
+    }
+    // Se non c'è spazio sufficiente da nessuna parte, trova la posizione migliore
+    else {
+      // Calcola quale lato ha più spazio
+      if (spaceRight > spaceLeft) {
+        // Più spazio a destra, posiziona il più possibile a destra
+        x = window.innerWidth - popupWidth - minRightDistance;
+      } else {
+        // Più spazio a sinistra, posiziona il più possibile a sinistra
+        x = minLeftDistance;
+      }
+    }
+
+    // Assicurati che il popup non vada mai fuori dai bordi
+    x = Math.max(minLeftDistance, Math.min(x, window.innerWidth - popupWidth - minRightDistance));
+
+    // Controlla se il popup va fuori in basso
+    if (y + popupHeight + margin > window.innerHeight) {
+      y = Math.max(margin, window.innerHeight - popupHeight - margin);
+    }
+
+    // Controlla se il popup va fuori in alto
+    if (y < margin) {
+      y = margin;
+    }
+
+    return { x, y };
   };
 
   return (
@@ -216,11 +272,14 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
             dayDate.setDate(startOfWeek.getDate() + dayIndex);
 
             const allDayEvents = events.filter((event) => {
-              const eventStartHour = parseInt(event.EventStartTime.split(":")[0]);
+              const eventStartHour = parseInt(
+                event.EventStartTime.split(":")[0]
+              );
               return (
                 eventStartHour === 0 &&
                 event.EventEndTime === "00:00" &&
-                dayDate.toDateString() === new Date(event.EventStartDate).toDateString()
+                dayDate.toDateString() ===
+                  new Date(event.EventStartDate).toDateString()
               );
             });
 
@@ -240,9 +299,9 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
                       }}
                       className="rounded-md p-1 text-xs font-medium hover:shadow-sm transition-all cursor-pointer border border-opacity-30"
                       style={{
-                        backgroundColor: event.EventColor + '15',
+                        backgroundColor: event.EventColor + "15",
                         borderColor: event.EventColor,
-                        color: 'currentColor'
+                        color: "currentColor",
                       }}
                     >
                       <div className="truncate text-foreground">
@@ -259,7 +318,10 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
 
       {/* Area principale con scroll sincronizzato */}
       <div className="flex-1 overflow-y-auto bg-background" ref={scrollRef}>
-        <div className="flex relative" style={{ height: `${24 * ROW_HEIGHT}px` }}>
+        <div
+          className="flex relative"
+          style={{ height: `${24 * ROW_HEIGHT}px` }}
+        >
           {/* Colonna delle ore - sticky */}
           <div className="w-16 flex-shrink-0">
             {HOURS.map((hour) => (
@@ -294,9 +356,9 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
                     className={`absolute w-full group hover:bg-default-100 dark:hover:bg-default-200 transition-colors cursor-pointer border-b border-default-200 dark:border-default-300 ${
                       isPastDay ? "bg-default-50 dark:bg-default-100" : ""
                     }`}
-                    style={{ 
+                    style={{
                       height: `${ROW_HEIGHT}px`,
-                      top: `${hour * ROW_HEIGHT}px`
+                      top: `${hour * ROW_HEIGHT}px`,
                     }}
                     onClick={() => onDateClick(dayDate)}
                   />
@@ -306,15 +368,23 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
                 {(() => {
                   // Raggruppa eventi per ora per gestire sovrapposizioni
                   const eventsByHour: { [hour: number]: any[] } = {};
-                  
+
                   events.forEach((event) => {
                     const eventStartDate = new Date(event.EventStartDate);
-                    const eventStartHour = parseInt(event.EventStartTime.split(":")[0]);
-                    
+                    const eventStartHour = parseInt(
+                      event.EventStartTime.split(":")[0]
+                    );
+
                     // Verifica se l'evento è nel giorno corrente
-                    if (dayDate.toDateString() === eventStartDate.toDateString()) {
+                    if (
+                      dayDate.toDateString() === eventStartDate.toDateString()
+                    ) {
                       // Non includere eventi di tutto il giorno
-                      if (!(eventStartHour === 0 && event.EventEndTime === "00:00")) {
+                      if (
+                        !(
+                          eventStartHour === 0 && event.EventEndTime === "00:00"
+                        )
+                      ) {
                         if (!eventsByHour[eventStartHour]) {
                           eventsByHour[eventStartHour] = [];
                         }
@@ -324,165 +394,227 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
                   });
 
                   // Renderizza eventi con raggruppamento intelligente
-                  return Object.entries(eventsByHour).flatMap(([hourStr, hourEvents]) => {
-                    // Se ci sono più di 3 eventi nella stessa ora, raggruppa
-                    if (hourEvents.length > 3) {
-                      const firstEvent = hourEvents[0];
-                      const eventStartHour = parseInt(firstEvent.EventStartTime.split(":")[0]);
-                      const eventEndHour = parseInt(firstEvent.EventEndTime.split(":")[0]);
-                      const eventStartMinutes = parseInt(firstEvent.EventStartTime.split(":")[1]);
-                      const eventEndMinutes = parseInt(firstEvent.EventEndTime.split(":")[1]);
+                  return Object.entries(eventsByHour).flatMap(
+                    ([hourStr, hourEvents]) => {
+                      // Se ci sono più di 3 eventi nella stessa ora, raggruppa
+                      if (hourEvents.length > 3) {
+                        const firstEvent = hourEvents[0];
+                        const eventStartHour = parseInt(
+                          firstEvent.EventStartTime.split(":")[0]
+                        );
+                        const eventEndHour = parseInt(
+                          firstEvent.EventEndTime.split(":")[0]
+                        );
+                        const eventStartMinutes = parseInt(
+                          firstEvent.EventStartTime.split(":")[1]
+                        );
+                        const eventEndMinutes = parseInt(
+                          firstEvent.EventEndTime.split(":")[1]
+                        );
 
-                      const duration = eventEndHour + eventEndMinutes / 60 - (eventStartHour + eventStartMinutes / 60);
-                      const topOffset = (eventStartHour + eventStartMinutes / 60) * ROW_HEIGHT;
+                        const duration =
+                          eventEndHour +
+                          eventEndMinutes / 60 -
+                          (eventStartHour + eventStartMinutes / 60);
+                        const topOffset =
+                          (eventStartHour + eventStartMinutes / 60) *
+                          ROW_HEIGHT;
 
-                      return [
-                        <div
-                          key={`group-${hourStr}-${dayIndex}`}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            openEventDropdown(hourEvents, e);
-                          }}
-                          className="absolute rounded-md p-1 text-xs cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 border border-opacity-50 overflow-hidden bg-default-100 dark:bg-default-200"
-                          style={{
-                            borderColor: '#6366f1',
-                            borderLeftWidth: '3px',
-                            borderLeftColor: '#6366f1',
-                            zIndex: 10,
-                            height: `${Math.max(duration * ROW_HEIGHT - 2, ROW_HEIGHT * 0.7)}px`,
-                            top: `${topOffset + 1}px`,
-                            width: 'calc(95% - 2px)',
-                            left: '2px',
-                          }}
-                          title={`${hourEvents.length} eventi alle ${firstEvent.EventStartTime}\n${hourEvents.map(e => e.EventTitle).join('\n')}`}
-                        >
-                          <div className="h-full flex flex-col justify-start">
-                            <div className="flex items-center gap-1 mb-1">
-                              <div className="flex -space-x-1">
-                                {hourEvents.slice(0, 3).map((event, idx) => (
-                                  <div
-                                    key={event.EventId}
-                                    className="w-3 h-3 rounded-full border border-background shadow-sm"
-                                    style={{
-                                      backgroundColor: event.EventColor,
-                                      zIndex: 3 - idx,
-                                    }}
+                        return [
+                          <div
+                            key={`group-${hourStr}-${dayIndex}`}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEventDropdown(hourEvents, e);
+                            }}
+                            className="absolute rounded-md p-1 text-xs cursor-pointer shadow-sm hover:shadow-md transition-all duration-200 border border-opacity-50 overflow-hidden bg-default-100 dark:bg-default-200"
+                            style={{
+                              borderColor: "#6366f1",
+                              borderLeftWidth: "3px",
+                              borderLeftColor: "#6366f1",
+                              zIndex: 10,
+                              height: `${Math.max(
+                                duration * ROW_HEIGHT - 2,
+                                ROW_HEIGHT * 0.7
+                              )}px`,
+                              top: `${topOffset + 1}px`,
+                              width: "calc(95% - 2px)",
+                              left: "2px",
+                            }}
+                            title={`${hourEvents.length} eventi alle ${
+                              firstEvent.EventStartTime
+                            }\n${hourEvents
+                              .map((e) => e.EventTitle)
+                              .join("\n")}`}
+                          >
+                            <div className="h-full flex flex-col justify-start">
+                              <div className="flex items-center gap-1 mb-1">
+                                <div className="flex -space-x-1">
+                                  {hourEvents.slice(0, 3).map((event, idx) => (
+                                    <div
+                                      key={event.EventId}
+                                      className="w-3 h-3 rounded-full border border-background shadow-sm"
+                                      style={{
+                                        backgroundColor: event.EventColor,
+                                        zIndex: 3 - idx,
+                                      }}
+                                    />
+                                  ))}
+                                </div>
+                                <div className="text-xs font-bold text-foreground">
+                                  {hourEvents.length} eventi
+                                </div>
+                              </div>
+                              <div className="text-[10px] text-default-600 truncate">
+                                {hourEvents
+                                  .map((e) => e.EventTitle)
+                                  .slice(0, 2)
+                                  .join(", ")}
+                                {hourEvents.length > 2 && "..."}
+                              </div>
+                            </div>
+                          </div>,
+                        ];
+                      }
+
+                      // Renderizza eventi normalmente se sono ≤ 3
+                      return hourEvents.map((event, index) => {
+                        const eventStartHour = parseInt(
+                          event.EventStartTime.split(":")[0]
+                        );
+                        const eventEndHour = parseInt(
+                          event.EventEndTime.split(":")[0]
+                        );
+                        const eventStartMinutes = parseInt(
+                          event.EventStartTime.split(":")[1]
+                        );
+                        const eventEndMinutes = parseInt(
+                          event.EventEndTime.split(":")[1]
+                        );
+
+                        const duration =
+                          eventEndHour +
+                          eventEndMinutes / 60 -
+                          (eventStartHour + eventStartMinutes / 60);
+                        const topOffset =
+                          (eventStartHour + eventStartMinutes / 60) *
+                          ROW_HEIGHT;
+
+                        // Calcola posizione per eventi sovrapposti - ora più larghi
+                        const totalEvents = hourEvents.length;
+                        const eventWidth =
+                          totalEvents > 1
+                            ? `calc(${85 / totalEvents}% - 1px)`
+                            : "calc(95% - 2px)";
+                        const leftOffset =
+                          totalEvents > 1
+                            ? `calc(${(85 / totalEvents) * index}% + 2px)`
+                            : "2px";
+
+                        const technicianName =
+                          event.TechnicianAssignment?.technician_name ||
+                          "Non assegnato";
+                        const customerName =
+                          event.CustomerInfo?.customer_name || "Cliente N/A";
+
+                        return (
+                          <div
+                            key={event.EventId}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIsOpen(true);
+                              setSelectedEventId(event.EventId);
+                              setSelectedEvent(event);
+                            }}
+                            onMouseEnter={(e) => {
+                              const rect =
+                                e.currentTarget.getBoundingClientRect();
+                              setHoveredEvent(event);
+                              const optimalPosition =
+                                calculateOptimalHoverPosition(rect);
+                              setHoverPosition(optimalPosition);
+                            }}
+                            onMouseLeave={() => {
+                              setHoveredEvent(null);
+                            }}
+                            className="absolute rounded-md p-1 text-xs cursor-pointer shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-200 border border-opacity-50 overflow-hidden hover:border-opacity-80"
+                            style={{
+                              backgroundColor: event.EventColor + "20",
+                              borderColor: event.EventColor,
+                              borderLeftWidth: "3px",
+                              borderLeftColor: event.EventColor,
+                              zIndex: 10 + index,
+                              height: `${Math.max(
+                                duration * ROW_HEIGHT - 2,
+                                ROW_HEIGHT * 0.7
+                              )}px`,
+                              top: `${topOffset + 1}px`,
+                              width: eventWidth,
+                              left: leftOffset,
+                            }}
+                          >
+                            <div className="h-full flex flex-col justify-start overflow-hidden">
+                              {/* Titolo evento - sempre visibile */}
+                              <div className="font-medium text-foreground text-xs truncate">
+                                {event.EventTitle}
+                              </div>
+
+                              {/* VISTA SETTIMANALE - Layout normalizzato: 1°Tecnico, 2°Cliente */}
+
+                              {/* Prima riga: Tecnico - sempre visibile se c'è spazio */}
+                              {duration > 0.5 && (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <Icon
+                                    icon="solar:wrench-bold"
+                                    width={8}
+                                    className="text-default-500 flex-shrink-0"
                                   />
-                                ))}
-                              </div>
-                              <div className="text-xs font-bold text-foreground">
-                                {hourEvents.length} eventi
-                              </div>
-                            </div>
-                            <div className="text-[10px] text-default-600 truncate">
-                              {hourEvents.map(e => e.EventTitle).slice(0, 2).join(', ')}
-                              {hourEvents.length > 2 && '...'}
+                                  <div className="text-xs text-default-700 font-medium truncate">
+                                    {technicianName}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Seconda riga: Cliente - priorità alta */}
+                              {duration > 0.8 && (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <Icon
+                                    icon="solar:user-bold"
+                                    width={8}
+                                    className="text-default-500 flex-shrink-0"
+                                  />
+                                  <div className="text-xs text-default-600 truncate">
+                                    {customerName}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Orario - solo se c'è molto spazio, priorità bassa */}
+                              {duration > 2.2 && (
+                                <div className="text-xs text-default-500 mt-1 opacity-75">
+                                  {event.EventStartTime}
+                                </div>
+                              )}
+
+                              {/* Location - solo se c'è molto spazio */}
+                              {duration > 2.8 && event.EventLocation && (
+                                <div className="flex items-center gap-1 mt-0.5">
+                                  <Icon
+                                    icon="solar:map-point-bold"
+                                    width={8}
+                                    className="text-default-500 flex-shrink-0"
+                                  />
+                                  <div className="text-xs text-default-500 truncate">
+                                    {event.EventLocation}
+                                  </div>
+                                </div>
+                              )}
                             </div>
                           </div>
-                        </div>
-                      ];
+                        );
+                      });
                     }
-
-                    // Renderizza eventi normalmente se sono ≤ 3
-                    return hourEvents.map((event, index) => {
-                      const eventStartHour = parseInt(event.EventStartTime.split(":")[0]);
-                      const eventEndHour = parseInt(event.EventEndTime.split(":")[0]);
-                      const eventStartMinutes = parseInt(event.EventStartTime.split(":")[1]);
-                      const eventEndMinutes = parseInt(event.EventEndTime.split(":")[1]);
-
-                      const duration = eventEndHour + eventEndMinutes / 60 - (eventStartHour + eventStartMinutes / 60);
-                      const topOffset = (eventStartHour + eventStartMinutes / 60) * ROW_HEIGHT;
-                      
-                      // Calcola posizione per eventi sovrapposti - ora più larghi
-                      const totalEvents = hourEvents.length;
-                      const eventWidth = totalEvents > 1 ? `calc(${85 / totalEvents}% - 1px)` : 'calc(95% - 2px)';
-                      const leftOffset = totalEvents > 1 ? `calc(${(85 / totalEvents) * index}% + 2px)` : '2px';
-
-                      const technicianName = event.TechnicianAssignment?.technician_name || 'Non assegnato';
-                      const customerName = event.CustomerInfo?.customer_name || 'Cliente N/A';
-                      
-                      return (
-                        <div
-                          key={event.EventId}
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIsOpen(true);
-                            setSelectedEventId(event.EventId);
-                            setSelectedEvent(event);
-                          }}
-                          onMouseEnter={(e) => {
-                            const rect = e.currentTarget.getBoundingClientRect();
-                            setHoveredEvent(event);
-                            setHoverPosition({
-                              x: rect.right + 8,
-                              y: rect.top,
-                            });
-                          }}
-                          onMouseLeave={() => {
-                            setHoveredEvent(null);
-                          }}
-                          className="absolute rounded-md p-1 text-xs cursor-pointer shadow-sm hover:shadow-lg hover:scale-105 transition-all duration-200 border border-opacity-50 overflow-hidden hover:border-opacity-80"
-                          style={{
-                            backgroundColor: event.EventColor + '20',
-                            borderColor: event.EventColor,
-                            borderLeftWidth: '3px',
-                            borderLeftColor: event.EventColor,
-                            zIndex: 10 + index,
-                            height: `${Math.max(duration * ROW_HEIGHT - 2, ROW_HEIGHT * 0.7)}px`,
-                            top: `${topOffset + 1}px`,
-                            width: eventWidth,
-                            left: leftOffset,
-                          }}
-                        >
-                          <div className="h-full flex flex-col justify-start overflow-hidden">
-                            {/* Titolo evento - sempre visibile */}
-                            <div className="font-medium text-foreground text-xs truncate">
-                              {event.EventTitle}
-                            </div>
-                            
-                            {/* VISTA SETTIMANALE - Layout normalizzato: 1°Tecnico, 2°Cliente */}
-                            
-                            {/* Prima riga: Tecnico - sempre visibile se c'è spazio */}
-                            {duration > 0.5 && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Icon icon="solar:wrench-bold" width={8} className="text-default-500 flex-shrink-0" />
-                                <div className="text-xs text-default-700 font-medium truncate">
-                                  {technicianName}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Seconda riga: Cliente - priorità alta */}
-                            {duration > 0.8 && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Icon icon="solar:user-bold" width={8} className="text-default-500 flex-shrink-0" />
-                                <div className="text-xs text-default-600 truncate">
-                                  {customerName}
-                                </div>
-                              </div>
-                            )}
-                            
-                            {/* Orario - solo se c'è molto spazio, priorità bassa */}
-                            {duration > 2.2 && (
-                              <div className="text-xs text-default-500 mt-1 opacity-75">
-                                {event.EventStartTime}
-                              </div>
-                            )}
-
-                            {/* Location - solo se c'è molto spazio */}
-                            {duration > 2.8 && event.EventLocation && (
-                              <div className="flex items-center gap-1 mt-0.5">
-                                <Icon icon="solar:map-point-bold" width={8} className="text-default-500 flex-shrink-0" />
-                                <div className="text-xs text-default-500 truncate">
-                                  {event.EventLocation}
-                                </div>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      );
-                    });
-                  });
+                  );
                 })()}
 
                 {/* Linea rossa per l'ora corrente (solo per il giorno corrente) */}
@@ -533,9 +665,12 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
             </div>
             <div className="space-y-2 max-h-64 overflow-y-auto">
               {groupDropdown.events.map((event) => {
-                const technicianName = event.TechnicianAssignment?.technician_name || 'Non assegnato';
-                const customerName = event.CustomerInfo?.customer_name || 'Cliente N/A';
-                
+                const technicianName =
+                  event.TechnicianAssignment?.technician_name ||
+                  "Non assegnato";
+                const customerName =
+                  event.CustomerInfo?.customer_name || "Cliente N/A";
+
                 return (
                   <div
                     key={event.EventId}
@@ -543,7 +678,11 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
                       setIsOpen(true);
                       setSelectedEventId(event.EventId);
                       setSelectedEvent(event);
-                      setGroupDropdown({ isOpen: false, events: [], position: { x: 0, y: 0 } });
+                      setGroupDropdown({
+                        isOpen: false,
+                        events: [],
+                        position: { x: 0, y: 0 },
+                      });
                     }}
                     className="flex items-start gap-3 p-2 rounded-md hover:bg-default-100 dark:hover:bg-default-200 cursor-pointer transition-colors"
                   >
@@ -560,13 +699,25 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
                       </div>
                       <div className="flex items-center gap-2 mt-1">
                         <div className="flex items-center gap-1">
-                          <Icon icon="solar:wrench-bold" width={10} className="text-default-500" />
-                          <span className="text-xs text-default-700 truncate">{technicianName}</span>
+                          <Icon
+                            icon="solar:wrench-bold"
+                            width={10}
+                            className="text-default-500"
+                          />
+                          <span className="text-xs text-default-700 truncate">
+                            {technicianName}
+                          </span>
                         </div>
                       </div>
                       <div className="flex items-center gap-1 mt-0.5">
-                        <Icon icon="solar:user-bold" width={10} className="text-default-500" />
-                        <span className="text-xs text-default-600 truncate">{customerName}</span>
+                        <Icon
+                          icon="solar:user-bold"
+                          width={10}
+                          className="text-default-500"
+                        />
+                        <span className="text-xs text-default-600 truncate">
+                          {customerName}
+                        </span>
                       </div>
                     </div>
                   </div>
@@ -585,7 +736,7 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
           style={{
             left: `${hoverPosition.x}px`,
             top: `${hoverPosition.y}px`,
-            transform: 'translateY(-50%)',
+            transform: "translateY(-50%)",
           }}
         >
           <div className="p-3">
@@ -603,31 +754,44 @@ const CalendarWeek: React.FC<CalendarWeekProps> = ({
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Icon icon="solar:wrench-bold" width={12} className="text-default-500 flex-shrink-0" />
+                <Icon
+                  icon="solar:wrench-bold"
+                  width={12}
+                  className="text-default-500 flex-shrink-0"
+                />
                 <span className="text-sm text-default-700 font-medium">
-                  {hoveredEvent.TechnicianAssignment?.technician_name || 'Non assegnato'}
+                  {hoveredEvent.TechnicianAssignment?.technician_name ||
+                    "Non assegnato"}
                 </span>
               </div>
-              
+
               <div className="flex items-center gap-2">
-                <Icon icon="solar:user-bold" width={12} className="text-default-500 flex-shrink-0" />
+                <Icon
+                  icon="solar:user-bold"
+                  width={12}
+                  className="text-default-500 flex-shrink-0"
+                />
                 <span className="text-sm text-default-600">
-                  {hoveredEvent.CustomerInfo?.customer_name || 'Cliente N/A'}
+                  {hoveredEvent.CustomerInfo?.customer_name || "Cliente N/A"}
                 </span>
               </div>
-              
+
               {hoveredEvent.EventLocation && (
                 <div className="flex items-center gap-2">
-                  <Icon icon="solar:map-point-bold" width={12} className="text-default-500 flex-shrink-0" />
+                  <Icon
+                    icon="solar:map-point-bold"
+                    width={12}
+                    className="text-default-500 flex-shrink-0"
+                  />
                   <span className="text-sm text-default-500 truncate">
                     {hoveredEvent.EventLocation}
                   </span>
                 </div>
               )}
-              
+
               {hoveredEvent.EventDescription && (
                 <div className="mt-2 pt-2 border-t border-default-200 dark:border-default-300">
                   <p className="text-xs text-default-600 line-clamp-3">

@@ -168,6 +168,61 @@ const CalendarMonth: React.FC<{
     }, 200);
   };
 
+  // Funzione per calcolare la posizione ottimale del popup di hover
+  const calculateOptimalHoverPosition = (rect: DOMRect) => {
+    const popupWidth = 320; // Larghezza stimata del popup
+    const popupHeight = 200; // Altezza stimata del popup
+    const margin = 16; // Margine di sicurezza
+    const eventGap = 8; // Distanza dall'evento
+    const minLeftDistance = 8; // Distanza minima dal bordo sinistro
+    const minRightDistance = 8; // Distanza minima dal bordo destro
+
+    let x = rect.right + eventGap; // Posizione predefinita a destra
+    let y = rect.top;
+
+    // Calcola lo spazio disponibile a destra e a sinistra
+    const spaceRight = window.innerWidth - rect.right - margin;
+    const spaceLeft = rect.left - margin;
+
+    // Se c'è spazio sufficiente a destra, posiziona lì
+    if (spaceRight >= popupWidth) {
+      x = rect.right + eventGap;
+    }
+    // Altrimenti, se c'è più spazio a sinistra, posiziona lì
+    else if (spaceLeft >= popupWidth) {
+      x = rect.left + eventGap;
+    }
+    // Se non c'è spazio sufficiente da nessuna parte, trova la posizione migliore
+    else {
+      // Calcola quale lato ha più spazio
+      if (spaceRight > spaceLeft) {
+        // Più spazio a destra, posiziona il più possibile a destra
+        x = window.innerWidth - popupWidth - minRightDistance;
+      } else {
+        // Più spazio a sinistra, posiziona il più possibile a sinistra
+        x = minLeftDistance;
+      }
+    }
+
+    // Assicurati che il popup non vada mai fuori dai bordi
+    x = Math.max(
+      minLeftDistance,
+      Math.min(x, window.innerWidth - popupWidth - minRightDistance)
+    );
+
+    // Controlla se il popup va fuori in basso
+    if (y + popupHeight + margin > window.innerHeight) {
+      y = Math.max(margin, window.innerHeight - popupHeight - margin);
+    }
+
+    // Controlla se il popup va fuori in alto
+    if (y < margin) {
+      y = margin;
+    }
+
+    return { x, y };
+  };
+
   return (
     <div className="h-full bg-background" ref={calendarRef}>
       {/* Calendar Header with theme support */}
@@ -284,12 +339,12 @@ const CalendarMonth: React.FC<{
                                     setSelectedEvent(event);
                                   }}
                                   onMouseEnter={(e) => {
-                                    const rect = e.currentTarget.getBoundingClientRect();
+                                    const rect =
+                                      e.currentTarget.getBoundingClientRect();
                                     setHoveredEvent(event);
-                                    setHoverPosition({
-                                      x: rect.right + 8,
-                                      y: rect.top,
-                                    });
+                                    const optimalPosition =
+                                      calculateOptimalHoverPosition(rect);
+                                    setHoverPosition(optimalPosition);
                                   }}
                                   onMouseLeave={() => {
                                     setHoveredEvent(null);
@@ -611,7 +666,7 @@ const CalendarMonth: React.FC<{
           style={{
             left: `${hoverPosition.x}px`,
             top: `${hoverPosition.y}px`,
-            transform: 'translateY(-50%)',
+            transform: "translateY(-50%)",
           }}
         >
           <div className="p-3">
@@ -629,31 +684,44 @@ const CalendarMonth: React.FC<{
                 </div>
               </div>
             </div>
-            
+
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Icon icon="solar:wrench-bold" width={12} className="text-default-500 flex-shrink-0" />
+                <Icon
+                  icon="solar:wrench-bold"
+                  width={12}
+                  className="text-default-500 flex-shrink-0"
+                />
                 <span className="text-sm text-default-700 font-medium">
-                  {hoveredEvent.TechnicianAssignment?.technician_name || 'Non assegnato'}
+                  {hoveredEvent.TechnicianAssignment?.technician_name ||
+                    "Non assegnato"}
                 </span>
               </div>
-              
+
               <div className="flex items-center gap-2">
-                <Icon icon="solar:user-bold" width={12} className="text-default-500 flex-shrink-0" />
+                <Icon
+                  icon="solar:user-bold"
+                  width={12}
+                  className="text-default-500 flex-shrink-0"
+                />
                 <span className="text-sm text-default-600">
-                  {hoveredEvent.CustomerInfo?.customer_name || 'Cliente N/A'}
+                  {hoveredEvent.CustomerInfo?.customer_name || "Cliente N/A"}
                 </span>
               </div>
-              
+
               {hoveredEvent.EventLocation && (
                 <div className="flex items-center gap-2">
-                  <Icon icon="solar:map-point-bold" width={12} className="text-default-500 flex-shrink-0" />
+                  <Icon
+                    icon="solar:map-point-bold"
+                    width={12}
+                    className="text-default-500 flex-shrink-0"
+                  />
                   <span className="text-sm text-default-500 truncate">
                     {hoveredEvent.EventLocation}
                   </span>
                 </div>
               )}
-              
+
               {hoveredEvent.EventDescription && (
                 <div className="mt-2 pt-2 border-t border-default-200 dark:border-default-300">
                   <p className="text-xs text-default-600 line-clamp-3">

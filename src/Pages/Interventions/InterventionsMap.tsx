@@ -896,7 +896,7 @@ export default function InterventionsMap() {
                   </div>
                   <div>
                     <span className="text-default-500">Tecnico:</span>
-                    <p>{marker.technician?.name}</p>
+                    <p>{marker.technician?.name} {marker.technician?.surname}</p>
                   </div>
                   <div>
                     <span className="text-default-500">Data:</span>
@@ -1105,7 +1105,7 @@ export default function InterventionsMap() {
                           }}
                           className="rounded"
                         />
-                        <span className="text-sm">{technician.name}</span>
+                        <span className="text-sm">{technician.name} {technician.surname}</span>
                       </label>
                     ))}
                   </div>

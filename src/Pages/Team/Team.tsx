@@ -6,7 +6,6 @@ import {
   Button,
   Card,
   CardBody,
-  CardHeader,
   Chip,
   Dropdown,
   DropdownItem,
@@ -31,13 +30,7 @@ import {
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import axios from "axios";
-import React, {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-} from "react";
+import { createContext, useEffect, useMemo, useState } from "react";
 import PageHeader from "../../Components/Layout/PageHeader";
 import { useCustomTheme } from "../../providers/ThemeProvider";
 
@@ -97,6 +90,7 @@ export default function Team() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("Tutti");
   const [sortBy, setSortBy] = useState<string>("name");
+  const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [updateCounter, setUpdateCounter] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
@@ -135,6 +129,24 @@ export default function Team() {
 
   const triggerUpdate = () => {
     setUpdateCounter((prev) => prev + 1);
+  };
+
+  // Funzione per gestire l'ordinamento
+  const handleSort = (field: string) => {
+    if (sortBy === field) {
+      if (sortDirection === "asc") {
+        // Secondo click: cambia in decrescente
+        setSortDirection("desc");
+      } else {
+        // Terzo click: rimuovi l'ordinamento
+        setSortBy("");
+        setSortDirection("asc");
+      }
+    } else {
+      // Se clicchi su una nuova colonna, imposta come ascendente
+      setSortBy(field);
+      setSortDirection("asc");
+    }
   };
 
   // Handler functions for table actions
@@ -456,7 +468,6 @@ export default function Team() {
       axios
         .get("/Employee/GET/GetAllEmployees", { withCredentials: true })
         .then((response) => {
-          console.log(response.data);
           setCurrentEmployees(
             response.data.map((employee: any) => ({
               ...employee,
@@ -548,21 +559,37 @@ export default function Team() {
     });
 
     // Sort employees
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "name":
-          return (a.name || "").localeCompare(b.name || "");
-        case "role":
-          return (a.role || "").localeCompare(b.role || "");
-        case "id":
-          return a.user_id - b.user_id;
-        default:
-          return 0;
-      }
-    });
+    if (sortBy) {
+      filtered.sort((a, b) => {
+        let comparison = 0;
+
+        switch (sortBy) {
+          case "name":
+            comparison = (a.name || "").localeCompare(b.name || "");
+            break;
+          case "role":
+            comparison = (a.role || "").localeCompare(b.role || "");
+            break;
+          case "vehicle":
+            // Ordina per targa del veicolo assegnato
+            const aPlate = a.assigned_vehicle?.license_plate || "";
+            const bPlate = b.assigned_vehicle?.license_plate || "";
+            comparison = aPlate.localeCompare(bPlate);
+            break;
+          case "id":
+            comparison = a.user_id - b.user_id;
+            break;
+          default:
+            return 0;
+        }
+
+        // Applica la direzione dell'ordinamento
+        return sortDirection === "asc" ? comparison : -comparison;
+      });
+    }
 
     return filtered;
-  }, [currentEmployees, searchQuery, selectedRole, sortBy]);
+  }, [currentEmployees, searchQuery, selectedRole, sortBy, sortDirection]);
 
   if (isLoading) {
     return (
@@ -792,36 +819,6 @@ export default function Team() {
                     ))}
                   </DropdownMenu>
                 </Dropdown>
-
-                <Dropdown>
-                  <DropdownTrigger>
-                    <Button
-                      variant="flat"
-                      size="lg"
-                      startContent={<Icon icon="solar:sort-bold" width={18} />}
-                      endContent={
-                        <Icon icon="solar:arrow-down-linear" width={16} />
-                      }
-                      className="bg-default-100"
-                    >
-                      Ordina per{" "}
-                      {sortBy === "name"
-                        ? "Nome"
-                        : sortBy === "role"
-                        ? "Ruolo"
-                        : "ID"}
-                    </Button>
-                  </DropdownTrigger>
-                  <DropdownMenu
-                    aria-label="Ordinamento"
-                    selectedKeys={[sortBy]}
-                    onAction={(key) => setSortBy(key as string)}
-                  >
-                    <DropdownItem key="name">Nome</DropdownItem>
-                    <DropdownItem key="role">Ruolo</DropdownItem>
-                    <DropdownItem key="id">ID</DropdownItem>
-                  </DropdownMenu>
-                </Dropdown>
               </div>
             </div>
 
@@ -855,13 +852,79 @@ export default function Team() {
             >
               <TableHeader>
                 <TableColumn className="w-[25%] font-semibold">
-                  DIPENDENTE
+                  <div
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => handleSort("name")}
+                  >
+                    <span>DIPENDENTE</span>
+                    <Icon
+                      icon={
+                        sortBy === "name"
+                          ? sortDirection === "asc"
+                            ? "solar:alt-arrow-up-linear"
+                            : "solar:alt-arrow-down-linear"
+                          : "solar:alt-arrow-up-linear"
+                      }
+                      className={`text-xs ${
+                        sortBy === "name"
+                          ? "text-warning-600"
+                          : isDark
+                          ? "text-white"
+                          : "text-black"
+                      }`}
+                      width={12}
+                    />
+                  </div>
                 </TableColumn>
                 <TableColumn className="w-[20%] font-semibold">
-                  RUOLO
+                  <div
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => handleSort("role")}
+                  >
+                    <span>RUOLO</span>
+                    <Icon
+                      icon={
+                        sortBy === "role"
+                          ? sortDirection === "asc"
+                            ? "solar:alt-arrow-up-linear"
+                            : "solar:alt-arrow-down-linear"
+                          : "solar:alt-arrow-up-linear"
+                      }
+                      className={`text-xs ${
+                        sortBy === "role"
+                          ? "text-warning-600"
+                          : isDark
+                          ? "text-white"
+                          : "text-black"
+                      }`}
+                      width={12}
+                    />
+                  </div>
                 </TableColumn>
                 <TableColumn className="w-[25%] font-semibold">
-                  VEICOLO ASSEGNATO
+                  <div
+                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
+                    onClick={() => handleSort("vehicle")}
+                  >
+                    <span>VEICOLO ASSEGNATO</span>
+                    <Icon
+                      icon={
+                        sortBy === "vehicle"
+                          ? sortDirection === "asc"
+                            ? "solar:alt-arrow-up-linear"
+                            : "solar:alt-arrow-down-linear"
+                          : "solar:alt-arrow-up-linear"
+                      }
+                      className={`text-xs ${
+                        sortBy === "vehicle"
+                          ? "text-warning-600"
+                          : isDark
+                          ? "text-white"
+                          : "text-black"
+                      }`}
+                      width={12}
+                    />
+                  </div>
                 </TableColumn>
                 <TableColumn className="w-[15%] font-semibold">
                   STATO
@@ -884,11 +947,12 @@ export default function Team() {
                             src={employee.photo}
                             showFallback
                             name={
-                              employee.name
-                                ? employee.name
-                                    .split(" ")
-                                    .map((n: string) => n[0])
-                                    .join("")
+                              employee.name && employee.surname
+                                ? `${employee.name.charAt(
+                                    0
+                                  )}${employee.surname.charAt(0)}`
+                                : employee.name
+                                ? employee.name.charAt(0)
                                 : ""
                             }
                             className="h-10 w-10"
@@ -1023,10 +1087,7 @@ export default function Team() {
                                 }
                                 onPress={() => {
                                   // TODO: Implement actual deletion
-                                  console.log(
-                                    "Eliminazione tecnico:",
-                                    employee.name
-                                  );
+                                  // Eliminazione tecnico implementata in futuro
                                 }}
                               >
                                 <div className="flex flex-col items-start">
@@ -1178,18 +1239,21 @@ export default function Team() {
                         src={selectedEmployee.photo}
                         showFallback
                         name={
-                          selectedEmployee.name
-                            ? selectedEmployee.name
-                                .split(" ")
-                                .map((n: string) => n[0])
-                                .join("")
+                          selectedEmployee.name && selectedEmployee.surname
+                            ? `${selectedEmployee.name.charAt(
+                                0
+                              )}${selectedEmployee.surname.charAt(0)}`
+                            : selectedEmployee.name
+                            ? selectedEmployee.name.charAt(0)
                             : ""
                         }
                         className="h-32 w-32 mb-6 shadow-large"
                       />
                     </div>
                     <h3 className="text-2xl font-bold text-center">
-                      {selectedEmployee.name || "Nome non disponibile"}
+                      {selectedEmployee.name && selectedEmployee.surname
+                        ? `${selectedEmployee.name} ${selectedEmployee.surname}`
+                        : selectedEmployee.name || "Nome non disponibile"}
                     </h3>
                     <Chip
                       color={getRoleColor(selectedEmployee.role)}
@@ -1240,26 +1304,44 @@ export default function Team() {
                         />
                         Informazioni Personali
                       </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-4">
+                        {/* Prima riga: ID e Ruolo */}
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <Card className="bg-default-50 dark:bg-default-950">
+                            <CardBody className="py-4">
+                              <div className="space-y-2">
+                                <p className="text-sm text-default-500">
+                                  ID Dipendente
+                                </p>
+                                <p className="font-semibold text-lg">
+                                  #{selectedEmployee.user_id}
+                                </p>
+                              </div>
+                            </CardBody>
+                          </Card>
+                          <Card className="bg-default-50 dark:bg-default-950">
+                            <CardBody className="py-4">
+                              <div className="space-y-2">
+                                <p className="text-sm text-default-500">
+                                  Ruolo
+                                </p>
+                                <p className="font-semibold text-lg">
+                                  {selectedEmployee.role ||
+                                    "Ruolo non specificato"}
+                                </p>
+                              </div>
+                            </CardBody>
+                          </Card>
+                        </div>
+
+                        {/* Seconda riga: Email a tutta larghezza */}
                         <Card className="bg-default-50 dark:bg-default-950">
                           <CardBody className="py-4">
                             <div className="space-y-2">
-                              <p className="text-sm text-default-500">
-                                ID Dipendente
-                              </p>
-                              <p className="font-semibold text-lg">
-                                #{selectedEmployee.user_id}
-                              </p>
-                            </div>
-                          </CardBody>
-                        </Card>
-                        <Card className="bg-default-50 dark:bg-default-950">
-                          <CardBody className="py-4">
-                            <div className="space-y-2">
-                              <p className="text-sm text-default-500">Ruolo</p>
-                              <p className="font-semibold text-lg">
-                                {selectedEmployee.role ||
-                                  "Ruolo non specificato"}
+                              <p className="text-sm text-default-500">Email</p>
+                              <p className="font-semibold text-lg break-words">
+                                {selectedEmployee.email ||
+                                  "Email non disponibile"}
                               </p>
                             </div>
                           </CardBody>
@@ -1433,11 +1515,12 @@ export default function Team() {
                         src={selectedEmployee.photo}
                         showFallback
                         name={
-                          selectedEmployee.name
-                            ? selectedEmployee.name
-                                .split(" ")
-                                .map((n: string) => n[0])
-                                .join("")
+                          selectedEmployee.name && selectedEmployee.surname
+                            ? `${selectedEmployee.name.charAt(
+                                0
+                              )}${selectedEmployee.surname.charAt(0)}`
+                            : selectedEmployee.name
+                            ? selectedEmployee.name.charAt(0)
                             : ""
                         }
                         className="h-32 w-32 mb-6 shadow-large"
@@ -1607,10 +1690,6 @@ export default function Team() {
                               </DropdownItem>
                             ) : (
                               (() => {
-                                console.log(
-                                  "Rendering roles dropdown with roles:",
-                                  roles
-                                );
                                 return roles.map((role) => (
                                   <DropdownItem
                                     key={role.role_id?.toString() || ""}
