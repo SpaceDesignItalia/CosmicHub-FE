@@ -11,6 +11,8 @@ import {
   TableRow,
   TableCell,
   Chip,
+  Select,
+  SelectItem,
   Dropdown,
   DropdownTrigger,
   DropdownMenu,
@@ -81,7 +83,7 @@ export default function InterventionsList() {
   const [technicianFilter, setTechnicianFilter] = useState<string>("all");
   const [dateFrom, setDateFrom] = useState<string>("");
   const [dateTo, setDateTo] = useState<string>("");
-  const [rowsPerPage, setRowsPerPage] = useState(8);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
   const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
     column: "scheduled_date",
     direction: "ascending",
@@ -293,8 +295,8 @@ export default function InterventionsList() {
   };
 
   const getTechnicianName = (technicianId: string) => {
-    const technician = technicians.find(t => t.technician_id === technicianId);
-    return technician ? `${technician.name} ${technician.surname}` : "N/A";
+    const technician = technicians.find((t) => t.technician_id === technicianId);
+    return technician ? technician.name : "N/A";
   };
 
   const getStatusLabel = (status: string) => {
@@ -538,6 +540,25 @@ export default function InterventionsList() {
     URL.revokeObjectURL(url);
   }, [filteredItems, customers, technicians]);
 
+  const customerItems = useMemo(
+    () => [
+      { key: "all", label: "Tutti i clienti" },
+      ...customers.map((c) => ({
+        key: c.customer_id,
+        label: `${c.name} ${c.surname}`,
+      })),
+    ],
+    [customers]
+  );
+
+  const technicianItems = useMemo(
+    () => [
+      { key: "all", label: "Tutti i tecnici" },
+      ...technicians.map((t) => ({ key: t.technician_id, label: t.name })),
+    ],
+    [technicians]
+  );
+
   const topContent = useMemo(() => {
     return (
       <div className="flex flex-col gap-4 bg-content2 rounded-medium p-4">
@@ -626,39 +647,39 @@ export default function InterventionsList() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           <label className="flex items-center text-small text-default-500 gap-2">
             Cliente:
-            <select
-              className="bg-transparent outline-none text-default-700 text-small w-full border border-divider rounded-medium px-2 py-1"
-              value={customerFilter}
-              onChange={(e) => {
-                setCustomerFilter(e.target.value);
+            <Select
+              aria-label="Cliente"
+              size="sm"
+              variant="bordered"
+              selectedKeys={new Set([customerFilter])}
+              onSelectionChange={(keys) => {
+                const key = Array.from(keys as Selection)[0] as string;
+                setCustomerFilter(key || "all");
                 setPage(1);
               }}
+              className="w-full"
+              items={customerItems}
             >
-              <option value="all">Tutti i clienti</option>
-              {customers.map((c) => (
-                <option key={c.customer_id} value={c.customer_id}>
-                  {`${c.name} ${c.surname}`}
-                </option>
-              ))}
-            </select>
+              {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
+            </Select>
           </label>
           <label className="flex items-center text-small text-default-500 gap-2">
             Tecnico:
-            <select
-              className="bg-transparent outline-none text-default-700 text-small w-full border border-divider rounded-medium px-2 py-1"
-              value={technicianFilter}
-              onChange={(e) => {
-                setTechnicianFilter(e.target.value);
+            <Select
+              aria-label="Tecnico"
+              size="sm"
+              variant="bordered"
+              selectedKeys={new Set([technicianFilter])}
+              onSelectionChange={(keys) => {
+                const key = Array.from(keys as Selection)[0] as string;
+                setTechnicianFilter(key || "all");
                 setPage(1);
               }}
+              className="w-full"
+              items={technicianItems}
             >
-              <option value="all">Tutti i tecnici</option>
-              {technicians.map((t) => (
-                <option key={t.technician_id} value={t.technician_id}>
-                  {t.name}
-                </option>
-              ))}
-            </select>
+              {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
+            </Select>
           </label>
           <label className="flex items-center text-small text-default-500 gap-2">
             Dal:
@@ -689,17 +710,28 @@ export default function InterventionsList() {
           <span className="text-default-400 text-small">
             Mostrati {filteredItems.length} di {interventions.length} interventi
           </span>
-          <label className="flex items-center text-default-400 text-small">
-            Righe per pagina:
-            <select
-              className="bg-transparent outline-none text-default-400 text-small ml-2"
-              onChange={(e) => setRowsPerPage(Number(e.target.value))}
+          <div className="flex items-center text-default-400 text-small gap-2">
+            <span>Righe per pagina:</span>
+            <Select
+              aria-label="Righe per pagina"
+              size="sm"
+              variant="bordered"
+              selectedKeys={new Set([String(rowsPerPage)])}
+              onSelectionChange={(keys) => {
+                const key = Array.from(keys as Selection)[0] as string;
+                const value = parseInt(key, 10);
+                if (!Number.isNaN(value)) {
+                  setRowsPerPage(value);
+                  setPage(1);
+                }
+              }}
+              className="w-24"
             >
-              <option value="5">5</option>
-              <option value="10">10</option>
-              <option value="15">15</option>
-            </select>
-          </label>
+              <SelectItem key="5">5</SelectItem>
+              <SelectItem key="10">10</SelectItem>
+              <SelectItem key="15">15</SelectItem>
+            </Select>
+          </div>
         </div>
       </div>
     );
@@ -797,7 +829,7 @@ export default function InterventionsList() {
                   "py-3 px-4",
                 ],
                 td: ["py-3 px-4", "border-b border-divider"],
-                wrapper: "border border-divider rounded-lg flex-1 overflow-auto",
+                wrapper: "border border-divider rounded-lg flex-1 overflow-auto bg-content1 shadow-sm",
                 tr: "cursor-pointer hover:bg-default-50",
               }}
               selectedKeys={selectedKeys}
