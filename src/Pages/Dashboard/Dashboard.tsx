@@ -1633,9 +1633,17 @@ export default function Dashboard() {
             </CardHeader>
             <CardBody className="pt-0">
               <div className="grid grid-cols-7 gap-1 text-center">
-                {['D', 'L', 'M', 'M', 'G', 'V', 'S'].map(day => (
-                  <div key={day} className="text-xs font-semibold text-default-500 py-1">
-                    {day}
+                {[
+                  { key: 'D', label: 'D' },
+                  { key: 'L', label: 'L' },
+                  { key: 'M1', label: 'M' },
+                  { key: 'M2', label: 'M' },
+                  { key: 'G', label: 'G' },
+                  { key: 'V', label: 'V' },
+                  { key: 'S', label: 'S' },
+                ].map(({ key, label }) => (
+                  <div key={key} className="text-xs font-semibold text-default-500 py-1">
+                    {label}
                   </div>
                 ))}
                 {emptyDays.map(day => (
