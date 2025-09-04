@@ -258,7 +258,7 @@ export default function Categories() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border border-divider bg-content1/80">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
               <Icon icon="solar:folder-bold-duotone" className="text-primary text-xl" />
@@ -270,7 +270,7 @@ export default function Categories() {
           </CardBody>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border border-divider bg-content1/80">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
               <Icon icon="solar:settings-bold-duotone" className="text-success text-xl" />
@@ -282,7 +282,7 @@ export default function Categories() {
           </CardBody>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border border-divider bg-content1/80">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
               <Icon icon="solar:chart-bold-duotone" className="text-warning text-xl" />
@@ -294,7 +294,7 @@ export default function Categories() {
           </CardBody>
         </Card>
 
-        <Card className="shadow-sm">
+        <Card className="shadow-sm border border-divider bg-content1/80">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center">
               <Icon icon={getFieldTypeIcon(stats.mostUsedAttributeType)} className="text-secondary text-xl" />
@@ -403,7 +403,7 @@ export default function Categories() {
             filteredCategories.map((category) => (
               <Card 
                 key={category.category_id} 
-                className="shadow-sm hover:shadow-md transition-shadow cursor-pointer"
+                className="shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-divider hover:border-default-400"
                 isPressable
                 onPress={() => handleCategoryClick(category)}
               >
@@ -549,7 +549,7 @@ export default function Categories() {
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {selectedCategory.attributes.map((attr) => (
-                        <Card key={attr.attribute_id} className="shadow-sm">
+                        <Card key={attr.attribute_id} className="shadow-sm border border-divider">
                           <CardBody className="p-3">
                             <div className="flex items-center gap-3">
                               <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-${getFieldTypeColor(attr.type)}/10`}>
