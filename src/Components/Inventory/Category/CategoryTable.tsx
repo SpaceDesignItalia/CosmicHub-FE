@@ -82,16 +82,16 @@ const EmptyState = () => {
 
   return (
     <div className="flex flex-col items-center justify-center py-12 px-4">
-      <div className="p-4 rounded-full mb-4 bg-zinc-100">
+      <div className="p-4 rounded-full mb-4 bg-default-100 dark:bg-default-50">
         <Icon
           icon="solar:folder-with-files-bold-duotone"
-          className="w-12 h-12 text-zinc-500"
+          className="w-12 h-12 text-default-500 dark:text-default-400"
         />
       </div>
-      <h3 className="text-xl font-semibold mb-2 text-zinc-800">
+      <h3 className="text-xl font-semibold mb-2 text-default-800 dark:text-default-100">
         Nessuna categoria trovata
       </h3>
-      <p className="text-sm mb-6 text-center text-zinc-500">
+      <p className="text-sm mb-6 text-center text-default-500 dark:text-default-400">
         Non ci sono categorie che corrispondono ai criteri di ricerca.
         <br />
         Prova a modificare i filtri o aggiungi nuove categorie.
@@ -378,14 +378,15 @@ export default function CategoryTable({
         selectionBehavior="toggle"
         classNames={{
           th: [
-            "bg-default-100",
-            "text-default-800",
-            "border-b border-divider",
+            "bg-zinc-100 dark:bg-zinc-800",
+            "text-zinc-800 dark:text-zinc-200",
+            "border-b border-zinc-200 dark:border-zinc-700",
             "py-3 px-4",
           ],
-          td: ["py-3 px-4", "border-b border-divider"],
-          wrapper: "border border-divider rounded-lg",
-          tr: "cursor-pointer hover:bg-default-50",
+          td: ["py-3 px-4", "border-b border-zinc-200 dark:border-zinc-700"],
+          wrapper:
+            "border border-zinc-200 dark:border-zinc-700 rounded-lg bg-white dark:bg-zinc-900",
+          tr: "cursor-pointer hover:bg-zinc-50 dark:hover:bg-zinc-800",
         }}
       >
         <TableHeader columns={columns}>
@@ -425,10 +426,10 @@ export default function CategoryTable({
         backdrop="blur"
         radius="lg"
         classNames={{
-          base: "border border-zinc-200",
-          header: "",
-          body: "",
-          footer: "",
+          base: "border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900",
+          header: "bg-zinc-50 dark:bg-zinc-800",
+          body: "bg-white dark:bg-zinc-900",
+          footer: "bg-zinc-50 dark:bg-zinc-800",
         }}
       >
         <ModalContent>
@@ -436,32 +437,38 @@ export default function CategoryTable({
             <>
               <ModalHeader className="flex flex-col gap-1">
                 <h3 className="text-xl font-semibold">Dettagli Categoria</h3>
-                <p className="text-sm text-default-500">
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
                   Informazioni su {selectedCategory.category_name}
                 </p>
               </ModalHeader>
               <ModalBody>
                 <div className="grid grid-cols-2 gap-x-6 gap-y-4">
                   <div>
-                    <p className="text-small text-zinc-500">ID Categoria</p>
+                    <p className="text-small text-default-500 dark:text-default-400">
+                      ID Categoria
+                    </p>
                     <p className="font-medium">
                       {selectedCategory.category_id}
                     </p>
                   </div>
                   <div>
-                    <p className="text-small text-zinc-500">Nome</p>
+                    <p className="text-small text-default-500 dark:text-default-400">
+                      Nome
+                    </p>
                     <p className="font-medium">
                       {selectedCategory.category_name}
                     </p>
                   </div>
                   <div className="col-span-2">
-                    <p className="text-small text-zinc-500 mb-2">Attributi</p>
+                    <p className="text-small text-default-500 dark:text-default-400 mb-2">
+                      Attributi
+                    </p>
                     <div className="grid grid-cols-2 gap-4">
                       {selectedCategory.attributes.map(
                         (attr): JSX.Element => (
                           <div
                             key={attr.attribute_id}
-                            className="p-3 bg-default-50 rounded-lg"
+                            className="p-3 bg-zinc-50 dark:bg-zinc-800 rounded-lg"
                           >
                             <div className="flex items-center gap-2 mb-1">
                               <Icon
@@ -470,7 +477,7 @@ export default function CategoryTable({
                               />
                               <span className="font-medium">{attr.name}</span>
                             </div>
-                            <span className="text-sm text-default-500">
+                            <span className="text-sm text-zinc-600 dark:text-zinc-400">
                               {attr.type}
                             </span>
                           </div>

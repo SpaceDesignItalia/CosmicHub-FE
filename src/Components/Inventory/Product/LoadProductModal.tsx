@@ -215,7 +215,7 @@ export default function LoadProductModal({
       console.log(selectedProduct);
       // Chiamata API per caricare su furgone
       await axios.post("/Movement/POST/CreateLoadToVehicleMovement", {
-        product_id: selectedProduct.product_id,
+        product_id: selectedProduct.product_id || selectedProduct.id,
         from_warehouse_id: selectedProduct.warehouse_id,
         to_vehicle_id: parseInt(targetVehicle),
         amount: loadQuantity,

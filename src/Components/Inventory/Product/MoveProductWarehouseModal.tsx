@@ -197,7 +197,7 @@ export default function MoveProductWarehouseModal({
 
       // API call for transfer using numeric IDs
       const transferData = {
-        product_id: selectedProduct.product_id,
+        product_id: selectedProduct.product_id || selectedProduct.id,
         amount: amount,
         from_warehouse_id: sourceWarehouseData.WarehouseID,
         to_warehouse_id: targetWarehouseData.WarehouseID,
@@ -219,7 +219,10 @@ export default function MoveProductWarehouseModal({
         // Update product quantity in source warehouse
         const newQuantity = selectedProduct.quantity - amount;
         if (onUpdateQuantity) {
-          onUpdateQuantity(selectedProduct.product_id, newQuantity);
+          onUpdateQuantity(
+            selectedProduct.product_id || selectedProduct.id,
+            newQuantity
+          );
         }
 
         // Show success message

@@ -730,7 +730,9 @@ export default function ProductTable({
         const response = await axios.put(
           `/Product/UPDATE/UpdateProductQuantity/`,
           {
-            product_id: stockModalState.selectedProduct.product_id,
+            product_id:
+              stockModalState.selectedProduct.product_id ||
+              stockModalState.selectedProduct.id,
             stock_unit: newQuantity.toString(),
           }
         );

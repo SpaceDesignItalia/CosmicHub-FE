@@ -169,7 +169,7 @@ export default function InlineQuantityEditor({
       // Prima aggiorna la quantità
       try {
         await axios.put(`/Product/UPDATE/UpdateProductQuantity/`, {
-          product_id: product.product_id,
+          product_id: product.product_id || product.id,
           stock_unit: newQuantity.toString(),
         });
 
@@ -180,7 +180,7 @@ export default function InlineQuantityEditor({
             : "/Movement/POST/CreateUnloadMovement";
 
         const movementData = {
-          product_id: product.product_id,
+          product_id: product.product_id || product.id,
           quantity: amount,
           reason: `${type === "increase" ? "Carico" : "Scarico"} manuale`,
           warehouse_id: product.warehouse_id,
@@ -249,7 +249,7 @@ export default function InlineQuantityEditor({
       }
 
       const transferData = {
-        product_id: product.product_id,
+        product_id: product.product_id || product.id,
         amount: amount,
         from_warehouse_id: product.warehouse_id,
         to_warehouse_id: targetWarehouseId,
@@ -266,7 +266,7 @@ export default function InlineQuantityEditor({
       if (response.status === 201) {
         // Aggiorna la quantità del prodotto nel magazzino di origine
         const newQuantity = currentQuantity - amount;
-        onUpdate(product.product_id, newQuantity);
+        onUpdate(product.product_id || product.id, newQuantity);
         setShowSuccess(true);
         setTimeout(() => setShowSuccess(false), 2000);
         handleOpenChange(false);
@@ -316,12 +316,12 @@ export default function InlineQuantityEditor({
       try {
         await axios
           .put(`/Product/UPDATE/UpdateProductQuantity/`, {
-            product_id: product.product_id,
+            product_id: product.product_id || product.id,
             stock_unit: newQuantity.toString(),
           })
           .then((res) => {
             if (res.status === 200) {
-              onUpdate(product.product_id, newQuantity);
+              onUpdate(product.product_id || product.id, newQuantity);
               handleOpenChange(false);
               setShowSuccess(true);
               setTimeout(() => setShowSuccess(false), 2000);
