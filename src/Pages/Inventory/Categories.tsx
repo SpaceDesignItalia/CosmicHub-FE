@@ -368,7 +368,6 @@ export default function Categories() {
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card className="shadow-sm border border-divider bg-content1/80">
-        <Card className="shadow-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
               <Icon
@@ -388,7 +387,6 @@ export default function Categories() {
         </Card>
 
         <Card className="shadow-sm border border-divider bg-content1/80">
-        <Card className="shadow-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-success/10 flex items-center justify-center">
               <Icon
@@ -408,7 +406,6 @@ export default function Categories() {
         </Card>
 
         <Card className="shadow-sm border border-divider bg-content1/80">
-        <Card className="shadow-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-warning/10 flex items-center justify-center">
               <Icon
@@ -428,7 +425,6 @@ export default function Categories() {
         </Card>
 
         <Card className="shadow-sm border border-divider bg-content1/80">
-        <Card className="shadow-md border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
           <CardBody className="flex flex-row items-center gap-4">
             <div className="w-12 h-12 rounded-xl bg-secondary/10 flex items-center justify-center">
               <Icon
@@ -561,9 +557,6 @@ export default function Categories() {
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {filteredCategories.length > 0 ? (
             filteredCategories.map((category) => (
-              <Card 
-                key={category.category_id} 
-                className="shadow-sm hover:shadow-md transition-shadow cursor-pointer border border-divider hover:border-default-400"
               <Card
                 key={category.category_id}
                 className="shadow-md hover:shadow-lg border border-zinc-200 dark:border-zinc-800 transition-all duration-200 cursor-pointer bg-white dark:bg-zinc-900"
@@ -763,7 +756,10 @@ export default function Categories() {
                     </h4>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       {selectedCategory.attributes.map((attr) => (
-                        <Card key={attr.attribute_id} className="shadow-sm border border-divider">
+                        <Card
+                          key={attr.attribute_id}
+                          className="shadow-sm border border-divider"
+                        >
                           <CardBody className="p-3">
                             <div className="flex items-center gap-3">
                               <div
