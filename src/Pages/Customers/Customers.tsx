@@ -332,16 +332,6 @@ export default function Customers() {
                         </div>
                       </div>
 
-                      {/* Badge status */}
-                      <div className="flex gap-2">
-                        <Chip
-                          size="sm"
-                          color={statusColorMap[customer.status]}
-                          variant="flat"
-                        >
-                          {customer.status === "active" ? "Attivo" : "Inattivo"}
-                        </Chip>
-                      </div>
                     </div>
                   </CardBody>
                 </Card>

@@ -8,9 +8,10 @@ import type { Technician } from "../../types/Technician";
 import PageHeader from "../../Components/Layout/PageHeader";
 import axios from "axios";
 import { GoogleMap, useJsApiLoader, Marker, InfoWindow, HeatmapLayer, MarkerClustererF } from "@react-google-maps/api";
+import { GOOGLE_MAPS_LIBRARIES } from "../../utils/googleMaps";
 
-// Librerie Google Maps statiche per evitare reload (warning LoadScript)
-const MAP_LIBRARIES: ("visualization")[] = ["visualization"];
+// Librerie Google Maps condivise per evitare differenze di Loader
+const MAP_LIBRARIES = GOOGLE_MAPS_LIBRARIES;
 
 // Mock delle coordinate per Milano e zone limitrofe
 const mockCoordinates = [

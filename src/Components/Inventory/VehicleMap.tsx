@@ -29,6 +29,7 @@ import {
   Marker,
   InfoWindow,
 } from "@react-google-maps/api";
+import { GOOGLE_MAPS_LIBRARIES } from "../../utils/googleMaps";
 import type { Employee } from "../../types/Employee";
 
 interface VehicleInventory {
@@ -92,7 +93,7 @@ const mapStyles = [
   },
 ];
 
-const libraries: ("places" | "geometry" | "drawing" | "visualization")[] = [];
+const libraries = GOOGLE_MAPS_LIBRARIES;
 
 // Coordinate del deposito
 const DEPOSITO_COORDINATES = {
@@ -708,7 +709,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
   useEffect(() => {
     const fetchUsers = async () => {
       const response = await axios.get(
-        "/Employee/GET/GetEmplyeesWithoutVehicle"
+        "/Employee/GET/GetEmployeesWithoutVehicle"
       );
       setUserWithoutVehicle(response.data);
     };
@@ -888,6 +889,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                       {/* Controlli mappa */}
                       <div className="absolute bottom-6 right-6 flex flex-col gap-3 z-10">
                         <Button
+                          aria-label="Zoom in mappa"
                           isIconOnly
                           className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200"
                           size="md"
@@ -896,6 +898,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                           <Icon icon="solar:add-bold" width={20} />
                         </Button>
                         <Button
+                          aria-label="Zoom out mappa"
                           isIconOnly
                           className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200"
                           size="md"
@@ -909,6 +912,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                       {currentCoordinates && (
                         <div className="absolute bottom-6 left-6 z-10">
                           <Button
+                            aria-label="Apri navigazione su Google Maps"
                             className="bg-white text-foreground shadow-md hover:bg-primary hover:text-white border border-default-200 flex items-center gap-2 px-4"
                             onClick={handleOpenNavigation}
                             size="md"
@@ -1534,6 +1538,7 @@ const VehicleMap: React.FC<VehicleMapProps> = ({
                           {/* Pulsante Elimina */}
                           <div className="flex items-center">
                             <Button
+                              aria-label="Rimuovi prodotto dal carico"
                               isIconOnly
                               size="sm"
                               variant="flat"

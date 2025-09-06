@@ -37,6 +37,7 @@ import {
   Marker,
   InfoWindow,
 } from "@react-google-maps/api";
+import { GOOGLE_MAPS_LIBRARIES } from "../../utils/googleMaps";
 
 // Stili personalizzati per la mappa
 const mapStyles = [
@@ -87,7 +88,7 @@ const mapStyles = [
   },
 ];
 
-const libraries: ("places" | "geometry" | "drawing" | "visualization")[] = [];
+const libraries = GOOGLE_MAPS_LIBRARIES;
 
 // Definizione dell'interfaccia Warehouse basata sui dati forniti
 interface Warehouse {
