@@ -89,6 +89,7 @@ export default function Team() {
   const [currentEmployees, setCurrentEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("Tutti");
+  const [selectedSort, setSelectedSort] = useState<string>("Nome");
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [updateCounter, setUpdateCounter] = useState(0);
@@ -141,11 +142,30 @@ export default function Team() {
         // Terzo click: rimuovi l'ordinamento
         setSortBy("");
         setSortDirection("asc");
+        setSelectedSort("Nome");
       }
     } else {
       // Se clicchi su una nuova colonna, imposta come ascendente
       setSortBy(field);
       setSortDirection("asc");
+      
+      // Aggiorna selectedSort per riflettere la selezione
+      switch (field) {
+        case "name":
+          setSelectedSort("Nome");
+          break;
+        case "role":
+          setSelectedSort("Ruolo");
+          break;
+        case "experience":
+          setSelectedSort("Esperienza");
+          break;
+        case "satisfaction":
+          setSelectedSort("Soddisfazione");
+          break;
+        default:
+          setSelectedSort("Nome");
+      }
     }
   };
 
@@ -611,7 +631,7 @@ export default function Team() {
 
   return (
     <UpdateContext.Provider value={{ triggerUpdate }}>
-      <div className="h-screen flex flex-col bg-background p-6 gap-6">
+      <div className="h-screen flex flex-col bg-background p-6 gap-4 overflow-hidden">
         {/* Enhanced Header */}
         <PageHeader
           title="Team Tecnico"
@@ -634,147 +654,88 @@ export default function Team() {
           ]}
         />
 
-        {/* Statistics Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          <Card className="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-930 dark:to-primary-930 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-primary-600 dark:text-primary-400 font-medium">
-                    Totale Tecnici
-                  </p>
-                  <p className="text-2xl font-bold text-primary-700 dark:text-primary-300">
-                    {statistics.total}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-primary-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:users-group-rounded-bold"
-                    className="text-primary-600"
-                    width={24}
-                  />
-                </div>
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="shadow-sm border border-divider bg-content1/80">
+            <CardBody className="flex flex-row items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Icon
+                  icon="solar:users-group-rounded-bold-duotone"
+                  className="text-primary text-xl"
+                />
+              </div>
+              <div>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Totale Tecnici
+                </p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                  {statistics.total}
+                </p>
               </div>
             </CardBody>
           </Card>
 
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                    Senior
-                  </p>
-                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                    {statistics.senior}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:medal-star-bold"
-                    className="text-blue-600"
-                    width={24}
-                  />
-                </div>
+          <Card className="shadow-sm border border-divider bg-content1/80">
+            <CardBody className="flex flex-row items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <Icon
+                  icon="solar:medal-star-bold-duotone"
+                  className="text-blue-600 dark:text-blue-400 text-xl"
+                />
+              </div>
+              <div>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Senior
+                </p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                  {statistics.senior}
+                </p>
               </div>
             </CardBody>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">
-                    Specializzati
-                  </p>
-                  <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-                    {statistics.specialized}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:star-bold"
-                    className="text-purple-600"
-                    width={24}
-                  />
-                </div>
+          <Card className="shadow-sm border border-divider bg-content1/80">
+            <CardBody className="flex flex-row items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                <Icon
+                  icon="solar:star-bold-duotone"
+                  className="text-purple-600 dark:text-purple-400 text-xl"
+                />
+              </div>
+              <div>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Specializzati
+                </p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                  {statistics.specialized}
+                </p>
               </div>
             </CardBody>
           </Card>
 
-          <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
-                    Junior
-                  </p>
-                  <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
-                    {statistics.junior}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:user-bold"
-                    className="text-amber-600"
-                    width={24}
-                  />
-                </div>
+          <Card className="shadow-sm border border-divider bg-content1/80">
+            <CardBody className="flex flex-row items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <Icon
+                  icon="solar:user-bold-duotone"
+                  className="text-amber-600 dark:text-amber-400 text-xl"
+                />
+              </div>
+              <div>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Junior
+                </p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                  {statistics.junior}
+                </p>
               </div>
             </CardBody>
           </Card>
 
-          <Card className="bg-gradient-to-br from-success-50 to-success-100 dark:from-success-950 dark:to-success-930 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-success-600 dark:text-success-400 font-medium">
-                    Soddisfazione
-                  </p>
-                  <p className="text-2xl font-bold text-success-700 dark:text-success-300">
-                    {statistics.satisfaction}%
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-success-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:heart-bold"
-                    className="text-success-600"
-                    width={24}
-                  />
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-950 dark:to-secondary-930 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-secondary-600 dark:text-secondary-500 font-medium">
-                    Esperienza Media
-                  </p>
-                  <p className="text-xl font-bold text-secondary-700 dark:text-secondary-400">
-                    {statistics.avgExperience}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-secondary-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:clock-circle-bold"
-                    className="text-secondary-600"
-                    width={24}
-                  />
-                </div>
-              </div>
-            </CardBody>
-          </Card>
         </div>
 
-        {/* Enhanced Filters and Controls */}
-        <Card className="border-0 bg-content1/50 backdrop-blur-md">
-          <CardBody className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-              {/* Search and Filters */}
-              <div className="flex flex-col sm:flex-row gap-6 mb-6">
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 flex-shrink-0">
                 <Input
                   aria-label="Cerca tecnici per nome o ruolo"
                   placeholder="Cerca per nome o ruolo..."
@@ -819,33 +780,78 @@ export default function Team() {
                     ))}
                   </DropdownMenu>
                 </Dropdown>
-              </div>
-            </div>
 
-            {/* Results counter */}
-            <div className="mt-4 pt-4 border-t border-divider">
-              <p className="text-sm text-default-500">
-                Mostrando{" "}
-                <span className="font-semibold text-foreground">
-                  {filteredAndSortedEmployees.length}
-                </span>{" "}
-                di{" "}
-                <span className="font-semibold text-foreground">
-                  {currentEmployees.length}
-                </span>{" "}
-                tecnici
-              </p>
-            </div>
-          </CardBody>
-        </Card>
+                <Dropdown>
+                  <DropdownTrigger>
+                    <Button
+                      variant="flat"
+                      size="lg"
+                      startContent={
+                        <Icon icon="solar:sort-by-time-bold" width={18} />
+                      }
+                      endContent={
+                        <Icon icon="solar:arrow-down-linear" width={16} />
+                      }
+                      className="bg-default-100"
+                    >
+                      {selectedSort}
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu
+                    aria-label="Ordinamento"
+                    selectedKeys={[selectedSort]}
+                    onAction={(key) => {
+                      setSelectedSort(key as string);
+                      // Aggiorna anche sortBy per sincronizzare
+                      switch (key) {
+                        case "Nome":
+                          setSortBy("name");
+                          break;
+                        case "Ruolo":
+                          setSortBy("role");
+                          break;
+                        case "Esperienza":
+                          setSortBy("experience");
+                          break;
+                        case "Soddisfazione":
+                          setSortBy("satisfaction");
+                          break;
+                        default:
+                          setSortBy("name");
+                      }
+                      setSortDirection("asc");
+                    }}
+                  >
+                    <DropdownItem key="Nome">Nome</DropdownItem>
+                    <DropdownItem key="Ruolo">Ruolo</DropdownItem>
+                    <DropdownItem key="Esperienza">Esperienza</DropdownItem>
+                    <DropdownItem key="Soddisfazione">Soddisfazione</DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
+        </div>
+
+        {/* Results counter */}
+        <div className="flex justify-between items-center flex-shrink-0">
+          <p className="text-sm text-default-500">
+            Mostrando{" "}
+            <span className="font-semibold text-foreground">
+              {filteredAndSortedEmployees.length}
+            </span>{" "}
+            di{" "}
+            <span className="font-semibold text-foreground">
+              {currentEmployees.length}
+            </span>{" "}
+            tecnici
+          </p>
+        </div>
 
         {/* Employee Table */}
-        <Card className="border-0 bg-content1/50 backdrop-blur-md">
-          <CardBody className="p-0">
+        <Card className="border-0 bg-content1/50 backdrop-blur-md flex-1 flex flex-col">
+          <CardBody className="p-0 flex-1 flex flex-col">
             <Table
               aria-label="Tabella tecnici"
               classNames={{
-                wrapper: "min-h-[400px]",
+                wrapper: "flex-1 min-h-0",
                 th: "bg-transparent border-b border-divider",
                 td: "border-b border-divider",
               }}
@@ -1107,41 +1113,28 @@ export default function Team() {
             </Table>
 
             {/* Pagination */}
-            <div className="flex flex-col items-center gap-4 px-6 py-4 border-t border-divider">
-              {/* Info e controlli righe per pagina */}
-              <div className="flex items-center justify-between w-full max-w-md">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-default-500">
-                    Righe per pagina:
-                  </span>
-                  <Select
-                    size="sm"
-                    selectedKeys={[rowsPerPage.toString()]}
-                    onSelectionChange={(keys) => {
-                      const newRowsPerPage = Number(Array.from(keys)[0]);
-                      setRowsPerPage(newRowsPerPage);
-                      setPage(1);
-                    }}
-                    className="w-20"
-                  >
-                    <SelectItem key="5">5</SelectItem>
-                    <SelectItem key="10">10</SelectItem>
-                    <SelectItem key="20">20</SelectItem>
-                    <SelectItem key="50">50</SelectItem>
-                  </Select>
-                </div>
-
-                <div className="text-sm text-default-500">
-                  Mostrando {(page - 1) * rowsPerPage + 1} -{" "}
-                  {Math.min(
-                    page * rowsPerPage,
-                    filteredAndSortedEmployees.length
-                  )}{" "}
-                  di {filteredAndSortedEmployees.length} tecnici
-                </div>
+            <div className="flex items-center justify-between px-6 py-3 border-t border-divider bg-content1/30 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-default-500">
+                  Righe per pagina:
+                </span>
+                <Select
+                  size="sm"
+                  selectedKeys={[rowsPerPage.toString()]}
+                  onSelectionChange={(keys) => {
+                    const newRowsPerPage = Number(Array.from(keys)[0]);
+                    setRowsPerPage(newRowsPerPage);
+                    setPage(1);
+                  }}
+                  className="w-20"
+                >
+                  <SelectItem key="5">5</SelectItem>
+                  <SelectItem key="10">10</SelectItem>
+                  <SelectItem key="20">20</SelectItem>
+                  <SelectItem key="50">50</SelectItem>
+                </Select>
               </div>
 
-              {/* Paginazione centrata */}
               <Pagination
                 total={Math.ceil(
                   filteredAndSortedEmployees.length / rowsPerPage
@@ -1160,6 +1153,15 @@ export default function Team() {
                   next: "rounded-full",
                 }}
               />
+
+              <div className="text-sm text-default-500">
+                {(page - 1) * rowsPerPage + 1} -{" "}
+                {Math.min(
+                  page * rowsPerPage,
+                  filteredAndSortedEmployees.length
+                )}{" "}
+                di {filteredAndSortedEmployees.length}
+              </div>
             </div>
           </CardBody>
         </Card>
