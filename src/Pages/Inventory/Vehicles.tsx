@@ -18,6 +18,7 @@ import {
   Button,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import PageHeader from "../../Components/Layout/PageHeader";
 
 // Coordinate del deposito
 const WAREHOUSE_COORDINATES = {
@@ -432,8 +433,23 @@ export default function Vehicles() {
 
   return (
     <VehicleThemeProvider>
-      <div className="w-full flex-1 flex flex-col p-5 bg-zinc-50 dark:bg-zinc-950">
-        {/* Banner informativo per dati di prova */}
+      <div className="h-screen flex flex-col bg-background p-6 gap-6">
+        {/* Page Header */}
+        <PageHeader
+          title="Gestione Veicoli"
+          description="Monitora e gestisci la flotta di veicoli aziendali"
+          icon="mingcute:truck-line"
+          size="md"
+          actions={[
+            {
+              label: "Nuovo Veicolo",
+              icon: "solar:add-circle-bold",
+              color: "primary",
+              variant: "solid",
+              onClick: () => navigate("/inventory/vehicles/add"),
+            },
+          ]}
+        />
 
         {isLoading ? (
           <div className="flex items-center justify-center h-64">

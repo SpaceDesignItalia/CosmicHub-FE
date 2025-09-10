@@ -156,11 +156,11 @@ export default function WarehouseMovement() {
 
 
   return (
-    <div className="min-h-screen h-full w-full flex-1 flex flex-col p-6 gap-6">
+    <div className="h-screen flex flex-col bg-background p-6 gap-6">
       <PageHeader
         title="Movimenti Magazzino"
         description="Gestione dei movimenti di carico, scarico e trasferimenti"
-        icon="solar:arrows-right-left-bold"
+        icon="solar:calendar-bold-duotone"
         size="md"
       />
 

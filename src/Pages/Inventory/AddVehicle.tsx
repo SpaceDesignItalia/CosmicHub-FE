@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "@iconify/react";
+import PageHeader from "../../Components/Layout/PageHeader";
 import axios from "axios";
 import type { Key } from "react";
 import {
@@ -176,26 +177,22 @@ export default function AddVehicle() {
 
   return (
     <div className="w-full flex-1 flex flex-col p-5 gap-5 bg-zinc-50 dark:bg-zinc-950">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-zinc-900 p-4 rounded-xl shadow-sm border border-zinc-100 dark:border-zinc-800">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-blue-50 dark:bg-blue-950 flex items-center justify-center">
-            <Icon
-              icon="mdi:truck-plus"
-              className="text-2xl text-blue-700 dark:text-blue-300"
-              width={28}
-            />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-zinc-900 dark:text-zinc-50">
-              Aggiungi Veicolo
-            </h1>
-            <p className="text-sm text-zinc-600 dark:text-zinc-300">
-              Inserisci i dettagli del nuovo veicolo
-            </p>
-          </div>
-        </div>
-      </div>
+      {/* Page Header */}
+      <PageHeader
+        title="Aggiungi Nuovo Veicolo"
+        description="Inserisci i dettagli del nuovo veicolo"
+        icon="solar:car-plus-bold-duotone"
+        size="md"
+        actions={[
+          {
+            label: "Torna alla Lista",
+            icon: "solar:arrow-left-bold",
+            color: "default",
+            variant: "flat",
+            onClick: () => navigate("/inventory/vehicles"),
+          },
+        ]}
+      />
 
       {/* Form Card */}
       <Card className="shadow-sm rounded-xl overflow-hidden border-2 border-default-200">

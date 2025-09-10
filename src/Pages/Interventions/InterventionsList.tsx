@@ -806,14 +806,15 @@ export default function InterventionsList() {
   };
 
   return (
-    <div className="min-h-screen h-full w-full flex-1 flex flex-col">
+    <div className="h-screen flex flex-col bg-background p-6 gap-6">
       <PageHeader
         title="Lista Interventi"
         description="Gestisci tutti gli interventi programmati e in corso"
         icon="solar:clipboard-list-bold-duotone"
+        size="md"
       />
       
-      <div className="flex-1 p-6 overflow-hidden">
+      <div className="flex-1 overflow-hidden">
         <Card className="h-full flex-1 flex flex-col">
           <CardBody className="px-0 flex-1 flex flex-col">
             <Table

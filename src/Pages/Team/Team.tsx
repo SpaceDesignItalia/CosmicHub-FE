@@ -611,13 +611,13 @@ export default function Team() {
 
   return (
     <UpdateContext.Provider value={{ triggerUpdate }}>
-      <div className="w-full flex-1 flex flex-col p-6 gap-8">
+      <div className="h-screen flex flex-col bg-background p-6 gap-6">
         {/* Enhanced Header */}
         <PageHeader
           title="Team Tecnico"
           description="Gestisci e monitora il tuo team di tecnici"
           icon="solar:users-group-rounded-bold"
-          size="lg"
+          size="md"
           actions={[
             {
               label: "Aggiungi Tecnico",

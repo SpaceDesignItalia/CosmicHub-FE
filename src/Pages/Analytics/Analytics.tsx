@@ -141,7 +141,7 @@ export default function Dashboard() {
   }, []);
 
   return (
-    <div className="min-h-screen h-full w-full flex-1 flex flex-col p-3 md:p-6 gap-6">
+    <div className="h-screen flex flex-col bg-background p-6 gap-6">
       <PageHeader
         title="Dashboard Magazzino"
         description="Panoramica delle performance e delle disponibilità"

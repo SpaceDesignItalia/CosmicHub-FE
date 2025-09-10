@@ -26,6 +26,7 @@ import axios from "axios";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import CategoryTable from "../../Components/Inventory/Category/CategoryTable";
+import PageHeader from "../../Components/Layout/PageHeader";
 
 interface Attribute {
   attribute_id: number;
@@ -324,46 +325,37 @@ export default function Categories() {
   }
 
   return (
-    <div className="w-full flex-1 p-4 sm:p-6 lg:p-8 bg-zinc-50 dark:bg-zinc-950 min-h-screen">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Icon
-              icon="solar:folder-with-files-bold-duotone"
-              className="text-primary text-2xl"
-            />
-          </div>
-          <div>
-            <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
-              Gestione Categorie
-            </h1>
-            <p className="text-sm text-foreground-500 mt-1">
-              Organizza e gestisci le categorie dei tuoi prodotti
-            </p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <Chip
-            startContent={<Icon icon="solar:folder-bold" width={16} />}
-            color="primary"
-            variant="flat"
-            size="sm"
-          >
-            {stats.totalCategories} Categorie
-          </Chip>
-          <Button
-            color="primary"
-            startContent={
-              <Icon icon="solar:add-circle-bold-duotone" width={20} />
-            }
-            onPress={() => navigate("/inventory/categories/add")}
-          >
-            Nuova Categoria
-          </Button>
-        </div>
-      </div>
+    <div className="h-screen flex flex-col bg-background p-6 gap-6">
+      {/* Page Header */}
+      <PageHeader
+        title="Gestione Categorie"
+        description="Organizza e gestisci le categorie dei tuoi prodotti"
+        icon="solar:folder-with-files-bold-duotone"
+        size="md"
+        indicators={[
+          {
+            label: "Categorie",
+            value: `${stats.totalCategories}`,
+            icon: "solar:folder-bold",
+            color: "primary",
+          },
+          {
+            label: "Attributi",
+            value: `${stats.totalAttributes}`,
+            icon: "solar:settings-bold",
+            color: "secondary",
+          },
+        ]}
+        actions={[
+          {
+            label: "Nuova Categoria",
+            icon: "solar:add-circle-bold-duotone",
+            color: "primary",
+            variant: "solid",
+            onClick: () => navigate("/inventory/categories/add"),
+          },
+        ]}
+      />
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
