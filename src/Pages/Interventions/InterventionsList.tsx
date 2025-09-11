@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Button,
   Card,
@@ -52,17 +52,6 @@ const priorityColorMap = {
   emergency: "danger",
 } as const;
 
-const columns = [
-  { name: "CODICE", uid: "intervention_code", sortable: true },
-  { name: "TITOLO", uid: "title", sortable: true },
-  { name: "CLIENTE", uid: "customer_name", sortable: true },
-  { name: "TECNICO", uid: "technician_name", sortable: true },
-  { name: "DATA", uid: "scheduled_date", sortable: true },
-  { name: "ORARIO", uid: "scheduled_time" },
-  { name: "STATO", uid: "status", sortable: true },
-  { name: "PRIORITÀ", uid: "priority", sortable: true },
-  { name: "AZIONI", uid: "actions" },
-];
 
 export default function InterventionsList() {
   const navigate = useNavigate();
@@ -73,16 +62,15 @@ export default function InterventionsList() {
   const [loading, setLoading] = useState(true);
   const [filterValue, setFilterValue] = useState("");
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedKeys, setSelectedKeys] = useState<Selection>(new Set([]));
   const [statusFilter, setStatusFilter] = useState<Selection>("all");
   const [priorityFilter, setPriorityFilter] = useState<Selection>("all");
   const [typeFilter] = useState<Selection>("all");
-  const [customerFilter, setCustomerFilter] = useState<string>("all");
-  const [technicianFilter, setTechnicianFilter] = useState<string>("all");
-  const [dateFrom, setDateFrom] = useState<string>("");
-  const [dateTo, setDateTo] = useState<string>("");
+  const [customerFilter] = useState<string>("all");
+  const [technicianFilter] = useState<string>("all");
+  const [dateFrom] = useState<string>("");
+  const [dateTo] = useState<string>("");
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [sortDescriptor, setSortDescriptor] = useState<SortDescriptor>({
+  const [sortDescriptor] = useState<SortDescriptor>({
     column: "scheduled_date",
     direction: "ascending",
   });
@@ -192,6 +180,23 @@ export default function InterventionsList() {
     return () => clearTimeout(handler);
   }, [searchTerm]);
 
+  // Calculate statistics
+  const statistics = useMemo(() => {
+    const total = interventions.length;
+    const assigned = interventions.filter(i => i.status === "assigned").length;
+    const inProgress = interventions.filter(i => i.status === "in_progress").length;
+    const completed = interventions.filter(i => i.status === "completed").length;
+    const highPriority = interventions.filter(i => i.priority === "high" || i.priority === "emergency").length;
+
+    return {
+      total,
+      assigned,
+      inProgress,
+      completed,
+      highPriority,
+    };
+  }, [interventions]);
+
   const filteredItems = useMemo(() => {
     let filteredInterventions = [...interventions];
 
@@ -264,7 +269,6 @@ export default function InterventionsList() {
     dateTo,
   ]);
 
-  const pages = Math.ceil(filteredItems.length / rowsPerPage);
 
   const items = useMemo(() => {
     const start = (page - 1) * rowsPerPage;
@@ -338,454 +342,9 @@ export default function InterventionsList() {
     }).format(date);
   };
 
-  const renderCell = React.useCallback((intervention: Intervention, columnKey: React.Key) => {
-    const cellValue = intervention[columnKey as keyof Intervention];
-
-    switch (columnKey) {
-      case "intervention_code":
-        return (
-          <div className="flex flex-col">
-            <p className="text-bold text-small">{intervention.intervention_code}</p>
-            <p className="text-tiny text-default-400">{intervention.intervention_type}</p>
-          </div>
-        );
-      case "title":
-        return (
-          <div className="flex flex-col">
-            <p className="text-bold text-small">{intervention.title}</p>
-            <p className="text-tiny text-default-400 truncate max-w-xs">
-              {intervention.description}
-            </p>
-          </div>
-        );
-      case "customer_name":
-        return (
-          <p className="text-small">
-            {getCustomerName(intervention.customer_id)}
-          </p>
-        );
-      case "technician_name":
-        return (
-          <div className="flex flex-col">
-            <p className="text-small">{getTechnicianName(intervention.assigned_technician_id)}</p>
-            {intervention.assigned_van_id && (
-              <Badge size="sm" color="secondary" variant="flat">
-                Furgone {intervention.assigned_van_id}
-              </Badge>
-            )}
-          </div>
-        );
-      case "scheduled_date":
-        return (
-          <p className="text-small">
-            {formatDate(intervention.scheduled_date)}
-          </p>
-        );
-      case "scheduled_time":
-        return (
-          <p className="text-small">
-            {intervention.scheduled_start_time} - {intervention.scheduled_end_time}
-          </p>
-        );
-      case "status":
-        return (
-          <Chip
-            className="capitalize"
-            color={statusColorMap[intervention.status]}
-            size="sm"
-            variant="flat"
-          >
-            {getStatusLabel(intervention.status)}
-          </Chip>
-        );
-      case "priority":
-        return (
-          <Chip
-            className="capitalize"
-            color={priorityColorMap[intervention.priority]}
-            size="sm"
-            variant="flat"
-          >
-            {getPriorityLabel(intervention.priority)}
-          </Chip>
-        );
-      case "actions":
-        return (
-          <div className="relative flex justify-end items-center gap-2">
-            <Dropdown>
-              <DropdownTrigger>
-                <Button isIconOnly size="sm" variant="light" className="hover:bg-default-100">
-                  <Icon icon="nimbus:ellipsis" />
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu aria-label="Azioni intervento">
-                <DropdownItem
-                  key="view"
-                  startContent={<Icon icon="solar:eye-bold" width={16} />}
-                  onPress={() => navigate(`/interventions/${intervention.intervention_id}`)}
-                >
-                  Visualizza
-                </DropdownItem>
-                <DropdownItem
-                  key="edit"
-                  startContent={<Icon icon="solar:pen-bold" width={16} />}
-                  onPress={() => navigate(`/interventions/edit/${intervention.intervention_id}`)}
-                >
-                  Modifica
-                </DropdownItem>
-                <DropdownItem
-                  key="start"
-                  startContent={<Icon icon="solar:play-circle-bold" width={16} />}
-                  onPress={() => navigate(`/interventions/start/${intervention.intervention_id}`)}
-                >
-                  Avvia Intervento
-                </DropdownItem>
-                <DropdownItem
-                  key="complete"
-                  startContent={<Icon icon="solar:check-circle-bold" width={16} />}
-                  onPress={() => navigate(`/interventions/complete/${intervention.intervention_id}`)}
-                >
-                  Completa
-                </DropdownItem>
-                <DropdownItem
-                  key="reassign"
-                  startContent={<Icon icon="solar:user-check-rounded-bold" width={16} />}
-                  onPress={() => navigate(`/interventions/reassign/${intervention.intervention_id}`)}
-                >
-                  Ri-assegna
-                </DropdownItem>
-                <DropdownItem
-                  key="delete"
-                  className="text-danger"
-                  color="danger"
-                  startContent={<Icon icon="solar:trash-bin-trash-bold" width={16} />}
-                  onPress={() => {
-                    setInterventionToDelete(intervention);
-                    onOpen();
-                  }}
-                >
-                  Elimina
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
-          </div>
-        );
-      default:
-        return cellValue?.toString();
-    }
-  }, [navigate, onOpen, customers, technicians]);
 
 
-  const onSearchChange = React.useCallback((value?: string) => {
-    if (value) {
-      setSearchTerm(value);
-      setPage(1);
-    } else {
-      setSearchTerm("");
-    }
-  }, []);
 
-  const onClear = React.useCallback(() => {
-    setSearchTerm("");
-    setPage(1);
-  }, []);
-
-  const handleResetFilters = React.useCallback(() => {
-    setCustomerFilter("all");
-    setTechnicianFilter("all");
-    setDateFrom("");
-    setDateTo("");
-    setStatusFilter("all");
-    setPriorityFilter("all");
-    setSearchTerm("");
-    setFilterValue("");
-    setPage(1);
-  }, []);
-
-  const handleExportCSV = React.useCallback(() => {
-    const headers = [
-      "Codice",
-      "Titolo",
-      "Cliente",
-      "Tecnico",
-      "Data",
-      "Orario",
-      "Stato",
-      "Priorità",
-    ];
-
-    const rows = filteredItems.map((i) => [
-      i.intervention_code,
-      i.title,
-      getCustomerName(i.customer_id),
-      getTechnicianName(i.assigned_technician_id),
-      formatDate(i.scheduled_date),
-      `${i.scheduled_start_time} - ${i.scheduled_end_time}`,
-      getStatusLabel(i.status),
-      getPriorityLabel(i.priority),
-    ]);
-
-    const escapeCSV = (val: string) => '"' + String(val).replace(/"/g, '""') + '"';
-    const csv = [headers, ...rows]
-      .map((r) => r.map(escapeCSV).join(";"))
-      .join("\r\n");
-
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `interventi_${new Date().toISOString().slice(0, 10)}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
-  }, [filteredItems, customers, technicians]);
-
-  const customerItems = useMemo(
-    () => [
-      { key: "all", label: "Tutti i clienti" },
-      ...customers.map((c) => ({
-        key: c.customer_id,
-        label: `${c.name} ${c.surname}`,
-      })),
-    ],
-    [customers]
-  );
-
-  const technicianItems = useMemo(
-    () => [
-      { key: "all", label: "Tutti i tecnici" },
-      ...technicians.map((t) => ({ key: t.technician_id, label: t.name })),
-    ],
-    [technicians]
-  );
-
-  const topContent = useMemo(() => {
-    return (
-      <div className="flex flex-col gap-4 bg-content2 rounded-medium p-4">
-        <div className="flex justify-between gap-3 items-end">
-          <Input
-            isClearable
-            className="w-full sm:max-w-[44%]"
-            placeholder="Cerca per codice, titolo, descrizione..."
-            startContent={<Icon icon="solar:magnifer-linear" width={16} />}
-            value={searchTerm}
-            onClear={() => onClear()}
-            onValueChange={onSearchChange}
-          />
-          <div className="flex gap-3">
-            <Dropdown>
-              <DropdownTrigger className="hidden sm:flex">
-                <Button
-                  endContent={<Icon icon="solar:alt-arrow-down-linear" width={16} />}
-                  variant="flat"
-                >
-                  Stato
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu
-                disallowEmptySelection
-                aria-label="Status Filter"
-                closeOnSelect={false}
-                selectedKeys={statusFilter}
-                selectionMode="multiple"
-                onSelectionChange={setStatusFilter}
-              >
-                <DropdownItem key="assigned">Assegnato</DropdownItem>
-                <DropdownItem key="accepted">Accettato</DropdownItem>
-                <DropdownItem key="in_progress">In Corso</DropdownItem>
-                <DropdownItem key="paused">In Pausa</DropdownItem>
-                <DropdownItem key="completed">Completato</DropdownItem>
-                <DropdownItem key="cancelled">Annullato</DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
-            <Dropdown>
-              <DropdownTrigger className="hidden sm:flex">
-                <Button
-                  endContent={<Icon icon="solar:alt-arrow-down-linear" width={16} />}
-                  variant="flat"
-                >
-                  Priorità
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu
-                disallowEmptySelection
-                aria-label="Priority Filter"
-                closeOnSelect={false}
-                selectedKeys={priorityFilter}
-                selectionMode="multiple"
-                onSelectionChange={setPriorityFilter}
-              >
-                <DropdownItem key="low">Bassa</DropdownItem>
-                <DropdownItem key="medium">Media</DropdownItem>
-                <DropdownItem key="high">Alta</DropdownItem>
-                <DropdownItem key="emergency">Emergenza</DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
-            <Button
-              variant="flat"
-              startContent={<Icon icon="solar:refresh-linear" width={16} />}
-              onPress={handleResetFilters}
-            >
-              Reset
-            </Button>
-            <Button
-              variant="flat"
-              startContent={<Icon icon="solar:download-minimalistic-bold" width={16} />}
-              onPress={handleExportCSV}
-            >
-              Export CSV
-            </Button>
-            <Button
-              color="primary"
-              endContent={<Icon icon="solar:calendar-add-bold" width={16} />}
-              onPress={() => navigate("/calendar")}
-            >
-              Nuovo Intervento
-            </Button>
-          </div>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          <label className="flex items-center text-small text-default-500 gap-2">
-            Cliente:
-            <Select
-              aria-label="Cliente"
-              size="sm"
-              variant="bordered"
-              selectedKeys={new Set([customerFilter])}
-              onSelectionChange={(keys) => {
-                const key = Array.from(keys as Selection)[0] as string;
-                setCustomerFilter(key || "all");
-                setPage(1);
-              }}
-              className="w-full"
-              items={customerItems}
-            >
-              {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
-            </Select>
-          </label>
-          <label className="flex items-center text-small text-default-500 gap-2">
-            Tecnico:
-            <Select
-              aria-label="Tecnico"
-              size="sm"
-              variant="bordered"
-              selectedKeys={new Set([technicianFilter])}
-              onSelectionChange={(keys) => {
-                const key = Array.from(keys as Selection)[0] as string;
-                setTechnicianFilter(key || "all");
-                setPage(1);
-              }}
-              className="w-full"
-              items={technicianItems}
-            >
-              {(item) => <SelectItem key={item.key}>{item.label}</SelectItem>}
-            </Select>
-          </label>
-          <label className="flex items-center text-small text-default-500 gap-2">
-            Dal:
-            <input
-              type="date"
-              className="bg-transparent outline-none text-default-700 text-small w-full border border-divider rounded-medium px-2 py-1"
-              value={dateFrom}
-              onChange={(e) => {
-                setDateFrom(e.target.value);
-                setPage(1);
-              }}
-            />
-          </label>
-          <label className="flex items-center text-small text-default-500 gap-2">
-            Al:
-            <input
-              type="date"
-              className="bg-transparent outline-none text-default-700 text-small w-full border border-divider rounded-medium px-2 py-1"
-              value={dateTo}
-              onChange={(e) => {
-                setDateTo(e.target.value);
-                setPage(1);
-              }}
-            />
-          </label>
-        </div>
-        <div className="flex justify-between items-center">
-          <span className="text-default-400 text-small">
-            Mostrati {filteredItems.length} di {interventions.length} interventi
-          </span>
-          <div className="flex items-center text-default-400 text-small gap-2">
-            <span>Righe per pagina:</span>
-            <Select
-              aria-label="Righe per pagina"
-              size="sm"
-              variant="bordered"
-              selectedKeys={new Set([String(rowsPerPage)])}
-              onSelectionChange={(keys) => {
-                const key = Array.from(keys as Selection)[0] as string;
-                const value = parseInt(key, 10);
-                if (!Number.isNaN(value)) {
-                  setRowsPerPage(value);
-                  setPage(1);
-                }
-              }}
-              className="w-24"
-            >
-              <SelectItem key="5">5</SelectItem>
-              <SelectItem key="10">10</SelectItem>
-              <SelectItem key="15">15</SelectItem>
-            </Select>
-          </div>
-        </div>
-      </div>
-    );
-  }, [
-    searchTerm,
-    statusFilter,
-    priorityFilter,
-    interventions.length,
-    onSearchChange,
-    onClear,
-    navigate,
-    customers,
-    technicians,
-    customerFilter,
-    technicianFilter,
-    dateFrom,
-    dateTo,
-    filteredItems.length,
-    handleResetFilters,
-    handleExportCSV,
-  ]);
-
-  const bottomContent = useMemo(() => {
-    return (
-      <div className="py-2 px-2 flex justify-between items-center bg-content2 rounded-medium">
-        <span className="w-[30%] text-small text-default-400">
-          {selectedKeys === "all"
-            ? "Tutti gli elementi selezionati"
-            : `${selectedKeys.size} di ${filteredItems.length} selezionati`}
-        </span>
-        <Pagination
-          isCompact
-          showControls
-          showShadow
-          color="primary"
-          page={page}
-          total={pages}
-          onChange={setPage}
-        />
-        <div className="hidden sm:flex w-[30%] justify-end gap-2">
-          <Button isDisabled={pages === 1} size="sm" variant="flat" onPress={() => setPage(1)}>
-            Prima
-          </Button>
-          <Button
-            isDisabled={pages === 1}
-            size="sm"
-            variant="flat"
-            onPress={() => setPage(pages)}
-          >
-            Ultima
-          </Button>
-        </div>
-      </div>
-    );
-  }, [selectedKeys, filteredItems.length, page, pages]);
 
   const handleDeleteIntervention = async () => {
     if (!interventionToDelete) return;
@@ -805,54 +364,228 @@ export default function InterventionsList() {
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background p-6 gap-6">
+    <div className="h-screen flex flex-col bg-background p-6 gap-4 overflow-hidden">
       <PageHeader
         title="Lista Interventi"
         description="Gestisci tutti gli interventi programmati e in corso"
         icon="solar:clipboard-list-bold-duotone"
         size="md"
       />
+
+      {/* Statistics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <Card className="shadow-sm border border-divider bg-content1/80">
+          <CardBody className="flex flex-row items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Icon
+                icon="solar:clipboard-list-bold-duotone"
+                className="text-primary text-xl"
+              />
+            </div>
+            <div>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Totale Interventi
+              </p>
+              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                {statistics.total}
+              </p>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="shadow-sm border border-divider bg-content1/80">
+          <CardBody className="flex flex-row items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+              <Icon
+                icon="solar:calendar-mark-bold-duotone"
+                className="text-blue-600 dark:text-blue-400 text-xl"
+              />
+            </div>
+            <div>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Assegnati
+              </p>
+              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                {statistics.assigned}
+              </p>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="shadow-sm border border-divider bg-content1/80">
+          <CardBody className="flex flex-row items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+              <Icon
+                icon="solar:settings-bold-duotone"
+                className="text-amber-600 dark:text-amber-400 text-xl"
+              />
+            </div>
+            <div>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                In Corso
+              </p>
+              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                {statistics.inProgress}
+              </p>
+            </div>
+          </CardBody>
+        </Card>
+
+        <Card className="shadow-sm border border-divider bg-content1/80">
+          <CardBody className="flex flex-row items-center gap-4">
+            <div className="w-12 h-12 rounded-xl bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
+              <Icon
+                icon="solar:check-circle-bold-duotone"
+                className="text-green-600 dark:text-green-400 text-xl"
+              />
+            </div>
+            <div>
+              <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                Completati
+              </p>
+              <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                {statistics.completed}
+              </p>
+            </div>
+          </CardBody>
+        </Card>
+      </div>
       
-      <div className="flex-1 overflow-hidden">
-        <Card className="h-full flex-1 flex flex-col">
-          <CardBody className="px-0 flex-1 flex flex-col">
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 flex-shrink-0">
+                <Input
+                  aria-label="Cerca interventi per codice, titolo o descrizione"
+                  placeholder="Cerca per codice, titolo, descrizione..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  size="lg"
+                  startContent={
+                    <Icon
+                      icon="solar:magnifer-linear"
+                      className="text-default-400"
+                      width={20}
+                    />
+                  }
+                  isClearable
+                  onClear={() => setSearchTerm("")}
+                  className="flex-1"
+                />
+
+                <Dropdown>
+                  <DropdownTrigger>
+                    <Button
+                      variant="flat"
+                      size="lg"
+                      startContent={
+                        <Icon icon="solar:filter-bold" width={18} />
+                      }
+                      endContent={
+                        <Icon icon="solar:arrow-down-linear" width={16} />
+                      }
+                      className="bg-default-100"
+                    >
+                      Stato: {Array.from(statusFilter).length === 6 || statusFilter === "all" ? "Tutti" : Array.from(statusFilter).join(", ")}
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu
+                    aria-label="Filtro stati"
+                    selectedKeys={statusFilter}
+                    selectionMode="multiple"
+                    onSelectionChange={setStatusFilter}
+                  >
+                    <DropdownItem key="assigned">Assegnato</DropdownItem>
+                    <DropdownItem key="accepted">Accettato</DropdownItem>
+                    <DropdownItem key="in_progress">In Corso</DropdownItem>
+                    <DropdownItem key="paused">In Pausa</DropdownItem>
+                    <DropdownItem key="completed">Completato</DropdownItem>
+                    <DropdownItem key="cancelled">Annullato</DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
+
+                <Dropdown>
+                  <DropdownTrigger>
+                    <Button
+                      variant="flat"
+                      size="lg"
+                      startContent={
+                        <Icon icon="solar:sort-by-time-bold" width={18} />
+                      }
+                      endContent={
+                        <Icon icon="solar:arrow-down-linear" width={16} />
+                      }
+                      className="bg-default-100"
+                    >
+                      Priorità: {Array.from(priorityFilter).length === 4 || priorityFilter === "all" ? "Tutte" : Array.from(priorityFilter).join(", ")}
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu
+                    aria-label="Filtro priorità"
+                    selectedKeys={priorityFilter}
+                    selectionMode="multiple"
+                    onSelectionChange={setPriorityFilter}
+                  >
+                    <DropdownItem key="low">Bassa</DropdownItem>
+                    <DropdownItem key="medium">Media</DropdownItem>
+                    <DropdownItem key="high">Alta</DropdownItem>
+                    <DropdownItem key="emergency">Emergenza</DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
+        </div>
+
+        {/* Results counter */}
+        <div className="flex justify-between items-center flex-shrink-0">
+          <p className="text-sm text-default-500">
+            Mostrando{" "}
+            <span className="font-semibold text-foreground">
+              {filteredItems.length}
+            </span>{" "}
+            di{" "}
+            <span className="font-semibold text-foreground">
+              {interventions.length}
+            </span>{" "}
+            interventi
+          </p>
+        </div>
+
+        {/* Interventions Table */}
+        <Card className="border-0 bg-content1/50 backdrop-blur-md flex-1 flex flex-col">
+          <CardBody className="p-0 flex-1 flex flex-col">
             <Table
               aria-label="Tabella interventi"
-              isHeaderSticky
-              bottomContent={bottomContent}
-              bottomContentPlacement="inside"
               classNames={{
-                th: [
-                  "bg-default-100",
-                  "text-default-800",
-                  "border-b border-divider",
-                  "py-3 px-4",
-                ],
-                td: ["py-3 px-4", "border-b border-divider"],
-                wrapper: "border border-divider rounded-lg flex-1 overflow-auto bg-content1 shadow-sm",
-                tr: "cursor-pointer hover:bg-default-50",
+                wrapper: "flex-1 min-h-0",
+                th: "bg-transparent border-b border-divider",
+                td: "border-b border-divider",
               }}
-              selectedKeys={selectedKeys}
-              selectionMode="multiple"
-              selectionBehavior="toggle"
-              sortDescriptor={sortDescriptor}
-              topContent={topContent}
-              topContentPlacement="inside"
-              onSelectionChange={setSelectedKeys}
-              onSortChange={setSortDescriptor}
-              isStriped
             >
-              <TableHeader columns={columns}>
-                {(column) => (
-                  <TableColumn
-                    key={column.uid}
-                    align={column.uid === "actions" ? "center" : "start"}
-                    allowsSorting={column.sortable}
-                    className={column.uid === "actions" ? "text-center" : undefined}
-                  >
-                    {column.name}
-                  </TableColumn>
-                )}
+              <TableHeader>
+                <TableColumn className="w-[12%] font-semibold">
+                  CODICE
+                </TableColumn>
+                <TableColumn className="w-[18%] font-semibold">
+                  TITOLO
+                </TableColumn>
+                <TableColumn className="w-[15%] font-semibold">
+                  CLIENTE
+                </TableColumn>
+                <TableColumn className="w-[15%] font-semibold">
+                  TECNICO
+                </TableColumn>
+                <TableColumn className="w-[12%] font-semibold">
+                  DATA
+                </TableColumn>
+                <TableColumn className="w-[10%] font-semibold">
+                  ORARIO
+                </TableColumn>
+                <TableColumn className="w-[8%] font-semibold">
+                  STATO
+                </TableColumn>
+                <TableColumn className="w-[6%] font-semibold">
+                  PRIORITÀ
+                </TableColumn>
+                <TableColumn className="w-[4%] font-semibold text-center">
+                  AZIONI
+                </TableColumn>
               </TableHeader>
               <TableBody
                 emptyContent={
@@ -867,16 +600,188 @@ export default function InterventionsList() {
                 items={sortedItems}
                 isLoading={loading}
               >
-                {(item) => (
-                  <TableRow key={item.intervention_id}>
-                    {(columnKey) => <TableCell>{renderCell(item, columnKey)}</TableCell>}
-                  </TableRow>
-                )}
+                {sortedItems.map((intervention) => (
+                    <TableRow
+                      key={intervention.intervention_id}
+                      className="hover:bg-default-50 dark:hover:bg-default-950"
+                    >
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <p className="text-bold text-small">{intervention.intervention_code}</p>
+                          <p className="text-tiny text-default-400">{intervention.intervention_type}</p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <p className="text-bold text-small">{intervention.title}</p>
+                          <p className="text-tiny text-default-400 truncate max-w-xs">
+                            {intervention.description}
+                          </p>
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-small">
+                          {getCustomerName(intervention.customer_id)}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <p className="text-small">{getTechnicianName(intervention.assigned_technician_id)}</p>
+                          {intervention.assigned_van_id && (
+                            <Badge size="sm" color="secondary" variant="flat">
+                              Furgone {intervention.assigned_van_id}
+                            </Badge>
+                          )}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-small">
+                          {formatDate(intervention.scheduled_date)}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <p className="text-small">
+                          {intervention.scheduled_start_time} - {intervention.scheduled_end_time}
+                        </p>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          className="capitalize"
+                          color={statusColorMap[intervention.status]}
+                          size="sm"
+                          variant="flat"
+                        >
+                          {getStatusLabel(intervention.status)}
+                        </Chip>
+                      </TableCell>
+                      <TableCell>
+                        <Chip
+                          className="capitalize"
+                          color={priorityColorMap[intervention.priority]}
+                          size="sm"
+                          variant="flat"
+                        >
+                          {getPriorityLabel(intervention.priority)}
+                        </Chip>
+                      </TableCell>
+                      <TableCell>
+                        <div className="relative flex justify-end items-center gap-2">
+                          <Dropdown>
+                            <DropdownTrigger>
+                              <Button isIconOnly size="sm" variant="light" className="hover:bg-default-100">
+                                <Icon icon="nimbus:ellipsis" />
+                              </Button>
+                            </DropdownTrigger>
+                            <DropdownMenu aria-label="Azioni intervento">
+                              <DropdownItem
+                                key="view"
+                                startContent={<Icon icon="solar:eye-bold" width={16} />}
+                                onPress={() => navigate(`/interventions/${intervention.intervention_id}`)}
+                              >
+                                Visualizza
+                              </DropdownItem>
+                              <DropdownItem
+                                key="edit"
+                                startContent={<Icon icon="solar:pen-bold" width={16} />}
+                                onPress={() => navigate(`/interventions/edit/${intervention.intervention_id}`)}
+                              >
+                                Modifica
+                              </DropdownItem>
+                              <DropdownItem
+                                key="start"
+                                startContent={<Icon icon="solar:play-circle-bold" width={16} />}
+                                onPress={() => navigate(`/interventions/start/${intervention.intervention_id}`)}
+                              >
+                                Avvia Intervento
+                              </DropdownItem>
+                              <DropdownItem
+                                key="complete"
+                                startContent={<Icon icon="solar:check-circle-bold" width={16} />}
+                                onPress={() => navigate(`/interventions/complete/${intervention.intervention_id}`)}
+                              >
+                                Completa
+                              </DropdownItem>
+                              <DropdownItem
+                                key="reassign"
+                                startContent={<Icon icon="solar:user-check-rounded-bold" width={16} />}
+                                onPress={() => navigate(`/interventions/reassign/${intervention.intervention_id}`)}
+                              >
+                                Ri-assegna
+                              </DropdownItem>
+                              <DropdownItem
+                                key="delete"
+                                className="text-danger"
+                                color="danger"
+                                startContent={<Icon icon="solar:trash-bin-trash-bold" width={16} />}
+                                onPress={() => {
+                                  setInterventionToDelete(intervention);
+                                  onOpen();
+                                }}
+                              >
+                                Elimina
+                              </DropdownItem>
+                            </DropdownMenu>
+                          </Dropdown>
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  ))}
               </TableBody>
             </Table>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between px-6 py-3 border-t border-divider bg-content1/30 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-default-500">
+                  Righe per pagina:
+                </span>
+                <Select
+                  size="sm"
+                  selectedKeys={[rowsPerPage.toString()]}
+                  onSelectionChange={(keys) => {
+                    const newRowsPerPage = Number(Array.from(keys)[0]);
+                    setRowsPerPage(newRowsPerPage);
+                    setPage(1);
+                  }}
+                  className="w-20"
+                >
+                  <SelectItem key="5">5</SelectItem>
+                  <SelectItem key="10">10</SelectItem>
+                  <SelectItem key="20">20</SelectItem>
+                  <SelectItem key="50">50</SelectItem>
+                </Select>
+              </div>
+
+              <Pagination
+                total={Math.ceil(
+                  filteredItems.length / rowsPerPage
+                )}
+                page={page}
+                onChange={setPage}
+                showControls
+                size="sm"
+                color="primary"
+                variant="bordered"
+                aria-label="Paginazione interventi"
+                classNames={{
+                  item: "rounded-full",
+                  cursor: "rounded-full",
+                  prev: "rounded-full",
+                  next: "rounded-full",
+                }}
+              />
+
+              <div className="text-sm text-default-500">
+                {(page - 1) * rowsPerPage + 1} -{" "}
+                {Math.min(
+                  page * rowsPerPage,
+                  filteredItems.length
+                )}{" "}
+                di {filteredItems.length}
+              </div>
+            </div>
           </CardBody>
         </Card>
-      </div>
 
       {/* Modal conferma eliminazione */}
       <Modal isOpen={isOpen} onClose={onClose}>
