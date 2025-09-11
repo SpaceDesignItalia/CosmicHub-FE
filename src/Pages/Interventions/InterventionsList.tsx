@@ -52,8 +52,6 @@ const priorityColorMap = {
   emergency: "danger",
 } as const;
 
-// NOTE: typeColorMap rimosso perché non utilizzato
-
 const columns = [
   { name: "CODICE", uid: "intervention_code", sortable: true },
   { name: "TITOLO", uid: "title", sortable: true },
@@ -476,6 +474,7 @@ export default function InterventionsList() {
         return cellValue?.toString();
     }
   }, [navigate, onOpen, customers, technicians]);
+
 
   const onSearchChange = React.useCallback((value?: string) => {
     if (value) {

@@ -32,7 +32,6 @@ import { Icon } from "@iconify/react";
 import axios from "axios";
 import { createContext, useEffect, useMemo, useState } from "react";
 import PageHeader from "../../Components/Layout/PageHeader";
-import { useCustomTheme } from "../../providers/ThemeProvider";
 
 // Interface for Employee type
 interface Employee {
@@ -85,7 +84,6 @@ const getRoleIcon = (role: string) => {
 };
 
 export default function Team() {
-  const { isDark } = useCustomTheme();
   const [currentEmployees, setCurrentEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("Tutti");
@@ -96,7 +94,7 @@ export default function Team() {
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
+  const [selectedEmployee] = useState<Employee | null>(
     null
   );
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -111,11 +109,9 @@ export default function Team() {
   });
 
   // Stati per la gestione veicoli
-  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [vehicles] = useState<any[]>([]);
   const [vehicleSelectionModalOpen, setVehicleSelectionModalOpen] =
     useState(false);
-  const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   // Stati per le categorie/ruoli
   const [roles, setRoles] = useState<any[]>([]);
@@ -132,95 +128,7 @@ export default function Team() {
     setUpdateCounter((prev) => prev + 1);
   };
 
-  // Funzione per gestire l'ordinamento
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      if (sortDirection === "asc") {
-        // Secondo click: cambia in decrescente
-        setSortDirection("desc");
-      } else {
-        // Terzo click: rimuovi l'ordinamento
-        setSortBy("");
-        setSortDirection("asc");
-        setSelectedSort("Nome");
-      }
-    } else {
-      // Se clicchi su una nuova colonna, imposta come ascendente
-      setSortBy(field);
-      setSortDirection("asc");
-      
-      // Aggiorna selectedSort per riflettere la selezione
-      switch (field) {
-        case "name":
-          setSelectedSort("Nome");
-          break;
-        case "role":
-          setSelectedSort("Ruolo");
-          break;
-        case "experience":
-          setSelectedSort("Esperienza");
-          break;
-        case "satisfaction":
-          setSelectedSort("Soddisfazione");
-          break;
-        default:
-          setSelectedSort("Nome");
-      }
-    }
-  };
 
-  // Handler functions for table actions
-  const handleViewEmployee = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setViewModalOpen(true);
-  };
-
-  const handleEditEmployee = (employee: Employee) => {
-    setSelectedEmployee(employee);
-
-    // Trova il ruolo corrispondente per ottenere l'ID
-    const findRoleId = (roleName: string) => {
-      // Prima cerca nei ruoli già caricati
-      const existingRole = roles.find((r) => r.name === roleName);
-      if (existingRole) return existingRole.role_id?.toString() || "";
-
-      // Fallback: cerca per nome (case-insensitive)
-      const roleByName = roles.find(
-        (r) => r.name?.toLowerCase() === roleName?.toLowerCase()
-      );
-      return roleByName?.role_id?.toString() || "";
-    };
-
-    setEditFormData({
-      name: employee.name || "",
-      surname: employee.surname || "",
-      email: employee.email || "",
-      role: findRoleId(employee.role),
-    });
-
-    // Inizializza lo stato temporaneo del veicolo
-    setTempVehicleAssignment(employee.assigned_vehicle || null);
-
-    // Carica i veicoli e i ruoli quando si apre il modal
-    fetchVehicles();
-    fetchRoles();
-    setEditModalOpen(true);
-  };
-
-  // Funzione per caricare i veicoli
-  const fetchVehicles = async () => {
-    setIsLoadingVehicles(true);
-    try {
-      const response = await axios.get("/Vehicle/GET/GetAllVehicles", {
-        withCredentials: true,
-      });
-      setVehicles(response.data);
-    } catch (error) {
-      console.error("Failed to fetch vehicles:", error);
-    } finally {
-      setIsLoadingVehicles(false);
-    }
-  };
 
   // Funzione per caricare i ruoli/categorie
   const fetchRoles = async () => {
@@ -243,228 +151,6 @@ export default function Team() {
     }
   };
 
-  // Funzione per salvare le modifiche del tecnico
-  const handleSaveEmployeeChanges = async () => {
-    if (!selectedEmployee) return;
-
-    setIsSaving(true);
-    try {
-      // Controlla se ci sono modifiche ai dati dell'utente
-      const hasUserDataChanges =
-        editFormData.name !== selectedEmployee.name ||
-        editFormData.surname !== (selectedEmployee.surname || "") ||
-        editFormData.email !== (selectedEmployee.email || "") ||
-        editFormData.role !== "";
-
-      // Controlla se ci sono modifiche al veicolo
-      const hasVehicleChanges =
-        tempVehicleAssignment !== selectedEmployee.assigned_vehicle;
-
-      // Se non ci sono modifiche, non fare nulla
-      if (!hasUserDataChanges && !hasVehicleChanges) {
-        setEditModalOpen(false);
-        return;
-      }
-
-      // Aggiorna i dati personali del tecnico solo se sono cambiati
-      if (hasUserDataChanges) {
-        // Validazione dei campi obbligatori
-        if (!editFormData.name.trim()) {
-          alert("Il nome è obbligatorio");
-          return;
-        }
-
-        if (!editFormData.role || editFormData.role === "") {
-          alert("Il ruolo è obbligatorio");
-          return;
-        }
-
-        await axios.put(
-          "/Employee/UPDATE/UpdateEmployeeData",
-          {
-            userData: {
-              user_id: selectedEmployee.user_id,
-              name: editFormData.name,
-              surname: editFormData.surname,
-              email: editFormData.email,
-              role_id: parseInt(editFormData.role) || null,
-            },
-          },
-          { withCredentials: true }
-        );
-      }
-
-      // Applica le modifiche del veicolo se sono cambiate
-      if (hasVehicleChanges) {
-        if (tempVehicleAssignment) {
-          // Se il veicolo è già assegnato ad un altro tecnico, rimuovilo prima
-          const currentOwner = currentEmployees.find(
-            (emp) => emp.assigned_vehicle?.id === tempVehicleAssignment.id
-          );
-
-          if (
-            currentOwner &&
-            currentOwner.user_id !== selectedEmployee.user_id
-          ) {
-            // Rimuovi il veicolo dal tecnico precedente
-            await axios.put(
-              "/Employee/UPDATE/UpdateEmployeeVehicle",
-              {
-                employee_id: currentOwner.user_id,
-                vehicle_id: null,
-              },
-              { withCredentials: true }
-            );
-          }
-
-          // Assegna il veicolo al tecnico selezionato
-          await axios.put(
-            "/Employee/UPDATE/UpdateEmployeeVehicle",
-            {
-              employee_id: selectedEmployee.user_id,
-              vehicle_id: tempVehicleAssignment.id,
-            },
-            { withCredentials: true }
-          );
-        } else {
-          // Rimuovi assegnazione veicolo
-          await axios.put(
-            "/Employee/UPDATE/UpdateEmployeeVehicle",
-            {
-              employee_id: selectedEmployee.user_id,
-              vehicle_id: null,
-            },
-            { withCredentials: true }
-          );
-        }
-      }
-
-      // Aggiorna lo stato locale
-      setCurrentEmployees((prev) => {
-        let updated = prev.map((emp) =>
-          emp.user_id === selectedEmployee.user_id
-            ? {
-                ...emp,
-                // Aggiorna i dati dell'utente solo se sono cambiati
-                ...(hasUserDataChanges && {
-                  name: editFormData.name,
-                  surname: editFormData.surname,
-                  email: editFormData.email,
-                  role: (() => {
-                    const selectedRole = roles.find(
-                      (r) =>
-                        r.role_id?.toString() === editFormData.role?.toString()
-                    );
-                    return selectedRole ? selectedRole.name : editFormData.role;
-                  })(),
-                }),
-                // Aggiorna sempre il veicolo se è cambiato
-                ...(hasVehicleChanges && {
-                  assigned_vehicle: tempVehicleAssignment,
-                }),
-              }
-            : emp
-        );
-
-        // Se abbiamo assegnato un veicolo che era già assegnato ad un altro tecnico,
-        // rimuovilo anche dallo stato locale
-        if (
-          tempVehicleAssignment &&
-          tempVehicleAssignment !== selectedEmployee.assigned_vehicle
-        ) {
-          updated = updated.map((emp) =>
-            emp.assigned_vehicle?.id === tempVehicleAssignment.id &&
-            emp.user_id !== selectedEmployee.user_id
-              ? { ...emp, assigned_vehicle: null }
-              : emp
-          );
-        }
-
-        return updated;
-      });
-
-      setEditModalOpen(false);
-      triggerUpdate();
-    } catch (error) {
-      console.error("Failed to save employee changes:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Funzione per assegnare un veicolo
-  const handleAssignVehicle = async (vehicleId: number) => {
-    if (!selectedEmployee) return;
-
-    try {
-      await axios.put(
-        "/Employee/UPDATE/UpdateEmployeeVehicle",
-        {
-          employee_id: selectedEmployee.user_id,
-          vehicle_id: vehicleId,
-        },
-        { withCredentials: true }
-      );
-
-      // Aggiorna lo stato locale
-      setCurrentEmployees((prev) =>
-        prev.map((emp) =>
-          emp.user_id === selectedEmployee.user_id
-            ? {
-                ...emp,
-                assigned_vehicle: vehicles.find(
-                  (v) => v.vehicle_id === vehicleId
-                )
-                  ? {
-                      id: vehicleId,
-                      name:
-                        vehicles.find((v) => v.vehicle_id === vehicleId)
-                          ?.name || "",
-                      license_plate:
-                        vehicles.find((v) => v.vehicle_id === vehicleId)
-                          ?.license_plate || "",
-                    }
-                  : undefined,
-              }
-            : emp
-        )
-      );
-
-      setVehicleSelectionModalOpen(false);
-      triggerUpdate();
-    } catch (error) {
-      console.error("Failed to assign vehicle:", error);
-    }
-  };
-
-  // Funzione per rimuovere l'assegnazione veicolo
-  const handleRemoveVehicle = async () => {
-    if (!selectedEmployee) return;
-
-    try {
-      await axios.put(
-        "/Employee/UPDATE/UpdateEmployeeVehicle",
-        {
-          employee_id: selectedEmployee.user_id,
-          vehicle_id: null,
-        },
-        { withCredentials: true }
-      );
-
-      // Aggiorna lo stato locale
-      setCurrentEmployees((prev) =>
-        prev.map((emp) =>
-          emp.user_id === selectedEmployee.user_id
-            ? { ...emp, assigned_vehicle: undefined }
-            : emp
-        )
-      );
-
-      triggerUpdate();
-    } catch (error) {
-      console.error("Failed to remove vehicle:", error);
-    }
-  };
 
   // Funzioni per le modifiche temporanee del veicolo
   const handleTempAssignVehicle = (vehicleId: number) => {
@@ -845,7 +531,7 @@ export default function Team() {
           </p>
         </div>
 
-        {/* Employee Table */}
+        {/* Team Table */}
         <Card className="border-0 bg-content1/50 backdrop-blur-md flex-1 flex flex-col">
           <CardBody className="p-0 flex-1 flex flex-col">
             <Table
@@ -858,79 +544,13 @@ export default function Team() {
             >
               <TableHeader>
                 <TableColumn className="w-[25%] font-semibold">
-                  <div
-                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleSort("name")}
-                  >
-                    <span>DIPENDENTE</span>
-                    <Icon
-                      icon={
-                        sortBy === "name"
-                          ? sortDirection === "asc"
-                            ? "solar:alt-arrow-up-linear"
-                            : "solar:alt-arrow-down-linear"
-                          : "solar:alt-arrow-up-linear"
-                      }
-                      className={`text-xs ${
-                        sortBy === "name"
-                          ? "text-warning-600"
-                          : isDark
-                          ? "text-white"
-                          : "text-black"
-                      }`}
-                      width={12}
-                    />
-                  </div>
+                  DIPENDENTE
                 </TableColumn>
                 <TableColumn className="w-[20%] font-semibold">
-                  <div
-                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleSort("role")}
-                  >
-                    <span>RUOLO</span>
-                    <Icon
-                      icon={
-                        sortBy === "role"
-                          ? sortDirection === "asc"
-                            ? "solar:alt-arrow-up-linear"
-                            : "solar:alt-arrow-down-linear"
-                          : "solar:alt-arrow-up-linear"
-                      }
-                      className={`text-xs ${
-                        sortBy === "role"
-                          ? "text-warning-600"
-                          : isDark
-                          ? "text-white"
-                          : "text-black"
-                      }`}
-                      width={12}
-                    />
-                  </div>
+                  RUOLO
                 </TableColumn>
                 <TableColumn className="w-[25%] font-semibold">
-                  <div
-                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleSort("vehicle")}
-                  >
-                    <span>VEICOLO ASSEGNATO</span>
-                    <Icon
-                      icon={
-                        sortBy === "vehicle"
-                          ? sortDirection === "asc"
-                            ? "solar:alt-arrow-up-linear"
-                            : "solar:alt-arrow-down-linear"
-                          : "solar:alt-arrow-up-linear"
-                      }
-                      className={`text-xs ${
-                        sortBy === "vehicle"
-                          ? "text-warning-600"
-                          : isDark
-                          ? "text-white"
-                          : "text-black"
-                      }`}
-                      width={12}
-                    />
-                  </div>
+                  VEICOLO ASSEGNATO
                 </TableColumn>
                 <TableColumn className="w-[15%] font-semibold">
                   STATO
@@ -1035,73 +655,52 @@ export default function Team() {
                           </span>
                         </div>
                       </TableCell>
-
                       <TableCell>
-                        <div className="flex items-center gap-3 justify-center">
-                          <Button
-                            aria-label="Visualizza dettagli tecnico"
-                            size="sm"
-                            variant="light"
-                            color="default"
-                            onPress={() => handleViewEmployee(employee)}
-                            isIconOnly
-                            className={`${
-                              isDark ? "text-white" : "text-black"
-                            } hover:bg-white/20`}
-                          >
-                            <Icon icon="solar:eye-bold" width={16} />
-                          </Button>
-                          <Button
-                            aria-label="Modifica tecnico"
-                            size="sm"
-                            variant="light"
-                            color="warning"
-                            onPress={() => handleEditEmployee(employee)}
-                            isIconOnly
-                          >
-                            <Icon icon="solar:pen-bold" width={16} />
-                          </Button>
+                        <div className="relative flex justify-end items-center gap-2">
                           <Dropdown>
                             <DropdownTrigger>
-                              <Button
-                                aria-label="Azioni per tecnico"
-                                size="sm"
-                                variant="light"
-                                color="danger"
-                                isIconOnly
-                              >
-                                <Icon
-                                  icon="solar:trash-bin-trash-bold"
-                                  width={16}
-                                />
+                              <Button isIconOnly size="sm" variant="light" className="hover:bg-default-100">
+                                <Icon icon="nimbus:ellipsis" />
                               </Button>
                             </DropdownTrigger>
-                            <DropdownMenu
-                              aria-label="Azioni eliminazione"
-                              color="danger"
-                              variant="flat"
-                            >
+                            <DropdownMenu aria-label="Azioni tecnico">
+                              <DropdownItem
+                                key="view"
+                                startContent={<Icon icon="solar:eye-bold" width={16} />}
+                              >
+                                Visualizza Profilo
+                              </DropdownItem>
+                              <DropdownItem
+                                key="edit"
+                                startContent={<Icon icon="solar:pen-bold" width={16} />}
+                              >
+                                Modifica Tecnico
+                              </DropdownItem>
+                              <DropdownItem
+                                key="assign-vehicle"
+                                startContent={<Icon icon="solar:car-bold" width={16} />}
+                              >
+                                Assegna Veicolo
+                              </DropdownItem>
+                              <DropdownItem
+                                key="schedule"
+                                startContent={<Icon icon="solar:calendar-add-bold" width={16} />}
+                              >
+                                Programma Intervento
+                              </DropdownItem>
+                              <DropdownItem
+                                key="performance"
+                                startContent={<Icon icon="solar:chart-bold" width={16} />}
+                              >
+                                Visualizza Performance
+                              </DropdownItem>
                               <DropdownItem
                                 key="delete"
+                                className="text-danger"
                                 color="danger"
-                                className="text-danger-600"
-                                startContent={
-                                  <Icon
-                                    icon="solar:trash-bin-trash-bold"
-                                    width={16}
-                                  />
-                                }
-                                onPress={() => {
-                                  // TODO: Implement actual deletion
-                                  // Eliminazione tecnico implementata in futuro
-                                }}
+                                startContent={<Icon icon="solar:trash-bin-trash-bold" width={16} />}
                               >
-                                <div className="flex flex-col items-start">
-                                  <span>Elimina Definitivamente</span>
-                                  <span className="text-xs text-default-400">
-                                    Sei sicuro?
-                                  </span>
-                                </div>
+                                Elimina Tecnico
                               </DropdownItem>
                             </DropdownMenu>
                           </Dropdown>
@@ -1888,7 +1487,7 @@ export default function Team() {
                 startContent={
                   <Icon icon="solar:check-circle-bold" width={16} />
                 }
-                onPress={handleSaveEmployeeChanges}
+                onPress={() => {}}
                 isDisabled={(() => {
                   if (!selectedEmployee) return true;
 
