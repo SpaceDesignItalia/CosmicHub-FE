@@ -32,7 +32,6 @@ import { Icon } from "@iconify/react";
 import axios from "axios";
 import { createContext, useEffect, useMemo, useState } from "react";
 import PageHeader from "../../Components/Layout/PageHeader";
-import { useCustomTheme } from "../../providers/ThemeProvider";
 
 // Interface for Employee type
 interface Employee {
@@ -85,17 +84,17 @@ const getRoleIcon = (role: string) => {
 };
 
 export default function Team() {
-  const { isDark } = useCustomTheme();
   const [currentEmployees, setCurrentEmployees] = useState<Employee[]>([]);
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [selectedRole, setSelectedRole] = useState<string>("Tutti");
+  const [selectedSort, setSelectedSort] = useState<string>("Nome");
   const [sortBy, setSortBy] = useState<string>("name");
   const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
   const [updateCounter, setUpdateCounter] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [rowsPerPage, setRowsPerPage] = useState(10);
-  const [selectedEmployee, setSelectedEmployee] = useState<Employee | null>(
+  const [selectedEmployee] = useState<Employee | null>(
     null
   );
   const [viewModalOpen, setViewModalOpen] = useState(false);
@@ -110,11 +109,9 @@ export default function Team() {
   });
 
   // Stati per la gestione veicoli
-  const [vehicles, setVehicles] = useState<any[]>([]);
+  const [vehicles] = useState<any[]>([]);
   const [vehicleSelectionModalOpen, setVehicleSelectionModalOpen] =
     useState(false);
-  const [isLoadingVehicles, setIsLoadingVehicles] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
 
   // Stati per le categorie/ruoli
   const [roles, setRoles] = useState<any[]>([]);
@@ -131,76 +128,7 @@ export default function Team() {
     setUpdateCounter((prev) => prev + 1);
   };
 
-  // Funzione per gestire l'ordinamento
-  const handleSort = (field: string) => {
-    if (sortBy === field) {
-      if (sortDirection === "asc") {
-        // Secondo click: cambia in decrescente
-        setSortDirection("desc");
-      } else {
-        // Terzo click: rimuovi l'ordinamento
-        setSortBy("");
-        setSortDirection("asc");
-      }
-    } else {
-      // Se clicchi su una nuova colonna, imposta come ascendente
-      setSortBy(field);
-      setSortDirection("asc");
-    }
-  };
 
-  // Handler functions for table actions
-  const handleViewEmployee = (employee: Employee) => {
-    setSelectedEmployee(employee);
-    setViewModalOpen(true);
-  };
-
-  const handleEditEmployee = (employee: Employee) => {
-    setSelectedEmployee(employee);
-
-    // Trova il ruolo corrispondente per ottenere l'ID
-    const findRoleId = (roleName: string) => {
-      // Prima cerca nei ruoli già caricati
-      const existingRole = roles.find((r) => r.name === roleName);
-      if (existingRole) return existingRole.role_id?.toString() || "";
-
-      // Fallback: cerca per nome (case-insensitive)
-      const roleByName = roles.find(
-        (r) => r.name?.toLowerCase() === roleName?.toLowerCase()
-      );
-      return roleByName?.role_id?.toString() || "";
-    };
-
-    setEditFormData({
-      name: employee.name || "",
-      surname: employee.surname || "",
-      email: employee.email || "",
-      role: findRoleId(employee.role),
-    });
-
-    // Inizializza lo stato temporaneo del veicolo
-    setTempVehicleAssignment(employee.assigned_vehicle || null);
-
-    // Carica i veicoli e i ruoli quando si apre il modal
-    fetchVehicles();
-    fetchRoles();
-    setEditModalOpen(true);
-  };
-
-  // Funzione per caricare i veicoli
-  const fetchVehicles = async () => {
-    setIsLoadingVehicles(true);
-    try {
-      const response = await axios.get("/Vehicle/GET/GetAllVehicles", {
-        withCredentials: true,
-      });
-      setVehicles(response.data);
-    } catch (error) {
-      console.error("Failed to fetch vehicles:", error);
-    } finally {
-      setIsLoadingVehicles(false);
-    }
-  };
 
   // Funzione per caricare i ruoli/categorie
   const fetchRoles = async () => {
@@ -223,228 +151,6 @@ export default function Team() {
     }
   };
 
-  // Funzione per salvare le modifiche del tecnico
-  const handleSaveEmployeeChanges = async () => {
-    if (!selectedEmployee) return;
-
-    setIsSaving(true);
-    try {
-      // Controlla se ci sono modifiche ai dati dell'utente
-      const hasUserDataChanges =
-        editFormData.name !== selectedEmployee.name ||
-        editFormData.surname !== (selectedEmployee.surname || "") ||
-        editFormData.email !== (selectedEmployee.email || "") ||
-        editFormData.role !== "";
-
-      // Controlla se ci sono modifiche al veicolo
-      const hasVehicleChanges =
-        tempVehicleAssignment !== selectedEmployee.assigned_vehicle;
-
-      // Se non ci sono modifiche, non fare nulla
-      if (!hasUserDataChanges && !hasVehicleChanges) {
-        setEditModalOpen(false);
-        return;
-      }
-
-      // Aggiorna i dati personali del tecnico solo se sono cambiati
-      if (hasUserDataChanges) {
-        // Validazione dei campi obbligatori
-        if (!editFormData.name.trim()) {
-          alert("Il nome è obbligatorio");
-          return;
-        }
-
-        if (!editFormData.role || editFormData.role === "") {
-          alert("Il ruolo è obbligatorio");
-          return;
-        }
-
-        await axios.put(
-          "/Employee/UPDATE/UpdateEmployeeData",
-          {
-            userData: {
-              user_id: selectedEmployee.user_id,
-              name: editFormData.name,
-              surname: editFormData.surname,
-              email: editFormData.email,
-              role_id: parseInt(editFormData.role) || null,
-            },
-          },
-          { withCredentials: true }
-        );
-      }
-
-      // Applica le modifiche del veicolo se sono cambiate
-      if (hasVehicleChanges) {
-        if (tempVehicleAssignment) {
-          // Se il veicolo è già assegnato ad un altro tecnico, rimuovilo prima
-          const currentOwner = currentEmployees.find(
-            (emp) => emp.assigned_vehicle?.id === tempVehicleAssignment.id
-          );
-
-          if (
-            currentOwner &&
-            currentOwner.user_id !== selectedEmployee.user_id
-          ) {
-            // Rimuovi il veicolo dal tecnico precedente
-            await axios.put(
-              "/Employee/UPDATE/UpdateEmployeeVehicle",
-              {
-                employee_id: currentOwner.user_id,
-                vehicle_id: null,
-              },
-              { withCredentials: true }
-            );
-          }
-
-          // Assegna il veicolo al tecnico selezionato
-          await axios.put(
-            "/Employee/UPDATE/UpdateEmployeeVehicle",
-            {
-              employee_id: selectedEmployee.user_id,
-              vehicle_id: tempVehicleAssignment.id,
-            },
-            { withCredentials: true }
-          );
-        } else {
-          // Rimuovi assegnazione veicolo
-          await axios.put(
-            "/Employee/UPDATE/UpdateEmployeeVehicle",
-            {
-              employee_id: selectedEmployee.user_id,
-              vehicle_id: null,
-            },
-            { withCredentials: true }
-          );
-        }
-      }
-
-      // Aggiorna lo stato locale
-      setCurrentEmployees((prev) => {
-        let updated = prev.map((emp) =>
-          emp.user_id === selectedEmployee.user_id
-            ? {
-                ...emp,
-                // Aggiorna i dati dell'utente solo se sono cambiati
-                ...(hasUserDataChanges && {
-                  name: editFormData.name,
-                  surname: editFormData.surname,
-                  email: editFormData.email,
-                  role: (() => {
-                    const selectedRole = roles.find(
-                      (r) =>
-                        r.role_id?.toString() === editFormData.role?.toString()
-                    );
-                    return selectedRole ? selectedRole.name : editFormData.role;
-                  })(),
-                }),
-                // Aggiorna sempre il veicolo se è cambiato
-                ...(hasVehicleChanges && {
-                  assigned_vehicle: tempVehicleAssignment,
-                }),
-              }
-            : emp
-        );
-
-        // Se abbiamo assegnato un veicolo che era già assegnato ad un altro tecnico,
-        // rimuovilo anche dallo stato locale
-        if (
-          tempVehicleAssignment &&
-          tempVehicleAssignment !== selectedEmployee.assigned_vehicle
-        ) {
-          updated = updated.map((emp) =>
-            emp.assigned_vehicle?.id === tempVehicleAssignment.id &&
-            emp.user_id !== selectedEmployee.user_id
-              ? { ...emp, assigned_vehicle: null }
-              : emp
-          );
-        }
-
-        return updated;
-      });
-
-      setEditModalOpen(false);
-      triggerUpdate();
-    } catch (error) {
-      console.error("Failed to save employee changes:", error);
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  // Funzione per assegnare un veicolo
-  const handleAssignVehicle = async (vehicleId: number) => {
-    if (!selectedEmployee) return;
-
-    try {
-      await axios.put(
-        "/Employee/UPDATE/UpdateEmployeeVehicle",
-        {
-          employee_id: selectedEmployee.user_id,
-          vehicle_id: vehicleId,
-        },
-        { withCredentials: true }
-      );
-
-      // Aggiorna lo stato locale
-      setCurrentEmployees((prev) =>
-        prev.map((emp) =>
-          emp.user_id === selectedEmployee.user_id
-            ? {
-                ...emp,
-                assigned_vehicle: vehicles.find(
-                  (v) => v.vehicle_id === vehicleId
-                )
-                  ? {
-                      id: vehicleId,
-                      name:
-                        vehicles.find((v) => v.vehicle_id === vehicleId)
-                          ?.name || "",
-                      license_plate:
-                        vehicles.find((v) => v.vehicle_id === vehicleId)
-                          ?.license_plate || "",
-                    }
-                  : undefined,
-              }
-            : emp
-        )
-      );
-
-      setVehicleSelectionModalOpen(false);
-      triggerUpdate();
-    } catch (error) {
-      console.error("Failed to assign vehicle:", error);
-    }
-  };
-
-  // Funzione per rimuovere l'assegnazione veicolo
-  const handleRemoveVehicle = async () => {
-    if (!selectedEmployee) return;
-
-    try {
-      await axios.put(
-        "/Employee/UPDATE/UpdateEmployeeVehicle",
-        {
-          employee_id: selectedEmployee.user_id,
-          vehicle_id: null,
-        },
-        { withCredentials: true }
-      );
-
-      // Aggiorna lo stato locale
-      setCurrentEmployees((prev) =>
-        prev.map((emp) =>
-          emp.user_id === selectedEmployee.user_id
-            ? { ...emp, assigned_vehicle: undefined }
-            : emp
-        )
-      );
-
-      triggerUpdate();
-    } catch (error) {
-      console.error("Failed to remove vehicle:", error);
-    }
-  };
 
   // Funzioni per le modifiche temporanee del veicolo
   const handleTempAssignVehicle = (vehicleId: number) => {
@@ -611,13 +317,13 @@ export default function Team() {
 
   return (
     <UpdateContext.Provider value={{ triggerUpdate }}>
-      <div className="w-full flex-1 flex flex-col p-6 gap-8">
+      <div className="h-screen flex flex-col bg-background p-6 gap-4 overflow-hidden">
         {/* Enhanced Header */}
         <PageHeader
           title="Team Tecnico"
           description="Gestisci e monitora il tuo team di tecnici"
           icon="solar:users-group-rounded-bold"
-          size="lg"
+          size="md"
           actions={[
             {
               label: "Aggiungi Tecnico",
@@ -634,147 +340,88 @@ export default function Team() {
           ]}
         />
 
-        {/* Statistics Dashboard */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-4">
-          <Card className="bg-gradient-to-br from-primary-50 to-primary-100 dark:from-primary-930 dark:to-primary-930 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-primary-600 dark:text-primary-400 font-medium">
-                    Totale Tecnici
-                  </p>
-                  <p className="text-2xl font-bold text-primary-700 dark:text-primary-300">
-                    {statistics.total}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-primary-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:users-group-rounded-bold"
-                    className="text-primary-600"
-                    width={24}
-                  />
-                </div>
+        {/* Statistics Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <Card className="shadow-sm border border-divider bg-content1/80">
+            <CardBody className="flex flex-row items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Icon
+                  icon="solar:users-group-rounded-bold-duotone"
+                  className="text-primary text-xl"
+                />
+              </div>
+              <div>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Totale Tecnici
+                </p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                  {statistics.total}
+                </p>
               </div>
             </CardBody>
           </Card>
 
-          <Card className="bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-950 dark:to-blue-900 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-blue-600 dark:text-blue-400 font-medium">
-                    Senior
-                  </p>
-                  <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                    {statistics.senior}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:medal-star-bold"
-                    className="text-blue-600"
-                    width={24}
-                  />
-                </div>
+          <Card className="shadow-sm border border-divider bg-content1/80">
+            <CardBody className="flex flex-row items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center">
+                <Icon
+                  icon="solar:medal-star-bold-duotone"
+                  className="text-blue-600 dark:text-blue-400 text-xl"
+                />
+              </div>
+              <div>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Senior
+                </p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                  {statistics.senior}
+                </p>
               </div>
             </CardBody>
           </Card>
 
-          <Card className="bg-gradient-to-br from-purple-50 to-purple-100 dark:from-purple-950 dark:to-purple-900 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-purple-600 dark:text-purple-400 font-medium">
-                    Specializzati
-                  </p>
-                  <p className="text-2xl font-bold text-purple-700 dark:text-purple-300">
-                    {statistics.specialized}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-purple-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:star-bold"
-                    className="text-purple-600"
-                    width={24}
-                  />
-                </div>
+          <Card className="shadow-sm border border-divider bg-content1/80">
+            <CardBody className="flex flex-row items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center">
+                <Icon
+                  icon="solar:star-bold-duotone"
+                  className="text-purple-600 dark:text-purple-400 text-xl"
+                />
+              </div>
+              <div>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Specializzati
+                </p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                  {statistics.specialized}
+                </p>
               </div>
             </CardBody>
           </Card>
 
-          <Card className="bg-gradient-to-br from-amber-50 to-amber-100 dark:from-amber-950 dark:to-amber-900 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-amber-600 dark:text-amber-400 font-medium">
-                    Junior
-                  </p>
-                  <p className="text-2xl font-bold text-amber-700 dark:text-amber-300">
-                    {statistics.junior}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:user-bold"
-                    className="text-amber-600"
-                    width={24}
-                  />
-                </div>
+          <Card className="shadow-sm border border-divider bg-content1/80">
+            <CardBody className="flex flex-row items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
+                <Icon
+                  icon="solar:user-bold-duotone"
+                  className="text-amber-600 dark:text-amber-400 text-xl"
+                />
+              </div>
+              <div>
+                <p className="text-sm text-zinc-600 dark:text-zinc-400">
+                  Junior
+                </p>
+                <p className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
+                  {statistics.junior}
+                </p>
               </div>
             </CardBody>
           </Card>
 
-          <Card className="bg-gradient-to-br from-success-50 to-success-100 dark:from-success-950 dark:to-success-930 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-success-600 dark:text-success-400 font-medium">
-                    Soddisfazione
-                  </p>
-                  <p className="text-2xl font-bold text-success-700 dark:text-success-300">
-                    {statistics.satisfaction}%
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-success-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:heart-bold"
-                    className="text-success-600"
-                    width={24}
-                  />
-                </div>
-              </div>
-            </CardBody>
-          </Card>
-
-          <Card className="bg-gradient-to-br from-secondary-50 to-secondary-100 dark:from-secondary-950 dark:to-secondary-930 border-0">
-            <CardBody className="p-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-secondary-600 dark:text-secondary-500 font-medium">
-                    Esperienza Media
-                  </p>
-                  <p className="text-xl font-bold text-secondary-700 dark:text-secondary-400">
-                    {statistics.avgExperience}
-                  </p>
-                </div>
-                <div className="w-12 h-12 rounded-xl bg-secondary-500/20 flex items-center justify-center">
-                  <Icon
-                    icon="solar:clock-circle-bold"
-                    className="text-secondary-600"
-                    width={24}
-                  />
-                </div>
-              </div>
-            </CardBody>
-          </Card>
         </div>
 
-        {/* Enhanced Filters and Controls */}
-        <Card className="border-0 bg-content1/50 backdrop-blur-md">
-          <CardBody className="p-6">
-            <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
-              {/* Search and Filters */}
-              <div className="flex flex-col sm:flex-row gap-6 mb-6">
+        {/* Search and Filters */}
+        <div className="flex flex-col sm:flex-row gap-4 flex-shrink-0">
                 <Input
                   aria-label="Cerca tecnici per nome o ruolo"
                   placeholder="Cerca per nome o ruolo..."
@@ -819,112 +466,91 @@ export default function Team() {
                     ))}
                   </DropdownMenu>
                 </Dropdown>
-              </div>
-            </div>
 
-            {/* Results counter */}
-            <div className="mt-4 pt-4 border-t border-divider">
-              <p className="text-sm text-default-500">
-                Mostrando{" "}
-                <span className="font-semibold text-foreground">
-                  {filteredAndSortedEmployees.length}
-                </span>{" "}
-                di{" "}
-                <span className="font-semibold text-foreground">
-                  {currentEmployees.length}
-                </span>{" "}
-                tecnici
-              </p>
-            </div>
-          </CardBody>
-        </Card>
+                <Dropdown>
+                  <DropdownTrigger>
+                    <Button
+                      variant="flat"
+                      size="lg"
+                      startContent={
+                        <Icon icon="solar:sort-by-time-bold" width={18} />
+                      }
+                      endContent={
+                        <Icon icon="solar:arrow-down-linear" width={16} />
+                      }
+                      className="bg-default-100"
+                    >
+                      {selectedSort}
+                    </Button>
+                  </DropdownTrigger>
+                  <DropdownMenu
+                    aria-label="Ordinamento"
+                    selectedKeys={[selectedSort]}
+                    onAction={(key) => {
+                      setSelectedSort(key as string);
+                      // Aggiorna anche sortBy per sincronizzare
+                      switch (key) {
+                        case "Nome":
+                          setSortBy("name");
+                          break;
+                        case "Ruolo":
+                          setSortBy("role");
+                          break;
+                        case "Esperienza":
+                          setSortBy("experience");
+                          break;
+                        case "Soddisfazione":
+                          setSortBy("satisfaction");
+                          break;
+                        default:
+                          setSortBy("name");
+                      }
+                      setSortDirection("asc");
+                    }}
+                  >
+                    <DropdownItem key="Nome">Nome</DropdownItem>
+                    <DropdownItem key="Ruolo">Ruolo</DropdownItem>
+                    <DropdownItem key="Esperienza">Esperienza</DropdownItem>
+                    <DropdownItem key="Soddisfazione">Soddisfazione</DropdownItem>
+                  </DropdownMenu>
+                </Dropdown>
+        </div>
 
-        {/* Employee Table */}
-        <Card className="border-0 bg-content1/50 backdrop-blur-md">
-          <CardBody className="p-0">
+        {/* Results counter */}
+        <div className="flex justify-between items-center flex-shrink-0">
+          <p className="text-sm text-default-500">
+            Mostrando{" "}
+            <span className="font-semibold text-foreground">
+              {filteredAndSortedEmployees.length}
+            </span>{" "}
+            di{" "}
+            <span className="font-semibold text-foreground">
+              {currentEmployees.length}
+            </span>{" "}
+            tecnici
+          </p>
+        </div>
+
+        {/* Team Table */}
+        <Card className="border-0 bg-content1/50 backdrop-blur-md flex-1 flex flex-col">
+          <CardBody className="p-0 flex-1 flex flex-col">
             <Table
               aria-label="Tabella tecnici"
               classNames={{
-                wrapper: "min-h-[400px]",
+                wrapper: "flex-1 min-h-0",
                 th: "bg-transparent border-b border-divider",
                 td: "border-b border-divider",
               }}
             >
               <TableHeader>
                 <TableColumn className="w-[25%] font-semibold">
-                  <div
-                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleSort("name")}
-                  >
-                    <span>DIPENDENTE</span>
-                    <Icon
-                      icon={
-                        sortBy === "name"
-                          ? sortDirection === "asc"
-                            ? "solar:alt-arrow-up-linear"
-                            : "solar:alt-arrow-down-linear"
-                          : "solar:alt-arrow-up-linear"
-                      }
-                      className={`text-xs ${
-                        sortBy === "name"
-                          ? "text-warning-600"
-                          : isDark
-                          ? "text-white"
-                          : "text-black"
-                      }`}
-                      width={12}
-                    />
-                  </div>
+                  DIPENDENTE
                 </TableColumn>
                 <TableColumn className="w-[20%] font-semibold">
-                  <div
-                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleSort("role")}
-                  >
-                    <span>RUOLO</span>
-                    <Icon
-                      icon={
-                        sortBy === "role"
-                          ? sortDirection === "asc"
-                            ? "solar:alt-arrow-up-linear"
-                            : "solar:alt-arrow-down-linear"
-                          : "solar:alt-arrow-up-linear"
-                      }
-                      className={`text-xs ${
-                        sortBy === "role"
-                          ? "text-warning-600"
-                          : isDark
-                          ? "text-white"
-                          : "text-black"
-                      }`}
-                      width={12}
-                    />
-                  </div>
+                  RUOLO
                 </TableColumn>
                 <TableColumn className="w-[25%] font-semibold">
-                  <div
-                    className="flex items-center gap-2 cursor-pointer hover:opacity-80 transition-opacity"
-                    onClick={() => handleSort("vehicle")}
-                  >
-                    <span>VEICOLO ASSEGNATO</span>
-                    <Icon
-                      icon={
-                        sortBy === "vehicle"
-                          ? sortDirection === "asc"
-                            ? "solar:alt-arrow-up-linear"
-                            : "solar:alt-arrow-down-linear"
-                          : "solar:alt-arrow-up-linear"
-                      }
-                      className={`text-xs ${
-                        sortBy === "vehicle"
-                          ? "text-warning-600"
-                          : isDark
-                          ? "text-white"
-                          : "text-black"
-                      }`}
-                      width={12}
-                    />
-                  </div>
+                  VEICOLO ASSEGNATO
                 </TableColumn>
                 <TableColumn className="w-[15%] font-semibold">
                   STATO
@@ -1029,73 +655,52 @@ export default function Team() {
                           </span>
                         </div>
                       </TableCell>
-
                       <TableCell>
-                        <div className="flex items-center gap-3 justify-center">
-                          <Button
-                            aria-label="Visualizza dettagli tecnico"
-                            size="sm"
-                            variant="light"
-                            color="default"
-                            onPress={() => handleViewEmployee(employee)}
-                            isIconOnly
-                            className={`${
-                              isDark ? "text-white" : "text-black"
-                            } hover:bg-white/20`}
-                          >
-                            <Icon icon="solar:eye-bold" width={16} />
-                          </Button>
-                          <Button
-                            aria-label="Modifica tecnico"
-                            size="sm"
-                            variant="light"
-                            color="warning"
-                            onPress={() => handleEditEmployee(employee)}
-                            isIconOnly
-                          >
-                            <Icon icon="solar:pen-bold" width={16} />
-                          </Button>
+                        <div className="relative flex justify-end items-center gap-2">
                           <Dropdown>
                             <DropdownTrigger>
-                              <Button
-                                aria-label="Azioni per tecnico"
-                                size="sm"
-                                variant="light"
-                                color="danger"
-                                isIconOnly
-                              >
-                                <Icon
-                                  icon="solar:trash-bin-trash-bold"
-                                  width={16}
-                                />
+                              <Button isIconOnly size="sm" variant="light" className="hover:bg-default-100">
+                                <Icon icon="nimbus:ellipsis" />
                               </Button>
                             </DropdownTrigger>
-                            <DropdownMenu
-                              aria-label="Azioni eliminazione"
-                              color="danger"
-                              variant="flat"
-                            >
+                            <DropdownMenu aria-label="Azioni tecnico">
+                              <DropdownItem
+                                key="view"
+                                startContent={<Icon icon="solar:eye-bold" width={16} />}
+                              >
+                                Visualizza Profilo
+                              </DropdownItem>
+                              <DropdownItem
+                                key="edit"
+                                startContent={<Icon icon="solar:pen-bold" width={16} />}
+                              >
+                                Modifica Tecnico
+                              </DropdownItem>
+                              <DropdownItem
+                                key="assign-vehicle"
+                                startContent={<Icon icon="solar:car-bold" width={16} />}
+                              >
+                                Assegna Veicolo
+                              </DropdownItem>
+                              <DropdownItem
+                                key="schedule"
+                                startContent={<Icon icon="solar:calendar-add-bold" width={16} />}
+                              >
+                                Programma Intervento
+                              </DropdownItem>
+                              <DropdownItem
+                                key="performance"
+                                startContent={<Icon icon="solar:chart-bold" width={16} />}
+                              >
+                                Visualizza Performance
+                              </DropdownItem>
                               <DropdownItem
                                 key="delete"
+                                className="text-danger"
                                 color="danger"
-                                className="text-danger-600"
-                                startContent={
-                                  <Icon
-                                    icon="solar:trash-bin-trash-bold"
-                                    width={16}
-                                  />
-                                }
-                                onPress={() => {
-                                  // TODO: Implement actual deletion
-                                  // Eliminazione tecnico implementata in futuro
-                                }}
+                                startContent={<Icon icon="solar:trash-bin-trash-bold" width={16} />}
                               >
-                                <div className="flex flex-col items-start">
-                                  <span>Elimina Definitivamente</span>
-                                  <span className="text-xs text-default-400">
-                                    Sei sicuro?
-                                  </span>
-                                </div>
+                                Elimina Tecnico
                               </DropdownItem>
                             </DropdownMenu>
                           </Dropdown>
@@ -1107,41 +712,28 @@ export default function Team() {
             </Table>
 
             {/* Pagination */}
-            <div className="flex flex-col items-center gap-4 px-6 py-4 border-t border-divider">
-              {/* Info e controlli righe per pagina */}
-              <div className="flex items-center justify-between w-full max-w-md">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-default-500">
-                    Righe per pagina:
-                  </span>
-                  <Select
-                    size="sm"
-                    selectedKeys={[rowsPerPage.toString()]}
-                    onSelectionChange={(keys) => {
-                      const newRowsPerPage = Number(Array.from(keys)[0]);
-                      setRowsPerPage(newRowsPerPage);
-                      setPage(1);
-                    }}
-                    className="w-20"
-                  >
-                    <SelectItem key="5">5</SelectItem>
-                    <SelectItem key="10">10</SelectItem>
-                    <SelectItem key="20">20</SelectItem>
-                    <SelectItem key="50">50</SelectItem>
-                  </Select>
-                </div>
-
-                <div className="text-sm text-default-500">
-                  Mostrando {(page - 1) * rowsPerPage + 1} -{" "}
-                  {Math.min(
-                    page * rowsPerPage,
-                    filteredAndSortedEmployees.length
-                  )}{" "}
-                  di {filteredAndSortedEmployees.length} tecnici
-                </div>
+            <div className="flex items-center justify-between px-6 py-3 border-t border-divider bg-content1/30 flex-shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-default-500">
+                  Righe per pagina:
+                </span>
+                <Select
+                  size="sm"
+                  selectedKeys={[rowsPerPage.toString()]}
+                  onSelectionChange={(keys) => {
+                    const newRowsPerPage = Number(Array.from(keys)[0]);
+                    setRowsPerPage(newRowsPerPage);
+                    setPage(1);
+                  }}
+                  className="w-20"
+                >
+                  <SelectItem key="5">5</SelectItem>
+                  <SelectItem key="10">10</SelectItem>
+                  <SelectItem key="20">20</SelectItem>
+                  <SelectItem key="50">50</SelectItem>
+                </Select>
               </div>
 
-              {/* Paginazione centrata */}
               <Pagination
                 total={Math.ceil(
                   filteredAndSortedEmployees.length / rowsPerPage
@@ -1160,6 +752,15 @@ export default function Team() {
                   next: "rounded-full",
                 }}
               />
+
+              <div className="text-sm text-default-500">
+                {(page - 1) * rowsPerPage + 1} -{" "}
+                {Math.min(
+                  page * rowsPerPage,
+                  filteredAndSortedEmployees.length
+                )}{" "}
+                di {filteredAndSortedEmployees.length}
+              </div>
             </div>
           </CardBody>
         </Card>
@@ -1886,7 +1487,7 @@ export default function Team() {
                 startContent={
                   <Icon icon="solar:check-circle-bold" width={16} />
                 }
-                onPress={handleSaveEmployeeChanges}
+                onPress={() => {}}
                 isDisabled={(() => {
                   if (!selectedEmployee) return true;
 

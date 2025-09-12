@@ -24,6 +24,7 @@ import {
   SelectItem,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import PageHeader from "../../Components/Layout/PageHeader";
 import axios from "axios";
 
 // Interfaccia per i fornitori
@@ -348,16 +349,23 @@ const Suppliers: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-1 flex-col w-full p-4 gap-6">
-      {/* Header con titolo */}
-      <div className="flex flex-col gap-4">
-        <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Icon icon="solar:truck-bold" className="text-primary" width={28} />
-          </div>
-          <h1 className="text-2xl font-bold">Gestione Fornitori</h1>
-        </div>
-      </div>
+    <div className="h-screen flex flex-col bg-background p-6 gap-6">
+      {/* Page Header */}
+      <PageHeader
+        title="Gestione Fornitori"
+        description="Gestisci i fornitori e le loro informazioni"
+        icon="solar:folder-bold-duotone"
+        size="md"
+        actions={[
+          {
+            label: "Nuovo Fornitore",
+            icon: "solar:add-circle-bold",
+            color: "primary",
+            variant: "solid",
+            onClick: onOpenAddSupplierModal,
+          },
+        ]}
+      />
 
       {/* Messaggio di errore */}
       {errorMessage && (

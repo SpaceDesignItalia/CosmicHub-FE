@@ -897,7 +897,7 @@ export default function InterventionsMap() {
                   </div>
                   <div>
                     <span className="text-default-500">Tecnico:</span>
-                    <p>{marker.technician?.name} {marker.technician?.surname}</p>
+                    <p>{marker.technician?.name}</p>
                   </div>
                   <div>
                     <span className="text-default-500">Data:</span>
@@ -933,11 +933,12 @@ export default function InterventionsMap() {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-screen">
+      <div className="h-screen flex flex-col bg-background p-6 gap-6">
         <PageHeader
           title="Mappa Interventi"
           description="Caricamento..."
           icon="solar:map-bold-duotone"
+          size="md"
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">
@@ -950,11 +951,12 @@ export default function InterventionsMap() {
   }
 
   return (
-    <div className="flex flex-col h-screen">
+    <div className="h-screen flex flex-col bg-background p-6 gap-6">
       <PageHeader
         title="Mappa Interventi"
         description="Visualizza la distribuzione geografica degli interventi"
         icon="solar:map-bold-duotone"
+        size="md"
         actions={[
           {
             label: `Filtri${filters.status.length + filters.priority.length + filters.type.length > 0 ? ` (${filters.status.length + filters.priority.length + filters.type.length})` : ""}`,
@@ -987,7 +989,7 @@ export default function InterventionsMap() {
           </div>
       </PageHeader>
       
-      <div className="flex-1 p-6 overflow-hidden">
+      <div className="flex-1 overflow-hidden">
         <div className="h-full">
           {viewMode === "map" ? renderMapView() : (
             <div className="h-full overflow-auto">
@@ -1106,7 +1108,7 @@ export default function InterventionsMap() {
                           }}
                           className="rounded"
                         />
-                        <span className="text-sm">{technician.name} {technician.surname}</span>
+                        <span className="text-sm">{technician.name}</span>
                       </label>
                     ))}
                   </div>

@@ -384,11 +384,12 @@ export default function InterventionComplete() {
 
   if (loading) {
     return (
-      <div className="flex flex-col h-screen">
+      <div className="h-screen flex flex-col bg-background p-6 gap-6">
         <PageHeader
           title="Completa Intervento"
           description="Caricamento..."
           icon="solar:check-circle-bold-duotone"
+          size="md"
         />
         <div className="flex-1 flex items-center justify-center">
           <div className="flex flex-col items-center gap-3">

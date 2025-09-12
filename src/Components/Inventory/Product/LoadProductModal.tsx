@@ -47,10 +47,12 @@ interface Vehicle {
 
 interface Product {
   product_id: string;
+  id?: string;
   name: string;
   quantity: number;
   warehouse_id: string;
-  weight?: number; // Peso unitario del prodotto in grammi
+  weight?: string | number; // Peso unitario del prodotto in grammi
+  [key: string]: any; // Permette proprietà aggiuntive
 }
 
 interface LoadProductModalProps {

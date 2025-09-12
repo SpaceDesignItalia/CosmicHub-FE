@@ -65,7 +65,7 @@ interface Vehicle {
   IsAvailable?: boolean;
 }
 
-interface Product {
+interface ProductTableProduct {
   product_id: string;
   id?: string;
   name: string;
@@ -79,7 +79,7 @@ interface Product {
   qr_code: string;
   supplier_id: string;
   brand_id: string;
-  weight: string;
+  weight: string | number;
   dimensions: string;
   location: string;
   notes: string;
@@ -96,16 +96,16 @@ interface Product {
 }
 
 interface ProductTableProps {
-  products: Product[];
+  products: ProductTableProduct[];
   categories: string[];
   onDeleteProduct?: (id: string) => Promise<void>;
   onUpdateQuantity?: (productId: string, newQuantity: number) => void;
   onRefreshData?: () => void;
   sortBy?: {
-    field: keyof Product;
+    field: keyof ProductTableProduct;
     direction: "asc" | "desc";
   };
-  onSort?: (sort: { field: keyof Product; direction: "asc" | "desc" }) => void;
+  onSort?: (sort: { field: keyof ProductTableProduct; direction: "asc" | "desc" }) => void;
   isLoading?: boolean;
 }
 
@@ -114,6 +114,32 @@ const statusColorMap: Record<string, ChipProps["color"]> = {
   Disponibile: "success",
   "Bassa giacenza": "warning",
   Esaurito: "danger",
+};
+
+// Mappa delle categorie con icone e colori
+const categoryIconMap: Record<string, { icon: string; color: string; bgColor: string }> = {
+  "Elettronica": { icon: "solar:cpu-bold", color: "text-blue-600", bgColor: "bg-blue-100" },
+  "Informatica": { icon: "solar:laptop-bold", color: "text-purple-600", bgColor: "bg-purple-100" },
+  "Telefonia": { icon: "solar:smartphone-bold", color: "text-green-600", bgColor: "bg-green-100" },
+  "Accessori": { icon: "solar:bag-bold", color: "text-orange-600", bgColor: "bg-orange-100" },
+  "Componenti": { icon: "solar:settings-bold", color: "text-gray-600", bgColor: "bg-gray-100" },
+  "Cavi": { icon: "solar:wire-bold", color: "text-red-600", bgColor: "bg-red-100" },
+  "Software": { icon: "solar:code-bold", color: "text-indigo-600", bgColor: "bg-indigo-100" },
+  "Hardware": { icon: "solar:hard-drive-bold", color: "text-teal-600", bgColor: "bg-teal-100" },
+  "Reti": { icon: "solar:router-bold", color: "text-cyan-600", bgColor: "bg-cyan-100" },
+  "Audio": { icon: "solar:speaker-bold", color: "text-pink-600", bgColor: "bg-pink-100" },
+  "Video": { icon: "solar:monitor-bold", color: "text-yellow-600", bgColor: "bg-yellow-100" },
+  "Gaming": { icon: "solar:gamepad-bold", color: "text-emerald-600", bgColor: "bg-emerald-100" },
+  "Ufficio": { icon: "solar:printer-bold", color: "text-slate-600", bgColor: "bg-slate-100" },
+  "Sicurezza": { icon: "solar:shield-bold", color: "text-rose-600", bgColor: "bg-rose-100" },
+  "Storage": { icon: "solar:database-bold", color: "text-violet-600", bgColor: "bg-violet-100" },
+  "Default": { icon: "solar:box-bold", color: "text-default-600", bgColor: "bg-default-100" },
+};
+
+// Funzione helper per ottenere icona e colore della categoria
+const getCategoryIcon = (category: string) => {
+  const normalizedCategory = category.trim();
+  return categoryIconMap[normalizedCategory] || categoryIconMap["Default"];
 };
 
 const columns = [
@@ -215,19 +241,19 @@ export default function ProductTable({
 
   // Modal states
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [selectedProduct, setSelectedProduct] = useState<ProductTableProduct | null>(null);
   const {
     isOpen: isDeleteModalOpen,
     onOpen: openDeleteModal,
     onClose: closeDeleteModal,
   } = useDisclosure();
-  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+  const [productToDelete, setProductToDelete] = useState<ProductTableProduct | null>(null);
 
   // Stock operation states
   const [stockModalState, setStockModalState] = useState({
     isOpen: false,
     type: "increase" as "increase" | "decrease",
-    selectedProduct: null as Product | null,
+    selectedProduct: null as ProductTableProduct | null,
     amount: "",
     reason: "",
     isProcessing: false,
@@ -264,7 +290,7 @@ export default function ProductTable({
   }, [page, filteredItems, rowsPerPage]);
 
   const sortedItems = useMemo(() => {
-    return [...items].sort((a: Product, b: Product) => {
+    return [...items].sort((a: ProductTableProduct, b: ProductTableProduct) => {
       const first = a[sortBy?.field || "name"];
       const second = b[sortBy?.field || "name"];
       const direction = sortBy?.direction === "asc" ? 1 : -1;
@@ -285,7 +311,7 @@ export default function ProductTable({
   );
 
   const confirmDeleteProduct = useCallback(
-    (product: Product) => {
+    (product: ProductTableProduct) => {
       setProductToDelete(product);
       openDeleteModal();
     },
@@ -369,17 +395,26 @@ export default function ProductTable({
   }, [alerts.load.isVisible, hideAlert]);
 
   const renderCell = useCallback(
-    (product: Product, columnKey: React.Key) => {
+    (product: ProductTableProduct, columnKey: React.Key) => {
       const productId = product.product_id || product.id || "";
 
       switch (columnKey) {
         case "name":
+          const categoryInfo = getCategoryIcon(product.category);
           return (
             <User
               avatarProps={{
                 radius: "lg",
-                src: product.image || "https://via.placeholder.com/40",
+                src: product.image || undefined,
                 className: "hidden md:flex object-cover border-0",
+                fallback: (
+                  <div className={`flex items-center justify-center w-full h-full ${categoryInfo.bgColor} rounded-lg`}>
+                    <Icon 
+                      icon={categoryInfo.icon} 
+                      className={`text-xl ${categoryInfo.color}`}
+                    />
+                  </div>
+                ),
               }}
               description={`SKU: ${product.sku || "N/A"}`}
               name={product.name}
@@ -388,14 +423,16 @@ export default function ProductTable({
             </User>
           );
         case "category":
+          const categoryIconInfo = getCategoryIcon(product.category);
           return (
             <div className="flex items-center gap-2">
-              <span
-                className={`w-2 h-2 rounded-full bg-${product.category
-                  .toLowerCase()
-                  .replace(/\s+/g, "")}`}
-              />
-              {product.category}
+              <div className={`flex items-center justify-center w-6 h-6 ${categoryIconInfo.bgColor} rounded-md`}>
+                <Icon 
+                  icon={categoryIconInfo.icon} 
+                  className={`text-sm ${categoryIconInfo.color}`}
+                />
+              </div>
+              <span className="font-medium">{product.category}</span>
             </div>
           );
         case "quantity":
@@ -513,7 +550,7 @@ export default function ProductTable({
               />
 
               <LoadProductModal
-                selectedProduct={product}
+                selectedProduct={product as any}
                 onSuccess={(message) => {
                   showAlert("load", {
                     type: "success",
@@ -598,7 +635,7 @@ export default function ProductTable({
             </div>
           );
         default:
-          const value = product[columnKey as keyof Product];
+          const value = product[columnKey as keyof ProductTableProduct];
           if (Array.isArray(value)) {
             return value.map((item) => item.name || "").join(", ");
           }
@@ -926,7 +963,7 @@ export default function ProductTable({
         onSortChange={(descriptor) => {
           if (onSort) {
             onSort({
-              field: descriptor.column as keyof Product,
+              field: descriptor.column as keyof ProductTableProduct,
               direction: descriptor.direction === "ascending" ? "asc" : "desc",
             });
           }
@@ -1054,12 +1091,13 @@ export default function ProductTable({
                     >
                       Categoria
                     </p>
-                    <div className="flex items-center">
-                      <span
-                        className={`w-2 h-2 rounded-full bg-${selectedProduct.category
-                          .toLowerCase()
-                          .replace(/\s+/g, "")} mr-2`}
-                      />
+                    <div className="flex items-center gap-2">
+                      <div className={`flex items-center justify-center w-6 h-6 ${getCategoryIcon(selectedProduct.category).bgColor} rounded-md`}>
+                        <Icon 
+                          icon={getCategoryIcon(selectedProduct.category).icon} 
+                          className={`text-sm ${getCategoryIcon(selectedProduct.category).color}`}
+                        />
+                      </div>
                       <p className="font-medium">{selectedProduct.category}</p>
                     </div>
                   </div>

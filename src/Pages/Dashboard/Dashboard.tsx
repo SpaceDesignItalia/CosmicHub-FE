@@ -2005,7 +2005,7 @@ export default function Dashboard() {
   }
 
   return (
-    <div className="w-full flex-1 flex flex-col p-6 gap-6">
+    <div className="h-screen flex flex-col bg-background p-6 gap-6">
       {/* Header con controlli */}
       <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
         <PageHeader

@@ -24,6 +24,7 @@ import {
   DropdownItem,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
+import PageHeader from "../../Components/Layout/PageHeader";
 import {
   ResponsiveContainer,
   RadialBarChart,
@@ -578,7 +579,7 @@ const WarehouseDetail: React.FC = () => {
 
   return (
     <>
-      <div className="flex h-full w-full flex-col overflow-y-auto p-6">
+      <div className="flex h-full w-full flex-col overflow-y-auto p-6 gap-6">
         {/* Breadcrumbs */}
         <Breadcrumbs className="mb-4">
           <BreadcrumbItem onPress={() => navigate("/dashboard")}>
@@ -590,90 +591,69 @@ const WarehouseDetail: React.FC = () => {
           <BreadcrumbItem>{warehouse.name}</BreadcrumbItem>
         </Breadcrumbs>
 
-        {/* Header con info principali */}
-        <div className="mb-6 flex flex-col md:flex-row md:items-center md:justify-between">
-          <div className="flex items-center">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-              <Icon
-                icon="mdi:warehouse"
-                className="text-primary"
-                width={28}
-                height={28}
-              />
-            </div>
-            <div className="ml-4">
-              <h1 className="text-2xl font-bold">{warehouse.name}</h1>
-              <div className="flex items-center">
-                <p className="text-default-500">
-                  Codice: {warehouse.WarehouseCode || "#N/A"}
-                </p>
-              </div>
-              {companyName && (
-                <p className="text-default-500">Azienda: {companyName}</p>
-              )}
-            </div>
-          </div>
-          <div className="mt-4 flex space-x-2 md:mt-0">
-            <Button
-              color="primary"
-              variant="flat"
-              startContent={<Icon icon="solar:pen-bold" width={18} />}
-              onPress={() => navigate(`/inventory/warehouses/edit/${UUID}`)}
-            >
-              Modifica
-            </Button>
-            <Dropdown>
-              <DropdownTrigger>
-                <Button
-                  color="danger"
-                  variant="flat"
-                  startContent={<Icon icon="solar:settings-bold" width={18} />}
-                  endContent={
-                    <Icon icon="solar:alt-arrow-down-bold" width={16} />
-                  }
-                >
-                  Azioni
-                </Button>
-              </DropdownTrigger>
-              <DropdownMenu aria-label="Azioni magazzino">
-                <DropdownItem
-                  key={
-                    warehouse.IsActive === false ? "reactivate" : "deactivate"
-                  }
-                  startContent={
-                    warehouse.IsActive === false ? (
-                      <Icon icon="solar:check-circle-bold" width={18} />
-                    ) : (
-                      <Icon icon="solar:forbidden-circle-bold" width={18} />
-                    )
-                  }
-                  className={
-                    warehouse.IsActive === false
-                      ? "text-success"
-                      : "text-warning"
-                  }
-                  onPress={
-                    warehouse.IsActive === false
-                      ? onDeactivateOpen
-                      : onDeactivateOpen
-                  }
-                >
-                  {warehouse.IsActive === false ? "Riattiva" : "Disattiva"}
-                </DropdownItem>
-                <DropdownItem
-                  key="delete"
-                  startContent={
-                    <Icon icon="solar:trash-bin-trash-bold" width={18} />
-                  }
-                  className="text-danger"
-                  color="danger"
-                  onPress={onDeleteOpen}
-                >
-                  Elimina definitivamente
-                </DropdownItem>
-              </DropdownMenu>
-            </Dropdown>
-          </div>
+        {/* Page Header */}
+        <PageHeader
+          title={warehouse.name}
+          description={`Codice: ${warehouse.WarehouseCode || "#N/A"}${companyName ? ` • Azienda: ${companyName}` : ""}`}
+          icon="solar:warehouse-bold-duotone"
+          size="md"
+          actions={[
+            {
+              label: "Modifica",
+              icon: "solar:pen-bold",
+              color: "primary",
+              variant: "flat",
+              onClick: () => navigate(`/inventory/warehouses/edit/${UUID}`),
+            },
+            {
+              label: warehouse.IsActive === false ? "Riattiva" : "Disattiva",
+              icon: warehouse.IsActive === false ? "solar:check-circle-bold" : "solar:forbidden-circle-bold",
+              color: warehouse.IsActive === false ? "success" : "warning",
+              variant: "flat",
+              onClick: onDeactivateOpen,
+            },
+            {
+              label: "Elimina",
+              icon: "solar:trash-bin-minimalistic-bold",
+              color: "danger",
+              variant: "flat",
+              onClick: onDeleteOpen,
+            },
+          ]}
+        />
+
+        {/* Actions Dropdown - Manteniamo il dropdown per azioni aggiuntive */}
+        <div className="flex justify-end">
+          <Dropdown>
+            <DropdownTrigger>
+              <Button
+                color="default"
+                variant="flat"
+                startContent={<Icon icon="solar:settings-bold" width={18} />}
+                endContent={
+                  <Icon icon="solar:alt-arrow-down-bold" width={16} />
+                }
+              >
+                Azioni Avanzate
+              </Button>
+            </DropdownTrigger>
+            <DropdownMenu aria-label="Azioni avanzate magazzino">
+              <DropdownItem
+                key="export"
+                startContent={<Icon icon="solar:export-bold" width={18} />}
+                onPress={() => {/* Export logic */}}
+              >
+                Esporta Dati
+              </DropdownItem>
+              <DropdownItem
+                key="import"
+                startContent={<Icon icon="solar:import-bold" width={18} />}
+                onPress={() => {/* Import logic */}}
+              >
+                Importa Prodotti
+              </DropdownItem>
+            </DropdownMenu>
+          </Dropdown>
         </div>
 
         {/* Avviso magazzino disattivato */}
