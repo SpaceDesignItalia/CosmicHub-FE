@@ -206,9 +206,12 @@ export default function InlineQuantityEditor({
           apiError.code === "ERR_NETWORK"
         ) {
           // Fallback con endpoint generico
-          await axios.put(`/Product/PUT/UpdateProduct/${product.product_id}`, {
-            stock_unit: newQuantity.toString(),
-          });
+          await axios.put(
+            `/Product/UPDATE/UpdateProduct/${product.product_id}`,
+            {
+              stock_unit: newQuantity.toString(),
+            }
+          );
           onUpdate(product.product_id, newQuantity);
           setShowSuccess(true);
           setTimeout(() => setShowSuccess(false), 2000);
@@ -336,7 +339,7 @@ export default function InlineQuantityEditor({
             "Endpoint specifico non trovato, provo con aggiornamento generico..."
           );
           await axios.put(
-            `/Product/PUT/UpdateProduct/${product.product_id}`,
+            `/Product/UPDATE/UpdateProduct/${product.product_id}`,
             updateData
           );
         } else {

@@ -669,28 +669,22 @@ export default function CalendarAurora() {
         eventId={selectedEvent?.EventId || 0}
         eventData={selectedEvent || undefined}
         onEventUpdated={(updatedEvent) => {
-          // Aggiorna l'evento nella lista
-          setEvents((prev) =>
-            prev.map((e) =>
-              e.EventId === updatedEvent.EventId ? updatedEvent : e
-            )
-          );
-
-          // Ricarica i dati dal server per essere sicuri
-          setTimeout(() => {
-            loadData();
-          }, 500);
-        }}
-        onEventDeleted={(deletedEventId) => {
-          // Rimuovi l'evento dalla lista
-          setEvents((prev) => prev.filter((e) => e.EventId !== deletedEventId));
+          // Chiudi immediatamente il modal
           setIsViewOpen(false);
           setSelectedEvent(null);
-
-          // Ricarica i dati dal server per essere sicuri
+          // Aggiorna i dati del calendario in background
           setTimeout(() => {
             loadData();
-          }, 500);
+          }, 100);
+        }}
+        onEventDeleted={(deletedEventId) => {
+          // Chiudi immediatamente il modal
+          setIsViewOpen(false);
+          setSelectedEvent(null);
+          // Aggiorna i dati del calendario in background
+          setTimeout(() => {
+            loadData();
+          }, 100);
         }}
       />
     </div>

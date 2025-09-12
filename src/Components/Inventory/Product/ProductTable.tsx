@@ -105,7 +105,10 @@ interface ProductTableProps {
     field: keyof ProductTableProduct;
     direction: "asc" | "desc";
   };
-  onSort?: (sort: { field: keyof ProductTableProduct; direction: "asc" | "desc" }) => void;
+  onSort?: (sort: {
+    field: keyof ProductTableProduct;
+    direction: "asc" | "desc";
+  }) => void;
   isLoading?: boolean;
 }
 
@@ -117,23 +120,90 @@ const statusColorMap: Record<string, ChipProps["color"]> = {
 };
 
 // Mappa delle categorie con icone e colori
-const categoryIconMap: Record<string, { icon: string; color: string; bgColor: string }> = {
-  "Elettronica": { icon: "solar:cpu-bold", color: "text-blue-600", bgColor: "bg-blue-100" },
-  "Informatica": { icon: "solar:laptop-bold", color: "text-purple-600", bgColor: "bg-purple-100" },
-  "Telefonia": { icon: "solar:smartphone-bold", color: "text-green-600", bgColor: "bg-green-100" },
-  "Accessori": { icon: "solar:bag-bold", color: "text-orange-600", bgColor: "bg-orange-100" },
-  "Componenti": { icon: "solar:settings-bold", color: "text-gray-600", bgColor: "bg-gray-100" },
-  "Cavi": { icon: "solar:wire-bold", color: "text-red-600", bgColor: "bg-red-100" },
-  "Software": { icon: "solar:code-bold", color: "text-indigo-600", bgColor: "bg-indigo-100" },
-  "Hardware": { icon: "solar:hard-drive-bold", color: "text-teal-600", bgColor: "bg-teal-100" },
-  "Reti": { icon: "solar:router-bold", color: "text-cyan-600", bgColor: "bg-cyan-100" },
-  "Audio": { icon: "solar:speaker-bold", color: "text-pink-600", bgColor: "bg-pink-100" },
-  "Video": { icon: "solar:monitor-bold", color: "text-yellow-600", bgColor: "bg-yellow-100" },
-  "Gaming": { icon: "solar:gamepad-bold", color: "text-emerald-600", bgColor: "bg-emerald-100" },
-  "Ufficio": { icon: "solar:printer-bold", color: "text-slate-600", bgColor: "bg-slate-100" },
-  "Sicurezza": { icon: "solar:shield-bold", color: "text-rose-600", bgColor: "bg-rose-100" },
-  "Storage": { icon: "solar:database-bold", color: "text-violet-600", bgColor: "bg-violet-100" },
-  "Default": { icon: "solar:box-bold", color: "text-default-600", bgColor: "bg-default-100" },
+const categoryIconMap: Record<
+  string,
+  { icon: string; color: string; bgColor: string }
+> = {
+  Elettronica: {
+    icon: "solar:cpu-bold",
+    color: "text-blue-600",
+    bgColor: "bg-blue-100",
+  },
+  Informatica: {
+    icon: "solar:laptop-bold",
+    color: "text-purple-600",
+    bgColor: "bg-purple-100",
+  },
+  Telefonia: {
+    icon: "solar:smartphone-bold",
+    color: "text-green-600",
+    bgColor: "bg-green-100",
+  },
+  Accessori: {
+    icon: "solar:bag-bold",
+    color: "text-orange-600",
+    bgColor: "bg-orange-100",
+  },
+  Componenti: {
+    icon: "solar:settings-bold",
+    color: "text-gray-600",
+    bgColor: "bg-gray-100",
+  },
+  Cavi: {
+    icon: "solar:wire-bold",
+    color: "text-red-600",
+    bgColor: "bg-red-100",
+  },
+  Software: {
+    icon: "solar:code-bold",
+    color: "text-indigo-600",
+    bgColor: "bg-indigo-100",
+  },
+  Hardware: {
+    icon: "solar:hard-drive-bold",
+    color: "text-teal-600",
+    bgColor: "bg-teal-100",
+  },
+  Reti: {
+    icon: "solar:router-bold",
+    color: "text-cyan-600",
+    bgColor: "bg-cyan-100",
+  },
+  Audio: {
+    icon: "solar:speaker-bold",
+    color: "text-pink-600",
+    bgColor: "bg-pink-100",
+  },
+  Video: {
+    icon: "solar:monitor-bold",
+    color: "text-yellow-600",
+    bgColor: "bg-yellow-100",
+  },
+  Gaming: {
+    icon: "solar:gamepad-bold",
+    color: "text-emerald-600",
+    bgColor: "bg-emerald-100",
+  },
+  Ufficio: {
+    icon: "solar:printer-bold",
+    color: "text-slate-600",
+    bgColor: "bg-slate-100",
+  },
+  Sicurezza: {
+    icon: "solar:shield-bold",
+    color: "text-rose-600",
+    bgColor: "bg-rose-100",
+  },
+  Storage: {
+    icon: "solar:database-bold",
+    color: "text-violet-600",
+    bgColor: "bg-violet-100",
+  },
+  Default: {
+    icon: "solar:box-bold",
+    color: "text-default-600",
+    bgColor: "bg-default-100",
+  },
 };
 
 // Funzione helper per ottenere icona e colore della categoria
@@ -241,13 +311,15 @@ export default function ProductTable({
 
   // Modal states
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const [selectedProduct, setSelectedProduct] = useState<ProductTableProduct | null>(null);
+  const [selectedProduct, setSelectedProduct] =
+    useState<ProductTableProduct | null>(null);
   const {
     isOpen: isDeleteModalOpen,
     onOpen: openDeleteModal,
     onClose: closeDeleteModal,
   } = useDisclosure();
-  const [productToDelete, setProductToDelete] = useState<ProductTableProduct | null>(null);
+  const [productToDelete, setProductToDelete] =
+    useState<ProductTableProduct | null>(null);
 
   // Stock operation states
   const [stockModalState, setStockModalState] = useState({
@@ -408,9 +480,11 @@ export default function ProductTable({
                 src: product.image || undefined,
                 className: "hidden md:flex object-cover border-0",
                 fallback: (
-                  <div className={`flex items-center justify-center w-full h-full ${categoryInfo.bgColor} rounded-lg`}>
-                    <Icon 
-                      icon={categoryInfo.icon} 
+                  <div
+                    className={`flex items-center justify-center w-full h-full ${categoryInfo.bgColor} rounded-lg`}
+                  >
+                    <Icon
+                      icon={categoryInfo.icon}
                       className={`text-xl ${categoryInfo.color}`}
                     />
                   </div>
@@ -426,9 +500,11 @@ export default function ProductTable({
           const categoryIconInfo = getCategoryIcon(product.category);
           return (
             <div className="flex items-center gap-2">
-              <div className={`flex items-center justify-center w-6 h-6 ${categoryIconInfo.bgColor} rounded-md`}>
-                <Icon 
-                  icon={categoryIconInfo.icon} 
+              <div
+                className={`flex items-center justify-center w-6 h-6 ${categoryIconInfo.bgColor} rounded-md`}
+              >
+                <Icon
+                  icon={categoryIconInfo.icon}
                   className={`text-sm ${categoryIconInfo.color}`}
                 />
               </div>
@@ -828,7 +904,7 @@ export default function ProductTable({
           };
 
           await axios.put(
-            `/Product/PUT/UpdateProduct/${stockModalState.selectedProduct.product_id}`,
+            `/Product/UPDATE/UpdateProduct/${stockModalState.selectedProduct.product_id}`,
             updateData
           );
 
@@ -1092,10 +1168,16 @@ export default function ProductTable({
                       Categoria
                     </p>
                     <div className="flex items-center gap-2">
-                      <div className={`flex items-center justify-center w-6 h-6 ${getCategoryIcon(selectedProduct.category).bgColor} rounded-md`}>
-                        <Icon 
-                          icon={getCategoryIcon(selectedProduct.category).icon} 
-                          className={`text-sm ${getCategoryIcon(selectedProduct.category).color}`}
+                      <div
+                        className={`flex items-center justify-center w-6 h-6 ${
+                          getCategoryIcon(selectedProduct.category).bgColor
+                        } rounded-md`}
+                      >
+                        <Icon
+                          icon={getCategoryIcon(selectedProduct.category).icon}
+                          className={`text-sm ${
+                            getCategoryIcon(selectedProduct.category).color
+                          }`}
                         />
                       </div>
                       <p className="font-medium">{selectedProduct.category}</p>

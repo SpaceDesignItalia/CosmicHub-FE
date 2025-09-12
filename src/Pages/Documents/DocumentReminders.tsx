@@ -38,7 +38,11 @@ import {
 import { Icon } from "@iconify/react";
 import axios from "axios";
 import PageHeader from "../../Components/Layout/PageHeader";
-import type { DocumentReminder, ReminderConfig, DocumentAnalytics } from "../../types/Documents";
+import type {
+  DocumentReminder,
+  ReminderConfig,
+  DocumentAnalytics,
+} from "../../types/Documents";
 
 interface ReminderDashboardData {
   critical_expiring: DocumentReminder[];
@@ -50,7 +54,7 @@ interface ReminderDashboardData {
 
 const urgencyColors = {
   critical: "danger",
-  high: "warning", 
+  high: "warning",
   medium: "primary",
   low: "default",
 } as const;
@@ -58,7 +62,7 @@ const urgencyColors = {
 const statusColors = {
   pending: "warning",
   sent: "primary",
-  acknowledged: "success", 
+  acknowledged: "success",
   expired: "danger",
 } as const;
 
@@ -71,7 +75,8 @@ const statusLabels = {
 
 export default function DocumentReminders() {
   // State management
-  const [dashboardData, setDashboardData] = useState<ReminderDashboardData | null>(null);
+  const [dashboardData, setDashboardData] =
+    useState<ReminderDashboardData | null>(null);
   const [reminderConfigs, setReminderConfigs] = useState<ReminderConfig[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedTab, setSelectedTab] = useState("dashboard");
@@ -83,7 +88,11 @@ export default function DocumentReminders() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   // Modals
-  const { isOpen: isConfigModalOpen, onOpen: onConfigModalOpen, onClose: onConfigModalClose } = useDisclosure();
+  const {
+    isOpen: isConfigModalOpen,
+    onOpen: onConfigModalOpen,
+    onClose: onConfigModalClose,
+  } = useDisclosure();
 
   // Load data
   useEffect(() => {
@@ -96,11 +105,12 @@ export default function DocumentReminders() {
     setIsLoading(true);
     try {
       // Load documents from all categories in parallel
-      const [vehicleResponse, employeeResponse, companyResponse] = await Promise.all([
-        axios.get("/Document/GET/GetAllVehicleDocuments"),
-        axios.get("/Document/GET/GetAllEmployeeDocuments"),
-        axios.get("/Document/GET/GetAllCompanyDocuments")
-      ]);
+      const [vehicleResponse, employeeResponse, companyResponse] =
+        await Promise.all([
+          axios.get("/Document/GET/GetAllVehicleDocuments"),
+          axios.get("/Document/GET/GetAllEmployeeDocuments"),
+          axios.get("/Document/GET/GetAllCompanyDocuments"),
+        ]);
 
       const vehicleDocs = vehicleResponse.data || [];
       const employeeDocs = employeeResponse.data || [];
@@ -111,10 +121,13 @@ export default function DocumentReminders() {
       setCompanyDocuments(companyDocs);
 
       // Process data to create dashboard
-      const processedData = processDashboardData(vehicleDocs, employeeDocs, companyDocs);
+      const processedData = processDashboardData(
+        vehicleDocs,
+        employeeDocs,
+        companyDocs
+      );
       setDashboardData(processedData);
       setLastUpdated(new Date());
-
     } catch (error) {
       console.error("Errore nel caricamento documenti:", error);
       // Load mock data as fallback
@@ -126,7 +139,9 @@ export default function DocumentReminders() {
 
   const loadReminderConfigs = async () => {
     try {
-      const response = await axios.get("/Documents/Reminders/GET/GetReminderConfigs");
+      const response = await axios.get(
+        "/Documents/Reminders/GET/GetReminderConfigs"
+      );
       setReminderConfigs(response.data || []);
     } catch (error) {
       console.error("Errore nel caricamento configurazioni:", error);
@@ -135,18 +150,31 @@ export default function DocumentReminders() {
   };
 
   // Process all documents to create dashboard data
-  const processDashboardData = (vehicleDocs: any[], employeeDocs: any[], companyDocs: any[]): ReminderDashboardData => {
+  const processDashboardData = (
+    vehicleDocs: any[],
+    employeeDocs: any[],
+    companyDocs: any[]
+  ): ReminderDashboardData => {
     const allDocuments = [
-      ...vehicleDocs.map(doc => ({ ...doc, entity_type: 'vehicle' as const })),
-      ...employeeDocs.map(doc => ({ ...doc, entity_type: 'employee' as const })),
-      ...companyDocs.map(doc => ({ ...doc, entity_type: 'company' as const }))
+      ...vehicleDocs.map((doc) => ({
+        ...doc,
+        entity_type: "vehicle" as const,
+      })),
+      ...employeeDocs.map((doc) => ({
+        ...doc,
+        entity_type: "employee" as const,
+      })),
+      ...companyDocs.map((doc) => ({
+        ...doc,
+        entity_type: "company" as const,
+      })),
     ];
 
     const now = new Date();
-    const documentsWithExpiry = allDocuments.filter(doc => doc.expiry_date);
+    const documentsWithExpiry = allDocuments.filter((doc) => doc.expiry_date);
 
     // Calculate days until expiry for each document
-    const processedDocuments = documentsWithExpiry.map(doc => {
+    const processedDocuments = documentsWithExpiry.map((doc) => {
       const expiryDate = new Date(doc.expiry_date);
       const timeDiff = expiryDate.getTime() - now.getTime();
       const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
@@ -159,27 +187,32 @@ export default function DocumentReminders() {
         expiry_date: doc.expiry_date,
         days_until_expiry: daysDiff,
         reminder_type: "email" as const,
-        status: daysDiff < 0 ? "expired" as const : daysDiff <= 7 ? "pending" as const : "sent" as const,
+        status:
+          daysDiff < 0
+            ? ("expired" as const)
+            : daysDiff <= 7
+            ? ("pending" as const)
+            : ("sent" as const),
         recipients: ["admin@cosmichub.it"],
         created_at: new Date().toISOString(),
       };
     });
 
     // Categorize documents
-    const critical_expiring = processedDocuments.filter(doc => 
-      doc.days_until_expiry >= 0 && doc.days_until_expiry <= 7
-    );
-    
-    const upcoming_reminders = processedDocuments.filter(doc => 
-      doc.days_until_expiry > 7 && doc.days_until_expiry <= 30
-    );
-    
-    const overdue_documents = processedDocuments.filter(doc => 
-      doc.days_until_expiry < 0
+    const critical_expiring = processedDocuments.filter(
+      (doc) => doc.days_until_expiry >= 0 && doc.days_until_expiry <= 7
     );
 
-    const recent_sent = processedDocuments.filter(doc => 
-      doc.days_until_expiry > 30 && doc.days_until_expiry <= 60
+    const upcoming_reminders = processedDocuments.filter(
+      (doc) => doc.days_until_expiry > 7 && doc.days_until_expiry <= 30
+    );
+
+    const overdue_documents = processedDocuments.filter(
+      (doc) => doc.days_until_expiry < 0
+    );
+
+    const recent_sent = processedDocuments.filter(
+      (doc) => doc.days_until_expiry > 30 && doc.days_until_expiry <= 60
     );
 
     // Calculate analytics
@@ -193,18 +226,21 @@ export default function DocumentReminders() {
         employee_documents: employeeDocs.length,
       },
       by_status: {
-        active: allDocuments.filter(d => d.status === "active").length,
+        active: allDocuments.filter((d) => d.status === "active").length,
         expiring_soon: critical_expiring.length + upcoming_reminders.length,
         expired: overdue_documents.length,
-        draft: allDocuments.filter(d => d.status === "draft").length,
+        draft: allDocuments.filter((d) => d.status === "draft").length,
       },
-      recent_uploads: allDocuments.filter(doc => {
+      recent_uploads: allDocuments.filter((doc) => {
         if (!doc.created_at) return false;
         const createdDate = new Date(doc.created_at);
         const weekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
         return createdDate > weekAgo;
       }).length,
-      pending_renewals: critical_expiring.length + upcoming_reminders.length + overdue_documents.length,
+      pending_renewals:
+        critical_expiring.length +
+        upcoming_reminders.length +
+        overdue_documents.length,
     };
 
     return {
@@ -212,7 +248,7 @@ export default function DocumentReminders() {
       upcoming_reminders,
       overdue_documents,
       recent_sent,
-      analytics
+      analytics,
     };
   };
 
@@ -232,7 +268,7 @@ export default function DocumentReminders() {
           created_at: "2024-12-22T10:00:00Z",
         },
         {
-          id: "2", 
+          id: "2",
           document_id: "doc_2",
           document_type: "company",
           document_title: "Certificazione Sicurezza Magazzino",
@@ -248,7 +284,7 @@ export default function DocumentReminders() {
       upcoming_reminders: [
         {
           id: "3",
-          document_id: "doc_3", 
+          document_id: "doc_3",
           document_type: "employee",
           document_title: "Patente Mario Rossi",
           expiry_date: "2025-01-15",
@@ -263,7 +299,7 @@ export default function DocumentReminders() {
         {
           id: "4",
           document_id: "doc_4",
-          document_type: "vehicle", 
+          document_type: "vehicle",
           document_title: "Assicurazione Furgone Roma",
           expiry_date: "2024-12-15",
           days_until_expiry: -7,
@@ -332,7 +368,7 @@ export default function DocumentReminders() {
       {
         id: "2",
         document_type: "inspection",
-        entity_type: "vehicle", 
+        entity_type: "vehicle",
         reminder_days: [30, 15, 7, 1],
         reminder_methods: ["email", "dashboard"],
         recipients: {
@@ -358,7 +394,10 @@ export default function DocumentReminders() {
   };
 
   // Send manual reminder
-  const sendManualReminder = async (documentId: string, reminderType: string) => {
+  const sendManualReminder = async (
+    documentId: string,
+    reminderType: string
+  ) => {
     try {
       await axios.post("/Documents/Reminders/POST/SendManualReminder", {
         document_id: documentId,
@@ -373,7 +412,9 @@ export default function DocumentReminders() {
   // Acknowledge reminder
   const acknowledgeReminder = async (reminderId: string) => {
     try {
-      await axios.put(`/Documents/Reminders/PUT/AcknowledgeReminder/${reminderId}`);
+      await axios.put(
+        `/Documents/Reminders/UPDATE/AcknowledgeReminder/${reminderId}`
+      );
       await loadAllDocuments();
     } catch (error) {
       console.error("Errore nella conferma reminder:", error);
@@ -383,7 +424,10 @@ export default function DocumentReminders() {
   // Toggle reminder config
   const toggleReminderConfig = async (configId: string, active: boolean) => {
     try {
-      await axios.put(`/Documents/Reminders/PUT/UpdateReminderConfig/${configId}`, { active });
+      await axios.put(
+        `/Documents/Reminders/UPDATE/UpdateReminderConfig/${configId}`,
+        { active }
+      );
       await loadReminderConfigs();
     } catch (error) {
       console.error("Errore nell'aggiornamento configurazione:", error);
@@ -406,7 +450,13 @@ export default function DocumentReminders() {
     <div className="w-full flex flex-col p-4 gap-6 min-h-screen">
       <PageHeader
         title="Scadenze & Reminder"
-        description={`Monitoraggio scadenze documenti e gestione notifiche automatiche${lastUpdated ? ` • Ultimo aggiornamento: ${lastUpdated.toLocaleTimeString('it-IT')}` : ''}`}
+        description={`Monitoraggio scadenze documenti e gestione notifiche automatiche${
+          lastUpdated
+            ? ` • Ultimo aggiornamento: ${lastUpdated.toLocaleTimeString(
+                "it-IT"
+              )}`
+            : ""
+        }`}
         icon="solar:bell-bing-bold-duotone"
         size="md"
         actions={[
@@ -439,30 +489,48 @@ export default function DocumentReminders() {
             <Card className="mb-6 border-danger-200">
               <CardHeader className="bg-danger-50">
                 <div className="flex items-center gap-2">
-                  <Icon icon="solar:danger-bold" className="text-danger" width={24} />
-                  <h3 className="text-lg font-semibold text-danger">Documenti in Scadenza Critica</h3>
-                  <Badge color="danger">{dashboardData.critical_expiring.length}</Badge>
+                  <Icon
+                    icon="solar:danger-bold"
+                    className="text-danger"
+                    width={24}
+                  />
+                  <h3 className="text-lg font-semibold text-danger">
+                    Documenti in Scadenza Critica
+                  </h3>
+                  <Badge color="danger">
+                    {dashboardData.critical_expiring.length}
+                  </Badge>
                 </div>
               </CardHeader>
               <CardBody>
                 <div className="space-y-3">
                   {dashboardData.critical_expiring.map((reminder) => (
-                    <div key={reminder.id} className="flex items-center justify-between p-3 bg-danger-50 rounded-lg">
+                    <div
+                      key={reminder.id}
+                      className="flex items-center justify-between p-3 bg-danger-50 rounded-lg"
+                    >
                       <div className="flex items-center gap-3">
-                        <Icon 
-                          icon={reminder.document_type === "vehicle" ? "solar:car-bold" : 
-                                reminder.document_type === "company" ? "solar:buildings-2-bold" : 
-                                "solar:user-id-bold"} 
-                          width={20} 
+                        <Icon
+                          icon={
+                            reminder.document_type === "vehicle"
+                              ? "solar:car-bold"
+                              : reminder.document_type === "company"
+                              ? "solar:buildings-2-bold"
+                              : "solar:user-id-bold"
+                          }
+                          width={20}
                           className="text-danger"
                         />
                         <div>
-                          <p className="font-medium">{reminder.document_title}</p>
+                          <p className="font-medium">
+                            {reminder.document_title}
+                          </p>
                           <p className="text-sm text-danger">
-                            {reminder.days_until_expiry < 0 
-                              ? `Scaduto da ${Math.abs(reminder.days_until_expiry)} giorni`
-                              : `Scade tra ${reminder.days_until_expiry} giorni`
-                            }
+                            {reminder.days_until_expiry < 0
+                              ? `Scaduto da ${Math.abs(
+                                  reminder.days_until_expiry
+                                )} giorni`
+                              : `Scade tra ${reminder.days_until_expiry} giorni`}
                           </p>
                         </div>
                       </div>
@@ -471,8 +539,12 @@ export default function DocumentReminders() {
                           size="sm"
                           color="danger"
                           variant="flat"
-                          startContent={<Icon icon="solar:bell-bold" width={16} />}
-                          onPress={() => sendManualReminder(reminder.document_id, "email")}
+                          startContent={
+                            <Icon icon="solar:bell-bold" width={16} />
+                          }
+                          onPress={() =>
+                            sendManualReminder(reminder.document_id, "email")
+                          }
                         >
                           Invia Reminder
                         </Button>
@@ -481,7 +553,9 @@ export default function DocumentReminders() {
                             size="sm"
                             color="success"
                             variant="flat"
-                            startContent={<Icon icon="solar:check-bold" width={16} />}
+                            startContent={
+                              <Icon icon="solar:check-bold" width={16} />
+                            }
                             onPress={() => acknowledgeReminder(reminder.id)}
                           >
                             Conferma
@@ -501,11 +575,19 @@ export default function DocumentReminders() {
               <CardBody className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-primary/10 rounded-lg">
-                    <Icon icon="solar:documents-bold" className="text-primary" width={24} />
+                    <Icon
+                      icon="solar:documents-bold"
+                      className="text-primary"
+                      width={24}
+                    />
                   </div>
                   <div>
-                    <p className="text-small text-default-500">Totale Documenti</p>
-                    <p className="text-2xl font-semibold">{dashboardData.analytics.total_documents}</p>
+                    <p className="text-small text-default-500">
+                      Totale Documenti
+                    </p>
+                    <p className="text-2xl font-semibold">
+                      {dashboardData.analytics.total_documents}
+                    </p>
                   </div>
                 </div>
               </CardBody>
@@ -515,11 +597,17 @@ export default function DocumentReminders() {
               <CardBody className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-warning/10 rounded-lg">
-                    <Icon icon="solar:clock-circle-bold" className="text-warning" width={24} />
+                    <Icon
+                      icon="solar:clock-circle-bold"
+                      className="text-warning"
+                      width={24}
+                    />
                   </div>
                   <div>
                     <p className="text-small text-default-500">In Scadenza</p>
-                    <p className="text-2xl font-semibold text-warning">{dashboardData.analytics.expiring_soon}</p>
+                    <p className="text-2xl font-semibold text-warning">
+                      {dashboardData.analytics.expiring_soon}
+                    </p>
                   </div>
                 </div>
               </CardBody>
@@ -529,11 +617,17 @@ export default function DocumentReminders() {
               <CardBody className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-danger/10 rounded-lg">
-                    <Icon icon="solar:close-circle-bold" className="text-danger" width={24} />
+                    <Icon
+                      icon="solar:close-circle-bold"
+                      className="text-danger"
+                      width={24}
+                    />
                   </div>
                   <div>
                     <p className="text-small text-default-500">Scaduti</p>
-                    <p className="text-2xl font-semibold text-danger">{dashboardData.analytics.expired}</p>
+                    <p className="text-2xl font-semibold text-danger">
+                      {dashboardData.analytics.expired}
+                    </p>
                   </div>
                 </div>
               </CardBody>
@@ -543,11 +637,17 @@ export default function DocumentReminders() {
               <CardBody className="p-4">
                 <div className="flex items-center gap-3">
                   <div className="p-2 bg-secondary/10 rounded-lg">
-                    <Icon icon="solar:refresh-circle-bold" className="text-secondary" width={24} />
+                    <Icon
+                      icon="solar:refresh-circle-bold"
+                      className="text-secondary"
+                      width={24}
+                    />
                   </div>
                   <div>
                     <p className="text-small text-default-500">Da Rinnovare</p>
-                    <p className="text-2xl font-semibold text-secondary">{dashboardData.analytics.pending_renewals}</p>
+                    <p className="text-2xl font-semibold text-secondary">
+                      {dashboardData.analytics.pending_renewals}
+                    </p>
                   </div>
                 </div>
               </CardBody>
@@ -562,34 +662,55 @@ export default function DocumentReminders() {
             <CardBody>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="flex items-center gap-3 p-3 bg-primary-50 rounded-lg">
-                  <Icon icon="solar:car-bold" className="text-primary" width={24} />
+                  <Icon
+                    icon="solar:car-bold"
+                    className="text-primary"
+                    width={24}
+                  />
                   <div>
                     <p className="text-sm font-medium">Documenti Veicoli</p>
-                    <p className="text-lg font-semibold">{vehicleDocuments.length}</p>
+                    <p className="text-lg font-semibold">
+                      {vehicleDocuments.length}
+                    </p>
                     <p className="text-xs text-default-500">
-                      {vehicleDocuments.filter(d => d.expiry_date).length} con scadenza
+                      {vehicleDocuments.filter((d) => d.expiry_date).length} con
+                      scadenza
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3 p-3 bg-warning-50 rounded-lg">
-                  <Icon icon="solar:user-id-bold" className="text-warning" width={24} />
+                  <Icon
+                    icon="solar:user-id-bold"
+                    className="text-warning"
+                    width={24}
+                  />
                   <div>
                     <p className="text-sm font-medium">Documenti Dipendenti</p>
-                    <p className="text-lg font-semibold">{employeeDocuments.length}</p>
+                    <p className="text-lg font-semibold">
+                      {employeeDocuments.length}
+                    </p>
                     <p className="text-xs text-default-500">
-                      {employeeDocuments.filter(d => d.expiry_date).length} con scadenza
+                      {employeeDocuments.filter((d) => d.expiry_date).length}{" "}
+                      con scadenza
                     </p>
                   </div>
                 </div>
-                
+
                 <div className="flex items-center gap-3 p-3 bg-secondary-50 rounded-lg">
-                  <Icon icon="solar:buildings-2-bold" className="text-secondary" width={24} />
+                  <Icon
+                    icon="solar:buildings-2-bold"
+                    className="text-secondary"
+                    width={24}
+                  />
                   <div>
                     <p className="text-sm font-medium">Documenti Azienda</p>
-                    <p className="text-lg font-semibold">{companyDocuments.length}</p>
+                    <p className="text-lg font-semibold">
+                      {companyDocuments.length}
+                    </p>
                     <p className="text-xs text-default-500">
-                      {companyDocuments.filter(d => d.expiry_date).length} con scadenza
+                      {companyDocuments.filter((d) => d.expiry_date).length} con
+                      scadenza
                     </p>
                   </div>
                 </div>
@@ -601,55 +722,87 @@ export default function DocumentReminders() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
             <Card>
               <CardHeader>
-                <h3 className="text-lg font-semibold">Distribuzione per Tipo</h3>
+                <h3 className="text-lg font-semibold">
+                  Distribuzione per Tipo
+                </h3>
               </CardHeader>
               <CardBody>
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <Icon icon="solar:car-bold" width={20} className="text-primary" />
+                      <Icon
+                        icon="solar:car-bold"
+                        width={20}
+                        className="text-primary"
+                      />
                       <span>Documenti Veicoli</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Progress 
-                        value={(dashboardData.analytics.by_type.vehicle_documents / dashboardData.analytics.total_documents) * 100} 
-                        className="w-20" 
+                      <Progress
+                        value={
+                          (dashboardData.analytics.by_type.vehicle_documents /
+                            dashboardData.analytics.total_documents) *
+                          100
+                        }
+                        className="w-20"
                         color="primary"
                         aria-label="Documenti veicoli"
                       />
-                      <span className="text-sm font-medium">{dashboardData.analytics.by_type.vehicle_documents}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <Icon icon="solar:buildings-2-bold" width={20} className="text-secondary" />
-                      <span>Documenti Azienda</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Progress 
-                        value={(dashboardData.analytics.by_type.company_documents / dashboardData.analytics.total_documents) * 100} 
-                        className="w-20" 
-                        color="secondary"
-                        aria-label="Documenti aziendali"
-                      />
-                      <span className="text-sm font-medium">{dashboardData.analytics.by_type.company_documents}</span>
+                      <span className="text-sm font-medium">
+                        {dashboardData.analytics.by_type.vehicle_documents}
+                      </span>
                     </div>
                   </div>
 
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <Icon icon="solar:user-id-bold" width={20} className="text-warning" />
+                      <Icon
+                        icon="solar:buildings-2-bold"
+                        width={20}
+                        className="text-secondary"
+                      />
+                      <span>Documenti Azienda</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Progress
+                        value={
+                          (dashboardData.analytics.by_type.company_documents /
+                            dashboardData.analytics.total_documents) *
+                          100
+                        }
+                        className="w-20"
+                        color="secondary"
+                        aria-label="Documenti aziendali"
+                      />
+                      <span className="text-sm font-medium">
+                        {dashboardData.analytics.by_type.company_documents}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="solar:user-id-bold"
+                        width={20}
+                        className="text-warning"
+                      />
                       <span>Documenti Dipendenti</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Progress 
-                        value={(dashboardData.analytics.by_type.employee_documents / dashboardData.analytics.total_documents) * 100} 
-                        className="w-20" 
+                      <Progress
+                        value={
+                          (dashboardData.analytics.by_type.employee_documents /
+                            dashboardData.analytics.total_documents) *
+                          100
+                        }
+                        className="w-20"
                         color="warning"
                         aria-label="Documenti dipendenti"
                       />
-                      <span className="text-sm font-medium">{dashboardData.analytics.by_type.employee_documents}</span>
+                      <span className="text-sm font-medium">
+                        {dashboardData.analytics.by_type.employee_documents}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -664,49 +817,79 @@ export default function DocumentReminders() {
                 <div className="space-y-3">
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <Icon icon="solar:check-circle-bold" width={20} className="text-success" />
+                      <Icon
+                        icon="solar:check-circle-bold"
+                        width={20}
+                        className="text-success"
+                      />
                       <span>Attivi</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Progress 
-                        value={(dashboardData.analytics.by_status.active / dashboardData.analytics.total_documents) * 100} 
-                        className="w-20" 
+                      <Progress
+                        value={
+                          (dashboardData.analytics.by_status.active /
+                            dashboardData.analytics.total_documents) *
+                          100
+                        }
+                        className="w-20"
                         color="success"
                         aria-label="Documenti attivi"
                       />
-                      <span className="text-sm font-medium">{dashboardData.analytics.by_status.active}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2">
-                      <Icon icon="solar:clock-circle-bold" width={20} className="text-warning" />
-                      <span>In Scadenza</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Progress 
-                        value={(dashboardData.analytics.by_status.expiring_soon / dashboardData.analytics.total_documents) * 100} 
-                        className="w-20" 
-                        color="warning"
-                        aria-label="Documenti in scadenza"
-                      />
-                      <span className="text-sm font-medium">{dashboardData.analytics.by_status.expiring_soon}</span>
+                      <span className="text-sm font-medium">
+                        {dashboardData.analytics.by_status.active}
+                      </span>
                     </div>
                   </div>
 
                   <div className="flex justify-between items-center">
                     <div className="flex items-center gap-2">
-                      <Icon icon="solar:close-circle-bold" width={20} className="text-danger" />
+                      <Icon
+                        icon="solar:clock-circle-bold"
+                        width={20}
+                        className="text-warning"
+                      />
+                      <span>In Scadenza</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Progress
+                        value={
+                          (dashboardData.analytics.by_status.expiring_soon /
+                            dashboardData.analytics.total_documents) *
+                          100
+                        }
+                        className="w-20"
+                        color="warning"
+                        aria-label="Documenti in scadenza"
+                      />
+                      <span className="text-sm font-medium">
+                        {dashboardData.analytics.by_status.expiring_soon}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <div className="flex items-center gap-2">
+                      <Icon
+                        icon="solar:close-circle-bold"
+                        width={20}
+                        className="text-danger"
+                      />
                       <span>Scaduti</span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Progress 
-                        value={(dashboardData.analytics.by_status.expired / dashboardData.analytics.total_documents) * 100} 
-                        className="w-20" 
+                      <Progress
+                        value={
+                          (dashboardData.analytics.by_status.expired /
+                            dashboardData.analytics.total_documents) *
+                          100
+                        }
+                        className="w-20"
                         color="danger"
                         aria-label="Documenti scaduti"
                       />
-                      <span className="text-sm font-medium">{dashboardData.analytics.by_status.expired}</span>
+                      <span className="text-sm font-medium">
+                        {dashboardData.analytics.by_status.expired}
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -719,12 +902,17 @@ export default function DocumentReminders() {
             <Card>
               <CardHeader>
                 <h3 className="text-lg font-semibold">Prossimi Reminder</h3>
-                <Badge color="primary">{dashboardData.upcoming_reminders.length}</Badge>
+                <Badge color="primary">
+                  {dashboardData.upcoming_reminders.length}
+                </Badge>
               </CardHeader>
               <CardBody>
                 <div className="space-y-3">
                   {dashboardData.upcoming_reminders.map((reminder) => (
-                    <div key={reminder.id} className="flex items-center justify-between p-3 bg-default-50 rounded-lg">
+                    <div
+                      key={reminder.id}
+                      className="flex items-center justify-between p-3 bg-default-50 rounded-lg"
+                    >
                       <div className="flex items-center gap-3">
                         <Avatar
                           icon={<Icon icon="solar:bell-bold" />}
@@ -732,14 +920,20 @@ export default function DocumentReminders() {
                           size="sm"
                         />
                         <div>
-                          <p className="font-medium text-sm">{reminder.document_title}</p>
+                          <p className="font-medium text-sm">
+                            {reminder.document_title}
+                          </p>
                           <p className="text-xs text-default-500">
                             Scade tra {reminder.days_until_expiry} giorni
                           </p>
                         </div>
                       </div>
                       <Chip
-                        color={urgencyColors[getUrgencyLevel(reminder.days_until_expiry)]}
+                        color={
+                          urgencyColors[
+                            getUrgencyLevel(reminder.days_until_expiry)
+                          ]
+                        }
                         size="sm"
                         variant="flat"
                       >
@@ -748,7 +942,9 @@ export default function DocumentReminders() {
                     </div>
                   ))}
                   {dashboardData.upcoming_reminders.length === 0 && (
-                    <p className="text-center text-default-500 py-4">Nessun reminder in programma</p>
+                    <p className="text-center text-default-500 py-4">
+                      Nessun reminder in programma
+                    </p>
                   )}
                 </div>
               </CardBody>
@@ -761,17 +957,37 @@ export default function DocumentReminders() {
               <CardBody>
                 <div className="space-y-3">
                   {dashboardData.recent_sent.map((reminder) => (
-                    <div key={reminder.id} className="flex items-center justify-between p-3 bg-default-50 rounded-lg">
+                    <div
+                      key={reminder.id}
+                      className="flex items-center justify-between p-3 bg-default-50 rounded-lg"
+                    >
                       <div className="flex items-center gap-3">
                         <Avatar
-                          icon={<Icon icon={reminder.status === "acknowledged" ? "solar:check-circle-bold" : "solar:mail-bold"} />}
-                          className={`${reminder.status === "acknowledged" ? "bg-success/10 text-success" : "bg-primary/10 text-primary"}`}
+                          icon={
+                            <Icon
+                              icon={
+                                reminder.status === "acknowledged"
+                                  ? "solar:check-circle-bold"
+                                  : "solar:mail-bold"
+                              }
+                            />
+                          }
+                          className={`${
+                            reminder.status === "acknowledged"
+                              ? "bg-success/10 text-success"
+                              : "bg-primary/10 text-primary"
+                          }`}
                           size="sm"
                         />
                         <div>
-                          <p className="font-medium text-sm">{reminder.document_title}</p>
+                          <p className="font-medium text-sm">
+                            {reminder.document_title}
+                          </p>
                           <p className="text-xs text-default-500">
-                            {reminder.sent_at && new Date(reminder.sent_at).toLocaleDateString("it-IT")}
+                            {reminder.sent_at &&
+                              new Date(reminder.sent_at).toLocaleDateString(
+                                "it-IT"
+                              )}
                           </p>
                         </div>
                       </div>
@@ -785,7 +1001,9 @@ export default function DocumentReminders() {
                     </div>
                   ))}
                   {dashboardData.recent_sent.length === 0 && (
-                    <p className="text-center text-default-500 py-4">Nessuna attività recente</p>
+                    <p className="text-center text-default-500 py-4">
+                      Nessuna attività recente
+                    </p>
                   )}
                 </div>
               </CardBody>
@@ -796,7 +1014,9 @@ export default function DocumentReminders() {
         <Tab key="configurations" title="Configurazioni">
           <Card>
             <CardHeader className="flex justify-between">
-              <h3 className="text-lg font-semibold">Configurazioni Reminder Automatici</h3>
+              <h3 className="text-lg font-semibold">
+                Configurazioni Reminder Automatici
+              </h3>
               <Button
                 color="primary"
                 startContent={<Icon icon="solar:add-circle-bold" width={16} />}
@@ -824,7 +1044,7 @@ export default function DocumentReminders() {
                           {config.document_type}
                         </Chip>
                       </TableCell>
-                      
+
                       <TableCell>
                         <Chip size="sm" variant="flat" color="secondary">
                           {config.entity_type}
@@ -865,7 +1085,9 @@ export default function DocumentReminders() {
                       <TableCell>
                         <Switch
                           isSelected={config.active}
-                          onValueChange={(value) => toggleReminderConfig(config.id, value)}
+                          onValueChange={(value) =>
+                            toggleReminderConfig(config.id, value)
+                          }
                           color="success"
                           size="sm"
                         />
@@ -881,13 +1103,17 @@ export default function DocumentReminders() {
                           <DropdownMenu>
                             <DropdownItem
                               key="edit"
-                              startContent={<Icon icon="solar:pen-bold" width={16} />}
+                              startContent={
+                                <Icon icon="solar:pen-bold" width={16} />
+                              }
                             >
                               Modifica
                             </DropdownItem>
                             <DropdownItem
                               key="duplicate"
-                              startContent={<Icon icon="solar:copy-bold" width={16} />}
+                              startContent={
+                                <Icon icon="solar:copy-bold" width={16} />
+                              }
                             >
                               Duplica
                             </DropdownItem>
@@ -895,7 +1121,12 @@ export default function DocumentReminders() {
                               key="delete"
                               className="text-danger"
                               color="danger"
-                              startContent={<Icon icon="solar:trash-bin-trash-bold" width={16} />}
+                              startContent={
+                                <Icon
+                                  icon="solar:trash-bin-trash-bold"
+                                  width={16}
+                                />
+                              }
                             >
                               Elimina
                             </DropdownItem>
@@ -912,4 +1143,4 @@ export default function DocumentReminders() {
       </Tabs>
     </div>
   );
-} 
+}

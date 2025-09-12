@@ -131,7 +131,6 @@ export default function ViewEventModal({
     useState<CalendarEvent>(INITIAL_EVENT_DATA);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [newPartecipant, setNewPartecipant] = useState<EventPartecipant>({
     EventPartecipantId: 0,
     EventPartecipantEmail: "",
@@ -139,8 +138,133 @@ export default function ViewEventModal({
     EventPartecipantStatus: "pending",
   });
 
+  // Stato per le notifiche temporanee
+  const [notification, setNotification] = useState<{
+    show: boolean;
+    message: string;
+    type: "success" | "error";
+  }>({
+    show: false,
+    message: "",
+    type: "success",
+  });
+
+  // Funzione per mostrare notifiche temporanee
+  const showNotification = (message: string, type: "success" | "error") => {
+    setNotification({ show: true, message, type });
+    setTimeout(() => {
+      setNotification({ show: false, message: "", type: "success" });
+    }, 3000); // Nasconde la notifica dopo 3 secondi
+  };
+
+  // Stati per le assegnazioni (cliente e tecnico)
+  const [availableCustomers, setAvailableCustomers] = useState<any[]>([]);
+  const [availableTechnicians, setAvailableTechnicians] = useState<any[]>([]);
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>("");
+  const [selectedTechnicianId, setSelectedTechnicianId] = useState<string>("");
+
+  // Opzioni per la priorità
+  const priorityOptions = [
+    { key: "Normale", label: "🟢 Normale" },
+    { key: "Alta", label: "🟡 Alta" },
+    { key: "Urgente", label: "🟠 Urgente" },
+    { key: "Emergenza", label: "🔴 Emergenza" },
+  ];
+
+  // Funzione per convertire le date nel formato corretto per i campi input
+  const formatDateForInput = (date: any): string => {
+    if (!date) return "";
+
+    // Se è già nel formato YYYY-MM-DD, restituiscilo
+    if (typeof date === "string" && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      return date;
+    }
+
+    // Se è nel formato ISO con timezone, estrai solo la parte data
+    if (typeof date === "string" && date.includes("T")) {
+      return date.split("T")[0];
+    }
+
+    // Se è un oggetto Date, convertilo direttamente
+    if (date instanceof Date) {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, "0");
+      const day = String(date.getDate()).padStart(2, "0");
+      return `${year}-${month}-${day}`;
+    }
+
+    // Altrimenti, prova a convertirlo evitando problemi di fuso orario
+    try {
+      // Se è una stringa che sembra una data, prova a parsarla manualmente
+      if (typeof date === "string") {
+        // Prova diversi formati comuni
+        const dateFormats = [
+          /^(\d{4})-(\d{2})-(\d{2})$/, // YYYY-MM-DD
+          /^(\d{2})\/(\d{2})\/(\d{4})$/, // DD/MM/YYYY
+          /^(\d{2})-(\d{2})-(\d{4})$/, // DD-MM-YYYY
+        ];
+
+        for (const format of dateFormats) {
+          const match = date.match(format);
+          if (match) {
+            if (format.source.includes("YYYY")) {
+              // Formato YYYY-MM-DD
+              return `${match[1]}-${match[2]}-${match[3]}`;
+            } else {
+              // Formato DD/MM/YYYY o DD-MM-YYYY
+              return `${match[3]}-${match[2]}-${match[1]}`;
+            }
+          }
+        }
+      }
+
+      const dateObj = new Date(date);
+      if (isNaN(dateObj.getTime())) return "";
+
+      // Usa getFullYear, getMonth, getDate per evitare problemi di fuso orario
+      const year = dateObj.getFullYear();
+      const month = String(dateObj.getMonth() + 1).padStart(2, "0");
+      const day = String(dateObj.getDate()).padStart(2, "0");
+
+      return `${year}-${month}-${day}`;
+    } catch (error) {
+      console.error("Errore conversione data:", error, "Data originale:", date);
+      return "";
+    }
+  };
+
+  // Funzione per caricare clienti e tecnici disponibili
+  const loadCustomersAndTechnicians = async () => {
+    try {
+      // Carica clienti
+      const customersResponse = await axios.get("Customer/GET/GetAllCustomers");
+      if (customersResponse.data) {
+        setAvailableCustomers(
+          Array.isArray(customersResponse.data) ? customersResponse.data : []
+        );
+      }
+
+      // Carica tecnici (dipendenti)
+      const techniciansResponse = await axios.get(
+        "Employee/GET/GetAllEmployees"
+      );
+      if (techniciansResponse.data) {
+        setAvailableTechnicians(
+          Array.isArray(techniciansResponse.data)
+            ? techniciansResponse.data
+            : []
+        );
+      }
+    } catch (error) {
+      console.error("Errore caricamento clienti/tecnici:", error);
+    }
+  };
+
   useEffect(() => {
     if (isOpen && eventId) {
+      // Carica clienti e tecnici disponibili
+      loadCustomersAndTechnicians();
+
       // Se abbiamo i dati dell'evento, usali direttamente
       if (providedEventData) {
         // Normalizza i dati per assicurarsi che gli array siano sempre definiti
@@ -148,9 +272,23 @@ export default function ViewEventModal({
           ...providedEventData,
           EventAttachments: providedEventData.EventAttachments || [],
           EventPartecipants: providedEventData.EventPartecipants || [],
+          // Corregge le date per evitare problemi di fuso orario
+          EventStartDate: formatDateForInput(providedEventData.EventStartDate),
+          EventEndDate: formatDateForInput(providedEventData.EventEndDate),
         };
         setEventData(normalizedEventData);
         setOriginalEventData(normalizedEventData);
+
+        // Inizializza le selezioni per cliente e tecnico
+        if (normalizedEventData.CustomerInfo) {
+          setSelectedCustomerId(normalizedEventData.CustomerInfo.customer_id);
+        }
+        if (normalizedEventData.TechnicianAssignment) {
+          setSelectedTechnicianId(
+            normalizedEventData.TechnicianAssignment.technician_id
+          );
+        }
+
         setLoading(false);
       } else {
         // Altrimenti fai la chiamata API (fallback)
@@ -194,10 +332,10 @@ export default function ViewEventModal({
           EventTitle:
             eventData.EventTitle || eventData.title || `Evento #${eventId}`,
           EventStartDate: eventData.EventStartDate
-            ? new Date(eventData.EventStartDate).toISOString().split("T")[0]
+            ? formatDateForInput(eventData.EventStartDate)
             : new Date().toISOString().split("T")[0],
           EventEndDate: eventData.EventEndDate
-            ? new Date(eventData.EventEndDate).toISOString().split("T")[0]
+            ? formatDateForInput(eventData.EventEndDate)
             : new Date().toISOString().split("T")[0],
           EventStartTime: eventData.EventStartTime || eventData.startTime || "",
           EventEndTime: eventData.EventEndTime || eventData.endTime || "",
@@ -266,21 +404,39 @@ export default function ViewEventModal({
     setLoading(true);
 
     try {
+      // Prepara i dati per l'invio, assicurandosi che le date siano nel formato corretto
+      const dataToSend = {
+        ...eventData,
+        EventStartDate: eventData.EventStartDate || null,
+        EventEndDate: eventData.EventEndDate || null,
+      };
+
       // Chiamata API reale per aggiornare l'evento
-      const response = await axios.put("Customer/PUT/UpdateEvent", eventData);
+      const response = await axios.put(
+        "Customer/UPDATE/UpdateEvent",
+        dataToSend
+      );
 
       const updatedEvent = response.data;
 
-      if (onEventUpdated) {
-        onEventUpdated(updatedEvent);
-      }
+      // Processa le date restituite dal server per assicurarsi che siano nel formato corretto
+      const processedUpdatedEvent = {
+        ...updatedEvent,
+        EventStartDate: formatDateForInput(updatedEvent.EventStartDate),
+        EventEndDate: formatDateForInput(updatedEvent.EventEndDate),
+      };
 
       setOriginalEventData(eventData);
       setIsEditing(false);
-      alert("Evento aggiornato con successo!");
+      showNotification("Evento aggiornato con successo!", "success");
+
+      // Chiama il callback per aggiornare il calendario
+      if (onEventUpdated) {
+        onEventUpdated(processedUpdatedEvent);
+      }
     } catch (error) {
       console.error("Errore aggiornamento evento:", error);
-      alert("Errore durante l'aggiornamento dell'evento");
+      showNotification("Errore durante l'aggiornamento dell'evento", "error");
     } finally {
       setLoading(false);
     }
@@ -291,20 +447,17 @@ export default function ViewEventModal({
 
     try {
       // Chiamata API reale per eliminare l'evento
-      await axios.delete(`Customer/DELETE/DeleteEvent`, {
-        params: { eventId: eventId },
-      });
+      await axios.delete(`Customer/DELETE/DeleteEvent/${eventId}`);
 
+      showNotification("Evento eliminato con successo!", "success");
+
+      // Chiama il callback per aggiornare il calendario
       if (onEventDeleted) {
         onEventDeleted(eventId);
       }
-
-      setShowDeleteModal(false);
-      isClosed();
-      alert("Evento eliminato con successo!");
     } catch (error) {
       console.error("Errore eliminazione evento:", error);
-      alert("Errore durante l'eliminazione dell'evento");
+      showNotification("Errore durante l'eliminazione dell'evento", "error");
     } finally {
       setLoading(false);
     }
@@ -391,11 +544,40 @@ export default function ViewEventModal({
 
   return (
     <>
+      {/* Notifica temporanea volante */}
+      {notification.show && (
+        <div
+          className={`fixed top-4 right-4 z-50 px-6 py-4 rounded-lg shadow-lg transition-all duration-300 ease-in-out ${
+            notification.type === "success"
+              ? "bg-success-50 border border-success-200 text-success-800"
+              : "bg-danger-50 border border-danger-200 text-danger-800"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <Icon
+              icon={
+                notification.type === "success"
+                  ? "solar:check-circle-bold"
+                  : "solar:close-circle-bold"
+              }
+              width={20}
+              className={
+                notification.type === "success"
+                  ? "text-success-600"
+                  : "text-danger-600"
+              }
+            />
+            <span className="font-medium">{notification.message}</span>
+          </div>
+        </div>
+      )}
+
       <Modal
         isOpen={isOpen}
         onClose={isClosed}
         size="3xl"
         scrollBehavior="inside"
+        hideCloseButton
         motionProps={{
           variants: {
             enter: {
@@ -434,23 +616,16 @@ export default function ViewEventModal({
                 <div className="flex gap-2">
                   <Button
                     variant="flat"
-                    size="sm"
+                    size="md"
                     onPress={() => setIsEditing(true)}
                     startContent={<Icon icon="solar:pen-2-bold" width={16} />}
                   >
                     Modifica
                   </Button>
-                  <Button
-                    color="danger"
-                    variant="flat"
-                    size="sm"
-                    onPress={() => setShowDeleteModal(true)}
-                    startContent={
-                      <Icon icon="solar:trash-bin-trash-bold" width={16} />
-                    }
-                  >
-                    Elimina
-                  </Button>
+                  <ConfirmDeleteEventModal
+                    EventData={eventData}
+                    DeleteEvent={handleDelete}
+                  />
                 </div>
               )}
             </div>
@@ -527,7 +702,7 @@ export default function ViewEventModal({
                       <Input
                         label="Data Inizio"
                         type="date"
-                        value={eventData.EventStartDate}
+                        value={formatDateForInput(eventData.EventStartDate)}
                         onChange={(e) =>
                           setEventData((prev) => ({
                             ...prev,
@@ -538,7 +713,7 @@ export default function ViewEventModal({
                       <Input
                         label="Data Fine"
                         type="date"
-                        value={eventData.EventEndDate}
+                        value={formatDateForInput(eventData.EventEndDate)}
                         onChange={(e) =>
                           setEventData((prev) => ({
                             ...prev,
@@ -617,50 +792,6 @@ export default function ViewEventModal({
                   )}
                 </div>
 
-                {/* CosmicHub Specific Fields */}
-                {(eventData.EventType ||
-                  eventData.EventPriority ||
-                  eventData.EstimatedDuration) && (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {eventData.EventType && (
-                      <div>
-                        <label className="text-sm font-medium text-default-600">
-                          Tipo Intervento
-                        </label>
-                        <p className="text-base">{eventData.EventType}</p>
-                      </div>
-                    )}
-
-                    {eventData.EventPriority && (
-                      <div>
-                        <label className="text-sm font-medium text-default-600">
-                          Priorità
-                        </label>
-                        <div className="flex items-center gap-2">
-                          <span className="text-lg">
-                            {eventData.EventPriority === "Normale" && "🟢"}
-                            {eventData.EventPriority === "Alta" && "🟡"}
-                            {eventData.EventPriority === "Urgente" && "🟠"}
-                            {eventData.EventPriority === "Emergenza" && "🔴"}
-                          </span>
-                          <p className="text-base">{eventData.EventPriority}</p>
-                        </div>
-                      </div>
-                    )}
-
-                    {eventData.EstimatedDuration && (
-                      <div>
-                        <label className="text-sm font-medium text-default-600">
-                          Durata Stimata
-                        </label>
-                        <p className="text-base">
-                          {formatDuration(eventData.EstimatedDuration)}
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-
                 {/* Location */}
                 {isEditing ? (
                   <Input
@@ -685,6 +816,46 @@ export default function ViewEventModal({
                       <p className="text-base flex items-center gap-2">
                         <Icon icon="solar:map-point-bold" width={16} />
                         {eventData.EventLocation}
+                      </p>
+                    </div>
+                  )
+                )}
+
+                {/* Priority */}
+                {isEditing ? (
+                  <Select
+                    label="Priorità"
+                    placeholder="Seleziona priorità"
+                    selectedKeys={
+                      eventData.EventPriority ? [eventData.EventPriority] : []
+                    }
+                    onSelectionChange={(keys) => {
+                      const priority = Array.from(keys)[0] as string;
+                      setEventData((prev) => ({
+                        ...prev,
+                        EventPriority: priority,
+                      }));
+                    }}
+                    startContent={<Icon icon="solar:flag-bold" width={20} />}
+                  >
+                    {priorityOptions.map((option) => (
+                      <SelectItem key={option.key}>{option.label}</SelectItem>
+                    ))}
+                  </Select>
+                ) : (
+                  eventData.EventPriority && (
+                    <div>
+                      <label className="text-sm font-medium text-default-600">
+                        Priorità
+                      </label>
+                      <p className="text-base flex items-center gap-2">
+                        <span className="text-lg">
+                          {eventData.EventPriority === "Normale" && "🟢"}
+                          {eventData.EventPriority === "Alta" && "🟡"}
+                          {eventData.EventPriority === "Urgente" && "🟠"}
+                          {eventData.EventPriority === "Emergenza" && "🔴"}
+                        </span>
+                        {eventData.EventPriority}
                       </p>
                     </div>
                   )
@@ -717,13 +888,197 @@ export default function ViewEventModal({
                 )}
 
                 {/* Assegnazioni Unificate */}
-                {(eventData.CustomerInfo || eventData.TechnicianAssignment) && (
-                  <div className="border border-default-200 rounded-lg p-4 bg-default-50">
-                    <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
-                      <Icon icon="solar:user-bold" width={16} />
-                      Assegnazioni
-                    </h3>
+                <div className="border border-default-200 rounded-lg p-4 bg-default-50">
+                  <h3 className="font-semibold text-sm mb-4 flex items-center gap-2">
+                    <Icon icon="solar:user-bold" width={16} />
+                    Assegnazioni
+                  </h3>
 
+                  {isEditing ? (
+                    <>
+                      {/* Select per Cliente e Tecnico (sempre visibili quando non ci sono assegnazioni) */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        {!eventData.CustomerInfo && (
+                          <Select
+                            label="Cliente"
+                            placeholder="Seleziona cliente"
+                            selectedKeys={
+                              selectedCustomerId ? [selectedCustomerId] : []
+                            }
+                            onSelectionChange={(keys) => {
+                              const customerId = Array.from(keys)[0] as string;
+                              setSelectedCustomerId(customerId);
+
+                              // Trova i dati del cliente selezionato
+                              const selectedCustomer = availableCustomers.find(
+                                (c) => c.customer_id === customerId
+                              );
+                              if (selectedCustomer) {
+                                setEventData((prev) => ({
+                                  ...prev,
+                                  CustomerInfo: {
+                                    customer_id: selectedCustomer.customer_id,
+                                    customer_name: `${selectedCustomer.name} ${selectedCustomer.surname}`,
+                                    customer_phone: selectedCustomer.phone,
+                                    customer_email:
+                                      selectedCustomer.email || "",
+                                    customer_address:
+                                      selectedCustomer.address || "",
+                                    customer_type:
+                                      selectedCustomer.type || "Cliente",
+                                  },
+                                }));
+                              }
+                            }}
+                          >
+                            {availableCustomers.map((customer) => (
+                              <SelectItem key={customer.customer_id}>
+                                {customer.name} {customer.surname}
+                              </SelectItem>
+                            ))}
+                          </Select>
+                        )}
+
+                        {!eventData.TechnicianAssignment && (
+                          <Select
+                            label="Tecnico"
+                            placeholder="Seleziona tecnico"
+                            selectedKeys={
+                              selectedTechnicianId ? [selectedTechnicianId] : []
+                            }
+                            onSelectionChange={(keys) => {
+                              const technicianId = Array.from(
+                                keys
+                              )[0] as string;
+                              setSelectedTechnicianId(technicianId);
+
+                              // Trova i dati del tecnico selezionato
+                              const selectedTechnician =
+                                availableTechnicians.find(
+                                  (t) => t.user_id === technicianId
+                                );
+                              if (selectedTechnician) {
+                                setEventData((prev) => ({
+                                  ...prev,
+                                  TechnicianAssignment: {
+                                    technician_id: selectedTechnician.user_id,
+                                    technician_name: `${selectedTechnician.name} ${selectedTechnician.surname}`,
+                                    role: selectedTechnician.role || "Tecnico",
+                                    availability_status:
+                                      selectedTechnician.availability_status ||
+                                      "Disponibile",
+                                  },
+                                }));
+                              }
+                            }}
+                          >
+                            {availableTechnicians.map((technician) => (
+                              <SelectItem key={technician.user_id}>
+                                {technician.name} {technician.surname}
+                              </SelectItem>
+                            ))}
+                          </Select>
+                        )}
+                      </div>
+
+                      {/* Informazioni Assegnate (sempre visibili quando ci sono assegnazioni) */}
+                      {(eventData.CustomerInfo ||
+                        eventData.TechnicianAssignment) && (
+                        <div className="space-y-3 pt-3 border-t border-default-200">
+                          {eventData.CustomerInfo && (
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">
+                                  <span className="text-lg">👤</span>
+                                </div>
+                                <div className="flex flex-col">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-blue-700 dark:text-blue-300">
+                                      Cliente:
+                                    </span>
+                                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                      {eventData.CustomerInfo.customer_name}
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-blue-600 dark:text-blue-400">
+                                    📞 {eventData.CustomerInfo.customer_phone}
+                                  </span>
+                                  {eventData.CustomerInfo.customer_email && (
+                                    <span className="text-xs text-blue-600 dark:text-blue-400">
+                                      ✉️ {eventData.CustomerInfo.customer_email}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                color="danger"
+                                variant="light"
+                                onPress={() => {
+                                  setSelectedCustomerId("");
+                                  setEventData((prev) => ({
+                                    ...prev,
+                                    CustomerInfo: undefined,
+                                  }));
+                                }}
+                                className="flex-shrink-0"
+                              >
+                                <Icon
+                                  icon="solar:trash-bin-trash-bold"
+                                  width={14}
+                                />
+                              </Button>
+                            </div>
+                          )}
+
+                          {eventData.TechnicianAssignment && (
+                            <div className="flex items-center justify-between p-3 rounded-lg bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700">
+                              <div className="flex items-center gap-3">
+                                <div className="w-8 h-8 rounded-full bg-orange-500 flex items-center justify-center">
+                                  <span className="text-lg">🔧</span>
+                                </div>
+                                <div className="flex flex-col">
+                                  <div className="flex items-center gap-2">
+                                    <span className="text-sm font-semibold text-orange-700 dark:text-orange-300">
+                                      Tecnico:
+                                    </span>
+                                    <span className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                                      {
+                                        eventData.TechnicianAssignment
+                                          .technician_name
+                                      }
+                                    </span>
+                                  </div>
+                                  <span className="text-xs text-orange-600 dark:text-orange-400">
+                                    🛠️ Tecnico assegnato
+                                  </span>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                color="danger"
+                                variant="light"
+                                onPress={() => {
+                                  setSelectedTechnicianId("");
+                                  setEventData((prev) => ({
+                                    ...prev,
+                                    TechnicianAssignment: undefined,
+                                  }));
+                                }}
+                                className="flex-shrink-0"
+                              >
+                                <Icon
+                                  icon="solar:trash-bin-trash-bold"
+                                  width={14}
+                                />
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  ) : (
+                    /* Visualizzazione Assegnazioni */
                     <div className="space-y-3">
                       {eventData.CustomerInfo && (
                         <div className="flex items-center justify-between p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700">
@@ -779,8 +1134,8 @@ export default function ViewEventModal({
                         </div>
                       )}
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Accordion for Advanced Info */}
                 {((eventData.EventPartecipants?.length || 0) > 0 ||
@@ -789,10 +1144,13 @@ export default function ViewEventModal({
                   eventData.InterventionNotes) && (
                   <Accordion>
                     {[
-                      (eventData.EventPartecipants?.length || 0) > 0 || isEditing ? (
+                      (eventData.EventPartecipants?.length || 0) > 0 ||
+                      isEditing ? (
                         <AccordionItem
                           key="participants"
-                          title={`Partecipanti (${eventData.EventPartecipants?.length || 0})`}
+                          title={`Partecipanti (${
+                            eventData.EventPartecipants?.length || 0
+                          })`}
                           startContent={
                             <Icon
                               icon="solar:users-group-rounded-bold"
@@ -836,58 +1194,60 @@ export default function ViewEventModal({
                               </div>
                             )}
 
-                            {(eventData.EventPartecipants || []).map((participant) => (
-                              <div
-                                key={participant.EventPartecipantId}
-                                className="flex items-center justify-between bg-default-100 rounded-lg p-3"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <Avatar
-                                    name={participant.EventPartecipantEmail}
-                                    size="sm"
-                                  />
-                                  <div>
-                                    <div className="font-medium text-sm">
-                                      {participant.EventPartecipantEmail}
-                                    </div>
-                                    <div className="text-xs text-default-500">
-                                      {participant.EventPartecipantRole}
+                            {(eventData.EventPartecipants || []).map(
+                              (participant) => (
+                                <div
+                                  key={participant.EventPartecipantId}
+                                  className="flex items-center justify-between bg-default-100 rounded-lg p-3"
+                                >
+                                  <div className="flex items-center gap-3">
+                                    <Avatar
+                                      name={participant.EventPartecipantEmail}
+                                      size="sm"
+                                    />
+                                    <div>
+                                      <div className="font-medium text-sm">
+                                        {participant.EventPartecipantEmail}
+                                      </div>
+                                      <div className="text-xs text-default-500">
+                                        {participant.EventPartecipantRole}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                  <Chip
-                                    size="sm"
-                                    color={
-                                      getStatusColor(
-                                        participant.EventPartecipantStatus
-                                      ) as any
-                                    }
-                                    variant="flat"
-                                  >
-                                    {participant.EventPartecipantStatus}
-                                  </Chip>
-                                  {isEditing && (
-                                    <Button
-                                      onPress={() =>
-                                        removePartecipant(
-                                          participant.EventPartecipantId
-                                        )
-                                      }
-                                      isIconOnly
+                                  <div className="flex items-center gap-2">
+                                    <Chip
                                       size="sm"
-                                      color="danger"
-                                      variant="light"
+                                      color={
+                                        getStatusColor(
+                                          participant.EventPartecipantStatus
+                                        ) as any
+                                      }
+                                      variant="flat"
                                     >
-                                      <Icon
-                                        icon="solar:trash-bin-trash-bold"
-                                        width={14}
-                                      />
-                                    </Button>
-                                  )}
+                                      {participant.EventPartecipantStatus}
+                                    </Chip>
+                                    {isEditing && (
+                                      <Button
+                                        onPress={() =>
+                                          removePartecipant(
+                                            participant.EventPartecipantId
+                                          )
+                                        }
+                                        isIconOnly
+                                        size="sm"
+                                        color="danger"
+                                        variant="light"
+                                      >
+                                        <Icon
+                                          icon="solar:trash-bin-trash-bold"
+                                          width={14}
+                                        />
+                                      </Button>
+                                    )}
+                                  </div>
                                 </div>
-                              </div>
-                            ))}
+                              )
+                            )}
                           </div>
                         </AccordionItem>
                       ) : null,
@@ -895,23 +1255,27 @@ export default function ViewEventModal({
                       (eventData.EventAttachments?.length || 0) > 0 ? (
                         <AccordionItem
                           key="attachments"
-                          title={`Allegati (${eventData.EventAttachments?.length || 0})`}
+                          title={`Allegati (${
+                            eventData.EventAttachments?.length || 0
+                          })`}
                           startContent={
                             <Icon icon="solar:paperclip-bold" width={20} />
                           }
                         >
                           <div className="space-y-3">
-                            {(eventData.EventAttachments || []).map((attachment) => (
-                              <FileCard
-                                key={attachment.EventAttachmentId}
-                                file={attachment}
-                                index={attachment.EventAttachmentId}
-                                DeleteFile={(file) =>
-                                  removeAttachment(file.EventAttachmentId)
-                                }
-                                variant="default"
-                              />
-                            ))}
+                            {(eventData.EventAttachments || []).map(
+                              (attachment) => (
+                                <FileCard
+                                  key={attachment.EventAttachmentId}
+                                  file={attachment}
+                                  index={attachment.EventAttachmentId}
+                                  DeleteFile={(file) =>
+                                    removeAttachment(file.EventAttachmentId)
+                                  }
+                                  variant="default"
+                                />
+                              )
+                            )}
                           </div>
                         </AccordionItem>
                       ) : null,
@@ -954,7 +1318,7 @@ export default function ViewEventModal({
                   isLoading={loading}
                   isDisabled={!eventData.EventTitle.trim()}
                 >
-                  {loading ? "Salvataggio..." : "Salva Modifiche"}
+                  {loading ? "Salvataggio..." : "Salva"}
                 </Button>
               </div>
             ) : (
@@ -965,11 +1329,6 @@ export default function ViewEventModal({
           </ModalFooter>
         </ModalContent>
       </Modal>
-
-      <ConfirmDeleteEventModal
-        EventData={eventData}
-        DeleteEvent={handleDelete}
-      />
     </>
   );
 }
