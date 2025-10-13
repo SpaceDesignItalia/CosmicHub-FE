@@ -551,19 +551,24 @@ export default function Vehicles() {
 
               {/* Dettaglio veicolo (nascosto in modalità lista, 8 colonne in modalità griglia) */}
               {activeTab === "grid" && selectedVehicle && (
-                <div className="lg:col-span-8">
-                  <VehicleMap
-                    vehicle={selectedVehicle}
-                    onEdit={() =>
-                      navigate(`/inventory/vehicles/edit/${selectedVehicle.id}`)
-                    }
-                    onDelete={handleDeleteVehicle}
-                  />
+                <div className="lg:col-span-8 h-full min-h-0">
+                  <div className="h-full rounded-xl border border-default-200 shadow-lg overflow-hidden">
+                    <div className="h-full overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-default-300">
+                      <VehicleMap
+                        vehicle={selectedVehicle}
+                        onEdit={() =>
+                          navigate(`/inventory/vehicles/edit/${selectedVehicle.id}`)
+                        }
+                        onDelete={handleDeleteVehicle}
+                      />
+                    </div>
+                  </div>
                 </div>
               )}
             </div>
           </>
         )}
+        </div>
       </div>
     </VehicleThemeProvider>
   );
