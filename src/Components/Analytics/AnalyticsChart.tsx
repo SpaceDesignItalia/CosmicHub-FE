@@ -334,21 +334,19 @@ export default function AnalyticsChart({ dataOverride }: { dataOverride?: ChartI
       `}</style>
       
       <ResponsiveContainer
-        className="min-h-[260px] md:min-h-[300px] [&_.recharts-surface]:outline-none"
-        height="100%"
+        className="[&_.recharts-surface]:outline-none"
+        height={300}
         width="100%"
       >
         <AreaChart
           accessibilityLayer
-          data={chartData}
-          height={300}
+          data={displayedData}
           margin={{
             left: 10,
             right: 10,
             top: 10,
             bottom: 5,
           }}
-          width={500}
         >
           <defs>
             <linearGradient id="colorGradient" x1="0" x2="0" y1="0" y2="1">
@@ -364,12 +362,7 @@ export default function AnalyticsChart({ dataOverride }: { dataOverride?: ChartI
               />
             </linearGradient>
           </defs>
-          <CartesianGrid
-            horizontalCoordinatesGenerator={() => [200, 150, 100, 50]}
-            stroke="hsl(var(--heroui-default-200))"
-            strokeDasharray="3 3"
-            vertical={false}
-          />
+          <CartesianGrid stroke="hsl(var(--heroui-default-200))" strokeDasharray="3 3" vertical={false} />
           <XAxis
             axisLine={false}
             dataKey="month"
@@ -409,7 +402,7 @@ export default function AnalyticsChart({ dataOverride }: { dataOverride?: ChartI
           />
           <Area
             activeDot={{
-              stroke: `hsl(var(--heroui-${color}))`,
+              stroke: `hsl(var(--heroui-${color}-500))`,
               strokeWidth: 2,
               fill: "hsl(var(--heroui-background))",
               r: 5,
@@ -418,7 +411,7 @@ export default function AnalyticsChart({ dataOverride }: { dataOverride?: ChartI
             animationEasing="ease"
             dataKey="value"
             fill="url(#colorGradient)"
-            stroke={`hsl(var(--heroui-${color}))`}
+            stroke={`hsl(var(--heroui-${color}-500))`}
             strokeWidth={2}
             type="monotone"
           />
