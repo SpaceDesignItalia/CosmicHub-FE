@@ -135,16 +135,40 @@ export default function AddVehicle() {
     e.preventDefault();
     setIsLoading(true);
     setFormError("");
+    setFieldErrors({});
 
     // Validazione base
-    if (
-      !formData.name ||
-      !formData.license_plate ||
-      !formData.capacity ||
-      !formData.type ||
-      !formData.last_inspection_date
-    ) {
-      setFormError("Tutti i campi sono obbligatori");
+    const errors: {
+      name?: string;
+      license_plate?: string;
+      capacity?: string;
+      type?: string;
+      last_inspection_date?: string;
+    } = {};
+
+    if (!formData.name) {
+      errors.name = "Inserisci il nome del veicolo";
+    }
+    if (!formData.license_plate) {
+      errors.license_plate = "Inserisci la targa";
+    } else if (!/^[A-Z0-9-]{5,10}$/.test(formData.license_plate)) {
+      errors.license_plate = "Formato targa non valido";
+    }
+    if (!formData.capacity) {
+      errors.capacity = "Inserisci la capacità";
+    } else if (Number(formData.capacity) <= 0) {
+      errors.capacity = "La capacità deve essere maggiore di 0";
+    }
+    if (!formData.type) {
+      errors.type = "Seleziona il tipo di veicolo";
+    }
+    if (!formData.last_inspection_date) {
+      errors.last_inspection_date = "Seleziona la data";
+    }
+
+    if (Object.keys(errors).length > 0) {
+      setFieldErrors(errors);
+      setFormError("Correggi i campi evidenziati");
       setIsLoading(false);
       return;
     }
