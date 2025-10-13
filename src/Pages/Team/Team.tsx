@@ -99,6 +99,16 @@ export default function Team() {
   );
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  // Add employee modal state
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [addError, setAddError] = useState("");
+  const [addFormData, setAddFormData] = useState({
+    name: "",
+    surname: "",
+    email: "",
+    role: "", // role_id as string
+  });
 
   // Stati per la modifica
   const [editFormData, setEditFormData] = useState({
