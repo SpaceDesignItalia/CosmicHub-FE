@@ -149,7 +149,7 @@ export default function AnalyticsChart({ dataOverride }: { dataOverride?: ChartI
   }, []);
 
   const activeChartData = React.useMemo(() => {
-    const chart = data.find((d) => d.key === activeChart);
+    const chart = sourceData.find((d) => d.key === activeChart);
 
     return {
       chartData: chart?.chartData ?? [],
@@ -165,7 +165,21 @@ export default function AnalyticsChart({ dataOverride }: { dataOverride?: ChartI
   }, [activeChart]);
 
   const {chartData, color, suffix, type} = activeChartData;
-  const activeChartInfo = data.find((d) => d.key === activeChart);
+  const displayedData = React.useMemo(() => {
+    switch (activeTab) {
+      case "6-months":
+        return chartData.slice(-6);
+      case "3-months":
+        return chartData.slice(-3);
+      case "30-days":
+      case "7-days":
+      case "24-hours":
+        return chartData.slice(-1);
+      default:
+        return chartData;
+    }
+  }, [chartData, activeTab]);
+  const activeChartInfo = sourceData.find((d) => d.key === activeChart);
 
   return (
     <section className="flex flex-col flex-nowrap">
@@ -188,7 +202,7 @@ export default function AnalyticsChart({ dataOverride }: { dataOverride?: ChartI
           {isMobile ? (
             <div className="mt-4 flex w-full overflow-x-auto pb-2 hide-scrollbar">
               <div className="flex gap-2">
-                {data.map(({key, value, title, suffix, type, icon, changeType, change}) => (
+                {sourceData.map(({key, value, title, suffix, type, icon, changeType, change}) => (
                   <button
                     key={key}
                     className={cn(
@@ -249,7 +263,7 @@ export default function AnalyticsChart({ dataOverride }: { dataOverride?: ChartI
           ) : (
             <div className="mt-2 flex w-full items-center">
               <div className="-my-3 flex w-full flex-wrap items-center gap-3 overflow-x-auto py-3">
-                {data.map(({key, change, changeType, type, value, title, suffix}) => (
+                {sourceData.map(({key, change, changeType, type, value, title, suffix}) => (
                   <button
                     key={key}
                     className={cn(
