@@ -436,6 +436,7 @@ export default function Vehicles() {
           ]}
         />
 
+        <div className="flex-1 overflow-hidden min-h-0">
         {isLoading ? (
           <div className="flex items-center justify-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -446,94 +447,69 @@ export default function Vehicles() {
           </div>
         ) : (
           <>
-            {/* Barra degli strumenti */}
-            <div className="flex justify-between items-center mb-5">
-              <div className="flex items-center gap-3">
-                <Input
-                  placeholder="Cerca per targa o modello..."
-                  startContent={<Icon icon="solar:magnifer-line-duotone" />}
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-60"
-                />
-                <Dropdown>
-                  <DropdownTrigger>
-                    <Button variant="light">
-                      {selectedVehicleType}
-                      <Icon icon="solar:arrow-down-linear" className="ml-2" />
-                    </Button>
-                  </DropdownTrigger>
-                  <DropdownMenu
-                    aria-label="Tipi veicolo"
-                    onAction={(key) =>
-                      setSelectedVehicleType(vehicleTypes[Number(key)])
-                    }
-                  >
-                    {vehicleTypes.map((tipo, index) => (
-                      <DropdownItem key={index.toString()}>{tipo}</DropdownItem>
-                    ))}
-                  </DropdownMenu>
-                </Dropdown>
-              </div>
-
-              <div className="flex items-center gap-3">
-                <Tabs
-                  selectedKey={activeTab}
-                  onSelectionChange={(key) => setActiveTab(key as string)}
-                  color="primary"
-                  radius="full"
-                  size="md"
-                >
-                  <Tab
-                    key="grid"
-                    title={
-                      <div className="flex items-center gap-2">
-                        <Icon icon="solar:widget-2-linear" />
-                        <span className="hidden sm:inline">Griglia</span>
-                      </div>
-                    }
-                  />
-                  <Tab
-                    key="list"
-                    title={
-                      <div className="flex items-center gap-2">
-                        <Icon icon="solar:list-linear" />
-                        <span className="hidden sm:inline">Lista</span>
-                      </div>
-                    }
-                  />
-                </Tabs>
-
-                <Button
-                  color="primary"
-                  onPress={() => navigate("/inventory/vehicles/add")}
-                >
-                  <Icon
-                    icon="material-symbols:add"
-                    className="mr-1"
-                    width={24}
-                    height={24}
-                  />
-                  Nuovo Veicolo
-                </Button>
-              </div>
-            </div>
-
             {/* Layout principale */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 h-full overflow-hidden min-h-0">
               {/* Lista veicoli (occupa tutta la larghezza su mobile, 4 colonne su desktop) */}
               <div
-                className={
+                className={`min-h-0 h-full ${
                   activeTab === "grid" ? "lg:col-span-4" : "lg:col-span-12"
-                }
+                }`}
               >
-                <Card className="shadow-sm">
-                  <CardHeader className="border-b">
-                    <h3 className="text-xl font-semibold">
-                      Veicoli ({filteredVehicles.length})
-                    </h3>
+                <Card className="shadow-lg border border-default-200 rounded-xl h-full flex flex-col">
+                  <CardHeader className="bg-default-50/50 border-b pb-4 rounded-t-xl">
+                    <div className="flex flex-col gap-4 w-full">
+                      {/* Switch vista icone-only sopra la searchbar */}
+                      <div className="flex items-center">
+                        <Tabs
+                          selectedKey={activeTab}
+                          onSelectionChange={(key) => setActiveTab(key as string)}
+                          color="primary"
+                          variant="bordered"
+                          radius="full"
+                          size="sm"
+                        >
+                          <Tab key="grid" title={<Icon icon="solar:widget-2-linear" />} />
+                          <Tab key="list" title={<Icon icon="solar:list-linear" />} />
+                        </Tabs>
+                      </div>
+                      <div className="relative w-full">
+                        <Input
+                          placeholder="Cerca per targa o modello..."
+                          startContent={<Icon icon="solar:magnifer-linear" className="text-default-400 text-lg" />}
+                          endContent={
+                            searchQuery ? (
+                              <button
+                                type="button"
+                                onClick={() => setSearchQuery("")}
+                                className="text-default-400 hover:text-default-700"
+                                aria-label="Pulisci ricerca"
+                              >
+                                <Icon icon="solar:close-circle-linear" width={18} />
+                              </button>
+                            ) : null
+                          }
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="w-full"
+                          size="md"
+                          variant="bordered"
+                          classNames={{
+                            base: "w-full",
+                            input: "text-sm",
+                            inputWrapper: "w-full bg-default-50/50 border-default-200 hover:border-default-300 focus-within:border-primary"
+                          }}
+                        />
+                        {searchQuery && (
+                          <div className="absolute right-12 top-1/2 transform -translate-y-1/2">
+                            <div className="bg-primary/10 text-primary px-2 py-1 rounded-full text-xs font-medium">
+                              {filteredVehicles.length} risultato{filteredVehicles.length !== 1 ? 'i' : ''}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </CardHeader>
-                  <CardBody className="p-3">
+                  <CardBody className="p-3 flex-1 overflow-y-auto scrollbar-thin scrollbar-track-transparent scrollbar-thumb-default-300 min-h-0">
                     {filteredVehicles.length > 0 ? (
                       <div
                         className={`${
