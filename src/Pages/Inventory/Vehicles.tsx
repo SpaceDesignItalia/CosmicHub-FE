@@ -11,11 +11,6 @@ import {
   Tabs,
   Tab,
   Input,
-  Dropdown,
-  DropdownTrigger,
-  DropdownMenu,
-  DropdownItem,
-  Button,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import PageHeader from "../../Components/Layout/PageHeader";
@@ -102,21 +97,14 @@ export default function Vehicles() {
   const [selectedVehicle, setSelectedVehicle] = useState<Vehicle | null>(null);
   const [activeTab, setActiveTab] = useState("grid");
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedVehicleType, setSelectedVehicleType] = useState("Tutti");
   const selectedVehicleRef = useRef<HTMLDivElement>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
 
-  // Tipi di veicolo disponibili
-  const vehicleTypes = ["Tutti", "Large Van", "Small Van"];
-
-  // Filtra i veicoli in base alla ricerca e al tipo selezionato
+  // Filtra i veicoli in base alla ricerca
   const filteredVehicles = vehicles.filter((vehicle) => {
     const matchesSearch =
       vehicle.plate.toLowerCase().includes(searchQuery.toLowerCase()) ||
       vehicle.model.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesType =
-      selectedVehicleType === "Tutti" || vehicle.type === selectedVehicleType;
-    return matchesSearch && matchesType;
+    return matchesSearch;
   });
 
 
