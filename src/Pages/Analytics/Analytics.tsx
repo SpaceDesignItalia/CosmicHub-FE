@@ -201,11 +201,11 @@ export default function Dashboard() {
         <div className="flex flex-col gap-6">
           {/* Metriche principali */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <Card className="p-4">
+            <Card className="p-4 shadow-sm border border-default-200 rounded-xl bg-content1/80">
               <div className="flex justify-between">
                 <div>
                   <p className="text-default-900">Valore Totale</p>
-                  <h3 className="text-2xl font-bold">€184.250</h3>
+                  <h3 className="text-2xl font-bold">€{metrics.totalValue.toLocaleString("it-IT", { maximumFractionDigits: 0 })}</h3>
                 </div>
                 <div className="bg-primary-200 p-2 mb-4 rounded-full">
                   <Icon
@@ -215,20 +215,14 @@ export default function Dashboard() {
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-2 text-success">
-                <Icon icon="solar:arrow-up-bold" width={16} />
-                <span>8.2%</span>
-                <span className="text-default-900 text-xs">
-                  vs mese precedente
-                </span>
-              </div>
+              {/* Nessun trend disponibile senza storico prezzi/quantità */}
             </Card>
 
-            <Card className="p-4">
+            <Card className="p-4 shadow-sm border border-default-200 rounded-xl bg-content1/80">
               <div className="flex justify-between">
                 <div>
                   <p className="text-default-900">Ricambi Totali</p>
-                  <h3 className="text-2xl font-bold">4.382</h3>
+                  <h3 className="text-2xl font-bold">{metrics.totalParts.toLocaleString("it-IT")}</h3>
                 </div>
                 <div className="bg-secondary-100 p-2 mb-4 rounded-full">
                   <Icon
@@ -238,20 +232,14 @@ export default function Dashboard() {
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-2 text-success">
-                <Icon icon="solar:arrow-up-bold" width={16} />
-                <span>3.5%</span>
-                <span className="text-default-900 text-xs">
-                  vs mese precedente
-                </span>
-              </div>
+              {/* Trend non calcolabile senza storico */}
             </Card>
 
-            <Card className="p-4">
+            <Card className="p-4 shadow-sm border border-default-200 rounded-xl bg-content1/80">
               <div className="flex justify-between">
                 <div>
                   <p className="text-default-900">Movimenti</p>
-                  <h3 className="text-2xl font-bold">287</h3>
+                  <h3 className="text-2xl font-bold">{metrics.totalMovements.toLocaleString("it-IT")}</h3>
                 </div>
                 <div className="bg-warning-100 p-2 mb-4 rounded-full">
                   <Icon
@@ -261,20 +249,20 @@ export default function Dashboard() {
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-2 text-danger">
-                <Icon icon="solar:arrow-down-bold" width={16} />
-                <span>2.1%</span>
-                <span className="text-default-900 text-xs">
-                  vs mese precedente
-                </span>
-              </div>
+              {metrics.movementsChangePct !== null && (
+                <div className={`flex items-center gap-1 mt-2 ${metrics.movementsChangePct >= 0 ? "text-success" : "text-danger"}`}>
+                  <Icon icon={metrics.movementsChangePct >= 0 ? "solar:arrow-up-bold" : "solar:arrow-down-bold"} width={16} />
+                  <span>{Math.abs(metrics.movementsChangePct).toFixed(1)}%</span>
+                  <span className="text-default-900 text-xs">vs 30 giorni precedenti</span>
+                </div>
+              )}
             </Card>
 
-            <Card className="p-4">
+            <Card className="p-4 shadow-sm border border-default-200 rounded-xl bg-content1/80">
               <div className="flex justify-between">
                 <div>
                   <p className="text-default-900">Ricambi Critici</p>
-                  <h3 className="text-2xl font-bold">24</h3>
+                  <h3 className="text-2xl font-bold">{metrics.criticalParts.toLocaleString("it-IT")}</h3>
                 </div>
                 <div className="bg-danger-100 p-2 mb-4 rounded-full">
                   <Icon
@@ -284,13 +272,7 @@ export default function Dashboard() {
                   />
                 </div>
               </div>
-              <div className="flex items-center gap-1 mt-2 text-success">
-                <Icon icon="solar:arrow-down-bold" width={16} />
-                <span>5.8%</span>
-                <span className="text-default-900 text-xs">
-                  vs mese precedente
-                </span>
-              </div>
+              {/* Trend non calcolabile senza storico */}
             </Card>
           </div>
 
@@ -303,7 +285,7 @@ export default function Dashboard() {
           <CircleCharts />
 
           {/* Tabella ultimi movimenti */}
-          <Card className="w-full">
+          <Card className="w-full shadow-sm border border-default-200 rounded-xl">
             <CardHeader className="flex justify-between">
               <h3 className="text-lg font-semibold">Ultimi Movimenti</h3>
             </CardHeader>
