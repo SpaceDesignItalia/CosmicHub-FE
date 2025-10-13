@@ -23,7 +23,7 @@ import {
   Autocomplete,
   AutocompleteItem,
 } from "@heroui/react";
-import { parseDate, type CalendarDate } from "@internationalized/date";
+import { parseDate } from "@internationalized/date";
 import type { DateValue } from "@internationalized/date";
 import type { Employee } from "../../types/Employee";
 
@@ -34,6 +34,13 @@ export default function AddVehicle() {
   const [isLoading, setIsLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const { isOpen, onOpen, onClose } = useDisclosure();
+  const [fieldErrors, setFieldErrors] = useState<{
+    name?: string;
+    license_plate?: string;
+    capacity?: string;
+    type?: string;
+    last_inspection_date?: string;
+  }>({});
 
   // Form data state
   const [formData, setFormData] = useState({
@@ -83,6 +90,12 @@ export default function AddVehicle() {
       ...formData,
       [name]: value,
     });
+  };
+
+  // Normalizza la targa in maiuscolo e senza spazi
+  const handleLicensePlateChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value.toUpperCase().replace(/\s+/g, "");
+    setFormData((prev) => ({ ...prev, license_plate: value }));
   };
 
   // Gestisce il cambio del tipo di veicolo
