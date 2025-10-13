@@ -103,27 +103,38 @@ const formatValue = (value: number, type: string | undefined) => {
 };
 
 const formatMonth = (month: string) => {
-  const monthNumber =
-    {
-      Jan: 0,
-      Feb: 1,
-      Mar: 2,
-      Apr: 3,
-      May: 4,
-      Jun: 5,
-      Jul: 6,
-      Aug: 7,
-      Sep: 8,
-      Oct: 9,
-      Nov: 10,
-      Dec: 11,
-    }[month] ?? 0;
+  const monthMap: Record<string, number> = {
+    Gen: 0,
+    Feb: 1,
+    Mar: 2,
+    Apr: 3,
+    Mag: 4,
+    Giu: 5,
+    Lug: 6,
+    Ago: 7,
+    Set: 8,
+    Ott: 9,
+    Nov: 10,
+    Dic: 11,
+    Jan: 0,
+    May: 4,
+    Jun: 5,
+    Jul: 6,
+    Aug: 7,
+    Sep: 8,
+    Oct: 9,
+    Dec: 11,
+  };
 
-  return new Intl.DateTimeFormat("it-IT", {month: "long"}).format(new Date(2024, monthNumber, 1));
+  const idx = monthMap[month] ?? 0;
+  return new Intl.DateTimeFormat("it-IT", {month: "long"}).format(new Date(2024, idx, 1));
 };
 
-export default function AnalyticsChart() {
-  const [activeChart, setActiveChart] = React.useState<(typeof data)[number]["key"]>(data[0].key);
+type ChartInput = typeof data;
+
+export default function AnalyticsChart({ dataOverride }: { dataOverride?: ChartInput }) {
+  const sourceData = (dataOverride && dataOverride.length > 0) ? dataOverride : data;
+  const [activeChart, setActiveChart] = React.useState<(typeof sourceData)[number]["key"]>(sourceData[0].key);
   const [activeTab, setActiveTab] = React.useState("6-months");
   const [isMobile, setIsMobile] = React.useState(false);
 
