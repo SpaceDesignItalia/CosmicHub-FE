@@ -21,7 +21,6 @@ import {
   DropdownTrigger,
   DropdownMenu,
   DropdownItem,
-  Tooltip,
 } from "@heroui/react";
 import { Icon } from "@iconify/react";
 import axios from "axios";
@@ -60,6 +59,7 @@ interface SearchStats {
   uniqueLocations: number;
   warehouses: number;
   vehicles: number;
+  totalValue: number;
 }
 
 export default function GlobalProductSearch() {
@@ -74,6 +74,7 @@ export default function GlobalProductSearch() {
     uniqueLocations: 0,
     warehouses: 0,
     vehicles: 0,
+    totalValue: 0,
   });
   const [sortBy, setSortBy] = useState<"name" | "quantity" | "locations">("name");
   const [filterBy, setFilterBy] = useState<"all" | "warehouses" | "vehicles">("all");
@@ -270,6 +271,7 @@ export default function GlobalProductSearch() {
     const uniqueLocations = new Set(products.flatMap(p => p.locations.map(l => l.warehouse_id))).size;
     const warehouses = new Set(products.flatMap(p => p.locations.filter(l => l.location_type === "warehouse").map(l => l.warehouse_id))).size;
     const vehicles = new Set(products.flatMap(p => p.locations.filter(l => l.location_type === "vehicle").map(l => l.warehouse_id))).size;
+    const totalValue = products.reduce((sum, p) => sum + (p.total_quantity * (p.price || 0)), 0);
 
     setStats({
       totalProducts,
@@ -277,6 +279,7 @@ export default function GlobalProductSearch() {
       uniqueLocations,
       warehouses,
       vehicles,
+      totalValue,
     });
   };
 
@@ -424,7 +427,7 @@ export default function GlobalProductSearch() {
                     Valore Totale
                   </p>
                   <p className="text-2xl font-bold text-secondary-700 dark:text-secondary-300">
-                    €25.4K
+                    €{stats.totalValue.toLocaleString("it-IT", { maximumFractionDigits: 0 })}
                   </p>
                 </div>
                 <div className="w-12 h-12 rounded-xl bg-secondary-500/20 flex items-center justify-center">
