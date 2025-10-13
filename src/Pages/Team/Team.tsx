@@ -1551,6 +1551,139 @@ export default function Team() {
           </ModalContent>
         </Modal>
 
+        {/* Add Employee Modal */}
+        <Modal
+          isOpen={addModalOpen}
+          onClose={() => setAddModalOpen(false)}
+          size="lg"
+          backdrop="blur"
+          aria-label="Aggiungi tecnico"
+        >
+          <ModalContent>
+            <ModalHeader className="flex flex-col gap-1 bg-content1/50 backdrop-blur-md">
+              <div className="flex items-center gap-3">
+                <Icon icon="solar:user-plus-bold" className="text-primary" width={24} />
+                <span>Nuovo Tecnico</span>
+              </div>
+            </ModalHeader>
+            <ModalBody className="p-6">
+              {addError && (
+                <div className="mb-3 p-3 rounded-lg border border-danger-200 bg-danger-50 text-danger-700">
+                  {addError}
+                </div>
+              )}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Nome"
+                  placeholder="Mario"
+                  value={addFormData.name}
+                  onChange={(e) => setAddFormData((p) => ({ ...p, name: e.target.value }))}
+                  startContent={<Icon icon="solar:user-bold" width={18} className="text-default-400" />}
+                />
+                <Input
+                  label="Cognome"
+                  placeholder="Rossi"
+                  value={addFormData.surname}
+                  onChange={(e) => setAddFormData((p) => ({ ...p, surname: e.target.value }))}
+                  startContent={<Icon icon="solar:user-bold" width={18} className="text-default-400" />}
+                />
+                <Input
+                  className="md:col-span-2"
+                  type="email"
+                  label="Email"
+                  placeholder="mario.rossi@azienda.it"
+                  value={addFormData.email}
+                  onChange={(e) => setAddFormData((p) => ({ ...p, email: e.target.value }))}
+                  startContent={<Icon icon="solar:letter-bold" width={18} className="text-default-400" />}
+                />
+                <div className="md:col-span-2">
+                  <label className="text-sm font-medium text-default-600 mb-1 block">Ruolo</label>
+                  <Dropdown>
+                    <DropdownTrigger>
+                      <Button
+                        variant="bordered"
+                        className="justify-start w-full"
+                        startContent={<Icon icon="solar:medal-star-bold" width={18} className="text-default-400" />}
+                        endContent={<Icon icon="solar:arrow-down-linear" width={16} />}
+                      >
+                        {(() => {
+                          const r = roles.find((r) => r.role_id?.toString() === addFormData.role?.toString());
+                          return r ? r.name : "Seleziona ruolo";
+                        })()}
+                      </Button>
+                    </DropdownTrigger>
+                    <DropdownMenu
+                      aria-label="Selezione ruolo"
+                      selectedKeys={[addFormData.role]}
+                      onAction={(key) => setAddFormData((p) => ({ ...p, role: key as string }))}
+                    >
+                      {isLoadingRoles ? (
+                        <DropdownItem key="loading" isReadOnly>
+                          <div className="flex items-center gap-2">
+                            <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                            <span>Caricamento ruoli...</span>
+                          </div>
+                        </DropdownItem>
+                      ) : roles.length === 0 ? (
+                        <DropdownItem key="no-roles" isReadOnly>
+                          <span className="text-default-400">Nessun ruolo disponibile</span>
+                        </DropdownItem>
+                      ) : (
+                        roles.map((role) => (
+                          <DropdownItem key={role.role_id?.toString() || ""}>
+                            {role.name || "Ruolo non specificato"}
+                          </DropdownItem>
+                        ))
+                      )}
+                    </DropdownMenu>
+                  </Dropdown>
+                </div>
+              </div>
+            </ModalBody>
+            <ModalFooter className="bg-default-50 dark:bg-default-950">
+              <Button color="default" variant="light" onPress={() => setAddModalOpen(false)}>
+                Annulla
+              </Button>
+              <Button
+                color="primary"
+                isLoading={isCreating}
+                isDisabled={
+                  !addFormData.name || !addFormData.surname || !addFormData.email || !addFormData.role
+                }
+                onPress={async () => {
+                  try {
+                    setIsCreating(true);
+                    setAddError("");
+                    await axios.post(
+                      "/Employee/POST/CreateEmployee",
+                      {
+                        name: addFormData.name,
+                        surname: addFormData.surname,
+                        email: addFormData.email,
+                        role_id: Number(addFormData.role),
+                      },
+                      { withCredentials: true }
+                    );
+                    setAddModalOpen(false);
+                    setAddFormData({ name: "", surname: "", email: "", role: "" });
+                    setUpdateCounter((c) => c + 1);
+                  } catch (error: any) {
+                    console.error("Errore creazione tecnico:", error);
+                    setAddError(
+                      (error?.response?.data?.message as string) ||
+                        "Impossibile creare il tecnico. Riprova."
+                    );
+                  } finally {
+                    setIsCreating(false);
+                  }
+                }}
+              >
+                Crea Tecnico
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+
         {/* Vehicle Selection Modal */}
         <Modal
           isOpen={vehicleSelectionModalOpen}
