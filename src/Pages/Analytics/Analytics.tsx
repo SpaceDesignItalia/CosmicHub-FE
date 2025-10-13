@@ -117,24 +117,74 @@ const mapApiMovementToMovement = (movement: any): Movement => {
 export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(false);
   const [movements, setMovements] = useState<Movement[]>([]);
+  const [metrics, setMetrics] = useState({
+    totalValue: 0,
+    totalParts: 0,
+    totalMovements: 0,
+    criticalParts: 0,
+    movementsChangePct: 0 as number | null,
+  });
 
   useEffect(() => {
-    const fetchMovements = async () => {
+    const fetchAll = async () => {
       try {
         setIsLoading(true);
-        const response = await axios.get("/Product/GET/GetAllProductMovements");
-        const data = response.data.map(mapApiMovementToMovement);
-        // Prendi solo gli ultimi 10 movimenti per la dashboard
-        setMovements(data.slice(0, 5));
+        const [movementsRes, productsRes] = await Promise.all([
+          axios.get("/Product/GET/GetAllProductMovements"),
+          axios.get("/Product/GET/GetAllProducts").catch(() => ({ data: [] })),
+        ]);
+
+        // Movimenti (tabella + metrica)
+        const mappedMovements = movementsRes.data.map(mapApiMovementToMovement);
+        setMovements(mappedMovements.slice(0, 5));
+
+        // Trend movimenti: ultimi 30 giorni vs 30 giorni precedenti
+        const now = new Date();
+        const msInDay = 24 * 60 * 60 * 1000;
+        const startCurrent = new Date(now.getTime() - 30 * msInDay);
+        const startPrev = new Date(now.getTime() - 60 * msInDay);
+        const currentCount = mappedMovements.filter((m: Movement) => {
+          const d = new Date(m.date.split("/").reverse().join("-"));
+          return d >= startCurrent && d <= now;
+        }).length;
+        const prevCount = mappedMovements.filter((m: Movement) => {
+          const d = new Date(m.date.split("/").reverse().join("-"));
+          return d >= startPrev && d < startCurrent;
+        }).length;
+        const movementsChangePct = prevCount > 0 ? ((currentCount - prevCount) / prevCount) * 100 : null;
+
+        // Prodotti (metriche su quantità, valore, critici)
+        const products = productsRes.data as any[];
+        const totals = products.reduce(
+          (acc, p) => {
+            const qty = parseInt(p.stock_unit) || 0;
+            const min = parseInt(p.min_stock_treshold) || 0;
+            const price = Number(p.price) || 0;
+            acc.totalParts += qty;
+            acc.criticalParts += qty <= min ? 1 : 0;
+            acc.totalValue += qty * price;
+            return acc;
+          },
+          { totalParts: 0, criticalParts: 0, totalValue: 0 }
+        );
+
+        setMetrics({
+          totalValue: totals.totalValue,
+          totalParts: totals.totalParts,
+          totalMovements: movementsRes.data.length || 0,
+          criticalParts: totals.criticalParts,
+          movementsChangePct,
+        });
       } catch (error) {
-        console.error("Error fetching movements:", error);
+        console.error("Error fetching analytics:", error);
         setMovements([]);
+        setMetrics({ totalValue: 0, totalParts: 0, totalMovements: 0, criticalParts: 0, movementsChangePct: 0 });
       } finally {
         setIsLoading(false);
       }
     };
 
-    fetchMovements();
+    fetchAll();
   }, []);
 
   return (
