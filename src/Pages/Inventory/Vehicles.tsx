@@ -332,7 +332,7 @@ export default function Vehicles() {
         );
 
         // Aggiorna i veicoli mantenendo il veicolo selezionato
-        setVehicles((prevVehicles) => {
+        setVehicles(() => {
           // Se abbiamo un veicolo selezionato, manteniamolo aggiornato
           if (selectedVehicle) {
             const updatedSelectedVehicle = formattedVehicles.find(
@@ -387,7 +387,6 @@ export default function Vehicles() {
   const handleDeleteVehicle = async () => {
     if (!selectedVehicle) return;
 
-    setIsDeleting(true);
     try {
       await axios.delete(`/Warehouse/DELETE/DeleteVehicle`, {
         params: {
@@ -414,19 +413,17 @@ export default function Vehicles() {
     } catch (error) {
       console.error("Errore durante l'eliminazione del veicolo:", error);
       setError("Impossibile eliminare il veicolo. Riprova più tardi.");
-    } finally {
-      setIsDeleting(false);
     }
   };
 
   return (
     <VehicleThemeProvider>
-      <div className="h-screen flex flex-col bg-background p-6 gap-6">
+      <div className="h-screen flex flex-col bg-background p-6 gap-6 overflow-hidden">
         {/* Page Header */}
         <PageHeader
           title="Gestione Veicoli"
-          description="Monitora e gestisci la flotta di veicoli aziendali"
-          icon="mingcute:truck-line"
+          description="Monitora e gestisci la flotta aziendale"
+          icon="solar:bus-bold-duotone"
           size="md"
           actions={[
             {
