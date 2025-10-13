@@ -340,6 +340,7 @@ export default function Team() {
               icon: "solar:user-plus-bold",
               color: "primary",
               variant: "flat",
+              onClick: () => setAddModalOpen(true),
             },
             {
               label: "Report",
@@ -812,6 +813,7 @@ export default function Team() {
                     startContent={
                       <Icon icon="solar:user-plus-bold" width={16} />
                     }
+                    onPress={() => setAddModalOpen(true)}
                   >
                     Aggiungi Tecnico
                   </Button>
