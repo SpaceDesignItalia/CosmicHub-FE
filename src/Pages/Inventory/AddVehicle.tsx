@@ -213,7 +213,7 @@ export default function AddVehicle() {
   };
 
   return (
-    <div className="w-full flex-1 flex flex-col p-5 gap-5 bg-zinc-50 dark:bg-zinc-950">
+    <div className="h-screen flex flex-col bg-background p-6 gap-6">
       {/* Page Header */}
       <PageHeader
         title="Aggiungi Nuovo Veicolo"
@@ -232,8 +232,8 @@ export default function AddVehicle() {
       />
 
       {/* Form Card */}
-      <Card className="shadow-sm rounded-xl overflow-hidden border-2 border-default-200">
-        <CardHeader className="border-b">
+      <Card className="shadow-lg rounded-xl overflow-hidden border border-default-200">
+        <CardHeader className="border-b bg-default-50/50">
           <h2 className="text-xl font-semibold">Informazioni Veicolo</h2>
         </CardHeader>
         <CardBody className="p-6">
@@ -260,6 +260,9 @@ export default function AddVehicle() {
                   value={formData.name}
                   onChange={handleChange}
                   className="w-full"
+                  startContent={<Icon icon="solar:car-bold" className="text-default-400" />}
+                  isInvalid={!!fieldErrors.name}
+                  errorMessage={fieldErrors.name}
                 />
               </div>
 
@@ -276,8 +279,12 @@ export default function AddVehicle() {
                   name="license_plate"
                   placeholder="Es. AB123CD"
                   value={formData.license_plate}
-                  onChange={handleChange}
+                  onChange={handleLicensePlateChange}
                   className="w-full"
+                  startContent={<Icon icon="solar:hashtag-linear" className="text-default-400" />}
+                  isInvalid={!!fieldErrors.license_plate}
+                  errorMessage={fieldErrors.license_plate}
+                  maxLength={10}
                 />
               </div>
 
@@ -297,6 +304,10 @@ export default function AddVehicle() {
                   value={formData.capacity}
                   onChange={handleChange}
                   className="w-full"
+                  startContent={<Icon icon="solar:weight-bold" className="text-default-400" />}
+                  isInvalid={!!fieldErrors.capacity}
+                  errorMessage={fieldErrors.capacity}
+                  min={0}
                 />
               </div>
 
@@ -317,9 +328,16 @@ export default function AddVehicle() {
                     handleTypeChange(selectedKey);
                   }}
                   className="w-full"
+                  isInvalid={!!fieldErrors.type}
+                  errorMessage={fieldErrors.type}
                 >
                   {vehicleTypes.map((type) => (
-                    <SelectItem key={type.key}>{type.label}</SelectItem>
+                    <SelectItem
+                      key={type.key}
+                      startContent={<Icon icon={type.key === "Furgone grande" ? "solar:bus-bold" : "solar:delivery-bold"} className="text-default-500" />}
+                    >
+                      {type.label}
+                    </SelectItem>
                   ))}
                 </Select>
               </div>
@@ -341,6 +359,8 @@ export default function AddVehicle() {
                   }
                   onChange={handleDateChange}
                   className="w-full"
+                  isInvalid={!!fieldErrors.last_inspection_date}
+                  errorMessage={fieldErrors.last_inspection_date}
                 />
               </div>
 
@@ -388,7 +408,27 @@ export default function AddVehicle() {
 
             <Divider className="my-6" />
 
-            <div className="flex justify-end space-x-3">
+            {/* Preview sintetica del veicolo */}
+            <div className="rounded-lg border border-default-200 p-4 bg-default-50/30">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
+                  <Icon icon="solar:car-bold-duotone" className="text-primary" width={20} />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-default-500 truncate">
+                    {formData.license_plate || "—"}
+                  </p>
+                  <p className="font-medium text-foreground truncate">
+                    {formData.name || "Nuovo veicolo"}
+                  </p>
+                </div>
+                <div className="text-xs text-default-500">
+                  {formData.type || "Tipo non selezionato"}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3">
               <Button
                 variant="flat"
                 color="default"
